@@ -81,7 +81,7 @@
           "key": "ctrl+f ctrl+r",
           "mac": "cmd+f cmd+r"
       }
-  ]
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
