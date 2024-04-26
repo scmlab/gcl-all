@@ -78,8 +78,8 @@
     "keybindings": [
       {
           "command": "guabaovlang.refine",
-          "key": "ctrl+c ctrl+r",
-          "mac": "cmd+c cmd+r"
+          "key": "ctrl+f ctrl+r",
+          "mac": "cmd+f cmd+r"
       }
   ]
   },
