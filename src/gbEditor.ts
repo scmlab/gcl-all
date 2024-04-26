@@ -162,7 +162,7 @@ function renderSections(sections: Section[], extPath: string): string {
 			case 'Red':
 				return `<div class="bg-danger border rounded p-3">${renderBlocks(section.blocks)}</div>`;
 			case 'Yellow':
-				return `<div class="bg-warning border rounded p-3">${renderBlocks(section.blocks)}</div>`;
+				return `<div class="bg-warning border rounded p-3 text-dark">${renderBlocks(section.blocks)}</div>`;
 			case 'Blue':
 				return `<div class="bg-primary border rounded p-3">${renderBlocks(section.blocks)}</div>`;
 			case 'Green':
