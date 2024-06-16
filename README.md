@@ -1,5 +1,5 @@
-# guabaovlang README
-A VSCode extension developed to to handle GuaBao the guarded command language for verification.
+# README
+A formal verification tool for Guarded Command Language.
 
 
 ## Dev Notes
