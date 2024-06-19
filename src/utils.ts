@@ -14,7 +14,15 @@ export function isGuabaoLabel(label: string): boolean {
 }
 
 export class RangeWithOffset {
-    constructor(public path: string, public startLine: number, public startChar: number, public startOff: number, public endLine: number, public endChar: number, public endOff: number) {}
+    constructor(
+        public path: string,
+        public startLine: number,
+        public startChar: number,
+        public startOff: number,
+        public endLine: number,
+        public endChar: number,
+        public endOff: number
+    ) {}
     toJson() {
         return [
             [this.path, this.startLine, this.startChar, this.startOff],

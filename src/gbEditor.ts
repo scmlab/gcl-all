@@ -2,7 +2,7 @@ import { Section, Block, Header, HeaderWithButtons, Paragraph, Code, Inline, Ico
 import * as vscode from 'vscode';
 import * as sysPath from 'path';
 import { retrieveMainEditor, guabaoLabel, genSelectionRangeWithOffset } from "./utils"
-import { sendRequest } from "./connection";
+import { onUpdateFileStateNotification, sendRequest } from "./connection";
 import { getSubstitutions } from './substitute';
 
 export class Welcome {
@@ -51,7 +51,7 @@ export class PanelProvider {
 			}
 		});
 		PanelProvider.panel.webview.onDidReceiveMessage(
-			async message => {
+			async (message: { command: any; startLine: any; startChar: any; endLine: any; endChar: any; hash: any; redexNumber: any; }) => {
 				switch (message.command) {
 					case 'decorate':
 						// Currently, we pass the four arguments of the range 1-by-1.
@@ -76,7 +76,7 @@ export class PanelProvider {
 								]
 							}
 						]);
-						vscode.commands.executeCommand('guabaovlang.reload');
+						vscode.commands.executeCommand('guabao.reload');
 						vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 						return;
 					}

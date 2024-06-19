@@ -1,7 +1,7 @@
 {
-  "name": "guabaovlang",
-  "displayName": "GuaBaoVLang",
-  "description": "GuaBao Verification Language and Tools",
+  "name": "gcl-vscode",
+  "displayName": "gcl-vscode",
+  "description": "An Interactive Formal Verification tool for Guarded Command Language",
   "publisher": "scmlab",
   "version": "0.0.1",
   "engines": {
@@ -31,53 +31,53 @@
     ],
     "commands": [
       {
-        "command": "guabaovlang.greet",
+        "command": "guabao.greet",
         "title": "GuaBao Greet"
       },
       {
-        "command": "guabaovlang.start",
+        "command": "guabao.start",
         "title": "GuaBao Start"
       },
       {
-        "command": "guabaovlang.stop",
+        "command": "guabao.stop",
         "title": "GuaBao Stop"
       },
       {
-        "command": "guabaovlang.restart",
+        "command": "guabao.restart",
         "title": "GuaBao Restart"
       },
       {
-        "command": "guabaovlang.refine",
+        "command": "guabao.refine",
         "title": "GuaBao Refine"
       },
       {
-        "command": "guabaovlang.debug",
+        "command": "guabao.debug",
         "title": "GuaBao Debug"
       },
       {
-        "command": "guabaovlang.vcgen",
+        "command": "guabao.vcgen",
         "title": "GuaBao Generate VC"
       },
       {
-        "command": "guabaovlang.solve",
+        "command": "guabao.solve",
         "title": "GuaBao Solve"
       },
       {
-        "command": "guabaovlang.reload",
+        "command": "guabao.reload",
         "title": "GuaBao Reload"
       },
       {
-        "command": "guabaovlang.helloworld",
+        "command": "guabao.helloworld",
         "title": "GuaBao Hello World"
       },
       {
-        "command": "guabaovlang.inspect",
+        "command": "guabao.inspect",
         "title": "GuaBao Inspect"
       }
     ],
     "keybindings": [
       {
-          "command": "guabaovlang.refine",
+          "command": "guabao.refine",
           "key": "ctrl+c ctrl+r",
           "mac": "cmd+c cmd+r",
           "when": "!editorHasSelection && editorTextFocus"

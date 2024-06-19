@@ -3,8 +3,11 @@
 import * as vscode from "vscode";
 import { LanguageClient,
 	LanguageClientOptions,
+	ProtocolNotificationType,
+	ProtocolNotificationType0,
 	ServerOptions,
 	TransportKind } from "vscode-languageclient/node";
+import { FileState } from "./data/FileState";
 
 let client: LanguageClient;
 
@@ -16,13 +19,6 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
 	return client.sendRequest(method, param);
 }
 
-function onNotification() {
-
-}
-
-function onError() {
-
-}
 
 export function start(serverModule: string) {
 	const serverOptions: ServerOptions = {
@@ -42,4 +38,10 @@ export function start(serverModule: string) {
 
 	client = new LanguageClient ("GBM", "GuaBao LSP Server", serverOptions, clientOptions);
 	client.start();
+}
+
+
+
+export function onUpdateFileStateNotification(handler: (fileState: FileState) => void): void {
+	client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/update"), handler)
 }

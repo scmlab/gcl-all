@@ -36,7 +36,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// This is the code for 'Guabao start'.
 	// The further below disposables register other commands.
-	const startDisposable = vscode.commands.registerCommand('guabaovlang.start', () => {
+	const startDisposable = vscode.commands.registerCommand('guabao.start', () => {
 		// Store the first editor in a state.
 		context.workspaceState.update("editor", retrieveMainEditor());
 		// If none of the tabs has the Guabao label ...
@@ -53,13 +53,13 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(startDisposable);
 
-	const reloadDisposable = vscode.commands.registerCommand('guabaovlang.reload', async () => {
+	const reloadDisposable = vscode.commands.registerCommand('guabao.reload', async () => {
 		// Store the main editor in a state.
 		context.workspaceState.update("editor", retrieveMainEditor());
 		// Get the path for the current text file.
 		const path = retrieveMainEditor()?.document.uri.fsPath;
 		// Send the request asynchronously.
-		const response = await sendRequest("guabao", [path, { "tag": "ReqReload" }])
+		const response = await sendRequest("guabao/reload", [path, { "tag": "ReqReload" }])
 		// We use another shared state to cache the response.
 		context.workspaceState.update("response", response);
 		if(panelProvider.initiated()) {
@@ -76,24 +76,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(reloadDisposable);
 
-	const inspectDisposable = vscode.commands.registerCommand('guabaovlang.inspect', async () => {
-
-		const editor = retrieveMainEditor();
-		const range = editor ? genSelectionRangeWithOffset(editor) : undefined;
-
-		await sendRequest("guabao", [
-			range?.path, { "tag": "ReqInspect",
-				"contents": [
-					[range?.path, range?.startLine, range?.startChar, range?.startOff],
-					[range?.path, range?.endLine, range?.endChar, range?.endOff]
-				]
-			}
-		]);
-		
-	});
-	context.subscriptions.push(inspectDisposable);
-
-	const refineDisposable = vscode.commands.registerCommand('guabaovlang.refine', async () => {
+	const refineDisposable = vscode.commands.registerCommand('guabao.refine', async () => {
 		// Check if the panel is present before doing anything else.
 		if(panelProvider.initiated()) {
 			
@@ -124,7 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(refineDisposable);
 
 	// This is only for testing purpose.
-	const helloWorldDisposable = vscode.commands.registerCommand('guabaovlang.helloworld', async () => {
+	const helloWorldDisposable = vscode.commands.registerCommand('guabao.helloworld', async () => {
 
 		const editor = retrieveMainEditor();
 		const range = editor ? genSelectionRangeWithOffset(editor) : undefined;
