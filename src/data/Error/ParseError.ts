@@ -7,7 +7,7 @@ interface LexicalError {
     position: Position;
 }
 
-type SyntacticError = {
+interface SyntacticError {
     tag: "SyntacticError";
     location: Range;
     message: string;

@@ -19,7 +19,7 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
 }
 
 
-export function start(serverModule: string) {
+export function start() {
 	const serverOptions: ServerOptions = {
 		run: { command: "gcl", transport: TransportKind.stdio },
 		debug: { command: "gcl", transport: TransportKind.stdio }

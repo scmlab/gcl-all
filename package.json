@@ -77,10 +77,10 @@
     ],
     "keybindings": [
       {
-          "command": "guabao.refine",
-          "key": "ctrl+c ctrl+r",
-          "mac": "cmd+c cmd+r",
-          "when": "!editorHasSelection && editorTextFocus"
+        "command": "guabao.refine",
+        "key": "ctrl+c ctrl+r",
+        "mac": "cmd+c cmd+r",
+        "when": "!editorHasSelection && editorTextFocus"
       }
     ]
   },
@@ -104,6 +104,7 @@
     "typescript": "^5.3.2"
   },
   "dependencies": {
+    "@vscode/webview-ui-toolkit": "^1.4.0",
     "vscode-languageclient": "^9.0.1"
   }
 }

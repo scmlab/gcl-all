@@ -1,9 +1,11 @@
 import { Location } from "vscode";
 import { Range } from "vscode-languageclient";
+import { Error } from "./Error"
 
 type Predicate = string;
 
 export interface FileState {
+    filePath: string;
 	specs: ISpecification[];
 	pos: IProofObligation[];
 	warnings: IStructWarning[];
@@ -22,7 +24,7 @@ export interface IProofObligation {
     hash: string;
     proofLocation?: Range;
     origin: {
-        tag?: "Abort" | "Skip" | "Spec" | "Assignment" | "Assertion" | "Conditional" | "Loop invariant" | "Loop termination";
+        tag: "Abort" | "Skip" | "Spec" | "Assignment" | "Assertion" | "Conditional" | "Loop invariant" | "Loop termination";
         location: {
             filePath: string;
         } & Range;
