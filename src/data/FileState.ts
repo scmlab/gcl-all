@@ -22,8 +22,10 @@ export interface IProofObligation {
     hash: string;
     proofLocation?: Range;
     origin: {
-        tag: "Abort" | "Skip" | "Spec" | "Assignment" | "Conditional" | "Loop invariant" | "Loop termination";
-        location: Location;
+        tag?: "Abort" | "Skip" | "Spec" | "Assignment" | "Assertion" | "Conditional" | "Loop invariant" | "Loop termination";
+        location: {
+            filePath: string;
+        } & Range;
         explanation?: string;
     }
 }
