@@ -19,10 +19,10 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
 }
 
 
-export function start() {
+export async function start() {
 	const serverOptions: ServerOptions = {
-		run: { command: "gcl", transport: TransportKind.stdio },
-		debug: { command: "gcl", transport: TransportKind.stdio }
+		run: { command: "/Users/vince/.local/bin/gcl", transport: TransportKind.stdio },
+		debug: { command: "/Users/vince/.local/bin/gcl", transport: TransportKind.stdio }
 	};
 
 	// Options to control the language client
@@ -36,9 +36,10 @@ export function start() {
 	};
 
 	client = new LanguageClient ("GBM", "GuaBao LSP Server", serverOptions, clientOptions);
-	client.start();
+	await client.start();
+	return client
 }
 
-export function onUpdateFileStateNotification(handler: (fileState: FileState) => void): void {
-	client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/update"), handler)
+export function onUpdateFileStateNotification(handler: (fileState: FileState) => void) {
+	return client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/update"), handler)
 }

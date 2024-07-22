@@ -8,6 +8,8 @@ import { Welcome, PanelProvider } from './gbEditor';
 import { getSpecs } from './spec'
 import { getSections } from './section'
 import { FileState } from './data/FileState';
+import { ProtocolNotificationType } from 'vscode-languageclient';
+import { LanguageClient } from 'vscode-languageclient/node';
 
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -85,17 +87,18 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(refineDisposable);
 
-	onUpdateFileStateNotification(async (fileState: FileState) => {
+	await start();
+	const updateNotificationHandlerDisposable = onUpdateFileStateNotification(async (fileState: FileState) => {
+		vscode.window.showInformationMessage('Update notification received.');
 		await context.workspaceState.update(fileState.filePath, fileState);
 		panelProvider.updateFileState(fileState);
 		
-	})
-
-	start();
+	});
+	context.subscriptions.push(updateNotificationHandlerDisposable);
 }
 
 export function deactivate() {
-	console.log('Deactivating GuaBao VLang Mode');
+	console.log('Deactivating gcl-vscode');
 	stop()
 	console.log('Bye!');
 }

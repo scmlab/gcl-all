@@ -25,7 +25,7 @@ export interface IProofObligation {
     proofLocation?: Range;
     origin: {
         tag: "Abort" | "Skip" | "Spec" | "Assignment" | "Assertion" | "Conditional" | "Loop invariant" | "Loop termination";
-        location: {
+        location?: {
             filePath: string;
         } & Range;
         explanation?: string;

@@ -1,0 +1,9 @@
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load start
+load: success
+load: update notification sent
+STextDocumentDidOpen end
+
+ ---> Syntax Highlighting<-- Goto Definition

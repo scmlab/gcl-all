@@ -12,6 +12,9 @@ export default function renderProofObligation(proofObligation: IProofObligation)
           width: max-content;
           padding-right: 5px;
         }
+        td {
+          vertical-align: top;
+        }
       </style>
       <table class="proof-obligation">
       <tr>
@@ -26,10 +29,10 @@ export default function renderProofObligation(proofObligation: IProofObligation)
     </div>
   `;
   return renderSection(
-    "Proof Obligation",
+    proofObligation.origin.tag,
     sectionBody,
-    renderRange(proofObligation.origin.location),
-    proofObligation.hash
+    proofObligation.origin.location && renderRange(proofObligation.origin.location),
+    proofObligation.hash.slice(0, 6).toUpperCase()
   );
 }
 

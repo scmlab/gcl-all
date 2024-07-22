@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import * as sysPath from 'path';
 import { retrieveMainEditor, guabaoLabel, genSelectionRangeWithOffset } from "./utils"
 import { FileState } from './data/FileState';
-import renderError from './components/FileState/renderError';
+import renderError from './components/FileState/ErrorSection';
 import renderProofObligation from './components/FileState/ProofObligation';
 import renderWarning from './components/FileState/WarningSection';
 
@@ -68,7 +68,7 @@ function renderWelcome(extPath: string): string {
 			</head>
 			<body>
 				<div class="container p-3">
-					<h2 class="text-center">You started Guabao!</h2>
+					<h2 class="text-center">Guabao: Program and Prove with GCL.</h2>
 				</div>
 			</body>
 		</html>
@@ -85,9 +85,9 @@ export function renderFileState(fileState: FileState): string {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
             <body>  
-				${fileState.errors.map(renderError)}
-				${fileState.pos.map(renderProofObligation)}
-				${fileState.warnings.map(renderWarning)}
+				${fileState.errors.map(renderError).join()}
+				${fileState.pos.map(renderProofObligation).join('')}
+				${fileState.warnings.map(renderWarning).join()}
             </body>
         </html>
     `

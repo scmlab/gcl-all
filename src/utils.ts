@@ -7,7 +7,7 @@ export function retrieveMainEditor(): vscode.TextEditor | undefined {
     return vscode.window.visibleTextEditors[0].document.fileName !== 'tasks' ? vscode.window.visibleTextEditors[0] : vscode.window.visibleTextEditors[1];
 }
 
-export const guabaoLabel = "GB Webview";
+export const guabaoLabel = "GCL";
 
 export function isGuabaoLabel(label: string): boolean {
     return label === guabaoLabel
