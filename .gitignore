@@ -9,3 +9,5 @@ node_modules
 .yarnrc
 vsc-extension-quickstart.md
 **/.eslintrc.json
+
+server_log.txt

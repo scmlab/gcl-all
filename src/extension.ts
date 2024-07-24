@@ -4,12 +4,8 @@ import * as vscode from 'vscode';
 import { retrieveMainEditor, genSelectionRangeWithOffset, isGuabaoLabel } from './utils'
 import { start, stop, sendRequest, onUpdateFileStateNotification } from "./connection";
 import { getSpecRange, specContent } from "./refine";
-import { Welcome, PanelProvider } from './gbEditor';
-import { getSpecs } from './spec'
-import { getSections } from './section'
-import { FileState } from './data/FileState';
-import { ProtocolNotificationType } from 'vscode-languageclient';
-import { LanguageClient } from 'vscode-languageclient/node';
+import { PanelProvider } from './gclPanel';
+import { FileState, ISpecification } from './data/FileState';
 
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -24,12 +20,23 @@ export async function activate(context: vscode.ExtensionContext) {
 		{ scheme: 'file', language: 'guabao' },
 		{
 			provideInlayHints(document, range, token): vscode.InlayHint[] {
+				let filePath: string = document.uri.fsPath
 				// We check the editor in the state is what we really want. Else, do nothing.
 				if (context.workspaceState.get("editor") === retrieveMainEditor()) {
-					const specs = getSpecs(context.workspaceState.get("response"));
-					const inlayHints = specs.flatMap(s => 
-						[new vscode.InlayHint(s.range.start, ` ${s.pre}`), new vscode.InlayHint(s.range.end, `${s.post} `)]
-					);
+					const fileState: FileState | undefined = context.workspaceState.get(filePath);
+					const specs: ISpecification[] = fileState? fileState.specs : [];
+
+					const inlayHints = specs.flatMap((spec: ISpecification) => {
+						let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character)
+						let end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character)
+						if (start.isAfterOrEqual(range.start) && end.isBeforeOrEqual(range.end)) {
+							return [
+								new vscode.InlayHint(start.translate(0, 2), ` ${spec.preCondition}`),
+								new vscode.InlayHint(end, ` ${spec.postCondition}`)
+							];
+						}
+						return [];
+					});
 					return inlayHints;
 				} else {
 					return [];

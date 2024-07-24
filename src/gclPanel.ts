@@ -1,11 +1,12 @@
 
 import * as vscode from 'vscode';
 import * as sysPath from 'path';
-import { retrieveMainEditor, guabaoLabel, genSelectionRangeWithOffset } from "./utils"
+import { guabaoLabel } from "./utils"
 import { FileState } from './data/FileState';
 import renderError from './components/FileState/ErrorSection';
 import renderProofObligation from './components/FileState/ProofObligation';
 import renderWarning from './components/FileState/WarningSection';
+import renderSpecification from './components/FileState/Specification';
 
 export class Welcome {
 	constructor() {}
@@ -85,9 +86,10 @@ export function renderFileState(fileState: FileState): string {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
             <body>  
-				${fileState.errors.map(renderError).join()}
+				${fileState.errors.map(renderError).join('')}
+				${fileState.specs.map(renderSpecification).join('')}
 				${fileState.pos.map(renderProofObligation).join('')}
-				${fileState.warnings.map(renderWarning).join()}
+				${fileState.warnings.map(renderWarning).join('')}
             </body>
         </html>
     `

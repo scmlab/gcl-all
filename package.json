@@ -31,55 +31,25 @@
     ],
     "commands": [
       {
-        "command": "guabao.greet",
-        "title": "GuaBao Greet"
-      },
-      {
-        "command": "guabao.start",
-        "title": "GuaBao Start"
-      },
-      {
-        "command": "guabao.stop",
-        "title": "GuaBao Stop"
-      },
-      {
-        "command": "guabao.restart",
-        "title": "GuaBao Restart"
+        "command": "guabao.reload",
+        "title": "Reload",
+        "category": "Guabao"
       },
       {
         "command": "guabao.refine",
-        "title": "GuaBao Refine"
-      },
-      {
-        "command": "guabao.debug",
-        "title": "GuaBao Debug"
-      },
-      {
-        "command": "guabao.vcgen",
-        "title": "GuaBao Generate VC"
-      },
-      {
-        "command": "guabao.solve",
-        "title": "GuaBao Solve"
-      },
-      {
-        "command": "guabao.reload",
-        "title": "GuaBao Reload"
-      },
-      {
-        "command": "guabao.helloworld",
-        "title": "GuaBao Hello World"
-      },
-      {
-        "command": "guabao.inspect",
-        "title": "GuaBao Inspect"
+        "title": "Refine",
+        "category": "Guabao"
       }
     ],
     "keybindings": [
       {
+        "command": "guabao.reload",
+        "key": "ctrl+c ctrl+l",
+        "when": "!editorHasSelection && editorTextFocus"
+      },
+      {
         "command": "guabao.refine",
         "key": "ctrl+c ctrl+r",
-        "mac": "cmd+c cmd+r",
         "when": "!editorHasSelection && editorTextFocus"
       }
     ]
