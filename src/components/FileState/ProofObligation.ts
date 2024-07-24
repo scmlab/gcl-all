@@ -29,7 +29,7 @@ export default function renderProofObligation(proofObligation: IProofObligation)
     </div>
   `;
   return renderSection(
-    proofObligation.origin.tag,
+    "Proof Obligation",
     sectionBody,
     proofObligation.origin.location && renderRange(proofObligation.origin.location),
     proofObligation.hash.slice(0, 6).toUpperCase()

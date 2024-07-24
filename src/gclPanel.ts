@@ -36,20 +36,6 @@ export class PanelProvider {
 	}
 }
 
-function themeAttr(): string {
-	let theme;
-	switch(vscode.window.activeColorTheme.kind) {
-		case vscode.ColorThemeKind.Light:
-		case vscode.ColorThemeKind.HighContrastLight:
-			theme = 'data-bs-theme="light"';
-			break;
-		case vscode.ColorThemeKind.Dark:
-		case vscode.ColorThemeKind.HighContrast:
-			theme = 'data-bs-theme="dark"';
-			break;
-	}
-	return theme;
-}
 
 // The below renderXXXXX functions turn the parsed data structure into HTML.
 
@@ -60,7 +46,7 @@ function renderWelcome(extPath: string): string {
 	
 	return /* html */`
 		<!DOCTYPE html>
-		<html lang="en" ${themeAttr()}>
+		<html lang="en">
 			<head>
 				<title>${guabaoLabel}</title>
 				<meta charset="UTF-8">
@@ -79,13 +65,13 @@ function renderWelcome(extPath: string): string {
 export function renderFileState(fileState: FileState): string {
 	return /* html */`
     	<!DOCTYPE html>
-        <html lang="en" ${themeAttr()}>
+        <html lang="en">
             <head>
                 <title>${guabaoLabel}</title>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
-            <body>  
+            <body>
 				${fileState.errors.map(renderError).join('')}
 				${fileState.specs.map(renderSpecification).join('')}
 				${fileState.pos.map(renderProofObligation).join('')}

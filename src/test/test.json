@@ -1,20 +1,2 @@
-[
-    [
-        0,
-        {
-            "id": "33",
-            "preCondition": "INV ∧ b ≠ 0 ∧ odd b",
-            "specRange": {
-                "start": {
-                    "line": 12,
-                    "character": 8
-                },
-                "end": {
-                    "line": 12,
-                    "character": 13
-                }
-            },
-            "postCondition": "INV"
-        }
-    ]
+['noop', '_executeCodeLensProvider', '_executeLinkProvider', '_provideDocumentSemanticTokensLegend', '_provideDocumentSemanticTokens', '_provideDocumentRangeSemanticTokensLegend', '_provideDocumentRangeSemanticTokens', '_executeSignatureHelpProvider', '_setContext', 'getContextKeyInfo', '_generateContextKeyInfo', '_executeDocumentSymbolProvider', '_executeDocumentColorProvider', '_executeColorPresentationProvider', 'editor.action.toggleTabFocusMode', 'history.showPrevious', 'history.showNext', '_executeCompletionItemProvider', 'quickInput.pageNext', 'quickInput.pagePrevious', 'quickInput.first', 'quickInput.last', 'quickInput.next', 'quickInput.previous', 'quickInput.nextSeparatorWithQuickAccessFallback', 'quickInput.nextSeparator', 'quickInput.previousSeparatorWithQuickAccessFallback', 'quickInput.previousSeparator', 'quickInput.acceptInBackground', 'undo', 'default:undo', 'redo', 'default:redo', 'editor.action.selectAll', '_moveTo', '_moveToSelect', 'columnSelect', 'cursorColumnSelectLeft', 'cursorColumnSelectRight', 'cursorColumnSelectUp', 'cursorColumnSelectPageUp', 'cursorColumnSelectDown', 'cursorColumnSelectPageDown', 'cursorMove', 'cursorLeft', 'cursorLeftSelect', 'cursorRight', 'cursorRightSelect', 'cursorUp', 'cursorUpSelect', 'cursorPageUp', 'cursorPageUpSelect', 'cursorDown', 'cursorDownSelect', 'cursorPageDown', 'cursorPageDownSelect', 'createCursor', '_lastCursorMoveToSelect', 'cursorHome', 'cursorHomeSelect', 'cursorLineStart', 'cursorLineStartSelect', 'cursorEnd', 'cursorEndSelect', 'cursorLineEnd', 'cursorLineEndSelect', 'cursorTop', 'cursorTopSelect', 'cursorBottom', 'cursorBottomSelect', 'editorScroll', 'scrollLineUp', 'scrollPageUp', 'scrollEditorTop', 'scrollLineDown', 'scrollPageDown', 'scrollEditorBottom', 'scrollLeft', 'scrollRight', '_wordSelect', '_wordSelectDrag', 'lastCursorWordSelect', '_lineSelect', '_lineSelectDrag', 'lastCursorLineSelect', 'lastCursorLineSelectDrag', 'cancelSelection', 'removeSecondaryCursors', 'revealLine', 'setSelection', 'lineBreakInsert', 'outdent', 'tab', 'deleteLeft', 'deleteRight', 'default:type', 'type', 'default:replacePreviousChar', 'replacePreviousChar', 'default:compositionType'
 ]

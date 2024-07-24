@@ -63,7 +63,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Get the path for the current text file.
 		const filePath = retrieveMainEditor()?.document.uri.fsPath;
 		// Send the request asynchronously.
-		const _ = sendRequest("guabao/reload", {filePath: filePath})
+		vscode.window.showWarningMessage("Request sent: guabao/reload")
+		const response =  await sendRequest("guabao/reload", {filePath: filePath})
+		vscode.window.showWarningMessage(JSON.stringify(response))
 		// ignore the response and get the result from the notification
 	});
 	context.subscriptions.push(reloadDisposable);
@@ -97,8 +99,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	await start();
 	const updateNotificationHandlerDisposable = onUpdateFileStateNotification(async (fileState: FileState) => {
 		vscode.window.showInformationMessage('Update notification received.');
-		await context.workspaceState.update(fileState.filePath, fileState);
 		panelProvider.updateFileState(fileState);
+		await context.workspaceState.update(fileState.filePath, fileState);
+		// vscode.commands.executeCommand('vscode.executeInlayHintProvider', );
 		
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
@@ -107,6 +110,5 @@ export async function activate(context: vscode.ExtensionContext) {
 export function deactivate() {
 	console.log('Deactivating gcl-vscode');
 	stop()
-	console.log('Bye!');
 }
 
