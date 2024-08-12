@@ -12,7 +12,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('GuaBao VLang Mode is now active!');
 	const panelProvider = new PanelProvider();
 
-	// Provide inlay hints for the text editor.
+	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
 	// TODO: Do not display inlay artifacts.
@@ -29,7 +29,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					const inlayHints = specs.flatMap((spec: ISpecification) => {
 						let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character)
 						let end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character)
-						if (start.isAfterOrEqual(range.start) && end.isBeforeOrEqual(range.end)) {
+						if (range.contains(start) || range.contains(end)) {
 							return [
 								new vscode.InlayHint(start.translate(0, 2), ` ${spec.preCondition}`),
 								new vscode.InlayHint(end, ` ${spec.postCondition}`)
@@ -63,9 +63,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Get the path for the current text file.
 		const filePath = retrieveMainEditor()?.document.uri.fsPath;
 		// Send the request asynchronously.
-		vscode.window.showWarningMessage("Request sent: guabao/reload")
 		const response =  await sendRequest("guabao/reload", {filePath: filePath})
-		vscode.window.showWarningMessage(JSON.stringify(response))
 		// ignore the response and get the result from the notification
 	});
 	context.subscriptions.push(reloadDisposable);
@@ -78,12 +76,15 @@ export async function activate(context: vscode.ExtensionContext) {
 			const filePath = editor?.document.uri.fsPath;
 			const selectionRange = editor ? genSelectionRangeWithOffset(editor) : undefined;
 			let specRange = getSpecRange(editor, selectionRange);
+			vscode.window.showInformationMessage(JSON.stringify({
+				implText: editor?.document.getText(specContent(specRange)?.toVscodeRange()).trim()
+			}))
 			
 			if(specRange && filePath) {
-				const _ = sendRequest("guabao/reload", {
+				const _ = sendRequest("guabao/refine", {
 					filePath: filePath,
 					specRange: specRange.toJson(),
-					specText: editor?.document.getText(specContent(specRange)?.toVscodeRange()).trim()
+					implText: editor?.document.getText(specContent(specRange)?.toVscodeRange()).trim()
 				})
 			} else {
 				vscode.window.showInformationMessage("Cannot refine.");
@@ -98,11 +99,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	await start();
 	const updateNotificationHandlerDisposable = onUpdateFileStateNotification(async (fileState: FileState) => {
-		vscode.window.showInformationMessage('Update notification received.');
 		panelProvider.updateFileState(fileState);
-		await context.workspaceState.update(fileState.filePath, fileState);
-		// vscode.commands.executeCommand('vscode.executeInlayHintProvider', );
-		
+		await updateInlayHints();
+
+		async function updateInlayHints() {
+			await context.workspaceState.update(fileState.filePath, fileState);
+			let mainEditor = retrieveMainEditor();
+			if (mainEditor) {
+				let visableRange = mainEditor.visibleRanges.reduce((range1, range2) => range1.union(range2));
+				vscode.commands.executeCommand('vscode.executeInlayHintProvider', vscode.Uri.file(fileState.filePath), visableRange);
+			}
+
+		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
 }

@@ -1,4 +1,5 @@
 import { Position, Range } from "vscode-languageclient";
+import { Loc } from "../Loc";
 
 export type ParseError = LexicalError | SyntacticError;
 
@@ -9,6 +10,9 @@ interface LexicalError {
 
 interface SyntacticError {
     tag: "SyntacticError";
-    location: Range;
+    locatedSymbols: {
+        location?: Loc;
+        symbol: string;
+    }[];
     message: string;
 }[];

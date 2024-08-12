@@ -41,22 +41,20 @@ export class PanelProvider {
 
 function renderWelcome(extPath: string): string {
 	const webview = PanelProvider.panel.webview;
-	const stylePathOnDisk = vscode.Uri.file(sysPath.join(extPath, '/asset/bootstrap.min.css'));
-	const styleUri = webview.asWebviewUri(stylePathOnDisk);
 	
 	return /* html */`
 		<!DOCTYPE html>
 		<html lang="en">
 			<head>
-				<title>${guabaoLabel}</title>
+				<title>GCL</title>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<link rel='stylesheet' type='text/css' href='${styleUri}'>
 			</head>
 			<body>
-				<div class="container p-3">
-					<h2 class="text-center">Guabao: Program and Prove with GCL.</h2>
-				</div>
+				<h2 style="
+					color: var(--vscode-foreground);
+					background-color: var(--vscode-sideBar-background)
+				">Loading</h2>
 			</body>
 		</html>
 	`

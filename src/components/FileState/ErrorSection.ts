@@ -7,23 +7,33 @@ import { renderRange } from '../Range';
 import renderSection from '../Section'
 import { renderPosition } from '../Position';
 
+function renderErrorSection(title: string, sectionBody: string, subtitle?: string, code?: string): string {
+  return renderSection(/*html*/`<span style="color: var(--vscode-editorError-foreground)">${title}</span>`, sectionBody, subtitle, code)
+}
+
 export default function renderError(error: Error): string {
   switch (error.tag) {
+    case "CannotReadFile":
+      return renderErrorSection("CannotReadFile", error.filePath);
     case "ParseError":
       return renderParseError(error.message);
     case "TypeError":
       return renderTypeError(error.message);
     case "StructError":
       return renderStructError(error.message);
+    case "Others":
+      return renderErrorSection("Error", error.message)
   }
 }
 
 function renderParseError(error: ParseError): string {
   switch (error.tag) {
     case "LexicalError":
-      return renderSection("ParseError", `${error.tag}`, '', `at ${renderPosition(error.position)}`)
+      return renderErrorSection("ParseError", `${error.tag}`, '', `at ${renderPosition(error.position)}`)
     case "SyntacticError":
-      return renderSection("ParseError", `${error.tag}`, error.message, `at ${renderRange(error.location)}`)
+      return renderErrorSection("ParseError", `${error.tag}: \n  ${error.locatedSymbols.map(({location, symbol}) => `${symbol} ${location? `at ${renderRange(location)}` : ''}`).join('\n  ')
+
+      }`, error.message)
   }
 }
 
@@ -34,42 +44,42 @@ function renderTypeError(error: TypeError): string {
   let sectionBody: string = ''
   switch (error.tag) {
     case "NotInScope":
-      subtitle = `at ${renderRange(error.symbol.location.range)}`
+      if (error.symbol.location) subtitle = `${(renderRange(error.symbol.location))}`;
       sectionBody = `Symbol \"${error.symbol.symbol}\" not in scope.`;
       break;
     case "UnifyFailed":
-      subtitle = `at ${renderRange(error.location.range)}`
+      if (error.location) subtitle = `at ${renderRange(error.location)}`;
       sectionBody = `Failed when unifying type expressions \"${error.typeExpressions[0]}\" and \"${error.typeExpressions[1]}\"`;
       break;
     case "RecursiveType":
-      subtitle = `at ${renderRange(error.typeVariable.location.range)}`;
+      if (error.typeVariable.location) subtitle = `at ${renderRange(error.typeVariable.location)}`;
       sectionBody = `Type variable \"${error.typeVariable.symbol}\" is recursive in ${error.typeExpression}`;
       break;
     case "AssignToConst":
-      subtitle = `at ${renderRange(error.constSymbol.location.range)}`;
+      if (error.constSymbol.location) subtitle = `at ${renderRange(error.constSymbol.location)}`;
       sectionBody = `Assigning to const symbol \"${error.constSymbol}\"`;
       break;
     case "UndefinedType":
-      subtitle = `at ${renderRange(error.typeVariable.location.range)}`;
+      if (error.typeVariable.location) subtitle = `at ${renderRange(error.typeVariable.location)}`;
       sectionBody = `Undefined type variable \"${error.typeVariable.symbol}\"`;
       break;
     case "DuplicatedIdentifiers":
-      sectionBody = `Duplicated identifiers:${error.identifiers.map(identifier => `<br/>&nbsp;&nbsp;\"${identifier.symbol}\" at ${renderRange(identifier.location.range)}`)}`;
+      sectionBody = `Duplicated identifiers:${error.identifiers.map(identifier => `<br/>&nbsp;&nbsp;\"${identifier.symbol}\"${identifier.location? ` at ${renderRange(identifier.location)}`: ''}`)}`;
       break;
     case "RedundantNames":
-      sectionBody = `Redundant names:${error.names.map(name => `<br/>&nbsp;&nbsp;\"${name.symbol}\" at ${renderRange(name.location.range)}`)}`;
+      sectionBody = `Redundant names:${error.names.map(name => `<br/>&nbsp;&nbsp;\"${name.symbol}\"${name.location? ` at ${renderRange(name.location)}`: ''}`)}`;
       break;
     case "RedundantExprs":
       sectionBody = `Redundant expressions:${error.expressions.map(expression => `<br/>&nbsp;&nbsp;\"${expression}\"`)}`;
       break;
     case "MissingArguments":
-      subtitle = `at ${renderRange(error.argumentNames[0].location.range)}`;
+      if (error.argumentNames[0].location) subtitle = `at ${renderRange(error.argumentNames[0].location)}`;
       sectionBody = `Missing arguments in a function call:${error.argumentNames.map(name => `<br/>&nbsp;&nbsp;\"${name}\"`)}`;
       break;
   }
-  return renderSection(title, sectionBody, subtitle, code);
+  return renderErrorSection(title, sectionBody, subtitle, code);
 }
 
 function renderStructError(error: StructError): string {
-  return renderSection("StructError", "", `at ${renderRange(error.location.range)}`, error.tag);
+  return renderErrorSection("StructError", "", error.location? `at ${renderRange(error.location.range)}`: "", error.tag);
 }

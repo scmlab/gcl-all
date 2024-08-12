@@ -4,5 +4,5 @@ import { renderRange } from '../Range'
 import renderSection from '../Section'
 
 export default function renderWarning(warning: IStructWarning) {
-    return renderSection("Warning", `${warning.tag} at ${renderRange(warning.range)}`)
+    return renderSection(/*html*/`<span style="color: var(--vscode-editorWarning-foreground)">Warning</span>`, `${warning.tag} at ${renderRange(warning.range)}`)
 }

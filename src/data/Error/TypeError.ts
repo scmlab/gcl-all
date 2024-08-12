@@ -1,10 +1,13 @@
-import { Location } from "vscode-languageclient"
+import { Range } from "vscode-languageclient"
+import { Loc } from "../Loc";
 
 type TypeExpression = string;
 
+
+
 interface Name {
     symbol: string;
-    location: Location;
+    location?: Loc;
 }
 
 export type TypeError
@@ -25,7 +28,7 @@ interface NotInScope {
 
 interface UnifyFailed {
     tag: "UnifyFailed";
-    location: Location;
+    location?: Loc;
     typeExpressions: [TypeExpression, TypeExpression];
 }
 
@@ -33,6 +36,7 @@ interface RecursiveType {
     tag: "RecursiveType";
     typeVariable: Name;
     typeExpression: TypeExpression;
+    location?: Loc;
 }
 
 interface AssignToConst {
