@@ -1,8 +1,35 @@
 import * as vscode from 'vscode';
 import { RangeWithOffset } from "./utils";
 import { start } from 'repl';
+import { Position } from 'vscode-languageclient';
 
-export function getSpecRange(editor: vscode.TextEditor | undefined, selectionRange: RangeWithOffset | undefined): RangeWithOffset | undefined {
+export function getImplText(editor: vscode.TextEditor, specLines: RangeWithOffset): string {
+    let implText: string = '';
+    for (let i = specLines.startLine; i < specLines.endLine - 1; i++) {
+        implText += editor.document.lineAt(i).text;
+        if (i + 1 < specLines.endLine - 1) implText += '\n';
+    }
+    return implText;
+}
+
+export function getSpecLinesRange(editor: vscode.TextEditor, selectionRange: RangeWithOffset): RangeWithOffset | undefined {
+    const specRange = getSpecRange(editor, selectionRange);
+    if (!specRange) return undefined;
+    const specLinesStart: Position = editor.document.lineAt(specRange.startLine + 1).range.start
+    const specLinesStartOffset: number = specRange.startOff - (specRange.startChar - specLinesStart.character);
+    const specLinesRange =  new RangeWithOffset(
+        specRange.path,
+        specRange.startLine,
+        1,
+        specLinesStartOffset,
+        specRange.endLine,
+        specRange.endChar,
+        specRange.endOff
+    )
+    return specLinesRange 
+}
+
+export function getSpecRange(editor: vscode.TextEditor, selectionRange: RangeWithOffset): RangeWithOffset | undefined {
     const text = editor?.document.getText() ?? "";
     let specs: RangeWithOffset[] = []; 
     let lineCount = 1;

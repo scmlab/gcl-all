@@ -31,9 +31,9 @@ function renderParseError(error: ParseError): string {
     case "LexicalError":
       return renderErrorSection("ParseError", `${error.tag}`, '', `at ${renderPosition(error.position)}`)
     case "SyntacticError":
-      return renderErrorSection("ParseError", `${error.tag}: \n  ${error.locatedSymbols.map(({location, symbol}) => `${symbol} ${location? `at ${renderRange(location)}` : ''}`).join('\n  ')
-
-      }`, error.message)
+      return renderErrorSection("ParseError", `
+        ${error.tag}:<br>
+        ${error.locatedSymbols.map(({location, symbol}) => `${location? `at ${renderRange(location)}: ` : ''}${symbol}`).join('<br>')}`, '', '')
   }
 }
 

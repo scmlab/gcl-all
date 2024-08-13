@@ -27,6 +27,9 @@ export class PanelProvider {
 			);
 		
 	}
+	show(html: string): void {
+		PanelProvider.panel.webview.html = html
+	}
 	updateFileState(fileState: FileState): void {
 		PanelProvider.panel.webview.html = renderFileState(fileState);
 	}

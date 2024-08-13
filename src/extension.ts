@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { retrieveMainEditor, genSelectionRangeWithOffset, isGuabaoLabel } from './utils'
 import { start, stop, sendRequest, onUpdateFileStateNotification } from "./connection";
-import { getSpecRange, specContent } from "./refine";
+import { getSpecRange, getSpecLinesRange, specContent, getImplText } from "./refine";
 import { PanelProvider } from './gclPanel';
 import { FileState, ISpecification } from './data/FileState';
 
@@ -70,21 +70,19 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const refineDisposable = vscode.commands.registerCommand('guabao.refine', async () => {
 		// Check if the panel is present before doing anything else.
-		if(panelProvider.initiated()) {
+		const editor = retrieveMainEditor();
+		if(panelProvider.initiated() && editor) {
 			
-			const editor = retrieveMainEditor();
-			const filePath = editor?.document.uri.fsPath;
-			const selectionRange = editor ? genSelectionRangeWithOffset(editor) : undefined;
-			let specRange = getSpecRange(editor, selectionRange);
-			vscode.window.showInformationMessage(JSON.stringify({
-				implText: editor?.document.getText(specContent(specRange)?.toVscodeRange()).trim()
-			}))
+			const filePath = editor.document.uri.fsPath;
+			const selectionRange = genSelectionRangeWithOffset(editor);
+			let specLines = getSpecLinesRange(editor, selectionRange);
 			
-			if(specRange && filePath) {
-				const _ = sendRequest("guabao/refine", {
+			if(specLines && filePath) {
+				const implText = getImplText(editor, specLines)
+				const _ = await sendRequest("guabao/refine", {
 					filePath: filePath,
-					specRange: specRange.toJson(),
-					implText: editor?.document.getText(specContent(specRange)?.toVscodeRange()).trim()
+					specLines: specLines.toJson(),
+					implText: getImplText(editor, specLines)
 				})
 			} else {
 				vscode.window.showInformationMessage("Cannot refine.");

@@ -13,353 +13,12 @@ load: success
 load: update notification sent
 load: end
 STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
 semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
 semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-STextDocumentDefinition is called.
-STextDocumentDefinition is finished.
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-hover: start
-hover: not exist - no information for this position
-hover: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
 STextDocumentDidChange start
 didChange: fileState modified
 didChange: upate notification sent
@@ -374,32 +33,6 @@ didChange: fileState modified
 didChange: upate notification sent
 STextDocumentDidChange end
 semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
 STextDocumentDidChange start
 didChange: fileState modified
 didChange: upate notification sent
@@ -414,777 +47,36 @@ didChange: fileState modified
 didChange: upate notification sent
 STextDocumentDidChange end
 semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
 json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String ""),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 291.0]])])json: decoding succeeded
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            ?  "),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 15.0,Number 11.0,Number 258.0]])])json: decoding succeeded
 refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-258] 13:1-15:11
   fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
+  implText:
+            ?  
+  unindented:
+        ?  
+  holes digged
     (after)
+        [!
+            
+        !]  
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
   text parsed
   abstracted
   spec not found at range, should reload
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
 refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
+	Others spec not found at range, should reload
 refine: update notification sent
 refine: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 310.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-hover: start
-hover: not exist - no information for this position
-hover: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: success
-hover: response sent
-hover: end
-hover: start
-hover: success
-hover: response sent
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-=== Log file Start ===
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  matching spec found
- type env:
-[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
-  type error
-refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
-The definition r is not in scope
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 297.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)r := 3
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDefinition is called.
-STextDocumentDefinition is finished.
-STextDocumentDefinition is called.
-STextDocumentDefinition is finished.
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 292.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "\\?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 293.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)\?
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 293.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:1:2-3 unexpected 'a'
-expecting end of input, statement, or token indent to 'a' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 292.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "\\?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 293.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)\?
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "?\n            r := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 311.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting end of input or token align to '?' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n            ?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 311.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected '?'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n            a := 3"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 316.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'a'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n            ?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 311.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected '?'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-hover: start
-hover: not exist - new position after last reload
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n        ?"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 303.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected '?'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n        a := r"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 308.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'a'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n            a := r"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 316.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'a'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "r := 3\n            a := r"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 316.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'a'
-expecting comma, end of input, reserved word "case", term, or token align to 'r' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
 json: decoding request
 Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
 load: start
@@ -1198,146 +90,136 @@ load: start
 load: success
 load: update notification sent
 load: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
 json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String ""),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 17.0,Number 13.0,Number 280.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 17.0,Number 18.0,Number 285.0]])])json: decoding succeeded
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            ?  "),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 15.0,Number 11.0,Number 258.0]])])json: decoding succeeded
 refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-258] 13:1-15:11
   fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
+  implText:
+            ?  
+  unindented:
+        ?  
+  holes digged
+    (after)
+        [!
+            
+        !]  
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
+  type checked
+  swept
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+  text edited (refine)
+  outer spec deleted (refine)
+  counter updated (refine)
+  new specs and POs added (refine)
+refine: success
+refine: update notification sent
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            ?"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 15.0,Number 11.0,Number 256.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-256] 13:1-15:11
+  fileState loaded
+  implText:
+            ?
+  unindented:
+        ?
+  holes digged
+    (after)
+        [!
+            
+        !]
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[]
+  type checked
+  swept
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+  text edited (refine)
+  outer spec deleted (refine)
+  counter updated (refine)
+  new specs and POs added (refine)
+refine: success
+refine: update notification sent
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 15.0,Number 11.0,Number 261.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-261] 13:1-15:11
+  fileState loaded
+  implText:
+            a := 3
+  unindented:
+        a := 3
+  holes digged
+    (after)
+        a := 3
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[]
+  type error
 refine: error
-	Parse Error 
-Parse Error <no location> unexpected end of input
-expecting statement
-
+	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:9-10
+The definition a is not in scope
 refine: update notification sent
 refine: end
 STextDocumentDidChange start
@@ -1349,157 +231,50 @@ STextDocumentDidChange start
 didChange: fileState modified
 didChange: upate notification sent
 STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
 semantic token: start
 json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  parse errorload: error
-	"{\"message\":{\"locatedSymbols\":[{\"location\":{\"start\":{\"line\":18,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":18,\"character\":11}},\"symbol\":\"unexpected '!]'\\nexpecting reserved word \\\"fi\\\", statement, token indent to '!]' of line 18, token indent to 'do' of line 9, token indent to 'if' of line 10, or |\\n\"}],\"message\":\"parsing log:\\n\",\"tag\":\"SyntacticError\"},\"tag\":\"ParseError\"}"
-load: update notification sent
-load: end
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 15.0,Number 11.0,Number 261.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-261] 13:1-15:11
+  fileState loaded
+  implText:
+            a := 3
+  unindented:
+        a := 3
+  holes digged
+    (after)
+        a := 3
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[]
+  type error
+refine: error
+	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:9-10
+The definition a is not in scope
+refine: update notification sent
+refine: end
 hover: start
 hover: not exist - new position after last reload
 hover: end
 hover: start
 hover: not exist - new position after last reload
 hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  parse errorload: error
-	"{\"message\":{\"locatedSymbols\":[{\"location\":{\"start\":{\"line\":20,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":20,\"character\":11}},\"symbol\":\"unexpected '!]'\\nexpecting reserved word \\\"fi\\\", statement, token indent to '!]' of line 20, token indent to 'do' of line 9, token indent to 'if' of line 10, or |\\n\"}],\"message\":\"parsing log:\\n\",\"tag\":\"SyntacticError\"},\"tag\":\"ParseError\"}"
-load: update notification sent
-load: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
 hover: start
-hover: not exist - no information for this position
+hover: not exist - new position after last reload
 hover: end
 hover: start
 hover: not exist - new position after last reload
 hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3; r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 305.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)a := 3; r := a
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
 === Log file Start ===
 SInitialized is called.
 STextDocumentDidOpen start
@@ -1517,14 +292,21 @@ load: end
 STextDocumentDidOpen end
 semantic token: start
 json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3; r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 305.0]])])json: decoding succeeded
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 15.0,Number 11.0,Number 261.0]])])json: decoding succeeded
 refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-261] 13:1-15:11
   fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)a := 3; r := a
+  implText:
+            a := 3
+  unindented:
+        a := 3
+  holes digged
+    (after)
+        a := 3
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
   text parsed
   abstracted
   matching spec found
@@ -1532,7 +314,124 @@ refine: start
 [(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
   type error
 refine: error
-	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:16:10-11
+	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:9-10
+The definition a is not in scope
+refine: update notification sent
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 11.0,Number 280.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-280] 13:1-16:11
+  fileState loaded
+  implText:
+            a := 3
+            r := a
+  unindented:
+        a := 3
+        r := a
+  holes digged
+    (after)
+        a := 3
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
+  type error
+refine: error
+	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:9-10
+The definition a is not in scope
+refine: update notification sent
+refine: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - new position after last reload
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 220.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 11.0,Number 280.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [220-280] 13:1-16:11
+  fileState loaded
+  implText:
+            a := 3
+            r := a
+  unindented:
+        a := 3
+        r := a
+  holes digged
+    (after)
+        a := 3
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 108) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 109))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 84) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 87))),TVar (Name "?Type.var_0" NoLoc) NoLoc),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))]
+  type error
+refine: error
+	Type Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:9-10
 The definition a is not in scope
 refine: update notification sent
 refine: end
@@ -1545,119 +444,6 @@ hover: end
 hover: start
 hover: not exist - no information for this position
 hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n            r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 316.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3; r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 18.0,Number 11.0,Number 305.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  holes digged
-
-    (after)a := 3; r := a
-  text parsed
-  abstracted
-  spec not found at range, should reload
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-hover: start
-hover: not exist - no information for this position
-hover: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n            r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 316.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
 hover: start
 hover: not exist - no information for this position
 hover: end
@@ -1673,468 +459,3 @@ hover: end
 hover: start
 hover: not exist - no information for this position
 hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\nr := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 304.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDefinition is called.
-STextDocumentDefinition is finished.
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\nr := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 292.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\nr := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 304.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-hover: start
-hover: not exist - new position after last reload
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n        r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 312.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n        r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 308.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n            r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 312.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n    r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 9.0,Number 265.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 11.0,Number 308.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-hover: start
-hover: not exist - no information for this position
-hover: end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-STextDocumentDidChange start
-didChange: fileState modified
-didChange: upate notification sent
-STextDocumentDidChange end
-semantic token: start
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-json: decoding request
-Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "a := 3\n                r := a"),("specRange",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 13.0,Number 321.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 19.0,Number 15.0,Number 384.0]])])json: decoding succeeded
-refine: start
-  fileState loaded
-  digging holes
-    (before)
-    (before2)  parse error
-refine: error
-	Parse Error 
-Parse Error /Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:2:1 unexpected 'r'
-expecting comma, end of input, reserved word "case", term, or token align to 'a' of line 1
-
-refine: update notification sent
-refine: end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
-=== Log file Start ===
-SInitialized is called.
-STextDocumentDidOpen start
-load: start
-  source read 
-  source parsed 
-  all holes digged
-  abstract program generated
-  program elaborated
-  fileState created
-  fileState updated
-load: success
-load: update notification sent
-load: end
-STextDocumentDidOpen end
-semantic token: start
