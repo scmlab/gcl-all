@@ -1049,3 +1049,2650 @@ didChange: fileState modified
 didChange: upate notification sent
 STextDocumentDidChange end
 semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":4,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/divmod.gcl\",\"end\":{\"line\":4,\"character\":36}},\"symbol\":\"B\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":15},\"filePath\":\"/Users/vince/Documents/gcl/examples/descend_jump.gcl\",\"end\":{\"line\":1,\"character\":16}},\"symbol\":\"N\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":18},\"filePath\":\"/Users/vince/Documents/gcl/examples/gcd.gcl\",\"end\":{\"line\":1,\"character\":19}},\"symbol\":\"A\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":6,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/maxdiff.gcl\",\"end\":{\"line\":6,\"character\":10}},\"symbol\":\"r\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":34},\"filePath\":\"/Users/vince/Documents/gcl/examples/mss.gcl\",\"end\":{\"line\":5,\"character\":35}},\"symbol\":\"f\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":15},\"filePath\":\"/Users/vince/Documents/gcl/examples/simple_exp.gcl\",\"end\":{\"line\":1,\"character\":16}},\"symbol\":\"N\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":2,\"character\":15},\"filePath\":\"/Users/vince/Documents/gcl/examples/squareroot.gcl\",\"end\":{\"line\":2,\"character\":16}},\"symbol\":\"X\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":4,\"character\":3},\"filePath\":\"/Users/vince/Documents/gcl/examples/swap.gcl\",\"end\":{\"line\":4,\"character\":4}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  parse errorload: error
+	"{\"message\":{\"locatedSymbols\":[{\"location\":{\"start\":{\"line\":12,\"character\":8},\"filePath\":\"/Users/vince/Documents/gcl/test/source/1.gcl\",\"end\":{\"line\":12,\"character\":9}},\"symbol\":\"unexpected ','\\nexpecting closing parenthesis, reserved word \\\"case\\\", term, or token indent to '{' of line 12\\n\"}],\"message\":\"parsing log:\\n\",\"tag\":\"SyntacticError\"},\"tag\":\"ParseError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+hover: start
+hover: failed - not loaded yet
+hover: end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":18},\"filePath\":\"/Users/vince/Documents/gcl/examples/gcd.gcl\",\"end\":{\"line\":1,\"character\":19}},\"symbol\":\"A\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":6,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/maxdiff.gcl\",\"end\":{\"line\":6,\"character\":10}},\"symbol\":\"r\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":34},\"filePath\":\"/Users/vince/Documents/gcl/examples/mss.gcl\",\"end\":{\"line\":5,\"character\":35}},\"symbol\":\"f\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":34},\"filePath\":\"/Users/vince/Documents/gcl/examples/mss.gcl\",\"end\":{\"line\":5,\"character\":35}},\"symbol\":\"f\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":34},\"filePath\":\"/Users/vince/Documents/gcl/examples/mss.gcl\",\"end\":{\"line\":5,\"character\":35}},\"symbol\":\"f\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":6,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/maxdiff.gcl\",\"end\":{\"line\":6,\"character\":10}},\"symbol\":\"r\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":18},\"filePath\":\"/Users/vince/Documents/gcl/examples/gcd.gcl\",\"end\":{\"line\":1,\"character\":19}},\"symbol\":\"A\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":34},\"filePath\":\"/Users/vince/Documents/gcl/examples/mss.gcl\",\"end\":{\"line\":5,\"character\":35}},\"symbol\":\"f\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":6,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/maxdiff.gcl\",\"end\":{\"line\":6,\"character\":10}},\"symbol\":\"r\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":18},\"filePath\":\"/Users/vince/Documents/gcl/examples/gcd.gcl\",\"end\":{\"line\":1,\"character\":19}},\"symbol\":\"A\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":34},\"filePath\":\"/Users/vince/Documents/gcl/examples/mss.gcl\",\"end\":{\"line\":5,\"character\":35}},\"symbol\":\"f\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+hover: start
+hover: failed - not loaded yet
+hover: end
+hover: start
+hover: failed - not loaded yet
+hover: end
+hover: start
+hover: failed - not loaded yet
+hover: end
+hover: start
+hover: failed - not loaded yet
+hover: end
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":18},\"filePath\":\"/Users/vince/Documents/gcl/examples/gcd.gcl\",\"end\":{\"line\":1,\"character\":19}},\"symbol\":\"A\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":4,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/divmod.gcl\",\"end\":{\"line\":4,\"character\":36}},\"symbol\":\"B\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":1,\"character\":18},\"filePath\":\"/Users/vince/Documents/gcl/examples/gcd.gcl\",\"end\":{\"line\":1,\"character\":19}},\"symbol\":\"A\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+hover: start
+hover: failed - not loaded yet
+hover: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: failed - not loaded yet
+hover: end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":9},\"filePath\":\"/Users/vince/Documents/gcl/examples/factor.gcl\",\"end\":{\"line\":5,\"character\":10}},\"symbol\":\"x\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+hover: start
+hover: failed - not loaded yet
+hover: end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":5,\"character\":10},\"filePath\":\"/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl\",\"end\":{\"line\":5,\"character\":11}},\"symbol\":\"a\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: success
+hover: response sent
+hover: end
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: not exist - no information for this position
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+hover: start
+hover: success
+hover: response sent
+hover: end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+semantic token: start
+semantic token: start
+hover: start
+hover: not exist - no information for this position
+hover: end
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+hover: start
+hover: success
+hover: response sent
+hover: end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  elaborate error
+load: error
+	"{\"message\":{\"symbol\":{\"location\":{\"start\":{\"line\":9,\"character\":35},\"filePath\":\"/Users/vince/Documents/gcl/examples/posnegpairs.gcl\",\"end\":{\"line\":9,\"character\":36}},\"symbol\":\"i\"},\"tag\":\"NotInScope\"},\"tag\":\"TypeError\"}"
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+STextDocumentDefinition is called.
+STextDocumentDefinition is finished.
+hover: start
+hover: success
+hover: response sent
+hover: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/factor.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+hover: start
+hover: not exist - new position after last reload
+hover: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 217.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 11.0,Number 277.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [217-277] 13:1-16:11
+  fileState loaded
+  implText:
+            a := 3
+            r := a
+  unindented:
+        a := 3
+        r := a
+  holes digged
+    (after)
+        a := 3
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 107) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 108)))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TVar (Name "?Type.var_0" NoLoc) NoLoc)),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))))]
+  type checked
+  swept
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+  text edited (refine)
+  outer spec deleted (refine)
+  counter updated (refine)
+  new specs and POs added (refine)
+refine: success
+refine: update notification sent
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 217.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 11.0,Number 277.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [217-277] 13:1-16:11
+  fileState loaded
+  implText:
+            a := 3
+            r := a
+  unindented:
+        a := 3
+        r := a
+  holes digged
+    (after)
+        a := 3
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  spec not found at range, should reload
+refine: error
+	Others spec not found at range, should reload
+refine: update notification sent
+refine: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 217.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 16.0,Number 11.0,Number 277.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [217-277] 13:1-16:11
+  fileState loaded
+  implText:
+            a := 3
+            r := a
+  unindented:
+        a := 3
+        r := a
+  holes digged
+    (after)
+        a := 3
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 107) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 108)))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TVar (Name "?Type.var_0" NoLoc) NoLoc)),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))))]
+  type checked
+  swept
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+  text edited (refine)
+  outer spec deleted (refine)
+  counter updated (refine)
+  new specs and POs added (refine)
+refine: success
+refine: update notification sent
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            ?\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 217.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 17.0,Number 11.0,Number 291.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [217-291] 13:1-17:11
+  fileState loaded
+  implText:
+            a := 3
+            ?
+            r := a
+  unindented:
+        a := 3
+        ?
+        r := a
+  holes digged
+    (after)
+        a := 3
+        [!
+            
+        !]
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 107) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 108)))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TVar (Name "?Type.var_0" NoLoc) NoLoc)),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))))]
+  type checked
+  swept
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+  text edited (refine)
+  outer spec deleted (refine)
+  counter updated (refine)
+  new specs and POs added (refine)
+refine: success
+refine: update notification sent
+semantic token: start
+hover: start
+hover: not exist - new position after last reload
+hover: end
+hover: start
+hover: not exist - new position after last reload
+hover: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl")])json: decoding succeeded
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+semantic token: start
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+=== Log file Start ===
+SInitialized is called.
+STextDocumentDidOpen start
+load: start
+  source read 
+  source parsed 
+  all holes digged
+  abstract program generated
+  program elaborated
+  fileState created
+  fileState updated
+load: success
+load: update notification sent
+load: end
+STextDocumentDidOpen end
+semantic token: start
+json: decoding request
+Object (fromList [("filePath",String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl"),("implText",String "            a := 3\n            ?\n            r := a"),("specLines",Array [Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 13.0,Number 1.0,Number 217.0],Array [String "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl",Number 17.0,Number 11.0,Number 291.0]])])json: decoding succeeded
+refine: start
+  specLines:
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl [217-291] 13:1-17:11
+  fileState loaded
+  implText:
+            a := 3
+            ?
+            r := a
+  unindented:
+        a := 3
+        ?
+        r := a
+  holes digged
+    (after)
+        a := 3
+        [!
+            
+        !]
+        r := a
+  parsing
+    specStart =
+/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl:13:1
+  text parsed
+  abstracted
+  matching spec found
+ type env:
+[(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 28 107) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 29 108)))),(Index (Name "INV" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 4 83) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 5 7 86))),ConstTypeInfo (TVar (Name "?Type.var_0" NoLoc) NoLoc)),(Index (Name "r" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 5 65) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 6 66))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "a" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 8 68) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 9 69))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "b" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 11 71) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 12 72))),VarTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 15 75) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 3 18 78)))),(Index (Name "even" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 5 37) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 9 41))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "odd" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 11 43) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 14 46))),ConstTypeInfo (TFunc (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 20 52))) (TBase TBool (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 24 56) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60))) (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 17 49) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 2 28 60)))),(Index (Name "A" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 5 4) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 6 5))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14)))),(Index (Name "B" (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 8 7) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 9 8))),ConstTypeInfo (TBase TInt (Loc (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 12 11) (Pos "/Users/vince/Documents/gcl/examples/fastmul_with_holes.gcl" 1 15 14))))]
+  type checked
+  swept
+refine: end
+STextDocumentDidChange start
+didChange: fileState modified
+didChange: upate notification sent
+STextDocumentDidChange end
+  text edited (refine)
+  outer spec deleted (refine)
+  counter updated (refine)
+  new specs and POs added (refine)
+refine: success
+refine: update notification sent
+semantic token: start
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - new position after last reload
+hover: end
+hover: start
+hover: not exist - new position after last reload
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: not exist - new position after last reload
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end
+hover: start
+hover: success
+hover: response sent
+hover: end
+hover: start
+hover: not exist - new position after last reload
+hover: end
+hover: start
+hover: not exist - no information for this position
+hover: end

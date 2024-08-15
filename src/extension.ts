@@ -16,7 +16,6 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
-	// TODO: Do not display inlay artifacts.
 	vscode.languages.registerInlayHintsProvider(
 		{ scheme: 'file', language: 'guabao' },
 		{
@@ -45,18 +44,24 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	)
+	
 
 	// Store the first editor in a state.
 	context.workspaceState.update("editor", retrieveMainEditor());
-	// If none of the tabs has the Guabao label ...
-	if(vscode.window.tabGroups.all.flatMap(group => group.tabs).filter(tab => isGuabaoLabel(tab.label)).length === 0) {
-		// Initialize the panel.
-		panelProvider.createPanel();
-		// Show the welcome page.
-		panelProvider.showLoading(context.extensionPath);
-		// We prevent focusing on the panel instead of the text editor.
-		vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
-	}
+	// Initialize the panel.
+	panelProvider.createPanel();
+	panelProvider.showLoading(context.extensionPath);
+	// We prevent focusing on the panel instead of the text editor.
+	vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
+
+	vscode.window.tabGroups.onDidChangeTabs((event: vscode.TabChangeEvent) => {
+		if ("uri" in (event.changed[0].input as any)) {
+			const filePath = (event.changed[0].input as vscode.TabInputText).uri.fsPath
+			let fileState: FileState | undefined = context.workspaceState.get(filePath);
+			if (fileState) panelProvider.rerender(fileState);
+			
+		}
+	})
 
 	const reloadDisposable = vscode.commands.registerCommand('guabao.reload', async () => {
 		// Store the main editor in a state.
@@ -64,8 +69,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Get the path for the current text file.
 		const filePath = retrieveMainEditor()?.document.uri.fsPath;
 		// Send the request asynchronously.
-		const response =  await sendRequest("guabao/reload", {filePath: filePath})
-		// ignore the response and get the result from the notification
+		const _response =  await sendRequest("guabao/reload", {filePath: filePath})
+		// ignore the response and get results or errors from notifications
 	});
 	context.subscriptions.push(reloadDisposable);
 
@@ -80,11 +85,12 @@ export async function activate(context: vscode.ExtensionContext) {
 			
 			if(specLines && filePath) {
 				const implText = getImplText(editor, specLines)
-				const _ = await sendRequest("guabao/refine", {
+				const _response = await sendRequest("guabao/refine", {
 					filePath: filePath,
 					specLines: specLines.toJson(),
 					implText: getImplText(editor, specLines)
 				})
+				// ignore the response and get results or errors from notifications
 			} else {
 				vscode.window.showInformationMessage("Cannot refine.");
 			}
@@ -143,4 +149,3 @@ export function deactivate() {
 	console.log('Deactivating gcl-vscode');
 	stop()
 }
-
