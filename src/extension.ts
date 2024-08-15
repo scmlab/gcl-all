@@ -12,6 +12,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	console.log('GuaBao VLang Mode is now active!');
 	const panelProvider = new PanelProvider();
 
+
 	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
@@ -96,6 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(refineDisposable);
 
 	await start();
+
 	const updateNotificationHandlerDisposable = onUpdateFileStateNotification(async (fileState: FileState) => {
 		panelProvider.updateFileState(fileState);
 		await updateInlayHints();
