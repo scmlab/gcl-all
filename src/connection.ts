@@ -40,6 +40,10 @@ export async function start() {
 	return client
 }
 
-export function onUpdateFileStateNotification(handler: (fileState: FileState) => void) {
+export function onUpdateNotification(handler: (fileState: FileState) => void) {
 	return client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/update"), handler)
+}
+
+export function onErrorNotification(handler: (fileState: FileState) => void) {
+	return client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/error"), handler)
 }

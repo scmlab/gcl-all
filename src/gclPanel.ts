@@ -30,19 +30,19 @@ export class PanelProvider {
 	show(html: string): void {
 		PanelProvider.panel.webview.html = html
 	}
-	updateFileState(fileState: FileState): void {
+	rerender(fileState: FileState): void {
 		PanelProvider.panel.webview.html = renderFileState(fileState);
 	}
 	// Show either the welcome page or sections (likely from the LSP server).
-	showWelcome(extPath: string): void {
-		PanelProvider.panel.webview.html = renderWelcome(extPath);
+	showLoading(extPath: string): void {
+		PanelProvider.panel.webview.html = renderLoading(extPath);
 	}
 }
 
 
 // The below renderXXXXX functions turn the parsed data structure into HTML.
 
-function renderWelcome(extPath: string): string {
+function renderLoading(extPath: string): string {
 	const webview = PanelProvider.panel.webview;
 	
 	return /* html */`

@@ -2,7 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { retrieveMainEditor, genSelectionRangeWithOffset, isGuabaoLabel } from './utils'
-import { start, stop, sendRequest, onUpdateFileStateNotification } from "./connection";
+import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
 import { getSpecRange, getSpecLinesRange, specContent, getImplText } from "./refine";
 import { PanelProvider } from './gclPanel';
 import { FileState, ISpecification } from './data/FileState';
@@ -53,7 +53,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		// Initialize the panel.
 		panelProvider.createPanel();
 		// Show the welcome page.
-		panelProvider.showWelcome(context.extensionPath);
+		panelProvider.showLoading(context.extensionPath);
 		// We prevent focusing on the panel instead of the text editor.
 		vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 	}
@@ -98,21 +98,45 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	await start();
 
-	const updateNotificationHandlerDisposable = onUpdateFileStateNotification(async (fileState: FileState) => {
-		panelProvider.updateFileState(fileState);
-		await updateInlayHints();
+	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
+		filePath,
+		specs,
+		pos,
+		warnings
+	}) => {
+		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
+		let newFileState: FileState =
+			oldFileState
+			? {...oldFileState, specs, pos, warnings}
+			: {filePath, specs, pos, warnings, errors: []};
+		await context.workspaceState.update(filePath, newFileState);
+		panelProvider.rerender(newFileState);
+		await updateInlayHints(newFileState);
 
-		async function updateInlayHints() {
-			await context.workspaceState.update(fileState.filePath, fileState);
+		async function updateInlayHints(newFileState: FileState) {
 			let mainEditor = retrieveMainEditor();
 			if (mainEditor) {
 				let visableRange = mainEditor.visibleRanges.reduce((range1, range2) => range1.union(range2));
-				vscode.commands.executeCommand('vscode.executeInlayHintProvider', vscode.Uri.file(fileState.filePath), visableRange);
+				vscode.commands.executeCommand('vscode.executeInlayHintProvider', vscode.Uri.file(newFileState.filePath), visableRange);
 			}
 
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
+
+	const errorNotificationHandlerDisposable = onErrorNotification(async ({
+		filePath,
+		errors
+	}) => {
+		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
+		const newFileState: FileState =
+			oldFileState
+			? {...oldFileState, errors}
+			: {filePath, specs: [], pos: [], warnings: [], errors};
+		await context.workspaceState.update(filePath, newFileState);
+		panelProvider.rerender(newFileState);
+	});
+	context.subscriptions.push(errorNotificationHandlerDisposable);
 }
 
 export function deactivate() {
