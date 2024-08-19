@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { retrieveMainEditor, genSelectionRangeWithOffset, isGuabaoLabel } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
-import { getSpecRange, getSpecLinesRange, specContent, getImplText } from "./refine";
+import { getSpecLinesRange, getImplText, getImplLinesRange } from "./refine";
 import { PanelProvider } from './gclPanel';
 import { FileState, ISpecification } from './data/FileState';
 
@@ -85,9 +85,11 @@ export async function activate(context: vscode.ExtensionContext) {
 			
 			if(specLines && filePath) {
 				const implText = getImplText(editor, specLines)
+				const implLines = getImplLinesRange(editor, specLines);
 				const _response = await sendRequest("guabao/refine", {
 					filePath: filePath,
 					specLines: specLines.toJson(),
+					implLines: implLines.toJson(),
 					implText: getImplText(editor, specLines)
 				})
 				// ignore the response and get results or errors from notifications

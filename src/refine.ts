@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { RangeWithOffset } from "./utils";
 import { start } from 'repl';
-import { Position } from 'vscode-languageclient';
+import { Position, Range } from 'vscode-languageclient';
 
 export function getImplText(editor: vscode.TextEditor, specLines: RangeWithOffset): string {
     let implText: string = '';
@@ -11,6 +11,34 @@ export function getImplText(editor: vscode.TextEditor, specLines: RangeWithOffse
     }
     return implText;
 }
+
+export function getImplLinesRange(editor: vscode.TextEditor, specLines: RangeWithOffset): RangeWithOffset {
+    const implStartLineNumber: number = specLines.startLine + 1;
+    const implStartCol: number = 1;
+
+    let specStartLine: Range = editor.document.lineAt(specLines.startLine).rangeIncludingLineBreak;
+    let specStartLineLength: number = specStartLine.end.character - specStartLine.start.character;
+    const implStartOff: number = specLines.startOff + specStartLineLength;
+
+    const implEndLineNumber: number = specLines.endLine - 1;
+    const implEndCol: number = editor.document.lineAt(implEndLineNumber).range.end.character;
+
+    let specEndLine: Range = editor.document.lineAt(specLines.endLine).rangeIncludingLineBreak
+    let specEndLineLength: number = specEndLine.end.character - specEndLine.start.character
+    const implEndOff: number = specLines.endOff - specEndLineLength;
+
+    return new RangeWithOffset(
+        specLines.path,
+        implStartLineNumber,
+        implStartCol,
+        implStartOff,
+        implEndLineNumber,
+        implEndCol,
+        implEndOff
+    )
+
+}
+
 
 export function getSpecLinesRange(editor: vscode.TextEditor, selectionRange: RangeWithOffset): RangeWithOffset | undefined {
     const specRange = getSpecRange(editor, selectionRange);
@@ -29,8 +57,9 @@ export function getSpecLinesRange(editor: vscode.TextEditor, selectionRange: Ran
     return specLinesRange 
 }
 
+// TODO: Should not scan through the whole source. Start from `selectionRange` instead.
 export function getSpecRange(editor: vscode.TextEditor, selectionRange: RangeWithOffset): RangeWithOffset | undefined {
-    const text = editor?.document.getText() ?? "";
+    const text = editor.document.getText();
     let specs: RangeWithOffset[] = []; 
     let lineCount = 1;
     let colCount = 1;
