@@ -8,10 +8,7 @@ For more information, see also:
 - [old homepage](https://scmlab.github.io/guabao/)
 
 ## Standard Language Features
-- Syntax highlighting on the three languages involved:
-    1. the implementation language **GCL**,
-    2. the specification language, and
-    3. the proof language
+- Syntax highlighting
 - Go to definition (`F12`)
 - Type hints on hovers
 
