@@ -15,4 +15,4 @@ interface SyntacticError {
         symbol: string;
     }[];
     message: string;
-}[];
+};

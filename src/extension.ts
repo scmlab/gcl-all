@@ -10,15 +10,17 @@ import { FileState, ISpecification } from './data/FileState';
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('GuaBao VLang Mode is now active!');
-	const panelProvider = new PanelProvider();
 
 
 	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
-	vscode.languages.registerInlayHintsProvider(
+	const inlayHintsDisposable = vscode.languages.registerInlayHintsProvider(
 		{ scheme: 'file', language: 'guabao' },
 		{
+			/**
+			 * @param range 要顯示 inlay hints 的範圍（應該是指當前螢幕可以看到的範圍）
+			 */
 			provideInlayHints(document, range, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
 				// We check the editor in the state is what we really want. Else, do nothing.
@@ -44,24 +46,27 @@ export async function activate(context: vscode.ExtensionContext) {
 			}
 		}
 	)
+	context.subscriptions.push(inlayHintsDisposable);
 	
-
 	// Store the first editor in a state.
 	context.workspaceState.update("editor", retrieveMainEditor());
 	// Initialize the panel.
+	const panelProvider = new PanelProvider();
 	panelProvider.createPanel();
 	panelProvider.showLoading(context.extensionPath);
 	// We prevent focusing on the panel instead of the text editor.
 	vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 
-	vscode.window.tabGroups.onDidChangeTabs((event: vscode.TabChangeEvent) => {
-		if ("uri" in (event.changed[0].input as any)) {
-			const filePath = (event.changed[0].input as vscode.TabInputText).uri.fsPath
+	const changeTabDisposable = vscode.window.tabGroups.onDidChangeTabs((event: vscode.TabChangeEvent) => {
+		const changedTab: vscode.Tab = event.changed[0]
+		const isFileTab: boolean = "uri" in (changedTab.input as any);
+		if (isFileTab) {
+			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
 			let fileState: FileState | undefined = context.workspaceState.get(filePath);
 			if (fileState) panelProvider.rerender(fileState);
-			
 		}
-	})
+	});
+	context.subscriptions.push(changeTabDisposable);
 
 	const reloadDisposable = vscode.commands.registerCommand('guabao.reload', async () => {
 		// Store the main editor in a state.
@@ -88,8 +93,6 @@ export async function activate(context: vscode.ExtensionContext) {
 				const implLines = getImplLinesRange(editor, specLines);
 				const _response = await sendRequest("guabao/refine", {
 					filePath: filePath,
-					// implLines: implLines.toJson(),
-					// parseStart: [implLines.path, implLines.startLine, implLines.startChar, implLines.startOff],
 					implStart: implLines.toJson().start,
 					implText,
 					specLines: specLines.toJson(),
@@ -124,13 +127,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		panelProvider.rerender(newFileState);
 		await updateInlayHints(newFileState);
 
+		// FIXME: sometimes the update delays
 		async function updateInlayHints(newFileState: FileState) {
 			let mainEditor = retrieveMainEditor();
 			if (mainEditor) {
 				let visableRange = mainEditor.visibleRanges.reduce((range1, range2) => range1.union(range2));
 				vscode.commands.executeCommand('vscode.executeInlayHintProvider', vscode.Uri.file(newFileState.filePath), visableRange);
 			}
-
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);

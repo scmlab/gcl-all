@@ -21,14 +21,14 @@ export default function renderSpecification(specification: ISpecification) {
         }
       </style>
       <table class="proof-obligation">
-      <tr>
-        <td class="proof-point">Assume.</td>
-        <td>${specification.preCondition}</td>
-      </tr>
-      <tr>
-        <td class="proof-point">Require.</td>
-        <td>${specification.postCondition}</td>
-      </tr>
+        <tr>
+          <td class="proof-point">Assume.</td>
+          <td>${specification.preCondition}</td>
+        </tr>
+        <tr>
+          <td class="proof-point">Require.</td>
+          <td>${specification.postCondition}</td>
+        </tr>
       </table>
     </div>
   `;
