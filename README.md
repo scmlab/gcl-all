@@ -12,7 +12,7 @@ For more information, see also:
 - Go to definition (`F12`)
 - Type hints on hovers
 
-## Verificaiton-Specific Features
+## Verification-Specific Features
 - **Syntax Check** and **Typecheck** on opening `.gcl` files.
 - Commands
     - **Reload** (`ctrl+c ctrl+l`) typechecks the code and show hints about the specifications and proof obligations.
