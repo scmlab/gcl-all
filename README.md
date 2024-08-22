@@ -2,8 +2,10 @@
 **gcl-vscode** is a formal verification environment for **Guarded Command Language (GCL)** that extends vscode with the **GCL Language Server**.
 
 For more information, see also:
-- GCL Language Server: https://github.com/scmlab/gcl
-- old homepage: https://scmlab.github.io/guabao/
+- [Guarded Command Language](https://en.wikipedia.org/wiki/Guarded_Command_Language)
+- [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic)
+- [GCL Language Server](https://github.com/scmlab/gcl)
+- [gcl-vscode old homepage](https://scmlab.github.io/guabao/)
 
 ## Standard Language Features
 - Syntax highlighting on the three languages involved:
