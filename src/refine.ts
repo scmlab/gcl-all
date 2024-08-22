@@ -16,16 +16,16 @@ export function getImplLinesRange(editor: vscode.TextEditor, specLines: RangeWit
     const implStartLineNumber: number = specLines.startLine + 1;
     const implStartCol: number = 1;
 
-    let specStartLine: Range = editor.document.lineAt(specLines.startLine).rangeIncludingLineBreak;
+    let specStartLine: Range = editor.document.lineAt(specLines.startLine - 1).range;
     let specStartLineLength: number = specStartLine.end.character - specStartLine.start.character;
-    const implStartOff: number = specLines.startOff + specStartLineLength;
+    const implStartOff: number = specLines.startOff + specStartLineLength + 1; // `\n`
 
     const implEndLineNumber: number = specLines.endLine - 1;
-    const implEndCol: number = editor.document.lineAt(implEndLineNumber).range.end.character;
+    const implEndCol: number = editor.document.lineAt(implEndLineNumber - 1).range.end.character + 1;
 
-    let specEndLine: Range = editor.document.lineAt(specLines.endLine).rangeIncludingLineBreak
+    let specEndLine: Range = editor.document.lineAt(specLines.endLine - 1).range
     let specEndLineLength: number = specEndLine.end.character - specEndLine.start.character
-    const implEndOff: number = specLines.endOff - specEndLineLength;
+    const implEndOff: number = specLines.endOff - specEndLineLength - 1; // `\n`
 
     return new RangeWithOffset(
         specLines.path,

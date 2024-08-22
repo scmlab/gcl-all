@@ -24,10 +24,20 @@ export class RangeWithOffset {
         public endOff: number
     ) {}
     toJson() {
-        return [
-            [this.path, this.startLine, this.startChar, this.startOff],
-            [this.path, this.endLine, this.endChar, this.endOff]
-        ];
+        return {
+            start: {
+                file: this.path,
+                line: this.startLine,
+                column: this.startChar,
+                byte: this.startOff
+            },
+            end: {
+                file: this.path,
+                line: this.endLine,
+                column: this.endChar,
+                byte: this.endOff
+            }
+        }
     }
     toVscodeRange() {
         return new vscode.Range(

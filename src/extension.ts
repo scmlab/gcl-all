@@ -88,9 +88,11 @@ export async function activate(context: vscode.ExtensionContext) {
 				const implLines = getImplLinesRange(editor, specLines);
 				const _response = await sendRequest("guabao/refine", {
 					filePath: filePath,
+					// implLines: implLines.toJson(),
+					// parseStart: [implLines.path, implLines.startLine, implLines.startChar, implLines.startOff],
+					implStart: implLines.toJson().start,
+					implText,
 					specLines: specLines.toJson(),
-					implLines: implLines.toJson(),
-					implText: getImplText(editor, specLines)
 				})
 				// ignore the response and get results or errors from notifications
 			} else {
@@ -112,6 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		pos,
 		warnings
 	}) => {
+		vscode.window.showErrorMessage(JSON.stringify({specs}))
 		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
 		let newFileState: FileState =
 			oldFileState
