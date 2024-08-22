@@ -21,29 +21,28 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
 
 export async function start() {
 	const serverOptions: ServerOptions = {
-		run: { command: "gcl", transport: TransportKind.stdio },
-		debug: { command: "gcl" , transport: TransportKind.stdio }
+		run: { command: "gcl", transport: TransportKind.stdio},
+		debug: { command: "gcl" , args: [`--out=./gcl_server.log`], transport: TransportKind.stdio }
 	};
 
 	// Options to control the language client
 	const clientOptions: LanguageClientOptions = {
-		// Register the server for 'guabao' documents
-		documentSelector: [{ scheme: 'file', language: 'guabao' }],
+		// Register the server for `.gcl` documents
+		documentSelector: [{ scheme: 'file', language: 'gcl' }],
 		synchronize: {
 			// Notify the server about file changes to '.gcl' files contained in the workspace
 			fileEvents: vscode.workspace.createFileSystemWatcher('**/.gcl')
 		}
 	};
 
-	client = new LanguageClient ("GBM", "GuaBao LSP Server", serverOptions, clientOptions);
+	client = new LanguageClient ("GCL", "GCL LSP Server", serverOptions, clientOptions);
 	await client.start();
-	return client
 }
 
 export function onUpdateNotification(handler: (fileState: FileState) => void) {
-	return client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/update"), handler)
+	return client.onNotification(new ProtocolNotificationType<FileState, any>("gcl/update"), handler)
 }
 
 export function onErrorNotification(handler: (fileState: FileState) => void) {
-	return client.onNotification(new ProtocolNotificationType<FileState, any>("guabao/error"), handler)
+	return client.onNotification(new ProtocolNotificationType<FileState, any>("gcl/error"), handler)
 }

@@ -6,6 +6,7 @@ import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } f
 import { getSpecLinesRange, getImplText, getImplLinesRange } from "./refine";
 import { GclPanel } from './gclPanel';
 import { FileState, ISpecification } from './data/FileState';
+import path from 'path';
 
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -16,7 +17,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
 	const inlayHintsDisposable = vscode.languages.registerInlayHintsProvider(
-		{ scheme: 'file', language: 'guabao' },
+		{ scheme: 'file', language: 'gcl' },
 		{
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
@@ -24,11 +25,9 @@ export async function activate(context: vscode.ExtensionContext) {
 				const specs: ISpecification[] = fileState? fileState.specs : [];
 
 				const inlayHints = specs.flatMap((spec: ISpecification) => {
-					let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character)
-					let end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character)
-					vscode.window.showInformationMessage(`${JSON.stringify(visableRange)} | ${JSON.stringify(start)} - ${JSON.stringify(end)}`)
+					let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
+					let end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character);
 					if (visableRange.contains(start) || visableRange.contains(end)) {
-						vscode.window.showInformationMessage(`${spec.preCondition}`);
 						const preConditionHint = new vscode.InlayHint(start.translate(0, 2), `${spec.preCondition}`);
 						preConditionHint.paddingLeft = true;
 						const postConditionHint = new vscode.InlayHint(end, `${spec.postCondition}`);
@@ -62,19 +61,19 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(changeTabDisposable);
 
-	// request guabao/reload
-	const reloadDisposable = vscode.commands.registerCommand('guabao.reload', async () => {
+	// request gcl/reload
+	const reloadDisposable = vscode.commands.registerCommand('gcl.reload', async () => {
 		const editor = retrieveMainEditor();
 		// Get the path for the current text file.
 		const filePath = editor?.document.uri.fsPath;
 		// Send the request asynchronously.
-		const _response =  await sendRequest("guabao/reload", {filePath: filePath})
+		const _response =  await sendRequest("gcl/reload", {filePath: filePath})
 		// ignore the response and get results or errors from notifications
 	});
 	context.subscriptions.push(reloadDisposable);
 
-	// refine guabao/refine
-	const refineDisposable = vscode.commands.registerCommand('guabao.refine', async () => {
+	// refine gcl/refine
+	const refineDisposable = vscode.commands.registerCommand('gcl.refine', async () => {
 		const editor = retrieveMainEditor();
 		const filePath = editor.document.uri.fsPath;
 		const selectionRange = genSelectionRangeWithOffset(editor);
@@ -83,7 +82,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		if (specLines) {
 			const implText = getImplText(editor, specLines)
 			const implLines = getImplLinesRange(editor, specLines);
-			const _response = await sendRequest("guabao/refine", {
+			const _response = await sendRequest("gcl/refine", {
 				filePath: filePath,
 				implStart: implLines.toJson().start,
 				implText,
@@ -98,7 +97,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	await start();
 
-	// notification guabao/update
+	// notification gcl/update
 	// 更新 fileState 裡的 specs, pos, warnings
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
 		filePath,
@@ -122,7 +121,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
 
-	// notification guabao/error
+	// notification gcl/error
 	// 更新 fileState 裡的 errors
 	const errorNotificationHandlerDisposable = onErrorNotification(async ({
 		filePath,

@@ -15,7 +15,7 @@ export class GclPanel {
 	panel: vscode.WebviewPanel;
 	constructor() {
 		this.panel = vscode.window.createWebviewPanel(
-			"gbCustom.guabao",
+			"gcl",
 			GclPanel.titleLabel,
 			{ preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
 			{ enableScripts: true }

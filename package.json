@@ -14,41 +14,40 @@
   "contributes": {
     "languages": [
       {
-        "id": "guabao",
+        "id": "gcl",
         "extensions": [
-          ".gcl",
-          ".guabao"
+          ".gcl"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "guabao",
+        "language": "gcl",
         "scopeName": "source.gcl",
-        "path": "./syntaxes/guabao.tmGrammar.json"
+        "path": "./syntaxes/gcl.tmGrammar.json"
       }
     ],
     "commands": [
       {
-        "command": "guabao.reload",
+        "command": "gcl.reload",
         "title": "Reload",
-        "category": "Guabao"
+        "category": "GCL"
       },
       {
-        "command": "guabao.refine",
+        "command": "gcl.refine",
         "title": "Refine",
-        "category": "Guabao"
+        "category": "GCL"
       }
     ],
     "keybindings": [
       {
-        "command": "guabao.reload",
+        "command": "gcl.reload",
         "key": "ctrl+c ctrl+l",
         "when": "!editorHasSelection && editorTextFocus"
       },
       {
-        "command": "guabao.refine",
+        "command": "gcl.refine",
         "key": "ctrl+c ctrl+r",
         "when": "!editorHasSelection && editorTextFocus"
       }
