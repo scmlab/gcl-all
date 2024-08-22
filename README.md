@@ -1,9 +1,9 @@
 # gcl-vscode
-**gcl-vscode** is a formal verification environment for **Guarded Command Language (GCL)** that intergrates to vscode the **GCL Language Server**.
+**gcl-vscode** is a formal verification environment for **Guarded Command Language (GCL)** that extends vscode with the **GCL Language Server**.
 
 For more information, see also:
 - GCL Language Server: https://github.com/scmlab/gcl
-- Old Homepage: https://scmlab.github.io/guabao/
+- old homepage: https://scmlab.github.io/guabao/
 
 ## Standard Language Features
 - Syntax highlighting on the three languages involved:
@@ -14,6 +14,7 @@ For more information, see also:
 - Type hints on hovers
 
 ## Verificaiton-Specific Features
+- **Syntax Check** and **Typecheck** on opening `.gcl` files.
 - Commands
     - **Reload** (`ctrl+c ctrl+l`) typechecks the code and show hints about the specifications and proof obligations.
     - **Refine** (`ctrl+c ctrl+r`): (when a specification is being focused by the cursor) typechecks the code in the specification and updates the specifications and proof obligations. 
