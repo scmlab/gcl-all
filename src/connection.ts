@@ -21,8 +21,8 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
 
 export async function start() {
 	const serverOptions: ServerOptions = {
-		run: { command: "/Users/vince/.local/bin/gcl", transport: TransportKind.stdio },
-		debug: { command: "/Users/vince/.local/bin/gcl" , transport: TransportKind.stdio }
+		run: { command: "gcl", transport: TransportKind.stdio },
+		debug: { command: "gcl" , transport: TransportKind.stdio }
 	};
 
 	// Options to control the language client
