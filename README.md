@@ -5,7 +5,7 @@ For more information, see also:
 - [Guarded Command Language](https://en.wikipedia.org/wiki/Guarded_Command_Language)
 - [Hoare Logic](https://en.wikipedia.org/wiki/Hoare_logic)
 - [GCL Language Server](https://github.com/scmlab/gcl)
-- [gcl-vscode old homepage](https://scmlab.github.io/guabao/)
+- [old homepage](https://scmlab.github.io/guabao/)
 
 ## Standard Language Features
 - Syntax highlighting on the three languages involved:
