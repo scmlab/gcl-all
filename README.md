@@ -15,8 +15,8 @@ For more information, see also:
 ## Verification-Specific Features
 - **Syntax Check** and **Typecheck** on opening `.gcl` files.
 - Commands
-    - **Reload** (`ctrl+c ctrl+l`) typechecks the code and show hints about the specifications and proof obligations.
-    - **Refine** (`ctrl+c ctrl+r`): (when a specification is being focused by the cursor) typechecks the code in the specification and updates the specifications and proof obligations. 
+    - **GCL:Reload** (`ctrl+c ctrl+l`) typechecks the code and show hints about the specifications and proof obligations.
+    - **GCL:Refine** (`ctrl+c ctrl+r`): (when a specification is being focused by the cursor) typechecks the code in the specification and updates the specifications and proof obligations. 
 - **Status Panel**, to the right of the editor, lists all the *specifications, proof obligations, warnings* and *errors*.
 - **Inline Hints**, in the editor and around every specification, displays its pre- and post- conditions.
 
