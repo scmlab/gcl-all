@@ -1,7 +1,5 @@
 
 import * as vscode from 'vscode';
-import * as sysPath from 'path';
-import { guabaoLabel } from "./utils"
 import { FileState } from './data/FileState';
 import renderError from './components/FileState/ErrorSection';
 import renderProofObligation from './components/FileState/ProofObligation';
@@ -12,44 +10,36 @@ export class Welcome {
 	constructor() {}
 }
 
-export class PanelProvider {
-	static panel: vscode.WebviewPanel;
-	initiated(): boolean {
-		return PanelProvider.panel !== undefined
-	}
-	createPanel(): void {
-		PanelProvider.panel =
-			vscode.window.createWebviewPanel(
-				"gbCustom.guabao",
-				guabaoLabel,
-				{ preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
-				{ enableScripts: true }
-			);
-		
+export class GclPanel {
+	static readonly titleLabel = "GCL";
+	panel: vscode.WebviewPanel;
+	constructor() {
+		this.panel = vscode.window.createWebviewPanel(
+			"gbCustom.guabao",
+			GclPanel.titleLabel,
+			{ preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
+			{ enableScripts: true }
+		);
 	}
 	show(html: string): void {
-		PanelProvider.panel.webview.html = html
+		this.panel.webview.html = html
 	}
 	rerender(fileState: FileState): void {
-		PanelProvider.panel.webview.html = renderFileState(fileState);
+		this.panel.webview.html = renderFileState(fileState);
 	}
 	// Show either the welcome page or sections (likely from the LSP server).
 	showLoading(extPath: string): void {
-		PanelProvider.panel.webview.html = renderLoading(extPath);
+		this.panel.webview.html = renderLoading(extPath);
 	}
+	
 }
 
-
-// The below renderXXXXX functions turn the parsed data structure into HTML.
-
 function renderLoading(extPath: string): string {
-	const webview = PanelProvider.panel.webview;
-	
 	return /* html */`
 		<!DOCTYPE html>
 		<html lang="en">
 			<head>
-				<title>GCL</title>
+				<title>${GclPanel.titleLabel}</title>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
 			</head>
@@ -63,12 +53,12 @@ function renderLoading(extPath: string): string {
 	`
 }
 
-export function renderFileState(fileState: FileState): string {
+function renderFileState(fileState: FileState): string {
 	return /* html */`
     	<!DOCTYPE html>
         <html lang="en">
             <head>
-                <title>${guabaoLabel}</title>
+                <title>${GclPanel.titleLabel}</title>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
