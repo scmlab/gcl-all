@@ -64,9 +64,9 @@ function renderFileState(fileState: FileState): string {
             </head>
             <body>
 				${fileState.errors.map(renderError).join('')}
+				${fileState.warnings.map(renderWarning).join('')}
 				${fileState.specs.map(renderSpecification).join('')}
 				${fileState.pos.map(renderProofObligation).join('')}
-				${fileState.warnings.map(renderWarning).join('')}
             </body>
         </html>
     `

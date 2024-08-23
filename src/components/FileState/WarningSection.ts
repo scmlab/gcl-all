@@ -4,5 +4,14 @@ import { renderRange } from '../Range'
 import renderSection from '../Section'
 
 export default function renderWarning(warning: IStructWarning) {
-    return renderSection(/*html*/`<span style="color: var(--vscode-editorWarning-foreground)">Warning</span>`, `${warning.tag} at ${renderRange(warning.range)}`)
+    let sectionBody: string = ""
+    switch (warning.tag) {
+        case "ExcessBound":
+            sectionBody = ""
+            break;
+        case "MissingBound":
+            sectionBody = "A bound is required to prove the termination of the loop."
+
+    }
+    return renderSection(/*html*/`<span style="color: var(--vscode-editorWarning-foreground)">Warning</span>`, sectionBody, `at ${renderRange(warning.range)}`, warning.tag)
 }
