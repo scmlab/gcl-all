@@ -19,7 +19,9 @@ export type TypeError
     | DuplicatedIdentifiers
     | RedundantNames
     | RedundantExprs
-    | MissingArguments;
+    | MissingArguments
+    | KindUnifyFailed
+    | PatternArityMismatch;
 
 interface NotInScope {
     tag: "NotInScope";
@@ -67,4 +69,18 @@ interface RedundantExprs {
 interface MissingArguments {
     tag: "MissingArguments";
     argumentNames: Name[];
+}
+
+type KindExpression = string;
+interface KindUnifyFailed {
+    tag: "KindUnifyFailed";
+    location?: Loc;
+    kindExpressions: [KindExpression, KindExpression];
+}
+
+interface PatternArityMismatch {
+    tag: "PatternArityMismatch";
+    location?: Loc;
+    expected: number;
+    received: number;
 }

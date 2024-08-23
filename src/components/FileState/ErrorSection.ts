@@ -76,6 +76,15 @@ function renderTypeError(error: TypeError): string {
       if (error.argumentNames[0].location) subtitle = `at ${renderRange(error.argumentNames[0].location)}`;
       sectionBody = `Missing arguments in a function call:${error.argumentNames.map(name => `<br/>&nbsp;&nbsp;\"${name}\"`)}`;
       break;
+    case "KindUnifyFailed":
+      if (error.location) subtitle = `at ${renderRange(error.location)}`;
+      sectionBody = `Failed when unifying kind expressions \"${error.kindExpressions[0]}\" and \"${error.kindExpressions[1]}\"`;
+      break;
+    case "PatternArityMismatch":
+      if (error.location) subtitle = `at ${renderRange(error.location)}`;
+      sectionBody = `Expecting ${error.expected} arguments but received ${error.received}`;
+      break;
+
   }
   return renderErrorSection(title, sectionBody, subtitle, code);
 }
