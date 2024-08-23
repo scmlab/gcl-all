@@ -6,9 +6,6 @@ import renderSection from '../Section'
 export default function renderWarning(warning: IStructWarning) {
     let sectionBody: string = ""
     switch (warning.tag) {
-        case "ExcessBound":
-            sectionBody = ""
-            break;
         case "MissingBound":
             sectionBody = "A bound is required to prove the termination of the loop."
 

@@ -32,7 +32,10 @@ export interface IProofObligation {
     }
 }
 
-export interface IStructWarning {
-    tag: "MissingBound" | "ExcessBound";
+export type IStructWarning
+    = MissingBound
+
+export interface MissingBound {
+    tag: "MissingBound";
     range: Range;
 }
