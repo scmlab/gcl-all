@@ -3,6 +3,7 @@
 import { ParseError } from "./Error/ParseError";
 import { StructError } from "./Error/StructError";
 import { TypeError } from "./Error/TypeError";
+import { Loc } from "./Loc";
 
 export type Error = {
     tag: "CannotReadFile";
@@ -18,5 +19,7 @@ export type Error = {
     message: StructError;
 } | {
     tag: "Others";
+    title: string;
     message: string;
+    location?: Loc;
 } 

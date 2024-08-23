@@ -1,6 +1,6 @@
-import { Location } from "vscode-languageclient";
+import { Loc } from "../Loc";
 
 export interface StructError {
     tag: "MissingAssertion" | "MissingPostcondition" | "MultiDimArrayAsgnNotImp" | "LocalVarExceedScope";
-    location?: Location;
+    location?: Loc;
 }

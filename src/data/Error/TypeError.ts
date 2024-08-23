@@ -1,9 +1,6 @@
-import { Range } from "vscode-languageclient"
 import { Loc } from "../Loc";
 
 type TypeExpression = string;
-
-
 
 interface Name {
     symbol: string;

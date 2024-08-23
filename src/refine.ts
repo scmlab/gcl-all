@@ -3,6 +3,15 @@ import { RangeWithOffset } from "./utils";
 import { start } from 'repl';
 import { Position, Range } from 'vscode-languageclient';
 
+export function getSpecText(editor: vscode.TextEditor, specLines: RangeWithOffset): string {
+    let implText: string = '';
+    for (let i = specLines.startLine - 1; i < specLines.endLine; i++) {
+        implText += editor.document.lineAt(i).text;
+        if (i + 1 < specLines.endLine) implText += '\n';
+    }
+    return implText;
+}
+
 export function getImplText(editor: vscode.TextEditor, specLines: RangeWithOffset): string {
     let implText: string = '';
     for (let i = specLines.startLine; i < specLines.endLine - 1; i++) {
@@ -11,6 +20,7 @@ export function getImplText(editor: vscode.TextEditor, specLines: RangeWithOffse
     }
     return implText;
 }
+
 
 export function getImplLinesRange(editor: vscode.TextEditor, specLines: RangeWithOffset): RangeWithOffset {
     const implStartLineNumber: number = specLines.startLine + 1;

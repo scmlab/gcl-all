@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { retrieveMainEditor, genSelectionRangeWithOffset } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
-import { getSpecLinesRange, getImplText, getImplLinesRange } from "./refine";
+import { getSpecLinesRange, getImplText, getSpecText, getImplLinesRange } from "./refine";
 import { GclPanel } from './gclPanel';
 import { FileState, ISpecification } from './data/FileState';
 import path from 'path';
@@ -80,12 +80,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		let specLines = getSpecLinesRange(editor, selectionRange);
 		
 		if (specLines) {
-			const implText = getImplText(editor, specLines)
+			const implText = getImplText(editor, specLines);
+			const specText = getSpecText(editor, specLines);
 			const implLines = getImplLinesRange(editor, specLines);
 			const _response = await sendRequest("gcl/refine", {
 				filePath: filePath,
 				implStart: implLines.toJson().start,
-				implText,
+				specText,
 				specLines: specLines.toJson(),
 			})
 			// ignore the response and get results or errors from notifications

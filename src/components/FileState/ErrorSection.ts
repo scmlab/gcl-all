@@ -22,7 +22,7 @@ export default function renderError(error: Error): string {
     case "StructError":
       return renderStructError(error.message);
     case "Others":
-      return renderErrorSection("Error", error.message)
+      return renderErrorSection(error.title, error.message, error.location && renderRange(error.location))
   }
 }
 
@@ -90,5 +90,5 @@ function renderTypeError(error: TypeError): string {
 }
 
 function renderStructError(error: StructError): string {
-  return renderErrorSection("StructError", "", error.location? `at ${renderRange(error.location.range)}`: "", error.tag);
+  return renderErrorSection("StructError", "", error.location? `at ${renderRange(error.location)}`: "", error.tag);
 }
