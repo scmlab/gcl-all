@@ -41,7 +41,7 @@ export default function renderSection(title: string, sectionBody: string, subtit
           <span>
             <span class="header-title">${title}</span>
             ${subtitle? /*html*/`
-              <span class="header-subtitle">at ${subtitle}</span>`: ""
+              <span class="header-subtitle">${subtitle}</span>`: ""
             }
             ${code? /*html*/`<span class="header-code">#${code}</span>`: ""}
           </span>

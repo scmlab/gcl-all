@@ -31,7 +31,7 @@ export default function renderProofObligation(proofObligation: IProofObligation)
   return renderSection(
     "Proof Obligation",
     sectionBody,
-    proofObligation.origin.location && renderRange(proofObligation.origin.location),
+    proofObligation.origin.location && `at ${renderRange(proofObligation.origin.location)}`,
     proofObligation.hash.slice(0, 6).toUpperCase()
   );
 }
