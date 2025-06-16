@@ -1,0 +1,17 @@
+con N : Int { 0 < N }
+var p, x, y, n : Int
+var mod : Int -> Int -> Int
+
+{:  P = x * y + p = N
+    Q = x > 0 ∧ y > 0
+:}
+
+p,x,y := N-1, 1, 1
+
+{ P ∧ Q, bnd: p }
+do p ≠ 0 ->
+    if mod p x = 0 -> y, p := y + 1, p - x
+     | mod p y = 0 -> x, p := x + 1, p - y
+    fi
+od
+{ x * y = N }

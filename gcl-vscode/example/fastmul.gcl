@@ -1,0 +1,22 @@
+con A, B : Int { A ≥ 0 ∧ B ≥ 0 }
+con even, odd : Int -> Bool
+var r, a, b : Int 
+
+{: INV = a * b + r = A * B ∧ 0 ≤ b :}
+a, b, r := A, B, 0
+{ INV, bnd: b }
+do b ≠ 0 -> 
+    if even b -> 
+        a := a * 2
+        b := b / 2
+     | odd b -> 
+        r := a + r 
+        b := b - 1
+    fi
+od
+{ r = A * B }
+
+
+
+
+

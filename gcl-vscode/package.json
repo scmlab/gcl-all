@@ -1,0 +1,79 @@
+{
+  "name": "gcl-vscode",
+  "displayName": "gcl-vscode",
+  "description": "An Interactive Formal Verification tool for Guarded Command Language",
+  "publisher": "scmlab",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "gcl",
+        "extensions": [
+          ".gcl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "gcl",
+        "scopeName": "source.gcl",
+        "path": "./syntaxes/gcl.tmGrammar.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "gcl.reload",
+        "title": "Reload",
+        "category": "GCL"
+      },
+      {
+        "command": "gcl.refine",
+        "title": "Refine",
+        "category": "GCL"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "gcl.reload",
+        "key": "ctrl+c ctrl+l",
+        "when": "!editorHasSelection && editorTextFocus"
+      },
+      {
+        "command": "gcl.refine",
+        "key": "ctrl+c ctrl+r",
+        "when": "!editorHasSelection && editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "18.x",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.1",
+    "@typescript-eslint/parser": "^6.13.1",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.54.0",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@vscode/webview-ui-toolkit": "^1.4.0",
+    "vscode-languageclient": "^9.0.1"
+  }
+}
