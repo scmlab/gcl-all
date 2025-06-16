@@ -1,0 +1,83 @@
+name: gcl
+version: 0.1.0.0
+#synopsis:
+#description:
+homepage: https://github.com/scmlab/gcl
+license: BSD3
+author: Author name here
+maintainer: banacorn@gmail.com
+copyright: something
+category: language
+extra-source-files:
+  - README.md
+
+dependencies:
+  - base >= 4.7 && < 5
+  - aeson
+  - bytestring
+  - containers
+  - megaparsec >= 9.2
+  - free
+  - hashable
+  - parser-combinators
+  - prettyprinter
+  - mtl
+  - network
+  - network-simple
+  - srcloc
+  - text
+  - lexer-applicative
+  - regex-applicative
+  - random
+  - vector
+  - lsp
+  - lens
+  - multiset
+  - transformers
+  - template-haskell
+  - multistate
+  - deepseq
+  - Diff
+
+library:
+  source-dirs: src
+
+  ghc-options:
+    - -Wall
+    - -Werror=incomplete-patterns
+    - -fno-warn-orphans
+
+executables:
+  gcl:
+    main: Main.hs
+    source-dirs: app
+    dependencies:
+      - gcl
+
+    ghc-options:
+      - -Wall
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
+      - -Werror=incomplete-patterns
+      - -fno-warn-orphans
+
+tests:
+  gcl-test:
+    main: Test.hs
+    source-dirs:
+      - test
+      - src
+    dependencies:
+      - tasty
+      - tasty-hunit
+      - tasty-golden
+      - tasty-quickcheck
+      - directory
+      - filepath
+      - pretty-simple
+
+    ghc-options:
+      - -Wall
+      - -Werror=incomplete-patterns
+      - -fno-warn-orphans

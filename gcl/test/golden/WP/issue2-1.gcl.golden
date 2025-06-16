@@ -1,0 +1,20 @@
+### Result
+
+[ Assertion at ./test/source/WP/issue2-1.gcl [33-46] 3:1-14 #479deb1e3916ef60
+`True
+⇒
+z = A * B`
+explanation not available ]
+
+### Source
+
+con A, B : Int
+var x, y, z : Int
+{ z = A * B }
+
+### Trace
+
+TraceLog "      [ save ] Parsed"
+TraceLog "      [ save ] Converted"
+TraceLog "      [ save ] TypeChecked"
+TraceLog "      [ save ] Swept"

@@ -1,0 +1,20 @@
+### Result
+
+[ Abort at ./test/source/WP/abort.gcl [9-14] 2:1-6 #4ea8b990688e819d
+`True
+⇒
+False`
+explanation not available ]
+
+### Source
+
+{ True }
+abort
+{ True }
+
+### Trace
+
+TraceLog "      [ save ] Parsed"
+TraceLog "      [ save ] Converted"
+TraceLog "      [ save ] TypeChecked"
+TraceLog "      [ save ] Swept"

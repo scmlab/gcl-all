@@ -1,0 +1,22 @@
+{:  
+    data B = T | F 
+
+    x : B 
+    x = T
+
+    not : B -> B 
+    not x = case x of 
+          T -> F 
+          F -> T
+
+    data Maybe t = Just t | Nothing 
+
+    isJust : Maybe B -> B 
+    isJust x = case x of  
+        Just n -> n  
+        Nothing -> F
+:}
+
+{ isJust = isJust }
+
+{ True }

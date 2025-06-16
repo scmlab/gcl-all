@@ -1,0 +1,6 @@
+var a : Int
+{: P x = a = x :}
+
+a := 3
+
+{ P a }

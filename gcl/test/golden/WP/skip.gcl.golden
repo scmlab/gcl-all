@@ -1,0 +1,20 @@
+### Result
+
+[ Skip at ./test/source/WP/skip.gcl [9-13] 2:1-5 #299397966446b76f
+`True
+⇒
+0 = 0`
+explanation not available ]
+
+### Source
+
+{ True }
+skip
+{ 0 = 0 }
+
+### Trace
+
+TraceLog "      [ save ] Parsed"
+TraceLog "      [ save ] Converted"
+TraceLog "      [ save ] TypeChecked"
+TraceLog "      [ save ] Swept"

@@ -1,0 +1,25 @@
+### Result
+
+[ Skip at ./test/source/WP/conditional.gcl [12-16] 1:13-17 #6c677a8bb491b68d
+`True ∧ False
+⇒
+True`
+explanation not available
+, Conditional at ./test/source/WP/conditional.gcl [0-20] 1:1-2:3 #4ea8b990688e819d
+`True
+⇒
+False`
+explanation not available ]
+
+### Source
+
+if False -> skip 
+fi
+{ True }
+
+### Trace
+
+TraceLog "      [ save ] Parsed"
+TraceLog "      [ save ] Converted"
+TraceLog "      [ save ] TypeChecked"
+TraceLog "      [ save ] Swept"

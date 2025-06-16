@@ -1,0 +1,4 @@
+con N : Int
+con A : array (0 .. N] of Int
+
+{Falsee}
