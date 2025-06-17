@@ -1,0 +1,4 @@
+{
+    "name": "GCL Language Server Development - Builder",
+    "image": "ghcr.io/lcamel/gcl-all-builder:latest"
+}
