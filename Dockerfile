@@ -10,4 +10,4 @@ RUN /home/vscode/.ghcup/bin/stack build --only-dependencies && rm -rf /tmp/cache
 
 COPY --chown=vscode:vscode . /home/vscode/gcl-all
 WORKDIR /home/vscode/gcl-all
-RUN bash -x -i build.sh
+RUN bash -x build.sh

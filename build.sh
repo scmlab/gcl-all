@@ -1,4 +1,4 @@
-#!/bin/bash -i
+#!/bin/bash
 
 echo "==== $0 ===="
 date
@@ -7,12 +7,22 @@ pwd
 uname -a
 env
 
+source $HOME/.ghcup/env
+
+export NVM_DIR="$HOME/.nvm"
+source "$NVM_DIR/nvm.sh"
+
 cd gcl
 
-time stack setup                     # will install ghc
-
-time stack build --only-dependencies # compile all the dependencies
-
+time stack setup
+time stack build --only-dependencies
 time stack build
+time stack install # to ~/.local/bin/gcl
 
+cd ..
+
+cd gcl-vscode
+
+time npm install
+time npm run compile
 
