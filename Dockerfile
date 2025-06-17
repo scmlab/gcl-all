@@ -1,8 +1,7 @@
 FROM ghcr.io/lcamel/gcl-language-server-devcontainer:latest
 
-# $HOME is set to /home/vscode by default in the base image
-COPY --chown=vscode:vscode . $HOME/gcl-all
+COPY --chown=vscode:vscode . /home/vscode/gcl-all
 USER vscode
-WORKDIR $HOME/gcl-all
+WORKDIR /home/vscode/gcl-all
 
 RUN bash -x build.sh
