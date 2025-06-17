@@ -1,4 +1,0 @@
-{
-    "name": "GCL Language Server Development",
-    "image": "ghcr.io/lcamel/gcl-all:latest"
-}
