@@ -1,7 +1,12 @@
 FROM ghcr.io/lcamel/gcl-language-server-devcontainer:latest
 
-COPY --chown=vscode:vscode . /home/vscode/gcl-all
 USER vscode
-WORKDIR /home/vscode/gcl-all
 
+# this layer is for caching build dependencies
+WORKDIR /tmp/cache-build-deps
+COPY gcl/stack.yaml gcl/stack.yaml.lock gcl/package.yaml ./
+RUN /home/vscode/.ghcup/bin/stack build --only-dependencies && rm -rf /tmp/cache-build-deps
+
+COPY --chown=vscode:vscode . /home/vscode/gcl-all
+WORKDIR /home/vscode/gcl-all
 RUN bash -x -i build.sh
