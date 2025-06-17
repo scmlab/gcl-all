@@ -24,5 +24,10 @@ cd ..
 cd gcl-vscode
 
 time npm install
-time npm run compile
+#time npm run compile
+npx @vscode/vsce package --skip-license --allow-missing-repository
+# gcl-vscode-0.0.1.vsix
+
+find ~/.local/bin/ -name gcl -ls
+find `pwd` -name "*.vsix" -ls
 
