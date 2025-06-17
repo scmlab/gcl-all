@@ -1,4 +1,11 @@
-#!/bin/bash
+#!/bin/bash -i
+
+echo "==== $0 ===="
+date
+id
+pwd
+uname -a
+env
 
 cd gcl
 
