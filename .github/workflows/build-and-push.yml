@@ -38,7 +38,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max          
           tags: |
-            ${{ env.REGISTRY }}/gcl-builder:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-builder:latest
       - uses: docker/build-push-action@v6
         with:
           context: .
@@ -48,4 +48,4 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max          
           tags: |
-            ${{ env.REGISTRY }}/gcl:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
