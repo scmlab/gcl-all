@@ -23,7 +23,7 @@ source "$NVM_DIR/nvm.sh"
 cd gcl-vscode
 time npm install
 npx @vscode/vsce package --skip-license --allow-missing-repository
-cp gcl-vscode/*.vsix $HOME # to ~/gcl-vscode-0.0.1.vsix
+cp *.vsix $HOME # to ~/gcl-vscode-0.0.1.vsix
 
 
 echo "==== build results:"
