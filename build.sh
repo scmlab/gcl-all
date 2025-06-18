@@ -7,13 +7,9 @@ pwd
 uname -a
 env
 
+echo "==== build gcl:"
 source $HOME/.ghcup/env
-
-export NVM_DIR="$HOME/.nvm"
-source "$NVM_DIR/nvm.sh"
-
 cd gcl
-
 time stack setup
 time stack build --only-dependencies
 time stack build
@@ -21,13 +17,15 @@ time stack install # to ~/.local/bin/gcl
 
 cd ..
 
+echo "==== build gcl-vscode:"
+export NVM_DIR="$HOME/.nvm"
+source "$NVM_DIR/nvm.sh"
 cd gcl-vscode
-
 time npm install
-#time npm run compile
 npx @vscode/vsce package --skip-license --allow-missing-repository
-# gcl-vscode-0.0.1.vsix
+cp gcl-vscode/*.vsix $HOME # to ~/gcl-vscode-0.0.1.vsix
 
-find ~/.local/bin/ -name gcl -ls
-find `pwd` -name "*.vsix" -ls
+
+echo "==== build results:"
+ls -l $HOME/.local/bin/gcl $HOME/*vsix
 
