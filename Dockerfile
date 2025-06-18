@@ -1,4 +1,4 @@
-# Stage 1: Build stage
+# Stage 1: Builder stage
 FROM ghcr.io/lcamel/gcl-language-server-devcontainer:latest AS builder
 
 USER vscode
@@ -17,12 +17,6 @@ RUN bash -x build.sh
 
 # Stage 2: Runtime stage
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04 AS gcl
-
-USER vscode
-
 # Copy built artifacts from the builder stage
 COPY --from=builder --chown=vscode:vscode /home/vscode/.local/bin/gcl /home/vscode/.local/bin/gcl
 COPY --from=builder --chown=vscode:vscode /home/vscode/gcl-all/gcl-vscode/gcl-vscode-0.0.1.vsix /home/vscode/
-
-# Ensure the binary is executable
-RUN chmod +x /home/vscode/.local/bin/gcl
