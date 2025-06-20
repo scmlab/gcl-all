@@ -6,7 +6,7 @@ FROM ghcr.io/lcamel/gcl-all-builder-base:latest AS builder-deps
 USER vscode
 WORKDIR /tmp/cache-build-deps
 COPY gcl/stack.yaml gcl/stack.yaml.lock gcl/package.yaml ./
-RUN source $HOME/.ghcup/env && stack build --only-dependencies && rm -rf /tmp/cache-build-deps
+RUN . $HOME/.ghcup/env && stack build --only-dependencies && rm -rf /tmp/cache-build-deps
 
 
 #
