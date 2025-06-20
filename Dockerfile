@@ -6,8 +6,7 @@ FROM ghcr.io/lcamel/gcl-all-builder-base:latest AS builder-deps
 USER vscode
 WORKDIR /tmp/cache-build-deps
 COPY gcl/stack.yaml gcl/stack.yaml.lock gcl/package.yaml ./
-RUN /home/vscode/.ghcup/bin/stack build --only-dependencies && rm -rf /tmp/cache-build-deps
-RUN /home/vscode/.ghcup/bin/stack install haskell-language-server
+RUN source $HOME/.ghcup/env && stack build --only-dependencies && rm -rf /tmp/cache-build-deps
 
 
 #
