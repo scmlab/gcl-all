@@ -1,12 +1,13 @@
 {
     "name": "GCL Language Server Development",
-    "image": "ghcr.io/lcamel/gcl-all-builder:latest",
+    "image": "ghcr.io/lcamel/gcl-all-builder-deps:latest",
     "runArgs": ["--platform=linux/amd64"],
-    "initializeCommand": "docker pull ghcr.io/lcamel/gcl-all-builder:latest --platform=linux/amd64",
+    "initializeCommand": "docker pull ghcr.io/lcamel/gcl-all-builder-deps:latest --platform=linux/amd64",
     "remoteUser": "vscode",
     "customizations": {
         "vscode": {
             "extensions": [
+                "haskell.haskell"
             ]
         }
     }
