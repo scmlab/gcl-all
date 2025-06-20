@@ -6,6 +6,7 @@ name: Build and Push
 on:
   push:
     branches: ['main']
+  workflow_dispatch:
 
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
 env:
@@ -36,7 +37,7 @@ jobs:
           push: true
           platforms: linux/amd64
           cache-from: type=gha
-          cache-to: type=gha,mode=max          
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-builder:latest
       - uses: docker/build-push-action@v6
@@ -46,6 +47,6 @@ jobs:
           push: true
           platforms: linux/amd64
           cache-from: type=gha
-          cache-to: type=gha,mode=max          
+          cache-to: type=gha,mode=max
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
