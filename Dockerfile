@@ -1,5 +1,5 @@
 # Stage 1: Builder stage
-FROM ghcr.io/lcamel/gcl-language-server-devcontainer:latest AS builder
+FROM ghcr.io/lcamel/gcl-all-builder-base:latest AS builder
 
 USER vscode
 
