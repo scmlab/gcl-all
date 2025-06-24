@@ -1,0 +1,29 @@
+// See https://go.microsoft.com/fwlink/?LinkId=733558
+// for the documentation about the tasks.json format
+{
+	"version": "2.0.0",
+	"tasks": [
+		// for VS Code users who forgot to run npm install
+        {
+            "label": "npm-install",
+            "type": "shell",
+            "command": "npm",
+            "args": ["install"]
+        },		
+		{
+			"label": "npm-run-watch",
+			"type": "npm",
+			"script": "watch",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+            "dependsOn": ["npm-install"]
+		}
+	]
+}
