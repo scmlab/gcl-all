@@ -1,8 +1,8 @@
 {
     "name": "GCL Language Server Development",
-    "image": "ghcr.io/lcamel/gcl-all-builder-deps:latest",
+    "image": "ghcr.io/lcamel/gcl-all-builder-deps-bin:latest",
     "runArgs": ["--platform=linux/amd64"],
-    "initializeCommand": "docker image inspect ghcr.io/lcamel/gcl-all-builder-deps:latest >/dev/null 2>&1 || docker pull ghcr.io/lcamel/gcl-all-builder-deps:latest --platform=linux/amd64",
+    "initializeCommand": "docker image inspect ghcr.io/lcamel/gcl-all-builder-deps-bin:latest >/dev/null 2>&1 || docker pull ghcr.io/lcamel/gcl-all-builder-deps-bin:latest --platform=linux/amd64",
     "remoteUser": "vscode",
     "customizations": {
         "vscode": {
