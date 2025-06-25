@@ -1,8 +1,15 @@
+// On non-x86 computers (like M-series MacBooks), the first startup will fail if
+// the image doesn't exist locally. Therefore, we add a pull command.
+// However, this would cause remote connections every time we start the container,
+// so we add a check: only pull if the image doesn't exist (even if it's older).
+// If you want to use the newest image, you can just pull it everytime.
 {
     "name": "GCL Language Server Development",
     "image": "ghcr.io/lcamel/gcl-all-builder-deps-bin:latest",
     "runArgs": ["--platform=linux/amd64"],
     "initializeCommand": "docker image inspect ghcr.io/lcamel/gcl-all-builder-deps-bin:latest >/dev/null 2>&1 || docker pull ghcr.io/lcamel/gcl-all-builder-deps-bin:latest --platform=linux/amd64",
+    // always pull the newest image
+    //"initializeCommand": "docker pull ghcr.io/lcamel/gcl-all-builder-deps-bin:latest --platform=linux/amd64",
     "remoteUser": "vscode",
     "customizations": {
         "vscode": {
