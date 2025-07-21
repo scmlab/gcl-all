@@ -88,10 +88,11 @@ handlers = mconcat
 
 type CustomMethodHandler params result error = params -> (result -> ServerM ()) -> (error -> ServerM ()) -> ServerM ()
 
+{-# ANN jsonMiddleware ("HLint: ignore Redundant lambda" :: String) #-}
 jsonMiddleware :: (JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON error)
                   => CustomMethodHandler params result error
                   -> LSP.Handler ServerM (LSP.CustomMethod :: LSP.Method LSP.FromClient LSP.Request)
-jsonMiddleware handler req responder = do
+jsonMiddleware handler = \req responder -> do
   logText "json: decoding request\n"
   let json = req ^. LSP.params
   logText . Text.pack $ show json
