@@ -14,6 +14,8 @@ import           Control.Monad                  ( when )
 import           Control.Lens                   ( (^.) )
 import qualified Data.Aeson                     as JSON
 import Data.Text (Text)
+import qualified Data.Text.Encoding             as TextEncoding
+import qualified Data.ByteString.Lazy           as ByteStringLazy
 import           Language.LSP.Server            ( Handlers
                                                 , notificationHandler
                                                 , requestHandler
@@ -95,7 +97,7 @@ jsonMiddleware :: (JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON error)
 jsonMiddleware handler = \req responder -> do
   logText "json: decoding request\n"
   let json = req ^. LSP.params
-  logText . Text.pack $ show json
+  logText $ "JSON content: " <> TextEncoding.decodeUtf8 (ByteStringLazy.toStrict $ JSON.encode json) <> "\n"
   case decodeMessageParams json of
     Left error   -> do
       logText "json: decoding failed with\n"
