@@ -88,9 +88,13 @@ handlers = mconcat
     requestHandler (LSP.SCustomMethod "gcl/refine") $ jsonMiddleware Refine.handler
   ]
 
+-- | A handler type for custom LSP methods.
+--   Takes parsed request params, a success callback, and an error callback.
+--   Calls one of the callbacks to return a result or error to the client.
 type CustomMethodHandler params result error = params -> (result -> ServerM ()) -> (error -> ServerM ()) -> ServerM ()
 
 {-# ANN jsonMiddleware ("HLint: ignore Redundant lambda" :: String) #-}
+-- converts the request JSON object into specific request params (as a Haskell record) for the handler
 jsonMiddleware :: (JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON error)
                   => CustomMethodHandler params result error
                   -> LSP.Handler ServerM (LSP.CustomMethod :: LSP.Method LSP.FromClient LSP.Request)
