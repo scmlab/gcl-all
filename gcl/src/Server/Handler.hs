@@ -14,8 +14,8 @@ import           Control.Monad                  ( when )
 import           Control.Lens                   ( (^.) )
 import qualified Data.Aeson                     as JSON
 import Data.Text (Text)
-import qualified Data.Text.Encoding             as TextEncoding
-import qualified Data.ByteString.Lazy           as ByteStringLazy
+import qualified Data.Aeson.Text                as JSONText
+import qualified Data.Text.Lazy                 as TextLazy
 import           Language.LSP.Server            ( Handlers
                                                 , notificationHandler
                                                 , requestHandler
@@ -95,13 +95,14 @@ type CustomMethodHandler params result error = params -> (result -> ServerM ()) 
 
 {-# ANN jsonMiddleware ("HLint: ignore Redundant lambda" :: String) #-}
 -- converts the request JSON object into specific request params (as a Haskell record) for the handler
+-- TODO: maybe we don't need an error callback
 jsonMiddleware :: (JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON error)
                   => CustomMethodHandler params result error
                   -> LSP.Handler ServerM (LSP.CustomMethod :: LSP.Method LSP.FromClient LSP.Request)
 jsonMiddleware handler = \req responder -> do
   logText "json: decoding request\n"
   let json = req ^. LSP.params
-  logText $ "JSON content: " <> TextEncoding.decodeUtf8 (ByteStringLazy.toStrict $ JSON.encode json) <> "\n"
+  logText $ "JSON content: " <> TextLazy.toStrict (JSONText.encodeToLazyText json) <> "\n"
   case decodeMessageParams json of
     Left error   -> do
       logText "json: decoding failed with\n"
