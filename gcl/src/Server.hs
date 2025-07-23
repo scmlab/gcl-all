@@ -7,6 +7,7 @@ import           Control.Concurrent             ( forkIO
 import           Control.Monad.Except    hiding ( guard )
 import qualified Data.Text.IO                  as Text
 import           GHC.IO.IOMode                  ( IOMode(..) )
+import           System.IO                      ( withFile, hSetEncoding, utf8 )
 import           Language.LSP.Server
 import qualified Language.LSP.Types            as LSP
                                          hiding ( TextDocumentSyncClientCapabilities(..)
@@ -52,7 +53,9 @@ runOnStdio maybeLogFile = do
   writeLog :: GlobalState -> FilePath -> IO ()
   writeLog env logFile = forever $ do
     result <- readChan (logChannel env)
-    appendFile logFile (Text.unpack result)
+    withFile logFile AppendMode $ \handle -> do
+        hSetEncoding handle utf8
+        Text.hPutStr handle result
 
 serverDefn :: GlobalState -> ServerDefinition ()
 serverDefn env = ServerDefinition
