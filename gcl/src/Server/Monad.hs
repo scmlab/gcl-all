@@ -93,6 +93,9 @@ logText s = do
   chan <- lift $ asks logChannel
   liftIO $ writeChan chan s
 
+logTextLn :: Text -> ServerM ()
+logTextLn s = logText (s <> "\n")
+
 loadFileState :: FilePath -> ServerM (Maybe FileState)
 loadFileState filePath = do
   logText "ask file state ref\n"
@@ -228,7 +231,7 @@ sendDiagnostics filePath diagnostics = do
 
 digHoles :: FilePath -> [Range] -> ServerM () -> ServerM ()
 digHoles filePath ranges onFinish = do
-  -- logText $ "    < DigHoles " <> (map ranges toText)
+  logTextLn $ "    < DigHoles " <> Text.pack (show ranges)
   let indent range = Text.replicate (posCol (rangeStart range) - 1) " "
   let diggedText range = "[!\n" <> indent range <> "\n" <> indent range <> "!]"
   editTexts filePath (Prelude.map (\range -> (range, diggedText range)) ranges) onFinish
