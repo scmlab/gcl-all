@@ -55,6 +55,8 @@ data FileState = FileState
   , specifications   :: [Versioned Spec] -- editedVersion or (editedVersion + 1)
   , proofObligations :: [Versioned PO] -- editedVersion
   , warnings         :: [Versioned StructWarning]
+  , didChangeShouldReload :: Int -- trigger a reload after the server sends an edit
+                                 -- SEE: increaseDidChangeShouldReload
 
   -- to support other LSP methods in a light-weighted manner
   , loadedVersion    :: Int  -- the version number of the last reload
@@ -177,9 +179,33 @@ deleteSpec filePath Specification{specID = targetSpecId} = do
   modifyFileState filePath (\filesState@FileState{specifications} ->
     filesState{specifications = Prelude.filter (\(_, Specification{specID}) -> specID /= targetSpecId) specifications})
 
+-- Sometimes the server needs to edit the source (e.g., digHoles),
+-- but the callback after the edit cannot read the latest source from the virtual file system.
+-- The updated source only becomes available in the didChange event right after the callback finishes.
+-- Therefore, we set a flag here so that didChange can determine whether to trigger load.
+increaseDidChangeShouldReload :: FilePath -> ServerM ()
+increaseDidChangeShouldReload filePath = 
+  modifyFileState filePath (\filesState@FileState{didChangeShouldReload} -> filesState {didChangeShouldReload = didChangeShouldReload + 1})
+
+runIfDecreaseDidChangeShouldReload :: FilePath -> (FilePath -> ServerM ()) -> ServerM ()
+runIfDecreaseDidChangeShouldReload filePath action = do
+  maybeFileState <- loadFileState filePath
+  case maybeFileState of
+    Just fileState | didChangeShouldReload fileState > 0 -> do
+      let orig = didChangeShouldReload fileState
+      logTextLn $ "didChangeShouldReload: orig: " <> Text.pack (show orig)
+      modifyFileState filePath (\fileState -> fileState { didChangeShouldReload = orig - 1 })
+      action filePath
+    _ -> return ()
+
 readSource :: FilePath -> ServerM (Maybe Text)
-readSource filepath = fmap LSP.virtualFileText
-                      <$> LSP.getVirtualFile (LSP.toNormalizedUri (LSP.filePathToUri filepath))
+readSource filepath = do
+    maybeVirtualFile <- LSP.getVirtualFile $ LSP.toNormalizedUri $ LSP.filePathToUri filepath
+    case maybeVirtualFile of
+      Nothing -> return Nothing
+      Just virtualFile -> do
+        logTextLn $ "readSource: LSP.virtualFileVersion: " <> Text.pack (show $ LSP.virtualFileVersion virtualFile)
+        return (Just $ LSP.virtualFileText virtualFile)
 
 modifyPositionDelta :: FilePath -> (PositionDelta -> PositionDelta) -> ServerM ()
 modifyPositionDelta filePath modifier = do

@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Server.Handler.OnDidChangeTextDocument where
 
-import Server.Monad (ServerM, FileState (..), modifyFileState, Versioned, logText, logFileState)
+import Server.Monad (ServerM, FileState (..), modifyFileState, Versioned, logText, logFileState, runIfDecreaseDidChangeShouldReload)
 import Server.Notification.Update (sendUpdateNotification)
 import GCL.Predicate (Spec(..), PO (..), Origin (..))
 import Server.PositionMapping (mkDelta, applyChange, toCurrentRange', PositionDelta)
@@ -12,6 +12,8 @@ import qualified Server.SrcLoc as SrcLoc
 import Data.Loc.Range (Range (..), fromLoc)
 import Data.Loc (Loc (..), Located (..))
 import GCL.WP.Types (StructWarning (MissingBound))
+import Server.Load (load)
+
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
@@ -25,6 +27,8 @@ handler filePath changes = do
       }
     )
   logFileState filePath (map (\(version, Specification{specRange}) -> (version, specRange)) . specifications)
+
+  runIfDecreaseDidChangeShouldReload filePath load
 
   -- send notification to update Specs and POs
   logText "didChange: fileState modified\n"

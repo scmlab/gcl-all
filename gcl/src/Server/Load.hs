@@ -9,7 +9,7 @@ module Server.Load where
 
 
 
-import Server.Monad (ServerM, FileState(..), loadFileState, saveFileState, readSource, digHoles, logText, logText)
+import Server.Monad (ServerM, FileState(..), loadFileState, saveFileState, readSource, digHoles, logText, increaseDidChangeShouldReload)
 import Data.Text (Text)
 
 import Data.Loc.Range (Range)
@@ -67,7 +67,7 @@ load filePath = do
               logText "  should dig holes\n"
               digHoles filePath holes do
                 logText "  holes digged\n"
-                load filePath
+                increaseDidChangeShouldReload filePath
             Right abstract -> do
               logText "  all holes digged\n"
               logText "  abstract program generated\n"
@@ -87,6 +87,7 @@ load filePath = do
                                         , specifications   = map (\spec -> (currentVersion, spec)) specs
                                         , proofObligations = map (\po -> (currentVersion, po)) pos
                                         , warnings         = map (\warning -> (currentVersion, warning)) warnings
+                                        , didChangeShouldReload = 0
 
                                         -- to support other LSP methods in a light-weighted manner
                                         , loadedVersion    = currentVersion
