@@ -108,6 +108,7 @@ structProgram stmts = do
 
 
 -- tying the knots
+-- handling mutual recursion functions across modules
 
 structStmts :: InfMode -> (Pred, Maybe Expr) -> [Stmt] -> Pred -> WP ()
 structStmts = this
