@@ -45,6 +45,16 @@ import           Syntax.Abstract.Types          ( Type(..) )
 
 --- grouping a sequence of statement by assertions and specs
 
+-- Assert         -> SAsrt stmt
+-- other stmt     \
+-- other stmt        SStmts [other stmts]
+-- other stmt     /
+-- LoopInvariant  -> SAsrt stmt
+-- other stmt     \
+-- other stmt        SStmts [other stmts]
+-- other stmt     /
+-- Spec           -> SSpec stmt
+
 groupStmts :: [Stmt] -> [SegElm]
 groupStmts []                            = []
 groupStmts (s@(Assert _ _)    : stmts) = SAsrt s : groupStmts stmts
