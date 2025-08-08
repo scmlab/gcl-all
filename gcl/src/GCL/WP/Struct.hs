@@ -38,6 +38,9 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
 
  where
 
+ -- handles  {P} [Stmt] {Q}  where
+ -- [Stmt] may contain assertions, invariants, specs, and other statements
+ -- (Pred, Maybe Expr) : precondition and bound
  structStmts :: InfMode -> (Pred, Maybe Expr) -> [Stmt] -> Pred -> WP ()
  structStmts Primary pre stmts post = structSegs pre (groupStmts stmts) post
  structStmts Secondary (pre, _) stmts post = case stripAsserts stmts of
@@ -49,6 +52,7 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
        post'
        (emptyExplain "Assertion (Secondary)" (locOf pre))
 
+ -- handles  {P} [SegElm] {Q}
  structSegs :: (Pred, Maybe Expr) -> [SegElm] -> Pred -> WP ()
  structSegs (pre, _) [] post = do
   case locOf pre of

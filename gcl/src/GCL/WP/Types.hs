@@ -38,6 +38,7 @@ instance Counterous WP where
 
 ---
 
+-- will be constructed by groupStmts
 data SegElm = SAsrt Stmt
             | SSpec Stmt
             | SStmts [Stmt]
