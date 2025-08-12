@@ -5,11 +5,11 @@
 // If you want to use the newest image, you can just pull it everytime.
 {
     "name": "GCL Language Server Development",
-    "image": "ghcr.io/lcamel/gcl-all-builder-deps-bin:latest",
+    "image": "ghcr.io/scmlab/gcl-all-builder-deps-bin:latest",
     "runArgs": ["--platform=linux/amd64"],
-    "initializeCommand": "time bash -c 'docker image inspect ghcr.io/lcamel/gcl-all-builder-deps-bin:latest >/dev/null 2>&1 || docker pull ghcr.io/lcamel/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
+    "initializeCommand": "time bash -c 'docker image inspect ghcr.io/scmlab/gcl-all-builder-deps-bin:latest >/dev/null 2>&1 || docker pull ghcr.io/scmlab/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
     // always pull the newest image
-    //"initializeCommand": "time bash -c 'docker pull ghcr.io/lcamel/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
+    //"initializeCommand": "time bash -c 'docker pull ghcr.io/scmlab/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
     "remoteUser": "vscode",
     "customizations": {
         "vscode": {
