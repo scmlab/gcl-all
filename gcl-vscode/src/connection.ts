@@ -20,9 +20,12 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
 
 
 export async function start() {
+	const gclConfig = vscode.workspace.getConfiguration("gcl-vscode");
+	const gclPath = gclConfig.get<string>("gclPath") ?? "gcl";
+
 	const serverOptions: ServerOptions = {
-		run: { command: "gcl", transport: TransportKind.stdio},
-		debug: { command: "gcl" , args: [`--out=./gcl_server.log`], transport: TransportKind.stdio }
+		run: { command: gclPath, transport: TransportKind.stdio},
+		debug: { command: gclPath , args: [`--out=./gcl_server.log`], transport: TransportKind.stdio }
 	};
 
 	// Options to control the language client
