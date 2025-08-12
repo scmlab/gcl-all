@@ -51,6 +51,18 @@
         "key": "ctrl+c ctrl+r",
         "when": "!editorHasSelection && editorTextFocus"
       }
+    ],
+    "configuration": [
+      {
+        "title": "gcl-vscode",
+        "properties": {
+          "gcl-vscode.gclPath": {
+            "type": "string",
+            "default": "gcl",
+            "description": "Location of the `gcl` LSP executable"
+          }
+        }
+      }
     ]
   },
   "scripts": {
