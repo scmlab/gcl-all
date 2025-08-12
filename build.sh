@@ -22,7 +22,7 @@ export NVM_DIR="$HOME/.nvm"
 source "$NVM_DIR/nvm.sh"
 cd gcl-vscode
 time npm install
-npx @vscode/vsce package --skip-license --allow-missing-repository
+npm run package
 cp *.vsix $HOME # to ~/gcl-vscode-0.0.1.vsix
 
 
