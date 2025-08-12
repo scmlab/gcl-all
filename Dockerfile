@@ -2,7 +2,7 @@
 # Install ghc and compile dependencies in ~/.stack
 # This stage seldom changes
 #
-FROM ghcr.io/lcamel/gcl-all-builder-base:latest AS builder-deps
+FROM ghcr.io/scmlab/gcl-all-builder-base:latest AS builder-deps
 USER vscode
 WORKDIR /tmp/cache-build-deps
 COPY gcl/stack.yaml gcl/stack.yaml.lock gcl/package.yaml ./
