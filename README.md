@@ -9,7 +9,7 @@
 2. Open the multi-root workspace
    - select the file "gcl-all.code-workspace"
    - click "Open Workspace"
-3. Open a ".hs" file in gcl/src and click "Manually via PATH" (*NOT* "Automatically via GHCup" !)
+3. Open a ".hs" file in gcl/src and click "Manually via PATH" (this will set `haskell.manageHLS` to PATH). Important: Do **NOT** select "Automatically via GHCup"!
 4. Open a vscode terminal in gcl/ and run "stack install" to update ~/.local/bin/gcl
 5. Press F5 to launch the extension + LSP server in a new window
 
