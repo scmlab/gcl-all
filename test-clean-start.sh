@@ -1,4 +1,13 @@
 #!/bin/bash
+#
+# Purpose of test-clean-start.sh:
+# Help Guabao developers create installation and operation procedures.
+#
+# Strategy:
+# - Host environment: Minimal assumptions (no pre-installed Dev Container extension)
+#   because we don't control developers' existing setups
+# - Container environment: Fully prepared toolchain with all extensions
+#   because this environment is under our control
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
