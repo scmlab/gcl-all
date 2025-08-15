@@ -17,7 +17,28 @@
                 "haskell.haskell"
             ],
             "settings": {
-                "haskell.manageHLS": "PATH"
+                //
+                // Since GHCup may not always determine the correct tool versions,
+                // we want to install the specified versions ourselves first
+                // and then have the Haskell extension use them.
+                // This should be the behavior of "haskell.manageHLS" = "PATH".
+                //
+                // However, due to the Haskell Extension's logic, a misleading dialog
+                // will initially appear, and users might make the wrong choice.
+                //
+                // So we change the setting to "haskell.manageHLS" = "GHCup"
+                // and tell GHCup not to install any tools automatically,
+                // which reverts back to the original behavior of using
+                // pre-installed tools from PATH.
+                //
+                "haskell.manageHLS": "GHCup",
+                "haskell.upgradeGHCup": false,
+                "haskell.toolchain": {
+                    "ghc": null,
+                    "hls": null,
+                    "stack": null,
+                    "cabal": null
+                }
             }
         }
     }
