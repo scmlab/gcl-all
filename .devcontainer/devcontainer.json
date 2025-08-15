@@ -17,6 +17,7 @@
                 "haskell.haskell"
             ],
             "settings": {
+                "git.openRepositoryInParentFolders": "always",
                 //
                 // Since GHCup may not always determine the correct tool versions,
                 // we want to install the specified versions ourselves first
