@@ -1,12 +1,14 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    oldNixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
     utils.url = "github:numtide/flake-utils";
   };
-  outputs = { self, nixpkgs, utils }: utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, oldNixpkgs, utils }: utils.lib.eachDefaultSystem (system:
     let
       pkgs = nixpkgs.legacyPackages.${system};
-      hPkgs = pkgs.haskell.packages."ghc8107";
+      oldPkgs = oldNixpkgs.legacyPackages.${system};
+      hPkgs = oldPkgs.haskell.packages."ghc8107";
 
       devTools = with hPkgs; [
         ghc
