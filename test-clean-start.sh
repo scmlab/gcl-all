@@ -19,3 +19,8 @@ docker rmi "$IMG:latest"
 D=/tmp/tmp-gcl-all
 rm -fR "$D" && mkdir -p "$D"
 code --user-data-dir "$D/u" --extensions-dir "$D/e" .
+
+
+#code --user-data-dir "$D/u" --extensions-dir "$D/e" --install-extension ms-vscode-remote.remote-containers
+#code --user-data-dir "$D/u" --extensions-dir "$D/e" --install-extension ./ms-vscode-remote.remote-containers-0.422.1.vsix
+#code --user-data-dir "$D/u" --extensions-dir "$D/e" --disable-workspace-trust --folder-uri="vscode-remote://dev-container+$(pwd | tr -d '\n' | xxd -c 256 -p)/workspaces/$(basename "$(pwd)")"
