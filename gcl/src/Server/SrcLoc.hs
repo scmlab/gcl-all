@@ -21,7 +21,8 @@ import           Data.Loc
 import           Data.Loc.Range
 import           Data.Text                      ( Text )
 import qualified Data.Text                     as Text
-import qualified Language.LSP.Types            as J
+import qualified Language.LSP.Protocol.Types   as J
+import qualified Hack
 
 -- Note:  LSP srclocs are 0-base
 --        Data.Loc/Data.Range srclocs are 1-base
@@ -64,7 +65,7 @@ toLSPRange :: Range -> J.Range
 toLSPRange (Range start end) = J.Range (toLSPPosition start) (toLSPPosition end)
 
 toLSPPosition :: Pos -> J.Position
-toLSPPosition (Pos _path ln col _offset) = J.Position ((ln - 1) `max` 0) ((col - 1) `max` 0)
+toLSPPosition (Pos _path ln col _offset) = J.Position ((Hack.intToUInt (ln - 1)) `max` 0) ((Hack.intToUInt (col - 1)) `max` 0)
 
 --------------------------------------------------------------------------------
 -- | Positon => Offset convertion
@@ -102,10 +103,10 @@ makeToOffset = ToOffset . accumResult . Text.foldl' go initAccum
   go (Accum _previous n l table) char = Accum (Just char) (1 + n) l table
 
 -- | (line, col) => offset (zero-based)
-toOffset :: ToOffset -> (Int, Int) -> Int
-toOffset (ToOffset table) (line, col) = case IntMap.lookup line table of
+toOffset :: ToOffset -> (J.UInt, J.UInt) -> J.UInt
+toOffset (ToOffset table) (line, col) = case IntMap.lookup (Hack.uIntToInt line) table of
   Nothing     -> col
-  Just offset -> offset + col
+  Just offset -> (Hack.intToUInt offset) + col
 
 --------------------------------------------------------------------------------
 -- | Offset => Position convertion

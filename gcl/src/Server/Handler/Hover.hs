@@ -5,7 +5,7 @@
 
 module Server.Handler.Hover where
 
-import qualified Language.LSP.Types            as LSP
+import qualified Language.LSP.Protocol.Types   as LSP
 import qualified Server.SrcLoc                 as SrcLoc
 import qualified Server.IntervalMap            as IntervalMap
 import Server.PositionMapping (PositionDelta, toCurrentRange, PositionMapping(..), PositionResult(..), fromDelta)

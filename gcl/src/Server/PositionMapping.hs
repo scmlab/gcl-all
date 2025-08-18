@@ -38,14 +38,17 @@ import           Control.DeepSeq
 import           Control.Monad
 import           Data.Algorithm.Diff
 import           Data.Bifunctor
-import           Data.List
 import qualified Data.Text                   as T
 import qualified Data.Vector.Unboxed         as V
 
-import           Language.LSP.Types (Position (Position),
+import           Language.LSP.Protocol.Types (Position (Position),
                                               Range (Range),
-                                              TextDocumentContentChangeEvent (TextDocumentContentChangeEvent)
-                                            )
+                                              TextDocumentContentChangeEvent (TextDocumentContentChangeEvent),
+                                              TextDocumentContentChangePartial (TextDocumentContentChangePartial),
+                                              UInt,
+                                              type (|?)(..)
+                                             )
+import qualified Hack
 
 -- | Either an exact position, or the range of text that was substituted
 data PositionResult a
@@ -148,7 +151,7 @@ addOldDelta delta (PositionMapping pm) = PositionMapping (composeDelta pm delta)
 -- TODO: We currently ignore the right hand side (if there is only text), as
 -- that was what was done with lsp* 1.6 packages
 applyChange :: PositionDelta -> TextDocumentContentChangeEvent -> PositionDelta
-applyChange PositionDelta{..} (TextDocumentContentChangeEvent (Just range) _ text) = PositionDelta
+applyChange PositionDelta{..} (TextDocumentContentChangeEvent (InL (TextDocumentContentChangePartial range _ text))) = PositionDelta
     { toDelta = toCurrent range text <=< toDelta
     , fromDelta = fromDelta <=< fromCurrent range text
     }
@@ -169,15 +172,15 @@ toCurrent (Range start@(Position startLine startColumn) end@(Position endLine en
         lineDiff = linesNew - linesOld
         linesNew = T.count "\n" t
         linesOld = fromIntegral endLine - fromIntegral startLine
-        newEndColumn :: Int
+        newEndColumn :: UInt
         newEndColumn
           | linesNew == 0 = fromIntegral $ fromIntegral startColumn + T.length t
           | otherwise = fromIntegral $ T.length $ T.takeWhileEnd (/= '\n') t
-        newColumn :: Int
+        newColumn :: UInt
         newColumn
           | line == endLine = fromIntegral $ (fromIntegral column + newEndColumn) - fromIntegral endColumn
           | otherwise = column
-        newLine :: Int
+        newLine :: UInt
         newLine = fromIntegral $ fromIntegral line + lineDiff
 
 fromCurrent :: Range -> T.Text -> Position -> PositionResult Position
@@ -195,17 +198,17 @@ fromCurrent (Range start@(Position startLine startColumn) end@(Position endLine 
         lineDiff = linesNew - linesOld
         linesNew = T.count "\n" t
         linesOld = fromIntegral endLine - fromIntegral startLine
-        newEndLine :: Int
+        newEndLine :: UInt
         newEndLine = fromIntegral $ fromIntegral endLine + lineDiff
-        newEndColumn :: Int
+        newEndColumn :: UInt
         newEndColumn
           | linesNew == 0 = fromIntegral $ fromIntegral startColumn + T.length t
           | otherwise = fromIntegral $ T.length $ T.takeWhileEnd (/= '\n') t
-        newColumn :: Int
+        newColumn :: UInt
         newColumn
           | line == newEndLine = fromIntegral $ (fromIntegral column + fromIntegral endColumn) - newEndColumn
           | otherwise = column
-        newLine :: Int
+        newLine :: UInt
         newLine = fromIntegral $ fromIntegral line - lineDiff
 
 deltaFromDiff :: T.Text -> T.Text -> PositionDelta
@@ -231,7 +234,7 @@ deltaFromDiff (T.lines -> old) (T.lines -> new) =
 
     lookupPos :: Int -> V.Vector Int -> V.Vector Int -> V.Vector Int -> Position -> PositionResult Position
     lookupPos end prevs nexts xs (Position line col)
-      | line >= fromIntegral (V.length xs) = PositionRange (Position end 0) (Position end 0)
+      | line >= fromIntegral (V.length xs) = PositionRange (Position (Hack.intToUInt end) 0) (Position (Hack.intToUInt end) 0)
       | otherwise           = case V.unsafeIndex xs (fromIntegral line) of
           -1 ->
             -- look for the previous and next lines that mapped successfully

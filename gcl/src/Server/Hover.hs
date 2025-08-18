@@ -9,7 +9,7 @@ module Server.Hover
   ) where
 
 
-import qualified Language.LSP.Types as J
+import qualified Language.LSP.Protocol.Types as J
 import           Pretty
 import           Data.Loc           ( Located
                                     , locOf
@@ -23,9 +23,6 @@ import           Syntax.Typed                   as Typed
 collectHoverInfo :: Typed.Program -> IntervalMap J.Hover
 collectHoverInfo = collect
 
-instance Pretty J.Hover where
-  pretty = pretty . show
-
 --------------------------------------------------------------------------------
 -- helper function for annotating some syntax node with its type or kind
 
@@ -34,16 +31,16 @@ annotateType node t = case fromLoc (locOf node) of
   Nothing    -> mempty
   Just range -> IntervalMap.singleton range hover
   where
-    hover   = J.Hover content Nothing
-    content = J.HoverContents $ J.markedUpContent "gcl" (toText t)
+    hover   = J.Hover (J.InL content) Nothing
+    content = J.MarkupContent J.MarkupKind_PlainText ("gcl" <> toText t)
 
 annotateKind :: Located a => a -> Kind -> IntervalMap J.Hover
 annotateKind node k = case fromLoc (locOf node) of
   Nothing    -> mempty
   Just range -> IntervalMap.singleton range hover
   where
-    hover   = J.Hover content Nothing
-    content = J.HoverContents $ J.markedUpContent "gcl" (toText k)
+    hover   = J.Hover (J.InL content) Nothing
+    content = J.MarkupContent J.MarkupKind_PlainText ("gcl" <> toText k)
 
 --------------------------------------------------------------------------------
 

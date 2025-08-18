@@ -6,7 +6,7 @@
 
 module Server.Handler.GoToDefinition where
 
-import qualified Language.LSP.Types as LSP
+import qualified Language.LSP.Protocol.Types as LSP
 import Server.Monad (ServerM, FileState (..), readSource, loadFileState, logText)
 
 

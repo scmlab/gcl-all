@@ -1,15 +1,18 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
 
 module Server.Notification.Error where
 
+import Data.Proxy (Proxy(Proxy))
 import qualified Data.Aeson as JSON
 import Data.Aeson ((.=), object)
 import qualified Server.Monad as Server
 import           Pretty.Predicate               ( )
 import Data.Loc (Loc(..), Pos (..))
-import Data.Text.Prettyprint.Doc
+import Prettyprinter
 import qualified Data.Text as Text
 import Pretty.Typed ()
 import Data.List.NonEmpty (NonEmpty ((:|)))
@@ -23,7 +26,7 @@ import GCL.WP.Types (StructError (..))
 sendErrorNotification :: FilePath -> [Error] -> ServerM ()
 sendErrorNotification filePath errors = do
   let json :: JSON.Value = makeErrorNotificationJson filePath errors
-  Server.sendCustomNotification "gcl/error" json
+  Server.sendCustomNotification (Proxy @"gcl/error") json
 
 makeErrorNotificationJson :: FilePath -> [Error] -> JSON.Value
 makeErrorNotificationJson filePath errors = JSON.object

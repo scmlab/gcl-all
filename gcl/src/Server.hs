@@ -9,7 +9,7 @@ import qualified Data.Text.IO                  as Text
 import           GHC.IO.IOMode                  ( IOMode(..) )
 import           System.IO                      ( openFile, hSetEncoding, utf8, hFlush )
 import           Language.LSP.Server
-import qualified Language.LSP.Types            as LSP
+import qualified Language.LSP.Protocol.Types   as LSP
                                          hiding ( TextDocumentSyncClientCapabilities(..)
                                                 )
 import           Network.Simple.TCP             ( HostPreference(Host)

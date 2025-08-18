@@ -3,10 +3,9 @@
 
 module Server.Handler.Initialized (handler) where
 
-import qualified Data.Text as Text
-
-import qualified Language.LSP.Server as LSP
-import qualified Language.LSP.Types  as LSP
+import qualified Language.LSP.Server           as LSP
+import qualified Language.LSP.Protocol.Types   as LSP
+import qualified Language.LSP.Protocol.Message as LSP
 import Server.Monad (ServerM)
 
 handler :: ServerM ()
@@ -14,8 +13,8 @@ handler = do
   -- logText "initialized"
   let requestParams =
         LSP.ShowMessageRequestParams
-          LSP.MtInfo
+          LSP.MessageType_Info
           "GCL Server Initialized."
           Nothing
-  _ <- LSP.sendRequest LSP.SWindowShowMessageRequest requestParams $ \_ -> return ()
+  _ <- LSP.sendRequest LSP.SMethod_WindowShowMessageRequest requestParams $ \_ -> return ()
   return ()

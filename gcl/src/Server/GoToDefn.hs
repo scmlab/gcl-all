@@ -15,9 +15,8 @@ import           Data.Loc.Range
 import           Data.Map                       ( Map )
 import qualified Data.Map                      as Map
 import           Data.Text                      ( Text )
-import           Language.LSP.Types             ( LocationLink(..) )
-import qualified Language.LSP.Types            as J
-import           Pretty                         ( Pretty(..) )
+import           Language.LSP.Protocol.Types    ( LocationLink(..) )
+import qualified Language.LSP.Protocol.Types   as J
 import qualified Server.IntervalMap            as IntervalMap
 import           Server.IntervalMap
 import qualified Server.SrcLoc                 as SrcLoc
@@ -26,9 +25,6 @@ import           Syntax.Common
 
 collectLocationLinks :: Program -> IntervalMap LocationLink
 collectLocationLinks program = runM (programToScopes program) (collect program)
-
-instance Pretty LocationLink where
-  pretty = pretty . show
 
 
 --------------------------------------------------------------------------------
