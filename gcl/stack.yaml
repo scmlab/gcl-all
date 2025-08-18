@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-18.21
+resolver: lts-24.5
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -41,33 +41,35 @@ packages:
 #
 ghc-options:
   "$everything": -haddock
-  
+
 extra-deps:
   # LSP
   - lexer-applicative-2.1.0.2
-  - github: haskell/lsp
-    commit: dce30c9d345f63921cf9cf5045e1dcd753e4fe34
-    subdirs: 
-      - lsp
-  - github: haskell/lsp
-    commit: dce30c9d345f63921cf9cf5045e1dcd753e4fe34
-    subdirs: 
-      - lsp-types
+  # - github: haskell/lsp
+  #   commit: dce30c9d345f63921cf9cf5045e1dcd753e4fe34
+  #   subdirs:
+  #     - lsp
+  # - github: haskell/lsp
+  #   commit: dce30c9d345f63921cf9cf5045e1dcd753e4fe34
+  #   subdirs:
+  #     - lsp-types
   # - some-1.0.1@sha256:26e5bab7276f48b25ea8660d3fd1166c0f20fd497dac879a40f408e23211f93e,2055
-  - dependent-map-0.4.0.0@sha256:ca2b131046f4340a1c35d138c5a003fe4a5be96b14efc26291ed35fd08c62221,1657
-  - dependent-sum-0.7.1.0@sha256:0e419237f5b86da3659772afff9cab355c0f8d5b3fdb15a5b30e673d8dc83941,2147
-  - dependent-sum-template-0.1.0.3@sha256:0bbbacdfbd3abf2a15aaf0cf2c27e5bdd159b519441fec39e1e6f2f54424adde,1682
-  - unliftio-core-0.2.0.1@sha256:9b3e44ea9aacacbfc35b3b54015af450091916ac3618a41868ebf6546977659a,1082
-  - constraints-extras-0.3.1.0@sha256:12016ebb91ad5ed2c82bf7e48c6bd6947d164d33c9dca5ac3965de1bb6c780c0,1777
+  - lsp-2.7.0.1@sha256:a91eef4b0f6296a501ecbf1f2f4bbadccfe97e52e6739ace76631eb2907e01d3,4033
+  - lsp-types-2.3.0.1@sha256:a5497aa4ae7b27d956df8dab701495d3062b88eee52e3a6c65fc13fa28b7b191,34230
+  - dependent-map-0.4.0.0@sha256:7468acfc6d97f36380bb9350cd5279747be8ce1e80d3b71ba65ea94b6e9858a2,1715
+  - dependent-sum-0.7.2.0@sha256:f1060345439b6949eae5a6b3cdb35c7189ff360f7b4d5fa617e4f1e0f847c424,2148
+  - dependent-sum-template-0.2.0.2@sha256:ba563412208bd099a347223dcf9b37df75dfe8a0c9491d6f2d509c6d09691169,2208
+  - unliftio-core-0.2.1.0@sha256:f6a2736f858b5390d9384dca43d3ea4d96e9ca17217791791ca4951ba6e8072a,996
+  - constraints-extras-0.4.0.2@sha256:5c901e2103d0e3238b29beb2751d20b67c6945749be553d38dd80b3490c57a63,2011
   - sbv-8.17@sha256:3e36afa44ee597b213843495e666d88e604e429f0fcec1bbca05ae847bb752a2,29096
   - libBF-0.6.3@sha256:ad38e44a038b8da62c82a58b8a762331097569c27a5978258caed8b28cda73e2,1770
 
 
-  # Megaparsec v9.2.0
-  - megaparsec-9.2.0@sha256:0c272aa13b9f663dbd7b74ef81e9b1f9f05cafde50f5362ce87ffd4913046e0b,3213
-  - scientific-0.3.7.0@sha256:d7edb4dfb320e7b9cc9d503ca435d22983a236db06c7b4f3e81c099a9fd4cd73,4809
-  - primitive-0.7.3.0@sha256:6b28a1c0572f5ca50597ba8388aeade21515842969ae192cdc6bfca81367bf56,2951
-  - constraints-0.12@sha256:7edf1e72a92d0a6761da634f08be9123dfcc0dcec11c269cbf465a09721c3481,2322
+  # Megaparsec v9.7.0
+  - megaparsec-9.7.0@sha256:77e331b4240385974e68d1f8d5ca9014274983cc9ccb8caced743d360c3a409f,3407
+  - scientific-0.3.8.0@sha256:ba83a6701dd0110138443757aca4a42786afa94272b73045ef878fd860d1732e,4397
+  - primitive-0.9.1.0@sha256:dfdd6572944c11e69208237dd32a2eb9d975b4f4e9064a7b8dc952cb0e256846,3119
+  - constraints-0.14.2@sha256:381a53e9d5aad937644d13b5c2c4fcc3698aeba2f83945a42100c6324e0ea8e7,2384
 # Override default flag values for local packages and extra-deps
 # flags: {}
 

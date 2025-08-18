@@ -6,13 +6,16 @@
   };
   outputs = { self, nixpkgs, oldNixpkgs, utils }: utils.lib.eachDefaultSystem (system:
     let
-      pkgs = nixpkgs.legacyPackages.${system};
-      oldPkgs = oldNixpkgs.legacyPackages.${system};
-      hPkgs = oldPkgs.haskell.packages."ghc8107";
+      pkgs = import nixpkgs {
+        inherit system;
+      };
+
+      hPkgs = pkgs.haskell.packages."ghc9102";
 
       devTools = with hPkgs; [
         ghc
         haskell-language-server
+        ormolu
 
         stack-wrapped
         pkgs.zlib
@@ -37,6 +40,7 @@
         buildInputs = devTools;
 
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath devTools;
+        # HACK: brittany is currently marked as broken
       };
     }
   );
