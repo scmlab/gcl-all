@@ -23,16 +23,16 @@ handler position completionContext
 --  1. a backslash "\" is being typed
 --  2. current completion is incomplete
 shouldTriggerUnicodeCompletion :: Maybe CompletionContext -> Bool
-shouldTriggerUnicodeCompletion (Just (CompletionContext { _triggerKind = CompletionTriggerKind_TriggerCharacter, _triggerCharacter = Just "\\"}))
+shouldTriggerUnicodeCompletion (Just (CompletionContext CompletionTriggerKind_TriggerCharacter (Just "\\")))
     = True
-shouldTriggerUnicodeCompletion (Just (CompletionContext { _triggerKind = CompletionTriggerKind_TriggerForIncompleteCompletions }))
+shouldTriggerUnicodeCompletion (Just (CompletionContext CompletionTriggerKind_TriggerForIncompleteCompletions _))
     = True
 shouldTriggerUnicodeCompletion _
     = False
 
 -- turn '?' into spec brackets '[! !]'
 shouldTriggerDighole :: Maybe CompletionContext -> Bool
-shouldTriggerDighole (Just (CompletionContext { _triggerKind = CompletionTriggerKind_TriggerCharacter, _triggerCharacter = Just "?"}))
+shouldTriggerDighole (Just (CompletionContext CompletionTriggerKind_TriggerCharacter (Just "?")))
     = True
 shouldTriggerDighole _
     = False
