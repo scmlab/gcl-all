@@ -98,6 +98,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	await start();
 
+	// restart server command
+	const restartDisposable = vscode.commands.registerCommand('gcl.restartServer', async () => {
+		try {
+			await stop();
+			await start();
+			vscode.window.showInformationMessage('GCL server restarted');
+		} catch (e:any) {
+			vscode.window.showErrorMessage('Failed to restart GCL server: ' + e.message);
+		}
+	});
+	context.subscriptions.push(restartDisposable);
+
 	// notification gcl/update
 	// 更新 fileState 裡的 specs, pos, warnings
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
@@ -139,7 +151,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(errorNotificationHandlerDisposable);
 }
 
-export function deactivate() {
+export async function deactivate() {
 	console.log('deactivating gcl-vscode');
-	stop()
+	try {
+		await stop();
+	} catch (e:any) {
+		console.error('Error stopping client', e);
+	}
 }

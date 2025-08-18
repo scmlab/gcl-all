@@ -39,6 +39,12 @@
         "title": "Refine",
         "category": "GCL"
       }
+      ,
+      {
+        "command": "gcl.restartServer",
+        "title": "Restart GCL Server",
+        "category": "GCL"
+      }
     ],
     "keybindings": [
       {
