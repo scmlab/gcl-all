@@ -3,7 +3,7 @@
 module GCL.WP.Struct where
 
 import           Control.Arrow                  ( first, second )
-import           Control.Monad.Except           ( forM_ )
+import           Control.Monad                  ( forM_ )
 import           Data.Text                      ( Text )
 import           Data.Loc                       ( Loc(..)
                                                 , Located(..)

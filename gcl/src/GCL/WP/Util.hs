@@ -2,7 +2,7 @@
 
 module GCL.WP.Util where
 
-import           Control.Monad.Except           ( forM
+import           Control.Monad                  ( forM
                                                 , unless
                                                 )
 import           Control.Monad.RWS              ( MonadReader(ask)

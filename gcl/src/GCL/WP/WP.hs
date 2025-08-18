@@ -3,9 +3,8 @@
 module GCL.WP.WP where
 
 import           Control.Arrow                  ( first, second )
-import           Control.Monad.Except           ( MonadError(throwError)
-                                                , forM
-                                                )
+import           Control.Monad                  ( forM )
+import           Control.Monad.Except           ( MonadError(throwError) )
 import           Data.Text                      ( Text )
 import           Data.Loc                       ( Loc(..), locOf )
 import           Data.Map                       ( fromList )

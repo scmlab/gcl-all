@@ -3,8 +3,8 @@
 module GCL.WP.SP where
 
 import           Control.Arrow                  ( first )
-import           Control.Monad.Except           ( MonadError(throwError)
-                                                , forM )
+import           Control.Monad                  ( forM )
+import           Control.Monad.Except           ( MonadError(throwError) )
 import           Data.Loc                       ( Loc(..) )
 import           GCL.Predicate                  ( Pred )
 import           GCL.Common
