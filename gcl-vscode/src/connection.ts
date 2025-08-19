@@ -31,7 +31,8 @@ export async function start() {
 	const gclPath = gclConfig.get<string>("gclPath") ?? "gcl";
 
 	const serverOptions: ServerOptions = {
-		run: { command: gclPath, transport: TransportKind.stdio},
+		// TODO: Temporarily enable logging in both run and debug modes
+		run: { command: gclPath, args: [`--out=./gcl_server.log`], transport: TransportKind.stdio},
 		debug: { command: gclPath , args: [`--out=./gcl_server.log`], transport: TransportKind.stdio }
 	};
 
