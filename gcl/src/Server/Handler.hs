@@ -16,7 +16,6 @@ module Server.Handler ( handlers ) where
 import           GHC.TypeLits                   ( KnownSymbol )
 import           Data.Bifunctor                 ( first )
 import           Data.Proxy                     ( Proxy(Proxy) )
-import           Control.Monad                  ( when )
 import           Control.Lens                   ( (^.) )
 import qualified Data.Aeson                     as JSON
 import Data.Text (Text)
@@ -45,32 +44,47 @@ import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocume
 import qualified Data.Text as Text
 
 import qualified Hack
-import Language.LSP.Protocol.Message (TResponseError(TResponseError))
 
 -- handlers of the LSP server
 handlers :: Handlers ServerM
 handlers = mconcat
   [ -- "initialized" - after initialize
     notificationHandler LSP.SMethod_Initialized $ \_ntf -> do
-      logText "SInitialized is called.\n"
+      logText "SMethod_Initialized is called.\n"
       Initialized.handler
   , -- "textDocument/didOpen" - after open
     notificationHandler LSP.SMethod_TextDocumentDidOpen $ \ntf -> do
-      logText "STextDocumentDidOpen start\n"
+      logText "SMethod_TextDocumentDidOpen start\n"
       let uri            = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
       case LSP.uriToFilePath uri of
         Nothing       -> return ()
         Just filePath -> load filePath
-      logText "STextDocumentDidOpen end\n"
+      logText "SMethod_TextDocumentDidOpen end\n"
   , -- "textDocument/didChange" - after every edition
     notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do
-      logText "STextDocumentDidChange start\n"
+      logText "SMethod_TextDocumentDidChange start\n"
       let uri :: LSP.Uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
       let changes        = ntf ^. (LSP.params . LSP.contentChanges)
       case LSP.uriToFilePath uri of
         Nothing       -> return ()
         Just filePath -> OnDidChangeTextDocument.handler filePath changes
-      logText "STextDocumentDidChange end\n"
+      logText "SMethod_TextDocumentDidChange end\n"
+  , -- "textDocument/didClose" - after close
+    notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
+      logText "SMethod_TextDocumentDidClose start\n"
+
+      -- NOTE: this handler is only a stub because VSCode complains
+      -- maybe add something here in the future
+
+      logText "SMethod_TextDocumentDidClose end\n"
+  , -- "workspace/didChangeConfiguration"
+    notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> do
+      logText "SMethod_WorkspaceDidChangeConfiguration start\n"
+
+      -- NOTE: this handler is only a stub because VSCode complains
+      -- maybe add something here in the future
+
+      logText "SMethod_WorkspaceDidChangeConfiguration end\n"
   , -- "textDocument/completion" - auto-completion
     requestHandler LSP.SMethod_TextDocumentCompletion $ \req responder -> do
       let completionContext = req ^. LSP.params . LSP.context
@@ -79,14 +93,14 @@ handlers = mconcat
       (responder . Right . LSP.InR . LSP.InL) l
   , -- "textDocument/definition" - go to definition
     requestHandler LSP.SMethod_TextDocumentDefinition $ \req responder -> do
-      logText "STextDocumentDefinition is called.\n"
+      logText "SMethod_TextDocumentDefinition is called.\n"
       let uri      = req ^. (LSP.params . LSP.textDocument . LSP.uri)
       let position = req ^. (LSP.params . LSP.position)
       -- FIXME: go to definition doesn't work here?
       -- original code, I think it returns an empty list regardless
       -- GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . LSP.List)
       GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . (const LSP.Null))
-      logText "STextDocumentDefinition is finished.\n"
+      logText "SMethod_TextDocumentDefinition is finished.\n"
   , -- "textDocument/hover" - get hover information
     requestHandler LSP.SMethod_TextDocumentHover $ \req responder -> do
       let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
