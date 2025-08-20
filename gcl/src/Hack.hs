@@ -4,7 +4,7 @@ import Language.LSP.Protocol.Types (UInt)
 
 -- FIXME: this function is to help migrating LSP library versions
 -- previous LSP uses `Int` for line and character offsets
--- current version uses `UInt`, causes type mismatches
+-- current version uses `UInt`, causing type mismatches
 -- this function also tries to help catch logical bugs if the
 -- calculated value somehow turns out to be negative
 -- this should eventually be removed in the future

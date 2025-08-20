@@ -253,7 +253,7 @@ sendDiagnostics filePath diagnostics = do
   let maybeVersion = fmap editedVersion maybeFileState
   LSP.publishDiagnostics 100
                        (LSP.toNormalizedUri (LSP.filePathToUri filePath))
-                       (maybeVersion)
+                       maybeVersion
                        (LSP.partitionBySource diagnostics)
 
 digHoles :: FilePath -> [Range] -> ServerM () -> ServerM ()

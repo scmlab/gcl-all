@@ -2,6 +2,7 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 
 module Server.Handler.SemanticTokens where
 
@@ -12,7 +13,7 @@ import qualified Language.LSP.Protocol.Message as LSP
 import Language.LSP.Protocol.Types (SemanticTokenAbsolute(..), Position(..))
 import Server.PositionMapping (PositionDelta(..), PositionResult(..))
 
-handler :: LSP.Uri -> (Either LSP.ResponseError (Maybe LSP.SemanticTokens) -> ServerM ()) -> ServerM ()
+handler :: LSP.Uri -> (Either (LSP.ResponseError) (LSP.SemanticTokens LSP.|? LSP.Null) -> ServerM ()) -> ServerM ()
 handler fileUri responder = do
   logText "semantic token: start\n"
   case LSP.uriToFilePath fileUri of
@@ -32,7 +33,7 @@ handler fileUri responder = do
             Right semanticTokens -> respondResult semanticTokens
   where
     respondResult :: LSP.SemanticTokens -> ServerM ()
-    respondResult result = responder (Right $ Just result)
+    respondResult result = responder (Right $ LSP.InL result)
     respondError :: LSP.ResponseError -> ServerM ()
     respondError err = responder (Left err)
 
