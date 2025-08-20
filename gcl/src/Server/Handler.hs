@@ -63,8 +63,8 @@ handlers = mconcat
   , -- "textDocument/didChange" - after every edition
     notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do
       logText "SMethod_TextDocumentDidChange start\n"
-      let uri :: LSP.Uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-      let changes        = ntf ^. (LSP.params . LSP.contentChanges)
+      let uri     = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+      let changes = ntf ^. (LSP.params . LSP.contentChanges)
       case LSP.uriToFilePath uri of
         Nothing       -> return ()
         Just filePath -> OnDidChangeTextDocument.handler filePath changes
@@ -73,7 +73,7 @@ handlers = mconcat
     notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
       logText "SMethod_TextDocumentDidClose start\n"
 
-      -- NOTE: this handler is only a stub because VSCode complains
+      -- TODO: this handler is only a stub because VSCode complains
       -- maybe add something here in the future
 
       logText "SMethod_TextDocumentDidClose end\n"
@@ -81,7 +81,7 @@ handlers = mconcat
     notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> do
       logText "SMethod_WorkspaceDidChangeConfiguration start\n"
 
-      -- NOTE: this handler is only a stub because VSCode complains
+      -- TODO: this handler is only a stub because VSCode complains
       -- maybe add something here in the future
 
       logText "SMethod_WorkspaceDidChangeConfiguration end\n"

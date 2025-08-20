@@ -26,8 +26,8 @@ handler fileUri responder = do
                                          -> do
           let newSemanticTokenAbsolutes = translatePositions positionDelta oldSemanticTokenAbsolutes
           let legend = LSP.SemanticTokensLegend
-                        (Set.toList $ Set.map LSP.toEnumBaseType (LSP.knownValues @LSP.SemanticTokenTypes))
-                        (Set.toList $ Set.map LSP.toEnumBaseType (LSP.knownValues @LSP.SemanticTokenModifiers))
+                        (map LSP.toEnumBaseType $ Set.toList (LSP.knownValues @LSP.SemanticTokenTypes))
+                        (map LSP.toEnumBaseType $ Set.toList (LSP.knownValues @LSP.SemanticTokenModifiers))
           case LSP.makeSemanticTokens legend newSemanticTokenAbsolutes of
             Left _errorMessage   -> respondError (LSP.ResponseError (LSP.InR LSP.ErrorCodes_InternalError) _errorMessage Nothing)
             Right semanticTokens -> respondResult semanticTokens
