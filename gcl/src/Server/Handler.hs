@@ -44,7 +44,7 @@ import Server.Load (load)
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Data.Text as Text
 
-import Hack
+import qualified Hack
 import Language.LSP.Protocol.Message (TResponseError(TResponseError))
 
 -- handlers of the LSP server
@@ -95,13 +95,7 @@ handlers = mconcat
   , -- "textDocument/semanticTokens/full" - get all semantic tokens
     requestHandler LSP.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
       let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
-      -- HACK: this is probably incorrect
-      -- see also:
-      -- - https://hackage.haskell.org/package/lsp-types-2.3.0.1/docs/Language-LSP-Protocol-Message.html#t:ResponseError
-      -- - https://hackage.haskell.org/package/lsp-types-2.3.0.1/docs/Language-LSP-Protocol-Message.html#t:TResponseError
-      -- - https://hackage.haskell.org/package/lsp-types-2.3.0.1/docs/Language-LSP-Protocol-Message.html#t:ErrorData
-      let resToTRes (LSP.ResponseError c m _) = LSP.TResponseError c m Nothing
-      SemanticTokens.handler uri (responder . first resToTRes)
+      SemanticTokens.handler uri (responder . first Hack.resToTRes)
   , -- "gcl/reload" - reload
     requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Reload.handler
   , -- "gcl/refine" - refine
@@ -129,12 +123,12 @@ jsonMiddleware handler = \req responder -> do
     Left err -> do
       logText "json: decoding failed with\n"
       logText (Text.pack . show $ JSON.encode json)
-      responder (Left err)
+      responder (Left $ Hack.resToTRes err)
     Right params -> do
       logText "json: decoding succeeded\n"
       handler params
         (responder . Right . JSON.toJSON)
-        (responder. Left . makeInternalError)
+        (responder . Left . Hack.resToTRes . makeInternalError)
 
 decodeMessageParams :: forall a. JSON.FromJSON a => JSON.Value -> Either LSP.ResponseError a
 decodeMessageParams json = do
