@@ -8,13 +8,20 @@ import { LanguageClient,
 	TransportKind } from "vscode-languageclient/node";
 import { FileState } from "./data/FileState";
 
-let client: LanguageClient;
+let client: LanguageClient | undefined;
 
-export function stop() {
-	client.stop()
+export async function stop() {
+	if (client) {
+		try {
+			await client.stop();
+		} finally {
+			client = undefined;
+		}
+	}
 }
 
 export async function sendRequest<R>(method: string, param: any): Promise<R> {
+	if (!client) throw new Error('Language client is not running');
 	return client.sendRequest(method, param);
 }
 
@@ -24,7 +31,8 @@ export async function start() {
 	const gclPath = gclConfig.get<string>("gclPath") ?? "gcl";
 
 	const serverOptions: ServerOptions = {
-		run: { command: gclPath, transport: TransportKind.stdio},
+		// TODO: Temporarily enable logging in both run and debug modes
+		run: { command: gclPath, args: [`--out=./gcl_server.log`], transport: TransportKind.stdio},
 		debug: { command: gclPath , args: [`--out=./gcl_server.log`], transport: TransportKind.stdio }
 	};
 
@@ -43,9 +51,11 @@ export async function start() {
 }
 
 export function onUpdateNotification(handler: (fileState: FileState) => void) {
+	if (!client) throw new Error('Language client is not running');
 	return client.onNotification(new ProtocolNotificationType<FileState, any>("gcl/update"), handler)
 }
 
 export function onErrorNotification(handler: (fileState: FileState) => void) {
+	if (!client) throw new Error('Language client is not running');
 	return client.onNotification(new ProtocolNotificationType<FileState, any>("gcl/error"), handler)
 }
