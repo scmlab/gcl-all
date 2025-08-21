@@ -9,6 +9,8 @@
 
 module Server.Monad where
 
+import GHC.TypeLits (KnownSymbol)
+import Data.Proxy
 import Data.Text
 import qualified Data.Map as Map
 import           Control.Concurrent             ( Chan
@@ -22,7 +24,8 @@ import           Data.IORef                     ( IORef
                                                 , newIORef
                                                 )
 import           Data.Map                       ( Map )
-import qualified Language.LSP.Types             as LSP
+import qualified Language.LSP.Protocol.Types    as LSP
+import qualified Language.LSP.Protocol.Message  as LSP
 import qualified Language.LSP.Server            as LSP
 import qualified Language.LSP.VFS               as LSP
 import qualified Language.LSP.Diagnostics       as LSP
@@ -37,9 +40,7 @@ import Data.Loc.Range (Range, rangeStart)
 import qualified Server.SrcLoc                 as SrcLoc
 import qualified Data.Text as Text
 import Data.Loc (posCol)
-import Data.Version (Version(Version))
 import GCL.WP.Types (StructWarning)
-import Language.LSP.Types.Lens (HasMessage(message))
 
 -- | State shared by all clients and requests
 data GlobalState = GlobalState
@@ -47,11 +48,11 @@ data GlobalState = GlobalState
   , filesState :: IORef (Map FilePath FileState)
   }
 
-type Versioned a = (Int, a)
+type Versioned a = (LSP.Int32, a)
 
 data FileState = FileState
     -- main states for Reload and Refine
-  { refinedVersion   :: Int  -- the version number of the last refine
+  { refinedVersion   :: LSP.Int32  -- the version number of the last refine
   , specifications   :: [Versioned Spec] -- editedVersion or (editedVersion + 1)
   , proofObligations :: [Versioned PO] -- editedVersion
   , warnings         :: [Versioned StructWarning]
@@ -59,7 +60,7 @@ data FileState = FileState
                                  -- SEE: increaseDidChangeShouldReload
 
   -- to support other LSP methods in a light-weighted manner
-  , loadedVersion    :: Int  -- the version number of the last reload
+  , loadedVersion    :: LSP.Int32  -- the version number of the last reload
   , toOffsetMap      :: SrcLoc.ToOffset
   , concrete         :: Concrete.Program
   , semanticTokens   :: [LSP.SemanticTokenAbsolute]
@@ -69,7 +70,7 @@ data FileState = FileState
   , hoverInfos       :: IntervalMap LSP.Hover
   , elaborated       :: Typed.Program
   , positionDelta    :: PositionDelta   -- loadedVersion ~> editedVersion
-  , editedVersion    :: Int  -- the version number of the last change
+  , editedVersion    :: LSP.Int32  -- the version number of the last change
   }
 
 -- | Constructs an initial global state
@@ -129,7 +130,7 @@ logFileState filePath f = do
     Nothing -> logText "not loaded yet\n"
     Just fileState -> do
       logText "loaded\n"
-      logText . Text.pack . show $ f fileState
+      logText . Text.pack . Prelude.show $ f fileState
       logText "\n"
   logText "=======================\n"
 
@@ -146,28 +147,28 @@ bumpVersion :: FilePath -> ServerM ()
 bumpVersion filePath = do
   modifyFileState filePath (\fileState@FileState{editedVersion} -> fileState {editedVersion = editedVersion + 1})
 
-updateIdCounter :: FilePath -> 
+updateIdCounter :: FilePath ->
   Int -> ServerM ()
-updateIdCounter filePath count = do
-  modifyFileState filePath (\fileState -> fileState {idCount = count})
+updateIdCounter filePath count' = do
+  modifyFileState filePath (\fileState -> fileState {idCount = count'})
 
-saveEditedVersion :: FilePath -> Int -> ServerM ()
+saveEditedVersion :: FilePath -> LSP.Int32 -> ServerM ()
 saveEditedVersion filePath version = do
   modifyFileState filePath (\fileState -> fileState {editedVersion = version})
 
-pushSpecs :: Int -> FilePath -> [Spec] -> ServerM ()
+pushSpecs :: LSP.Int32 -> FilePath -> [Spec] -> ServerM ()
 pushSpecs version filePath newSpecs = do
   let newVersionedSpecs :: [Versioned Spec] = Prelude.map (\spec -> (version, spec)) newSpecs
   modifyFileState filePath (\fileState@FileState{specifications} ->
     fileState{specifications = specifications ++ newVersionedSpecs})
 
-pushPos :: Int -> FilePath -> [PO] -> ServerM ()
+pushPos :: LSP.Int32 -> FilePath -> [PO] -> ServerM ()
 pushPos version filePath newPos = do
   let newVersionedPos :: [Versioned PO] = Prelude.map (\po -> (version, po)) newPos
   modifyFileState filePath (\fileState@FileState{proofObligations} ->
     fileState{proofObligations = proofObligations ++ newVersionedPos})
 
-pushWarnings :: Int -> FilePath -> [StructWarning] -> ServerM ()
+pushWarnings :: LSP.Int32 -> FilePath -> [StructWarning] -> ServerM ()
 pushWarnings version filePath newWarnings = do
   let newVersionedWarnings :: [Versioned StructWarning] = Prelude.map (\warning -> (version, warning)) newWarnings
   modifyFileState filePath (\fileState@FileState{warnings} ->
@@ -184,7 +185,7 @@ deleteSpec filePath Specification{specID = targetSpecId} = do
 -- The updated source only becomes available in the didChange event right after the callback finishes.
 -- Therefore, we set a flag here so that didChange can determine whether to trigger load.
 increaseDidChangeShouldReload :: FilePath -> ServerM ()
-increaseDidChangeShouldReload filePath = 
+increaseDidChangeShouldReload filePath =
   modifyFileState filePath (\filesState@FileState{didChangeShouldReload} -> filesState {didChangeShouldReload = didChangeShouldReload + 1})
 
 runIfDecreaseDidChangeShouldReload :: FilePath -> (FilePath -> ServerM ()) -> ServerM ()
@@ -193,8 +194,8 @@ runIfDecreaseDidChangeShouldReload filePath action = do
   case maybeFileState of
     Just fileState | didChangeShouldReload fileState > 0 -> do
       let orig = didChangeShouldReload fileState
-      logTextLn $ "didChangeShouldReload: orig: " <> Text.pack (show orig)
-      modifyFileState filePath (\fileState -> fileState { didChangeShouldReload = orig - 1 })
+      logTextLn $ "didChangeShouldReload: orig: " <> Text.pack (Prelude.show orig)
+      modifyFileState filePath (\fileState' -> fileState' { didChangeShouldReload = orig - 1 })
       action filePath
     _ -> return ()
 
@@ -204,7 +205,7 @@ readSource filepath = do
     case maybeVirtualFile of
       Nothing -> return Nothing
       Just virtualFile -> do
-        logTextLn $ "readSource: LSP.virtualFileVersion: " <> Text.pack (show $ LSP.virtualFileVersion virtualFile)
+        logTextLn $ "readSource: LSP.virtualFileVersion: " <> Text.pack (Prelude.show $ LSP.virtualFileVersion virtualFile)
         return (Just $ LSP.virtualFileText virtualFile)
 
 modifyPositionDelta :: FilePath -> (PositionDelta -> PositionDelta) -> ServerM ()
@@ -219,18 +220,18 @@ editTexts filepath rangeTextPairs onSuccess = do
             _label = Just "Resolve Spec",
             _edit = LSP.WorkspaceEdit {
               _changes = Nothing,
-              _documentChanges = Just (LSP.List [LSP.InL textDocumentEdit]),
+              _documentChanges = Just [LSP.InL textDocumentEdit],
               _changeAnnotations = Nothing
             }
           }
-  _requestId <- LSP.sendRequest LSP.SWorkspaceApplyEdit requestParams (\_ -> onSuccess)
+  _requestId <- LSP.sendRequest LSP.SMethod_WorkspaceApplyEdit requestParams (\_ -> onSuccess)
   return ()
 
   where
     textDocumentEdit :: LSP.TextDocumentEdit
     textDocumentEdit = LSP.TextDocumentEdit {
-      _textDocument = LSP.VersionedTextDocumentIdentifier (LSP.filePathToUri filepath) (Just 0),
-      _edits = LSP.List (Prelude.map LSP.InL textEdits)
+      _textDocument = LSP.OptionalVersionedTextDocumentIdentifier (LSP.filePathToUri filepath) (LSP.InL 0),
+      _edits = Prelude.map LSP.InL textEdits
     }
     textEdits :: [LSP.TextEdit]
     textEdits = Prelude.map makeTextEdit rangeTextPairs
@@ -240,8 +241,8 @@ editTexts filepath rangeTextPairs onSuccess = do
       _newText = textToReplace
     }
 
-sendCustomNotification :: Text -> JSON.Value -> ServerM ()
-sendCustomNotification methodId json = LSP.sendNotification (LSP.SCustomMethod methodId) json
+sendCustomNotification :: KnownSymbol s => Proxy s -> JSON.Value -> ServerM ()
+sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomMethod methodId) (json)
 
 
 -- send diagnostics
@@ -257,17 +258,17 @@ sendDiagnostics filePath diagnostics = do
 
 digHoles :: FilePath -> [Range] -> ServerM () -> ServerM ()
 digHoles filePath ranges onFinish = do
-  logTextLn $ "    < DigHoles " <> Text.pack (show ranges)
+  logTextLn $ "    < DigHoles " <> Text.pack (Prelude.show ranges)
   let indent range = Text.replicate (posCol (rangeStart range) - 1) " "
   let diggedText range = "[!\n" <> indent range <> "\n" <> indent range <> "!]"
   editTexts filePath (Prelude.map (\range -> (range, diggedText range)) ranges) onFinish
 
 sendDebugMessage :: Text -> ServerM ()
-sendDebugMessage message = do
+sendDebugMessage message' = do
   let requestParams =
         LSP.ShowMessageRequestParams
-          LSP.MtInfo
-          message
+          LSP.MessageType_Info
+          message'
           Nothing
-  LSP.sendRequest LSP.SWindowShowMessageRequest requestParams (\_ -> return ())
+  _ <- LSP.sendRequest LSP.SMethod_WindowShowMessageRequest requestParams (\_ -> return ())
   return ()

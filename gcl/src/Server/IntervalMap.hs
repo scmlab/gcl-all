@@ -22,6 +22,7 @@ module Server.IntervalMap
 
 import           Control.Monad.RWS
 import           Data.Bifunctor                 ( bimap )
+import           Data.Foldable                  ( forM_ )
 import qualified Data.Foldable                 as Foldable
 import           Data.IntMap                    ( IntMap )
 import qualified Data.IntMap                   as IntMap

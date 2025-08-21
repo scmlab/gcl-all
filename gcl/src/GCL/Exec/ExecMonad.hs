@@ -6,10 +6,11 @@ module GCL.Exec.ExecMonad where
 import           Data.Aeson
 import           Data.Loc
 import           Control.Monad.Except
-import           Control.Monad.State     hiding ( guard )
+import           Control.Monad.State
+import           Control.Monad
 import           GHC.Generics
 
-import           Syntax.Abstract        
+import           Syntax.Abstract.Types (GdCmd, Var)
 
 type Store = [(Var, Val)]
 

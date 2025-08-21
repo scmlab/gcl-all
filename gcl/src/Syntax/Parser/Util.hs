@@ -25,7 +25,7 @@ module Syntax.Parser.Util
   , sepByAlignment1
   ) where
 
--- import           Control.Monad
+import           Control.Monad ( guard, (>=>) )
 import           Control.Monad.State
 import           Control.Monad.Writer           ( Writer, runWriter, tell)
 import           Data.Loc

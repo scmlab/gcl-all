@@ -12,7 +12,7 @@ module Server.Handler.GCL.Refine where
 import qualified Data.Aeson as JSON
 import GHC.Generics ( Generic )
 import Data.Bifunctor ( bimap )
-import Control.Monad.Except           ( runExcept, when )
+import Control.Monad.Except           ( runExcept )
 import Server.Monad (ServerM, FileState(..), loadFileState, editTexts, pushSpecs, deleteSpec, Versioned, pushPos, updateIdCounter, logText, saveFileState, pushWarnings)
 import Server.Notification.Update (sendUpdateNotification)
 import Server.Notification.Error (sendErrorNotification)

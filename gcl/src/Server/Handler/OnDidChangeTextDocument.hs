@@ -7,7 +7,7 @@ import Server.Monad (ServerM, FileState (..), modifyFileState, Versioned, logTex
 import Server.Notification.Update (sendUpdateNotification)
 import GCL.Predicate (Spec(..), PO (..), Origin (..))
 import Server.PositionMapping (mkDelta, applyChange, toCurrentRange', PositionDelta)
-import qualified Language.LSP.Types as LSP
+import qualified Language.LSP.Protocol.Types as LSP
 import qualified Server.SrcLoc as SrcLoc
 import Data.Loc.Range (Range (..), fromLoc)
 import Data.Loc (Loc (..), Located (..))
@@ -37,7 +37,7 @@ handler filePath changes = do
   where
     translateThroughOneVersion
       :: (FilePath -> PositionDelta -> a -> Maybe a)
-      -> Int -> [Versioned a] -> [Versioned a]
+      -> LSP.Int32 -> [Versioned a] -> [Versioned a]
     translateThroughOneVersion translator fromVersion versioned = do
       (version, a) <- versioned
       let delta :: PositionDelta = mkDelta changes

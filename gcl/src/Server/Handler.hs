@@ -5,12 +5,17 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module Server.Handler ( handlers ) where
 
-import           Control.Monad                  ( when )
+import           GHC.TypeLits                   ( KnownSymbol )
+import           Data.Bifunctor                 ( first )
+import           Data.Proxy                     ( Proxy(Proxy) )
 import           Control.Lens                   ( (^.) )
 import qualified Data.Aeson                     as JSON
 import Data.Text (Text)
@@ -21,8 +26,9 @@ import           Language.LSP.Server            ( Handlers
                                                 , requestHandler
                                                 )
 
-import qualified Language.LSP.Types             as LSP
-import qualified Language.LSP.Types.Lens        as LSP
+import qualified Language.LSP.Protocol.Types    as LSP
+import qualified Language.LSP.Protocol.Lens     as LSP
+import qualified Language.LSP.Protocol.Message  as LSP
 import qualified Language.LSP.Server            as LSP
 
 import qualified Server.Handler.Initialized    as Initialized
@@ -37,82 +43,106 @@ import Server.Load (load)
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Data.Text as Text
 
+import qualified Hack
+
 -- handlers of the LSP server
 handlers :: Handlers ServerM
 handlers = mconcat
   [ -- "initialized" - after initialize
-    notificationHandler LSP.SInitialized $ \_ntf -> do
-      logText "SInitialized is called.\n"
+    notificationHandler LSP.SMethod_Initialized $ \_ntf -> do
+      logText "SMethod_Initialized is called.\n"
       Initialized.handler
   , -- "textDocument/didOpen" - after open
-    notificationHandler LSP.STextDocumentDidOpen $ \ntf -> do
-      logText "STextDocumentDidOpen start\n"
+    notificationHandler LSP.SMethod_TextDocumentDidOpen $ \ntf -> do
+      logText "SMethod_TextDocumentDidOpen start\n"
       let uri            = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
       case LSP.uriToFilePath uri of
         Nothing       -> return ()
         Just filePath -> load filePath
-      logText "STextDocumentDidOpen end\n"
+      logText "SMethod_TextDocumentDidOpen end\n"
   , -- "textDocument/didChange" - after every edition
-    notificationHandler LSP.STextDocumentDidChange $ \ntf -> do
-      logText "STextDocumentDidChange start\n"
-      let uri        :: LSP.Uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-      let (LSP.List changes)    = ntf ^. (LSP.params . LSP.contentChanges)
+    notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do
+      logText "SMethod_TextDocumentDidChange start\n"
+      let uri     = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+      let changes = ntf ^. (LSP.params . LSP.contentChanges)
       case LSP.uriToFilePath uri of
         Nothing       -> return ()
         Just filePath -> OnDidChangeTextDocument.handler filePath changes
-      logText "STextDocumentDidChange end\n"
+      logText "SMethod_TextDocumentDidChange end\n"
+  , -- "textDocument/didClose" - after close
+    notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
+      logText "SMethod_TextDocumentDidClose start\n"
+
+      -- TODO: this handler is only a stub because VSCode complains
+      -- maybe add something here in the future
+
+      logText "SMethod_TextDocumentDidClose end\n"
+  , -- "workspace/didChangeConfiguration"
+    notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> do
+      logText "SMethod_WorkspaceDidChangeConfiguration start\n"
+
+      -- TODO: this handler is only a stub because VSCode complains
+      -- maybe add something here in the future
+
+      logText "SMethod_WorkspaceDidChangeConfiguration end\n"
   , -- "textDocument/completion" - auto-completion
-    requestHandler LSP.STextDocumentCompletion $ \req responder -> do
+    requestHandler LSP.SMethod_TextDocumentCompletion $ \req responder -> do
       let completionContext = req ^. LSP.params . LSP.context
       let position          = req ^. LSP.params . LSP.position
-      AutoCompletion.handler position completionContext >>= (responder . Right . LSP.InR)
+      l <- AutoCompletion.handler position completionContext
+      (responder . Right . LSP.InR . LSP.InL) l
   , -- "textDocument/definition" - go to definition
-    requestHandler LSP.STextDocumentDefinition $ \req responder -> do
-      logText "STextDocumentDefinition is called.\n"
+    requestHandler LSP.SMethod_TextDocumentDefinition $ \req responder -> do
+      logText "SMethod_TextDocumentDefinition is called.\n"
       let uri      = req ^. (LSP.params . LSP.textDocument . LSP.uri)
       let position = req ^. (LSP.params . LSP.position)
-      GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . LSP.List)
-      logText "STextDocumentDefinition is finished.\n"
+      -- FIXME: go to definition doesn't work here?
+      -- original code, I think it returns an empty list regardless
+      -- GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . LSP.List)
+      GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . (const LSP.Null))
+      logText "SMethod_TextDocumentDefinition is finished.\n"
   , -- "textDocument/hover" - get hover information
-    requestHandler LSP.STextDocumentHover $ \req responder -> do
+    requestHandler LSP.SMethod_TextDocumentHover $ \req responder -> do
       let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
       let pos = req ^. (LSP.params . LSP.position)
       Hover.handler uri pos (responder . Right)
   , -- "textDocument/semanticTokens/full" - get all semantic tokens
-    requestHandler LSP.STextDocumentSemanticTokensFull $ \req responder -> do
+    requestHandler LSP.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
       let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
-      SemanticTokens.handler uri responder
+      SemanticTokens.handler uri (responder . first Hack.resToTRes)
   , -- "gcl/reload" - reload
-    requestHandler (LSP.SCustomMethod "gcl/reload") $ jsonMiddleware Reload.handler
+    requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Reload.handler
   , -- "gcl/refine" - refine
-    requestHandler (LSP.SCustomMethod "gcl/refine") $ jsonMiddleware Refine.handler
+    requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine.handler
   ]
 
 -- | A handler type for custom LSP methods.
 --   Takes parsed request params, a success callback, and an error callback.
 --   Calls one of the callbacks to return a result or error to the client.
-type CustomMethodHandler params result error = params -> (result -> ServerM ()) -> (error -> ServerM ()) -> ServerM ()
+type CustomMethodHandler params result err = params -> (result -> ServerM ()) -> (err -> ServerM ()) -> ServerM ()
+
 
 {-# ANN jsonMiddleware ("HLint: ignore Redundant lambda" :: String) #-}
 -- converts the request JSON object into specific request params (as a Haskell record) for the handler
 -- TODO: maybe we don't need an error callback
-jsonMiddleware :: (JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON error)
-                  => CustomMethodHandler params result error
-                  -> LSP.Handler ServerM (LSP.CustomMethod :: LSP.Method LSP.FromClient LSP.Request)
+jsonMiddleware :: (KnownSymbol s, JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON err)
+                  => CustomMethodHandler params result err
+                  -- -> LSP.Handler ServerM (LSP.CustomMethod :: LSP.Method LSP.FromClient LSP.Request)
+                  -> LSP.Handler ServerM (LSP.Method_CustomMethod s :: LSP.Method LSP.ClientToServer LSP.Request)
 jsonMiddleware handler = \req responder -> do
   logText "json: decoding request\n"
   let json = req ^. LSP.params
   logText $ "JSON content: " <> TextLazy.toStrict (JSONText.encodeToLazyText json) <> "\n"
   case decodeMessageParams json of
-    Left error   -> do
+    Left err -> do
       logText "json: decoding failed with\n"
       logText (Text.pack . show $ JSON.encode json)
-      responder (Left error)
+      responder (Left $ Hack.resToTRes err)
     Right params -> do
       logText "json: decoding succeeded\n"
       handler params
         (responder . Right . JSON.toJSON)
-        (responder. Left . makeInternalError)
+        (responder . Left . Hack.resToTRes . makeInternalError)
 
 decodeMessageParams :: forall a. JSON.FromJSON a => JSON.Value -> Either LSP.ResponseError a
 decodeMessageParams json = do
@@ -121,15 +151,15 @@ decodeMessageParams json = do
     JSON.Error msg            -> Left (makeParseError ("Json decoding failed." <> Text.pack msg))
 
 makeInternalError :: JSON.ToJSON e => e -> LSP.ResponseError
-makeInternalError error = LSP.ResponseError 
-    { _code    = LSP.InternalError
+makeInternalError err = LSP.ResponseError 
+    { _code    = LSP.InR LSP.ErrorCodes_InternalError
     , _message = ""
-    , _xdata   = Just (JSON.toJSON error)
+    , _xdata   = Just (JSON.toJSON err)
     }
 
 makeParseError :: Text -> LSP.ResponseError
 makeParseError message = LSP.ResponseError 
-    { _code    = LSP.ParseError
+    { _code    = LSP.InR LSP.ErrorCodes_ParseError
     , _message = message
     , _xdata   = Nothing
     }

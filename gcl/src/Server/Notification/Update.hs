@@ -3,9 +3,12 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
 
 module Server.Notification.Update where
 
+import Data.Proxy (Proxy(Proxy))
 import qualified Data.Aeson as JSON
 import Data.Aeson ((.=), object)
 import qualified Server.Monad as Server
@@ -14,7 +17,7 @@ import GCL.Predicate (Spec(..), PO(..), Origin(..))
 import GCL.WP.Types (StructWarning(..))
 import Server.SrcLoc (toLSPRange)
 import           Pretty.Predicate               ( )
-import Data.Text.Prettyprint.Doc
+import Prettyprinter
 import Pretty.Typed ()
 
 
@@ -25,7 +28,7 @@ sendUpdateNotification filePath = do
     Nothing -> return ()
     Just fileState -> do
       let json :: JSON.Value = makeUpdateNotificationJson filePath fileState
-      Server.sendCustomNotification "gcl/update" json
+      Server.sendCustomNotification (Proxy @"gcl/update") json
 
 
 makeUpdateNotificationJson :: FilePath -> FileState -> JSON.Value

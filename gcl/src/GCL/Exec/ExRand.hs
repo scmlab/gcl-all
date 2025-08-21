@@ -4,8 +4,9 @@
 module GCL.Exec.ExRand where
 
 import           System.Random
+import           Control.Monad                  ( MonadPlus, mzero, mplus )
 import           Control.Monad.Except
-import           Control.Monad.State     hiding ( guard )
+import           Control.Monad.State
 import           GHC.Base                       ( Alternative(..) )
 
 import           GCL.Exec.ExecMonad
@@ -21,14 +22,14 @@ instance Functor (ExRand g e s) where
     ExRd (\s g -> (\(x, s', g') -> (either Left (Right . f) x, s', g')) (m s g))
 
 instance Applicative (ExRand g e s) where
-  pure = return
+  pure x = ExRd (\s g -> (Right x, s, g))
   fs <*> xs = do
     f <- fs
     x <- xs
     return (f x)
 
 instance Monad (ExRand g e s) where
-  return x = ExRd (\s g -> (Right x, s, g))
+  return = pure
   (ExRd m) >>= f = ExRd (\s g -> bindW f (m s g))
    where
     bindW _ (Left  e, s', g') = (Left e, s', g')

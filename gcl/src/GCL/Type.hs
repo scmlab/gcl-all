@@ -13,11 +13,10 @@
 
 module GCL.Type where
 
+import           Control.Monad                  ( replicateM, foldM, zipWithM )
 import           Control.Monad.Except
 import           Control.Monad.State.Lazy
-import           Control.Monad.Writer.Lazy
-import           Data.Bifunctor                 ( Bifunctor (second, first) )
-import           Data.Functor
+import           Data.Bifunctor
 import           Data.Maybe                     ( fromJust )
 import           Data.List
 import           Data.Loc                       ( Loc(..)
@@ -163,9 +162,9 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
       split :: [Definition] -> ([Definition], [Definition], [Definition])
       split defs = foldr (
           \def (typeDefns, sigs, funcDefns)  -> case def of
-            d @ TypeDefn {} -> (d : typeDefns, sigs, funcDefns)
-            d @ FuncDefnSig {} -> (typeDefns, d : sigs, funcDefns)
-            d @ FuncDefn {} -> (typeDefns, sigs, d : funcDefns)
+            d@TypeDefn {} -> (d : typeDefns, sigs, funcDefns)
+            d@FuncDefnSig {} -> (typeDefns, d : sigs, funcDefns)
+            d@FuncDefn {} -> (typeDefns, sigs, d : funcDefns)
         ) mempty defs
 
       gatherCtorNames :: [Definition] -> [Name]
