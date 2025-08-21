@@ -10,7 +10,7 @@
         inherit system;
       };
 
-      hPkgs = pkgs.haskell.packages."ghc9102";
+      hPkgs = pkgs.haskell.packages."ghc984";
 
       devTools = with hPkgs; [
         ghc

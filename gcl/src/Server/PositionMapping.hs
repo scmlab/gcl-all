@@ -39,6 +39,7 @@ import           Control.Monad
 import           Data.Algorithm.Diff
 import           Data.Bifunctor
 import qualified Data.Text                   as T
+import           Data.List                   ( foldl' )
 import qualified Data.Vector.Unboxed         as V
 
 import           Language.LSP.Protocol.Types (Position (Position),
