@@ -69,7 +69,10 @@ instance (Fresh m) => Substitutable m Expr Expr where
 -- just a wrapper calling substBinder, when e is typeless Expr
 substBinderTypeless ::
   (Fresh m, Substitutable m a Expr, Free a) =>
-  Subst Expr -> [Name] -> a -> m ([Name], a, Subst Expr)
+  Subst Expr ->
+  [Name] ->
+  a ->
+  m ([Name], a, Subst Expr)
 substBinderTypeless sb binders body =
   (\(binders', body', sb') -> (map fst binders', body', sb'))
     <$> (substBinder sb [(b, ()) | b <- binders] body)
@@ -177,7 +180,10 @@ substBinder ::
     Free e,
     Free a
   ) =>
-  Subst e -> [(Name, t)] -> a -> m ([(Name, t)], a, Subst e)
+  Subst e ->
+  [(Name, t)] ->
+  a ->
+  m ([(Name, t)], a, Subst e)
 substBinder sb binders body = do
   sb'' <- genBinderRenaming fvsb binders
   let binders' = zip (renameVars sb'' (map fst binders)) (map snd binders)
@@ -199,7 +205,9 @@ shrinkSubst binders ns subs =
 
 genBinderRenaming ::
   (Fresh m, Variableous e t) =>
-  Set Text -> [(Name, t)] -> m (Subst e)
+  Set Text ->
+  [(Name, t)] ->
+  m (Subst e)
 genBinderRenaming _ [] = return empty
 genBinderRenaming fvs ((Name x l, t) : xs)
   | x `Set.member` fvs = do
