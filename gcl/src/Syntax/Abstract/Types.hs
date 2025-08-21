@@ -2,19 +2,21 @@
 
 module Syntax.Abstract.Types where
 
-import           Data.List.NonEmpty             ( NonEmpty )
-import           Data.Loc                       ( Loc )
-import           Data.Loc.Range                 ( Range )
-import           Data.Map                       ( Map )
-import           Data.Set                       ( Set )
-import           Data.Text                      ( Text )
-import           GHC.Generics                   ( Generic )
-import           Prelude                 hiding ( Ordering(..) )
-import           Syntax.Common                  ( Name
-                                                , ArithOp
-                                                , ChainOp
-                                                , TypeOp
-                                                )
+import Data.List.NonEmpty (NonEmpty)
+import Data.Loc (Loc)
+import Data.Loc.Range (Range)
+import Data.Map (Map)
+import Data.Set (Set)
+import Data.Text (Text)
+import GHC.Generics (Generic)
+import Syntax.Common
+  ( ArithOp,
+    ChainOp,
+    Name,
+    TypeOp,
+  )
+import Prelude hiding (Ordering (..))
+
 --------------------------------------------------------------------------------
 
 type Const = Text
@@ -24,22 +26,25 @@ type Var = Text
 type TypeVar = Text
 
 --------------------------------------------------------------------------------
--- | Program
 
-data Program = Program [Definition]       -- definitions (the functional language part)
-                                    [Declaration]     -- constant and variable declarations
-                                                  [Expr]            -- global properties
-                                                         [Stmt]            -- main program
-                                                                Loc
+-- | Program
+data Program
+  = Program
+      [Definition] -- definitions (the functional language part)
+      [Declaration] -- constant and variable declarations
+      [Expr] -- global properties
+      [Stmt] -- main program
+      Loc
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
+
 -- | Definition (the functional language part)
-data Definition =
-    TypeDefn Name [Name] [TypeDefnCtor] Loc
-    | FuncDefnSig Name Type (Maybe Expr) Loc
-    | FuncDefn Name Expr
-    deriving (Eq, Show)
+data Definition
+  = TypeDefn Name [Name] [TypeDefnCtor] Loc
+  | FuncDefnSig Name Type (Maybe Expr) Loc
+  | FuncDefn Name Expr
+  deriving (Eq, Show)
 
 -- constructor of type definition
 data TypeDefnCtor = TypeDefnCtor Name [Type]
@@ -66,24 +71,23 @@ data Stmt
   | If [GdCmd] Loc
   | Spec Text Range
   | Proof Text Text Range
-    -- pointer operations
-  | Alloc   Name [Expr] Loc    --  p := new (e1,e2,..,en)
-  | HLookup Name Expr Loc      --  x := *e
-  | HMutate Expr Expr Loc      --  *e1 := e2
-  | Dispose Expr Loc           --  dispose e
+  | -- pointer operations
+    Alloc Name [Expr] Loc --  p := new (e1,e2,..,en)
+  | HLookup Name Expr Loc --  x := *e
+  | HMutate Expr Expr Loc --  *e1 := e2
+  | Dispose Expr Loc --  dispose e
   | Block Program Loc
-
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr [Stmt] Loc
   deriving (Eq, Show)
+
 -- data ProofAnchor = ProofAnchor Text Range
 --   deriving (Eq, Ord, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Kinds
-
 data Kind
   = KStar Loc
   | KFunc Kind Kind Loc
@@ -146,29 +150,28 @@ data Expr
   | App Expr Expr Loc
   | Lam Name Expr Loc
   | Func Name (NonEmpty FuncClause) Loc
-  -- Tuple has no srcloc info because it has no conrete syntax at the moment
-  | Tuple [Expr]
+  | -- Tuple has no srcloc info because it has no conrete syntax at the moment
+    Tuple [Expr]
   | Quant Expr [Name] Expr Expr Loc
-  -- The innermost part of a Redex
-  -- should look something like `P [ x \ a ] [ y \ b ]`
-  | RedexKernel
-    Name -- the variable to be substituted
-    Expr -- the expression for substituting the variable
-    (Set Name) -- free variables in that expression
-               -- NOTE, the expression may be some definition like "P",
-              --  in that case, the free variables should be that of after it's been expanded
-    (NonEmpty Mapping)
-      -- a list of mappings of substitutions to be displayed to users (the `[ x \ a ] [ y \ b ]` part)
-      -- The order is reflected.
-  -- The outermost part of a Redex
-  | RedexShell
+  | -- The innermost part of a Redex
+    -- should look something like `P [ x \ a ] [ y \ b ]`
+    RedexKernel
+      Name -- the variable to be substituted
+      Expr -- the expression for substituting the variable
+      (Set Name) -- free variables in that expression
+      -- NOTE, the expression may be some definition like "P",
+      --  in that case, the free variables should be that of after it's been expanded
+      (NonEmpty Mapping)
+  | -- a list of mappings of substitutions to be displayed to users (the `[ x \ a ] [ y \ b ]` part)
+    -- The order is reflected.
+    -- The outermost part of a Redex
+    RedexShell
       Int -- for identifying Redexes in frontend-backend interactions
       Expr -- should either be `RedexKernel` or `App (App (App ... RedexKernel arg0) ... argn`
   | ArrIdx Expr Expr Loc
   | ArrUpd Expr Expr Expr Loc
   | Case Expr [CaseClause] Loc
   deriving (Eq, Show, Generic)
-
 
 data Chain = Pure Expr Loc | More Chain ChainOp Expr Loc
   deriving (Eq, Show, Generic)
@@ -179,6 +182,7 @@ type QuantOp' = Either ArithOp Expr
 type Mapping = Map Text Expr
 
 --------------------------------------------------------------------------------
+
 -- | Pattern matching
 
 -- pattern -> expr
@@ -197,9 +201,9 @@ data Pattern
   deriving (Eq, Show, Generic)
 
 extractBinder :: Pattern -> [Name]
-extractBinder (PattLit      _      ) = []
-extractBinder (PattBinder   x      ) = [x]
-extractBinder (PattWildcard _      ) = []
+extractBinder (PattLit _) = []
+extractBinder (PattBinder x) = [x]
+extractBinder (PattWildcard _) = []
 extractBinder (PattConstructor _ xs) = xs >>= extractBinder
 
 ----------------------------------------------------------------

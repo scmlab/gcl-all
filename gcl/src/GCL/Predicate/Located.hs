@@ -1,6 +1,6 @@
 module GCL.Predicate.Located where
 
-import Data.Loc (Located, locOf, Loc (..))
+import Data.Loc (Loc (..), Located, locOf)
 import GCL.Predicate (Pred (..))
 
 {-

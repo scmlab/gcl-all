@@ -1,20 +1,25 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Data.Loc.Range where
 
-import           Data.Aeson                     ( FromJSON(..)
-                                                , ToJSON(..), object, (.=), withObject, (.:)
-                                                )
-import qualified Data.List                     as List
-import           Data.List.NonEmpty             ( NonEmpty )
-import qualified Data.List.NonEmpty            as NE
-import           Data.Loc                hiding ( fromLoc )
-import           Data.Maybe                     ( mapMaybe )
-import           GHC.Generics                   ( Generic )
-import           Prettyprinter                  ( Pretty(pretty) )
+import Data.Aeson
+  ( FromJSON (..),
+    ToJSON (..),
+    object,
+    withObject,
+    (.:),
+    (.=),
+  )
+import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty)
+import qualified Data.List.NonEmpty as NE
+import Data.Loc hiding (fromLoc)
+import Data.Maybe (mapMaybe)
+import GHC.Generics (Generic)
+import Prettyprinter (Pretty (pretty))
 
 -- | Represents an interval of two source locations
 --
@@ -22,11 +27,12 @@ import           Prettyprinter                  ( Pretty(pretty) )
 --    1. There's no `NoLoc`
 --    2. Cursors is placed IN-BETWEEN two characters rather than ON a character
 --
---  For example: to represent the selection of "ABC" in "ABCD" 
+--  For example: to represent the selection of "ABC" in "ABCD"
 --    (here we use the tip of ">" and "<" to represent a cursor between two characters)
 --
 --    charactor offset    :   0123
---    charactors          :   ABCD   
+--    charactors          :   ABCD
+
 -------------------------------------------------------
 --    Loc       of "ABC"  :   ^^^     Loc   (Pos ... 0) (Pos ... 2)
 --    Range     of "ABC"  :  >   <    Range (Pos ... 0) (Pos ... 3)
@@ -45,37 +51,38 @@ data Range = Range Pos Pos
 -- First by comparing their starting positions and then their ending positions
 instance Ord Range where
   compare (Range a b) (Range c d) = case compare a c of
-    EQ     -> compare b d
+    EQ -> compare b d
     others -> others
 
 instance Show Range where
-  show (Range start end) = if posLine start == posLine end
-    then
-      posFile start
-      <> " ["
-      <> show (posCoff start)
-      <> "-"
-      <> show (posCoff end)
-      <> "] "
-      <> show (posLine start)
-      <> ":"
-      <> show (posCol start)
-      <> "-"
-      <> show (posCol end)
-    else
-      posFile start
-      <> " ["
-      <> show (posCoff start)
-      <> "-"
-      <> show (posCoff end)
-      <> "] "
-      <> show (posLine start)
-      <> ":"
-      <> show (posCol start)
-      <> "-"
-      <> show (posLine end)
-      <> ":"
-      <> show (posCol end)
+  show (Range start end) =
+    if posLine start == posLine end
+      then
+        posFile start
+          <> " ["
+          <> show (posCoff start)
+          <> "-"
+          <> show (posCoff end)
+          <> "] "
+          <> show (posLine start)
+          <> ":"
+          <> show (posCol start)
+          <> "-"
+          <> show (posCol end)
+      else
+        posFile start
+          <> " ["
+          <> show (posCoff start)
+          <> "-"
+          <> show (posCoff end)
+          <> "] "
+          <> show (posLine start)
+          <> ":"
+          <> show (posCol start)
+          <> "-"
+          <> show (posLine end)
+          <> ":"
+          <> show (posCol end)
 
 -- | Starting position of the range
 rangeStart :: Range -> Pos
@@ -91,7 +98,7 @@ rangeFile (Range a _) = posFile a
 
 -- | Loc -> Maybe Range
 fromLoc :: Loc -> Maybe Range
-fromLoc NoLoc     = Nothing
+fromLoc NoLoc = Nothing
 fromLoc (Loc x y) = Just (Range x y)
 
 -- | Range -> Loc
@@ -112,7 +119,7 @@ mergeRanges xs = foldl (<>) (NE.head xs) xs
 rangeSpan :: Range -> Int
 rangeSpan (Range a b) = posCol b - posCol a
 
--- | See if a Range is within another Range 
+-- | See if a Range is within another Range
 within :: Range -> Range -> Bool
 within (Range a b) (Range c d) = posCol c <= posCol a && posCol b <= posCol d
 
@@ -141,7 +148,7 @@ class Ranged a where
 instance Ranged Range where
   rangeOf x = x
 
-instance Ranged a => Ranged (NonEmpty a) where
+instance (Ranged a) => Ranged (NonEmpty a) where
   rangeOf xs = rangeOf (NE.head xs) <> rangeOf (NE.last xs)
 
 --------------------------------------------------------------------------------
@@ -149,18 +156,18 @@ instance Ranged a => Ranged (NonEmpty a) where
 -- | A value of type @R a@ is a value of type @a@ with an associated 'Range', but
 -- this location is ignored when performing comparisons.
 data R a = R Range a
-  deriving Functor
+  deriving (Functor)
 
 unRange :: R a -> a
 unRange (R _ a) = a
 
-instance Eq x => Eq (R x) where
+instance (Eq x) => Eq (R x) where
   (R _ x) == (R _ y) = x == y
 
-instance Ord x => Ord (R x) where
+instance (Ord x) => Ord (R x) where
   compare (R _ x) (R _ y) = compare x y
 
-instance Show x => Show (R x) where
+instance (Show x) => Show (R x) where
   show (R _ x) = show x
 
 instance Ranged (R a) where
@@ -171,29 +178,34 @@ instance Ranged (R a) where
 -- | Make Pos instances of FromJSON and ToJSON
 instance ToJSON Pos where
   toJSON (Pos file line col byte) =
-    object [ "file" .= file
-            , "line" .= line
-            , "column" .= col
-            , "byte" .= byte
-            ]
+    object
+      [ "file" .= file,
+        "line" .= line,
+        "column" .= col,
+        "byte" .= byte
+      ]
 
 instance FromJSON Pos where
   parseJSON = withObject "Pos" $ \v ->
-    Pos <$> v .: "file"
-        <*> v .: "line"
-        <*> v .: "column"
-        <*> v .: "byte"
+    Pos
+      <$> v .: "file"
+      <*> v .: "line"
+      <*> v .: "column"
+      <*> v .: "byte"
 
 -- | Make Range instances  of FromJSON and ToJSON
 instance FromJSON Range where
   parseJSON = withObject "Range" $ \v ->
-    Range <$> v .: "start"
-          <*> v .: "end"
+    Range
+      <$> v .: "start"
+      <*> v .: "end"
+
 instance ToJSON Range where
   toJSON (Range start end) =
-    object [ "start" .= start
-           , "end" .= end
-           ]
+    object
+      [ "start" .= start,
+        "end" .= end
+      ]
 
 --------------------------------------------------------------------------------
 
@@ -201,52 +213,54 @@ instance ToJSON Range where
 --  EQ: the cursor is placed within that thing
 --  LT: the cursor is placed BEFORE (but not touching) that thing
 --  GT: the cursor is placed AFTER (but not touching) that thing
-compareWithPosition :: Located a => Pos -> a -> Ordering
+compareWithPosition :: (Located a) => Pos -> a -> Ordering
 compareWithPosition pos x = case locOf x of
-  NoLoc         -> EQ
-  Loc start end -> if posCoff pos < posCoff start
-    then LT
-    else if posCoff pos > posCoff end then GT else EQ
+  NoLoc -> EQ
+  Loc start end ->
+    if posCoff pos < posCoff start
+      then LT
+      else if posCoff pos > posCoff end then GT else EQ
 
 -- | See if something is within the selection
-withinRange :: Located a => Range -> a -> Bool
+withinRange :: (Located a) => Range -> a -> Bool
 withinRange (Range left right) x =
   compareWithPosition left x
     == EQ
     || compareWithPosition right x
-    == EQ
+      == EQ
     || (compareWithPosition left x == LT && compareWithPosition right x == GT)
 
 --------------------------------------------------------------------------------
 
 instance Pretty Range where
-  pretty (Range start end) = if posLine start == posLine end
-    then
-      pretty (posFile start)
-      <> " ["
-      <> pretty (posCoff start)
-      <> "-"
-      <> pretty (posCoff end)
-      <> "] "
-      <> pretty (posLine start)
-      <> ":"
-      <> pretty (posCol start)
-      <> "-"
-      <> pretty (posCol end)
-    else
-      pretty (posFile start)
-      <> " ["
-      <> pretty (posCoff start)
-      <> "-"
-      <> pretty (posCoff end)
-      <> "] "
-      <> pretty (posLine start)
-      <> ":"
-      <> pretty (posCol start)
-      <> "-"
-      <> pretty (posLine end)
-      <> ":"
-      <> pretty (posCol end)
+  pretty (Range start end) =
+    if posLine start == posLine end
+      then
+        pretty (posFile start)
+          <> " ["
+          <> pretty (posCoff start)
+          <> "-"
+          <> pretty (posCoff end)
+          <> "] "
+          <> pretty (posLine start)
+          <> ":"
+          <> pretty (posCol start)
+          <> "-"
+          <> pretty (posCol end)
+      else
+        pretty (posFile start)
+          <> " ["
+          <> pretty (posCoff start)
+          <> "-"
+          <> pretty (posCoff end)
+          <> "] "
+          <> pretty (posLine start)
+          <> ":"
+          <> pretty (posCol start)
+          <> "-"
+          <> pretty (posLine end)
+          <> ":"
+          <> pretty (posCol end)
 
 instance Pretty Loc where
   pretty = pretty . displayLoc
@@ -257,43 +271,43 @@ instance Pretty Pos where
 --------------------------------------------------------------------------------
 
 -- | Like Range but a special  Show &Pretty instance, won't display the full path
-newtype ShortRange = ShortRange { unShortRange :: Range }
+newtype ShortRange = ShortRange {unShortRange :: Range}
 
 instance Show ShortRange where
   show (ShortRange (Range start end)) =
     let path = case split '/' (posFile start) of
           [] -> []
           xs -> last xs
-    in  if posLine start == posLine end
+     in if posLine start == posLine end
           then
             path
-            <> " ["
-            <> show (posCoff start)
-            <> "-"
-            <> show (posCoff end)
-            <> "] "
-            <> show (posLine start)
-            <> ":"
-            <> show (posCol start)
-            <> "-"
-            <> show (posCol end)
+              <> " ["
+              <> show (posCoff start)
+              <> "-"
+              <> show (posCoff end)
+              <> "] "
+              <> show (posLine start)
+              <> ":"
+              <> show (posCol start)
+              <> "-"
+              <> show (posCol end)
           else
             path
-            <> " ["
-            <> show (posCoff start)
-            <> "-"
-            <> show (posCoff end)
-            <> "] "
-            <> show (posLine start)
-            <> ":"
-            <> show (posCol start)
-            <> "-"
-            <> show (posLine end)
-            <> ":"
-            <> show (posCol end)
-   where
-    split :: Char -> String -> [String]
-    split c = filter (/= [c]) . List.groupBy (\x y -> x /= c && y /= c)
+              <> " ["
+              <> show (posCoff start)
+              <> "-"
+              <> show (posCoff end)
+              <> "] "
+              <> show (posLine start)
+              <> ":"
+              <> show (posCol start)
+              <> "-"
+              <> show (posLine end)
+              <> ":"
+              <> show (posCol end)
+    where
+      split :: Char -> String -> [String]
+      split c = filter (/= [c]) . List.groupBy (\x y -> x /= c && y /= c)
 
 instance Pretty ShortRange where
   pretty = pretty . show

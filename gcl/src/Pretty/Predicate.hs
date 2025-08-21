@@ -3,12 +3,12 @@
 module Pretty.Predicate where
 
 import Data.Loc (unLoc)
-import Prettyprinter
+import GCL.Predicate
 import Pretty.Abstract ()
 import Pretty.Util
-import GCL.Predicate
+import Prettyprinter
+import Render.Class (PrecContext (NoContext))
 import Prelude hiding (Ordering (..))
-import Render.Class (PrecContext(NoContext))
 
 --------------------------------------------------------------------------------
 

@@ -2,24 +2,27 @@
 
 module GCL.Predicate where
 
-import           Data.Aeson                     ( ToJSON )
-import qualified Data.Aeson                    as JSON
-import           Data.Loc                       ( L
-                                                , Loc(..)
-                                                , Located(locOf)
-                                                )
-import           Data.Loc.Range                 ( Range
-                                                , Ranged(rangeOf)
-                                                , fromLoc
-                                                , within
-                                                )
-import           Data.Text                      ( Text )
-import qualified Data.Set                      as Set
-import           GHC.Generics                   ( Generic )
-import           GCL.Common
-import           Render.Element
-import           Syntax.Typed                   ( Expr )
-import           Syntax.Common                  ( Name )
+import Data.Aeson (ToJSON)
+import qualified Data.Aeson as JSON
+import Data.Loc
+  ( L,
+    Loc (..),
+    Located (locOf),
+  )
+import Data.Loc.Range
+  ( Range,
+    Ranged (rangeOf),
+    fromLoc,
+    within,
+  )
+import qualified Data.Set as Set
+import Data.Text (Text)
+import GCL.Common
+import GHC.Generics (Generic)
+import Render.Element
+import Syntax.Common (Name)
+import Syntax.Typed (Expr)
+
 -- | A predicate is an expression, whose type happens to be Bool.
 type Pred = Expr
 
@@ -71,7 +74,6 @@ data Struct
   | Postcond Pred
   deriving (Eq)
 
-
 --------------------------------------------------------------------------------
 
 -- | Statement with its computed precondition
@@ -99,11 +101,11 @@ instance Eq Stmt where
 
 -- | Proof obligation
 data PO = PO
-  { poPre        :: Pred -- precondition
-  , poPost       :: Pred -- post-condition
-  , poAnchorHash :: Text -- anchor hash
-  , poAnchorLoc  :: Maybe Range -- anchor location, if it exists in the source
-  , poOrigin     :: Origin -- whereabouts
+  { poPre :: Pred, -- precondition
+    poPost :: Pred, -- post-condition
+    poAnchorHash :: Text, -- anchor hash
+    poAnchorLoc :: Maybe Range, -- anchor location, if it exists in the source
+    poOrigin :: Origin -- whereabouts
   }
   deriving (Eq, Show, Generic)
 
@@ -115,9 +117,10 @@ instance Located PO where
 
 -- instance ToJSON PO
 
-data InfMode = Primary     -- the main inference mode
-             | Secondary   -- non-functional postconditions. ignore assertions
-             deriving (Eq, Show, Generic)
+data InfMode
+  = Primary -- the main inference mode
+  | Secondary -- non-functional postconditions. ignore assertions
+  deriving (Eq, Show, Generic)
 
 instance ToJSON InfMode
 
@@ -130,12 +133,13 @@ data Origin
   | AtIf Loc
   | AtLoop Loc
   | AtTermination Loc
-  | Explain { originHeader :: Text -- the text you see on the top of a PO
-            , originExplanation :: Inlines -- the text you see at the bottom of a PO (after clicking the header)
-            , originInfMode :: InfMode
-            , originHighlightPartial :: Bool -- for highlighting only "if" in conditionals and "do" in loops
-            , originLoc :: Loc
-            }
+  | Explain
+      { originHeader :: Text, -- the text you see on the top of a PO
+        originExplanation :: Inlines, -- the text you see at the bottom of a PO (after clicking the header)
+        originInfMode :: InfMode,
+        originHighlightPartial :: Bool, -- for highlighting only "if" in conditionals and "do" in loops
+        originLoc :: Loc
+      }
   deriving (Eq, Show, Generic)
 
 -- | This ordering would affect how they are presented to the user
@@ -145,28 +149,28 @@ data Origin
 instance Ord Origin where
   compare x y = case fromLoc (locOf x) of
     Nothing -> LT
-    Just a  -> case fromLoc (locOf y) of
+    Just a -> case fromLoc (locOf y) of
       Nothing -> GT
       Just b ->
         if a `within` b then LT else if b `within` a then GT else compare a b
 
 instance Located Origin where
-  locOf (AtAbort       l  ) = l
-  locOf (AtSkip        l  ) = l
-  locOf (AtSpec        l  ) = l
-  locOf (AtAssignment  l  ) = l
-  locOf (AtAssertion   l  ) = l
-  locOf (AtIf          l  ) = l
-  locOf (AtLoop        l  ) = l
-  locOf (AtTermination l  ) = l
+  locOf (AtAbort l) = l
+  locOf (AtSkip l) = l
+  locOf (AtSpec l) = l
+  locOf (AtAssignment l) = l
+  locOf (AtAssertion l) = l
+  locOf (AtIf l) = l
+  locOf (AtLoop l) = l
+  locOf (AtTermination l) = l
   locOf (Explain _ _ _ _ l) = l
 
 data Spec = Specification
-  { specID       :: Int
-  , specPreCond  :: Pred
-  , specPostCond :: Pred
-  , specRange    :: Range
-  , specTypeEnv  :: [(Index, TypeInfo)]
+  { specID :: Int,
+    specPreCond :: Pred,
+    specPostCond :: Pred,
+    specRange :: Range,
+    specTypeEnv :: [(Index, TypeInfo)]
   }
   deriving (Eq, Show, Generic)
 

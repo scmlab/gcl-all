@@ -6,5 +6,6 @@ where
 
 import Syntax.Concrete.Instances.Located ()
 import Syntax.Concrete.Instances.ToAbstract
-    ( ToAbstract(..) )
+  ( ToAbstract (..),
+  )
 import Syntax.Concrete.Types

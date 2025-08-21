@@ -1,37 +1,38 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Render.Class
   ( Render (..),
-    RenderSection(..), 
+    RenderSection (..),
     tempHandleLoc,
     renderManySepByComma,
-    PrecContext(..)
+    PrecContext (..),
   )
 where
 
-import Render.Element
-import qualified Data.Text as Text
-import Data.Text (Text)
-import Data.Loc.Range (fromLoc)
 import Data.Loc (Loc)
+import Data.Loc.Range (fromLoc)
+import Data.Text (Text)
+import qualified Data.Text as Text
 import Prettyprinter (Doc)
-import qualified Prettyprinter.Render.Text as Text
 import qualified Prettyprinter as Doc
+import qualified Prettyprinter.Render.Text as Text
+import Render.Element
 import Syntax.Common.Types (Op)
 
 --------------------------------------------------------------------------------
+
 -- | Describing the precedence context of an expression:
 -- AppHOLE,OpHOLE means the expression at issue (whether it needs parentheses or not) is at the parent's operator's right side,
 --  denotes as like: "f {a + b}", "a * {b + c}" (the curly braces denotes the HOLE)
 -- HOLEApp, HOLEOp then denotes things like: "{f} b " "{a * b} + c"
-data PrecContext = NoContext
-                 | AppHOLE
-                 | HOLEApp 
-                 | OpHOLE Op
-                 | HOLEOp Op
-                 deriving (Show,Eq)
-
+data PrecContext
+  = NoContext
+  | AppHOLE
+  | HOLEApp
+  | OpHOLE Op
+  | HOLEOp Op
+  deriving (Show, Eq)
 
 -- | Typeclass for rendering Inline Elements
 class Render a where
@@ -51,13 +52,13 @@ class RenderSection a where
 
 --------------------------------------------------------------------------------
 
-tempHandleLoc :: Loc -> Inlines -> Inlines 
-tempHandleLoc loc t = case fromLoc loc of 
+tempHandleLoc :: Loc -> Inlines -> Inlines
+tempHandleLoc loc t = case fromLoc loc of
   Nothing -> t
-  Just range -> linkE range t 
+  Just range -> linkE range t
 
--- renderLocatedAndPrettified :: (Located a, Pretty a) => a -> Inlines 
--- renderLocatedAndPrettified x = tempHandleLoc (locOf x) (render $ pretty x) 
+-- renderLocatedAndPrettified :: (Located a, Pretty a) => a -> Inlines
+-- renderLocatedAndPrettified x = tempHandleLoc (locOf x) (render $ pretty x)
 
 --------------------------------------------------------------------------------
 
@@ -92,5 +93,5 @@ instance (Render a, Render b) => Render (a, b) where
 --   render xs = punctuateE "," . map render
 --       "[" <> Inlines $ pure $ Horz (punctuate "," (map render xs)) <> "]"
 
-renderManySepByComma :: Render a => [a] -> Inlines
+renderManySepByComma :: (Render a) => [a] -> Inlines
 renderManySepByComma = punctuateE "," . map render

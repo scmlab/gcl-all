@@ -1,68 +1,66 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-name-shadowing #-}
 
 module Server.Handler.GCL.Refine where
 
+import Control.Monad.Except (runExcept)
+import Data.Aeson (Value (Bool))
 import qualified Data.Aeson as JSON
-import GHC.Generics ( Generic )
-import Data.Bifunctor ( bimap )
-import Control.Monad.Except           ( runExcept )
-import Server.Monad (ServerM, FileState(..), loadFileState, editTexts, pushSpecs, deleteSpec, Versioned, pushPos, updateIdCounter, logText, saveFileState, pushWarnings)
-import Server.Notification.Update (sendUpdateNotification)
-import Server.Notification.Error (sendErrorNotification)
-
-import qualified Syntax.Parser                as Parser
-import           Syntax.Parser.Error           ( ParseError(..) )
-import Syntax.Parser.Lexer (TokStream(..), scan)
-import Language.Lexer.Applicative              ( TokenStream(..))
-
-import Error (Error (ParseError, TypeError, StructError, Others))
-import GCL.Predicate (Spec(..), PO (..), InfMode(..), Origin (..))
-import GCL.Common (TypeEnv, Index, TypeInfo)
-import GCL.Type (Elab(..), TypeError, runElaboration, Typed)
-import Data.Loc.Range (Range (..), rangeStart, toLoc)
-import Data.Text (Text, split, unlines, lines)
+import Data.Bifunctor (bimap)
 import Data.List (find, maximumBy)
-import Data.Loc (Pos(..), Loc(..), L(..))
-import qualified Data.Map        as Map
-import qualified Syntax.Concrete as C
-import qualified Syntax.Abstract as A
-import qualified Syntax.Typed    as T
-import GCL.WP.Types (StructError, StructWarning (..))
-import GCL.WP
+import Data.Loc (L (..), Loc (..), Pos (..))
+import Data.Loc.Range (Range (..), rangeStart, toLoc)
+import qualified Data.Map as Map
+import Data.Text (Text, lines, split, unlines)
 import qualified Data.Text as Text
+import Error (Error (Others, ParseError, StructError, TypeError))
+import GCL.Common (Index, TypeEnv, TypeInfo)
+import GCL.Predicate (InfMode (..), Origin (..), PO (..), Spec (..))
+import GCL.Type (Elab (..), TypeError, Typed, runElaboration)
+import GCL.WP
+import GCL.WP.Types (StructError, StructWarning (..))
+import GHC.Generics (Generic)
+import Language.Lexer.Applicative (TokenStream (..))
 import Pretty (pretty)
-import Data.Aeson (Value(Bool))
+import Server.Monad (FileState (..), ServerM, Versioned, deleteSpec, editTexts, loadFileState, logText, pushPos, pushSpecs, pushWarnings, saveFileState, updateIdCounter)
+import Server.Notification.Error (sendErrorNotification)
+import Server.Notification.Update (sendUpdateNotification)
+import qualified Syntax.Abstract as A
+import qualified Syntax.Concrete as C
+import qualified Syntax.Parser as Parser
+import Syntax.Parser.Error (ParseError (..))
+import Syntax.Parser.Lexer (TokStream (..), scan)
+import qualified Syntax.Typed as T
 
 data RefineParams = RefineParams
-  { filePath  :: FilePath
-  , specText  :: Text
-  , specLines :: Range
-  , implStart :: Pos
+  { filePath :: FilePath,
+    specText :: Text,
+    specLines :: Range,
+    implStart :: Pos
   }
   deriving (Eq, Show, Generic)
 
 instance JSON.FromJSON RefineParams
-instance JSON.ToJSON RefineParams
 
+instance JSON.ToJSON RefineParams
 
 -- Assumes. specLines contains all the lines from "[!" to "!]"
 -- Assumes. specText is the text in specLines
 -- Assumes. implStart is the start of the line following "[!"
 handler :: RefineParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
-handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish _ = do
+handler _params@RefineParams {filePath, specLines, specText, implStart} onFinish _ = do
   logText "refine: start\n"
   logText "  params\n"
   logText . Text.pack . show $ _params
   logText "\n"
   logText "  specLines:\n"
-  logText . Text.pack . show  $ specLines
+  logText . Text.pack . show $ specLines
   logText "\n"
   if not (bracketsOccupyOwnLines specText)
     then do
@@ -102,20 +100,20 @@ handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish 
               logText . Text.pack . show . pretty $ implStart
               logText "\n"
               case parseFragment implStart holelessImplText of
-                Left err           -> onError (ParseError err)
+                Left err -> onError (ParseError err)
                 Right concreteImpl -> do
                   -- concrete to abstract
                   logText "  text parsed\n"
                   case toAbstractFragment concreteImpl of
-                    Nothing           -> do
+                    Nothing -> do
                       error "Holes still found after digging all holes. Should not happen\n"
                     Just abstractImpl -> do
                       logText "  abstracted\n"
                       -- get spec (along with its type environment)
-                      let FileState{specifications} = fileState
+                      let FileState {specifications} = fileState
                       logText "  looking for specs\n"
                       case lookupSpecByLines specifications specLines of
-                        Nothing   -> do
+                        Nothing -> do
                           logText "  spec not found at range, should reload\n"
                           onError (Others "Refine Error" "spec not found at range, should reload" NoLoc)
                         Just spec -> do
@@ -136,7 +134,7 @@ handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish 
                             Right typedImpl -> do
                               -- get POs and specs
                               logText "  type checked\n"
-                              let FileState{idCount} = fileState
+                              let FileState {idCount} = fileState
                               case sweepFragment idCount spec typedImpl of
                                 Left err -> onError (StructError err)
                                 Right (innerPos, innerSpecs, innerWarnings, idCount') -> do
@@ -145,7 +143,7 @@ handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish 
                                   deleteSpec filePath spec
                                   logText "  outer spec deleted (refine)\n"
                                   -- add inner specs to fileState
-                                  let FileState{editedVersion} = fileState
+                                  let FileState {editedVersion} = fileState
                                   updateIdCounter filePath idCount'
                                   logText "  counter updated (refine)\n"
                                   let innerSpecs' = predictAndTranslateSpecRanges innerSpecs
@@ -161,7 +159,7 @@ handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish 
                                   --                   }
 
                                   -- saveFileState filePath fileState'
-                                  
+
                                   logText "  new specs and POs added (refine)\n"
                                   -- send notification to update Specs and POs
                                   logText "refine: success\n"
@@ -185,24 +183,24 @@ handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish 
     minusOneLine :: Pos -> Pos
     minusOneLine (Pos filePath line column byte) = Pos filePath (line - 1) column 0
     predictAndTranslateSpecRanges :: [Spec] -> [Spec]
-    predictAndTranslateSpecRanges = map (\spec@Specification{specRange} -> spec{specRange = minusOneLine' specRange})
+    predictAndTranslateSpecRanges = map (\spec@Specification {specRange} -> spec {specRange = minusOneLine' specRange})
       where
         minusOneLine' :: Range -> Range
         minusOneLine' (Range start end) = Range (minusOneLine start) (minusOneLine end)
     predictAndTranslatePosRanges :: [PO] -> [PO]
-    predictAndTranslatePosRanges = map (\po@PO{poOrigin} -> po{poOrigin = modifyOriginLocation minusOneLine' poOrigin})
+    predictAndTranslatePosRanges = map (\po@PO {poOrigin} -> po {poOrigin = modifyOriginLocation minusOneLine' poOrigin})
       where
         minusOneLine' :: Loc -> Loc
         minusOneLine' NoLoc = NoLoc
         minusOneLine' (Loc start end) = Loc (minusOneLine start) (minusOneLine end)
         modifyOriginLocation :: (Loc -> Loc) -> Origin -> Origin
-        modifyOriginLocation f (AtAbort       l) = AtAbort (f l)
-        modifyOriginLocation f (AtSkip        l) = AtSkip (f l)
-        modifyOriginLocation f (AtSpec        l) = AtSpec (f l)
-        modifyOriginLocation f (AtAssignment  l) = AtAssignment (f l)
-        modifyOriginLocation f (AtAssertion   l) = AtAssertion (f l)
-        modifyOriginLocation f (AtIf          l) = AtIf (f l)
-        modifyOriginLocation f (AtLoop        l) = AtLoop (f l)
+        modifyOriginLocation f (AtAbort l) = AtAbort (f l)
+        modifyOriginLocation f (AtSkip l) = AtSkip (f l)
+        modifyOriginLocation f (AtSpec l) = AtSpec (f l)
+        modifyOriginLocation f (AtAssignment l) = AtAssignment (f l)
+        modifyOriginLocation f (AtAssertion l) = AtAssertion (f l)
+        modifyOriginLocation f (AtIf l) = AtIf (f l)
+        modifyOriginLocation f (AtLoop l) = AtLoop (f l)
         modifyOriginLocation f (AtTermination l) = AtTermination (f l)
         modifyOriginLocation f (Explain h e i p l) = Explain h e i p (f l)
     predictAndTranslateWarningsRanges :: [StructWarning] -> [StructWarning]
@@ -210,11 +208,12 @@ handler _params@RefineParams{filePath, specLines, specText, implStart} onFinish 
       where
         minusOneLine' :: Range -> Range
         minusOneLine' (Range start end) = Range (minusOneLine start) (minusOneLine end)
+
 bracketsOccupyOwnLines :: Text -> Bool
 bracketsOccupyOwnLines specText =
   hasAtLeastTwoLines specText
-  && firstLine specText `onlyIncludes` ['!', '[', ' ', '\t', '\n', '\r']
-  && lastLine specText `onlyIncludes` ['!', ']', ' ', '\t', '\n', '\r']
+    && firstLine specText `onlyIncludes` ['!', '[', ' ', '\t', '\n', '\r']
+    && lastLine specText `onlyIncludes` ['!', ']', ' ', '\t', '\n', '\r']
 
 hasAtLeastTwoLines :: Text -> Bool
 hasAtLeastTwoLines = (>= 2) . length . Text.lines
@@ -233,12 +232,12 @@ removeFirstAndLastLine = Text.intercalate "\n" . tail . init . Text.lines
 
 lookupSpecByLines :: [Versioned Spec] -> Range -> Maybe Spec
 lookupSpecByLines specs targetLines = do
-  (_version, spec) <- find (\(_, Specification{specRange}) -> coverSameLines specRange targetLines) specs
+  (_version, spec) <- find (\(_, Specification {specRange}) -> coverSameLines specRange targetLines) specs
   return spec
   where
     coverSameLines :: Range -> Range -> Bool
-    coverSameLines (Range (Pos _ lineStart _ _) (Pos _ lineEnd _ _)) (Range (Pos _ lineStart' _ _) (Pos _ lineEnd' _ _))
-      = (lineStart == lineStart') && (lineEnd == lineEnd')
+    coverSameLines (Range (Pos _ lineStart _ _) (Pos _ lineEnd _ _)) (Range (Pos _ lineStart' _ _) (Pos _ lineEnd' _ _)) =
+      (lineStart == lineStart') && (lineEnd == lineEnd')
 
 collectFragmentHoles :: [C.Stmt] -> [Range]
 collectFragmentHoles concreteFragment = do
@@ -269,13 +268,18 @@ digImplHoles parseStart filePath implText =
         allLines = Text.lines fullText -- split fullText by '\n'
         lineToEdit :: Text
         lineToEdit = allLines !! (lineNumber - 1)
-        beforeHole = Text.take (col-1) lineToEdit
+        beforeHole = Text.take (col - 1) lineToEdit
         afterHole = Text.drop col lineToEdit -- lineToEdit
         indentation n = Text.replicate n " "
         lineEdited :: Text
-        lineEdited = beforeHole <> "[!\n" <>
-                    indentation (col-1) <> "\n" <>
-                    indentation (col-1) <> "!]" <> afterHole
+        lineEdited =
+          beforeHole
+            <> "[!\n"
+            <> indentation (col - 1)
+            <> "\n"
+            <> indentation (col - 1)
+            <> "!]"
+            <> afterHole
         linesEdited :: [Text]
         linesEdited = take (lineNumber - 1) allLines ++ [lineEdited] ++ drop lineNumber allLines
 
@@ -284,59 +288,67 @@ parseFragment :: Pos -> Text -> Either ParseError [C.Stmt]
 parseFragment fragmentStart fragment = do
   let Pos filePath _ _ _ = fragmentStart
   case Syntax.Parser.Lexer.scan filePath fragment of
-    Left  err    -> Left (LexicalError err)
+    Left err -> Left (LexicalError err)
     Right tokens -> do
       let tokens' = translateTokStream fragmentStart tokens
       case Parser.parse Parser.statements filePath tokens' of
-        Left  (errors,logMsg) -> Left (SyntacticError errors logMsg)
-        Right val             -> Right val
+        Left (errors, logMsg) -> Left (SyntacticError errors logMsg)
+        Right val -> Right val
   where
     translateRange :: Pos -> Pos -> Pos
-    translateRange _fragmentStart@(Pos _ lineStart colStart coStart)
-        (Pos path lineOffset colOffset coOffset)
-      = Pos path line col co
-      where
-        line = lineStart + lineOffset - 1
-        col = if lineOffset == 1
-                then colStart + colOffset - 1
-                else colOffset
-        co = coStart + coOffset
+    translateRange
+      _fragmentStart@(Pos _ lineStart colStart coStart)
+      (Pos path lineOffset colOffset coOffset) =
+        Pos path line col co
+        where
+          line = lineStart + lineOffset - 1
+          col =
+            if lineOffset == 1
+              then colStart + colOffset - 1
+              else colOffset
+          co = coStart + coOffset
 
     translateLoc :: Pos -> Loc -> Loc
-    translateLoc fragmentStart (Loc left right)
-      = Loc (translateRange fragmentStart left) (translateRange fragmentStart right)
+    translateLoc fragmentStart (Loc left right) =
+      Loc (translateRange fragmentStart left) (translateRange fragmentStart right)
     translateLoc _ NoLoc = NoLoc
 
     translateTokStream :: Pos -> Syntax.Parser.Lexer.TokStream -> Syntax.Parser.Lexer.TokStream
-    translateTokStream fragmentStart (TsToken (L loc x) rest)
-      = TsToken (L (translateLoc fragmentStart loc) x) (translateTokStream fragmentStart rest)
+    translateTokStream fragmentStart (TsToken (L loc x) rest) =
+      TsToken (L (translateLoc fragmentStart loc) x) (translateTokStream fragmentStart rest)
     translateTokStream _ TsEof = TsEof
     translateTokStream _ (TsError e) = TsError e
 
 toAbstractFragment :: [C.Stmt] -> Maybe [A.Stmt]
 toAbstractFragment concreteFragment =
   case runExcept $ C.toAbstract concreteFragment of
-    Left _                 -> Nothing
+    Left _ -> Nothing
     Right abstractFragment -> Just abstractFragment
 
-elaborateFragment :: Elab a => [(Index, TypeInfo)] -> a -> Either TypeError (Typed a)
+elaborateFragment :: (Elab a) => [(Index, TypeInfo)] -> a -> Either TypeError (Typed a)
 elaborateFragment typeEnv abstractFragment = do
   runElaboration abstractFragment typeEnv
 
 instance Elab [A.Stmt] where
   -- elaborate :: a -> TypeEnv -> ElaboratorM (Maybe Type, Typed a, Subs Type)
   elaborate stmts env = do
-    typed <- mapM (\stmt -> do
-        (_, typed, _) <- elaborate stmt env
-        return typed
-        ) stmts
+    typed <-
+      mapM
+        ( \stmt -> do
+            (_, typed, _) <- elaborate stmt env
+            return typed
+        )
+        stmts
     return (Nothing, typed, mempty)
-
 
 sweepFragment :: Int -> Spec -> [T.Stmt] -> Either StructError ([PO], [Spec], [StructWarning], Int)
 sweepFragment counter (Specification _ pre post _ _) impl =
-    bimap id (\(_, counter', (pos, specs, sws, _)) ->
-               (pos, specs, sws, counter'))
-     $ runWP (structStmts Primary (pre, Nothing) impl post)
-             (Map.empty, [])  -- SCM: this can't be right.
-             counter
+  bimap
+    id
+    ( \(_, counter', (pos, specs, sws, _)) ->
+        (pos, specs, sws, counter')
+    )
+    $ runWP
+      (structStmts Primary (pre, Nothing) impl post)
+      (Map.empty, []) -- SCM: this can't be right.
+      counter

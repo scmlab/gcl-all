@@ -1,17 +1,19 @@
 module Syntax.Typed.Types where
 
-import Data.Text ( Text )
-import Data.Loc ( Loc )
-import Data.Loc.Range ( Range )
-import Syntax.Abstract.Types ( Lit(..), Type(..), TBase(..), Pattern, Interval, Kind )
-import Syntax.Common.Types ( Name, Op, TypeOp )
-import GCL.Common ( Index, TypeInfo )
+import Data.Loc (Loc)
+import Data.Loc.Range (Range)
+import Data.Text (Text)
+import GCL.Common (Index, TypeInfo)
+import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
+import Syntax.Common.Types (Name, Op, TypeOp)
 
-data Program = Program [Definition] -- definitions (the functional language part)
-                       [Declaration] -- constant and variable declarations
-                       [Expr] -- global properties
-                       [Stmt] -- main program
-                       Loc
+data Program
+  = Program
+      [Definition] -- definitions (the functional language part)
+      [Declaration] -- constant and variable declarations
+      [Expr] -- global properties
+      [Stmt] -- main program
+      Loc
   deriving (Eq, Show)
 
 data Definition
@@ -39,10 +41,10 @@ data Stmt
   | If [GdCmd] Loc
   | Spec Text Range [(Index, TypeInfo)]
   | Proof Text Text Range
-  | Alloc   Name [Expr] Loc    --  p := new (e1,e2,..,en)
-  | HLookup Name Expr Loc      --  x := *e
+  | Alloc Name [Expr] Loc --  p := new (e1,e2,..,en)
+  | HLookup Name Expr Loc --  x := *e
   | HMutate Expr Expr Loc --  *e1 := e2
-  | Dispose Expr Loc           --  dispose e
+  | Dispose Expr Loc --  dispose e
   | Block Program Loc
   deriving (Eq, Show)
 
@@ -61,7 +63,6 @@ data Expr
   | ArrIdx Expr Expr Loc
   | ArrUpd Expr Expr Expr Loc
   | Case Expr [CaseClause] Loc
-
   | Subst Expr [(Name, Expr)]
   deriving (Eq, Show)
 

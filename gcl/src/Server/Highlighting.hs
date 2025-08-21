@@ -1,30 +1,32 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module Server.Highlighting
-  ( Highlighting
-  , collectHighlighting
-  ) where
+  ( Highlighting,
+    collectHighlighting,
+  )
+where
 
-import           Control.Monad.RWS
-import           Data.Foldable                  ( toList )
-import           Data.Loc                       ( Located(locOf)
-                                                , posCol
-                                                , posLine
-                                                )
-import           Data.Loc.Range
-import qualified Language.LSP.Protocol.Types      as J
-import           Server.IntervalMap                ( Collect(..)
-                                                , M
-                                                , runM
-                                                )
-import qualified Server.IntervalMap               as IntervalMap
-import           Syntax.Common
-import           Syntax.Concrete
-
+import Control.Monad.RWS
+import Data.Foldable (toList)
+import Data.Loc
+  ( Located (locOf),
+    posCol,
+    posLine,
+  )
+import Data.Loc.Range
 import qualified Hack
+import qualified Language.LSP.Protocol.Types as J
+import Server.IntervalMap
+  ( Collect (..),
+    M,
+    runM,
+  )
+import qualified Server.IntervalMap as IntervalMap
+import Syntax.Common
+import Syntax.Concrete
 
 type Highlighting = J.SemanticTokenAbsolute
 
@@ -34,20 +36,23 @@ collectHighlighting program =
 
 --------------------------------------------------------------------------------
 -- helper function for converting some syntax node to Highlighting
-addHighlighting
-  :: Located a
-  => J.SemanticTokenTypes
-  -> [J.SemanticTokenModifiers]
-  -> a
-  -> M () Highlighting ()
+addHighlighting ::
+  (Located a) =>
+  J.SemanticTokenTypes ->
+  [J.SemanticTokenModifiers] ->
+  a ->
+  M () Highlighting ()
 addHighlighting types modifiers node = case fromLoc (locOf node) of
-  Nothing    -> return ()
-  Just range -> tell $ IntervalMap.singleton range $ J.SemanticTokenAbsolute
-    (Hack.intToUInt (posLine (rangeStart range) - 1))
-    (Hack.intToUInt (posCol (rangeStart range) - 1))
-    (Hack.intToUInt (rangeSpan range))
-    types
-    modifiers
+  Nothing -> return ()
+  Just range ->
+    tell $
+      IntervalMap.singleton range $
+        J.SemanticTokenAbsolute
+          (Hack.intToUInt (posLine (rangeStart range) - 1))
+          (Hack.intToUInt (posCol (rangeStart range) - 1))
+          (Hack.intToUInt (rangeSpan range))
+          types
+          modifiers
 
 --------------------------------------------------------------------------------
 -- newtypes for giving common datatype like `Name` different interpretations
@@ -83,11 +88,10 @@ instance Collect () Highlighting DefinitionBlock where
 
 instance Collect () Highlighting Definition where
   collect (TypeDefn tokData name binders _tokDef bs) = do
-    addHighlighting J.SemanticTokenTypes_Keyword   [] tokData
-    addHighlighting J.SemanticTokenTypes_Type      [] name
+    addHighlighting J.SemanticTokenTypes_Keyword [] tokData
+    addHighlighting J.SemanticTokenTypes_Type [] name
     addHighlighting J.SemanticTokenTypes_Parameter [] binders
     collect bs
-
   collect (FuncDefnSig a b) = do
     collect a
     collect b
@@ -118,6 +122,7 @@ instance Collect () Highlighting DeclBase where
 
 instance Collect () Highlighting DeclProp where
   collect (DeclProp _tokA a _tokB) = collect a
+
 instance Collect () Highlighting DeclType where
   collect (DeclType a b) = do
     collect a
@@ -129,8 +134,8 @@ instance Collect () Highlighting DeclType where
 instance Collect () Highlighting Stmt where
   collect :: Stmt -> M () Highlighting ()
   collect = \case
-    Skip  x          -> addHighlighting J.SemanticTokenTypes_Keyword [] x
-    Abort x          -> addHighlighting J.SemanticTokenTypes_Keyword [] x
+    Skip x -> addHighlighting J.SemanticTokenTypes_Keyword [] x
+    Abort x -> addHighlighting J.SemanticTokenTypes_Keyword [] x
     Assign as tok bs -> do
       collect (fmap AsVariable as)
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
@@ -140,7 +145,7 @@ instance Collect () Highlighting Stmt where
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
       collect b
       collect c
-    Assert _ a _                  -> collect a
+    Assert _ a _ -> collect a
     LoopInvariant _ a _ tok _ b _ -> do
       collect a
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
@@ -153,22 +158,22 @@ instance Collect () Highlighting Stmt where
       addHighlighting J.SemanticTokenTypes_Keyword [] tokA
       collect as
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
-    SpecQM _         -> return ()
+    SpecQM _ -> return ()
     Spec tokA _ tokB -> do
       addHighlighting J.SemanticTokenTypes_Keyword [] tokA
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
     Proof _ _ _ range -> do
       addHighlighting J.SemanticTokenTypes_Keyword [] range
-      -- addHighlighting J.SemanticTokenTypes_Keyword [] tokA
-      -- addHighlighting J.SemanticTokenTypes_Keyword [] tokB
+    -- addHighlighting J.SemanticTokenTypes_Keyword [] tokA
+    -- addHighlighting J.SemanticTokenTypes_Keyword [] tokB
     Alloc a tok tokNew _ bs _ -> do
       collect (AsVariable a)
-      addHighlighting J.SemanticTokenTypes_Keyword []                  tok
+      addHighlighting J.SemanticTokenTypes_Keyword [] tok
       addHighlighting J.SemanticTokenTypes_Keyword [J.SemanticTokenModifiers_Modification] tokNew
       collect bs
     HLookup a tok tokStar b -> do
       collect (AsVariable a)
-      addHighlighting J.SemanticTokenTypes_Keyword []                  tok
+      addHighlighting J.SemanticTokenTypes_Keyword [] tok
       addHighlighting J.SemanticTokenTypes_Keyword [J.SemanticTokenModifiers_Modification] tokStar
       collect b
     HMutate tokStar a tok b -> do
@@ -180,7 +185,7 @@ instance Collect () Highlighting Stmt where
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
       collect a
     -- TODO:
-    Block{} -> return ()
+    Block {} -> return ()
 
 instance Collect () Highlighting GdCmd where
   collect (GdCmd a tok bs) = do
@@ -193,11 +198,11 @@ instance Collect () Highlighting GdCmd where
 instance Collect () Highlighting Expr where
   collect = \case
     Paren _ a _ -> collect a
-    Lit   a     -> collect a
-    Var   a     -> collect (AsVariable a)
-    Const a     -> collect (AsVariable a)
-    Op    a     -> addHighlighting J.SemanticTokenTypes_Operator [] a
-    Chain ch    -> case ch of
+    Lit a -> collect a
+    Var a -> collect (AsVariable a)
+    Const a -> collect (AsVariable a)
+    Op a -> addHighlighting J.SemanticTokenTypes_Operator [] a
+    Chain ch -> case ch of
       Pure expr -> collect expr
       More ch' op expr -> do
         collect (Chain ch')
@@ -206,7 +211,7 @@ instance Collect () Highlighting Expr where
     Arr a _ b _ -> do
       collect a
       collect b
-    App a@App{} b -> do
+    App a@App {} b -> do
       collect a
       collect b
     App (Const a) b -> do
@@ -216,7 +221,7 @@ instance Collect () Highlighting Expr where
       collect a
       collect b
     Quant tokA op names tokB a tokC b tokD -> do
-      addHighlighting J.SemanticTokenTypes_Keyword  [] tokA
+      addHighlighting J.SemanticTokenTypes_Keyword [] tokA
       addHighlighting J.SemanticTokenTypes_Operator [] op
       collect (map AsVariable names)
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
@@ -266,8 +271,8 @@ instance Collect () Highlighting TBase where
   collect = addHighlighting J.SemanticTokenTypes_Type []
 
 instance Collect () Highlighting Type where
-  collect (TParen _ a _             ) = collect a
-  collect (TBase a                  ) = collect a
+  collect (TParen _ a _) = collect a
+  collect (TBase a) = collect a
   collect (TArray tokArray a tokOf b) = do
     addHighlighting J.SemanticTokenTypes_Keyword [] tokArray
     collect a
@@ -275,7 +280,7 @@ instance Collect () Highlighting Type where
     collect b
   collect (TOp op) = addHighlighting J.SemanticTokenTypes_Operator [] op
   collect (TData name _) = addHighlighting J.SemanticTokenTypes_Type [] name
-  collect (TApp a b)  = do
+  collect (TApp a b) = do
     collect a
     collect b
-  collect (TMetaVar name _)  = addHighlighting J.SemanticTokenTypes_Type [] name
+  collect (TMetaVar name _) = addHighlighting J.SemanticTokenTypes_Type [] name

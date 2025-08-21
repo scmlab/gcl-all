@@ -1,46 +1,48 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Server.IntervalMap
-  ( IntervalMap
-  , singleton
-  , toList
-  , fromList
-  , insert
-  , lookup
-  , split
-  , Scope
-  , M
-  , runM
-  , Collect(..)
-  , lookupScopes
-  , localScope
-  ) where
+  ( IntervalMap,
+    singleton,
+    toList,
+    fromList,
+    insert,
+    lookup,
+    split,
+    Scope,
+    M,
+    runM,
+    Collect (..),
+    lookupScopes,
+    localScope,
+  )
+where
 
-import           Control.Monad.RWS
-import           Data.Bifunctor                 ( bimap )
-import           Data.Foldable                  ( forM_ )
-import qualified Data.Foldable                 as Foldable
-import           Data.IntMap                    ( IntMap )
-import qualified Data.IntMap                   as IntMap
-import           Data.List.NonEmpty             ( NonEmpty )
-import           Data.Loc                       ( Pos
-                                                , posCoff
-                                                )
-import           Data.Loc.Range                 ( Range
-                                                , rangeEnd
-                                                , rangeStart
-                                                )
-import           Data.Map                       ( Map )
-import qualified Data.Map                      as Map
-import           Data.Text                      ( Text )
-import           Prettyprinter
-import           Prelude                 hiding ( lookup )
-import           Syntax.Concrete                ( SepBy )
-
+import Control.Monad.RWS
+import Data.Bifunctor (bimap)
+import Data.Foldable (forM_)
+import qualified Data.Foldable as Foldable
+import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
+import Data.List.NonEmpty (NonEmpty)
+import Data.Loc
+  ( Pos,
+    posCoff,
+  )
+import Data.Loc.Range
+  ( Range,
+    rangeEnd,
+    rangeStart,
+  )
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Text (Text)
+import Prettyprinter
+import Syntax.Concrete (SepBy)
+import Prelude hiding (lookup)
 
 --------------------------------------------------------------------------------
 -- Uses IntMap internally for speeding up lookups
@@ -52,29 +54,31 @@ instance Functor IntervalMap where
   fmap f (IntervalMap m) = IntervalMap (IntMap.map (fmap f) m)
 
 -- Instances for debugging
-instance Pretty token => Show (IntervalMap token) where
+instance (Pretty token) => Show (IntervalMap token) where
   show = show . pretty
 
-instance Pretty token => Pretty (IntervalMap token) where
+instance (Pretty token) => Pretty (IntervalMap token) where
   pretty (IntervalMap xs) =
     vcat
       $ Prelude.map
-          (\(start, (end, token)) ->
+        ( \(start, (end, token)) ->
             "(" <> pretty start <> ", " <> pretty end <> ") => " <> pretty token
-          )
+        )
       $ IntMap.toList xs
 
 instance Foldable IntervalMap where
   foldMap f (IntervalMap xs) = foldMap (f . snd) xs
 
 --------------------------------------------------------------------------------
--- Construction 
+-- Construction
 
 -- Constructs a IntervalMap with a Range and a payload
 singleton :: Range -> token -> IntervalMap token
-singleton range token = IntervalMap $ IntMap.singleton
-  (posCoff (rangeStart range))
-  (posCoff (rangeEnd range), token)
+singleton range token =
+  IntervalMap $
+    IntMap.singleton
+      (posCoff (rangeStart range))
+      (posCoff (rangeEnd range), token)
 
 toList :: IntervalMap token -> [((Int, Int), token)]
 toList (IntervalMap m) = map (\(a, (b, c)) -> ((a, b), c)) (IntMap.toList m)
@@ -83,26 +87,28 @@ fromList :: [((Int, Int), token)] -> IntervalMap token
 fromList = IntervalMap . IntMap.fromList . map (\((a, b), c) -> (a, (b, c)))
 
 --------------------------------------------------------------------------------
--- Insertion  
+-- Insertion
 
 insert :: Range -> token -> IntervalMap token -> IntervalMap token
-insert range token (IntervalMap m) = IntervalMap $ IntMap.insert
-  (posCoff (rangeStart range))
-  (posCoff (rangeEnd range), token)
-  m
+insert range token (IntervalMap m) =
+  IntervalMap $
+    IntMap.insert
+      (posCoff (rangeStart range))
+      (posCoff (rangeEnd range), token)
+      m
 
 split :: Range -> IntervalMap token -> (IntervalMap token, IntervalMap token)
 split rng (IntervalMap m) =
   bimap IntervalMap IntervalMap (IntMap.split (posCoff (rangeStart rng)) m)
 
 --------------------------------------------------------------------------------
--- Query 
+-- Query
 
 -- Given a Pos, returns the paylod and its Range if the Pos is within its Range
 lookup' :: Pos -> IntervalMap token -> Maybe ((Int, Int), token)
 lookup' pos (IntervalMap m) =
   let offset = posCoff pos
-  in  case IntMap.lookupLE offset m of
+   in case IntMap.lookupLE offset m of
         Nothing -> Nothing
         Just (start, (end, x)) ->
           if offset <= end then Just ((start, end), x) else Nothing
@@ -127,15 +133,15 @@ runM scopes f = let (_, _, w) = runRWS f scopes () in w
 -- | Return the first result (which should be the most local target)
 lookupScopes :: Text -> M input output (Maybe input)
 lookupScopes name = asks lookupScopesPrim
- where
-  lookupScopesPrim :: [Scope input] -> Maybe input
-  lookupScopesPrim scopes = foldl findFirst Nothing scopes
+  where
+    lookupScopesPrim :: [Scope input] -> Maybe input
+    lookupScopesPrim scopes = foldl findFirst Nothing scopes
 
-  findFirst :: Maybe input -> Scope input -> Maybe input
-  findFirst (Just found) _     = Just found
-  findFirst Nothing      scope = Map.lookup name scope
+    findFirst :: Maybe input -> Scope input -> Maybe input
+    findFirst (Just found) _ = Just found
+    findFirst Nothing scope = Map.lookup name scope
 
-localScope :: MonadReader [Scope input] m => Scope input -> m a -> m a
+localScope :: (MonadReader [Scope input] m) => Scope input -> m a -> m a
 localScope scope = local (scope :)
 
 --------------------------------------------------------------------------------
@@ -144,22 +150,22 @@ localScope scope = local (scope :)
 class Collect input output a where
   collect :: a -> M input output ()
 
-instance Collect input output a => Collect input output (Maybe a) where
-  collect Nothing  = return ()
+instance (Collect input output a) => Collect input output (Maybe a) where
+  collect Nothing = return ()
   collect (Just x) = collect x
 
-instance Collect input output a => Collect input output [a] where
+instance (Collect input output a) => Collect input output [a] where
   collect = mapM_ collect
 
-instance Collect input output a => Collect input output (NonEmpty a) where
+instance (Collect input output a) => Collect input output (NonEmpty a) where
   collect = mapM_ collect
 
-instance Collect input output a => Collect input output (Map k a) where
+instance (Collect input output a) => Collect input output (Map k a) where
   collect = mapM_ collect
 
 instance (Collect input output a, Collect input output b) => Collect input output (Either a b) where
-  collect (Left  a) = collect a
+  collect (Left a) = collect a
   collect (Right a) = collect a
 
-instance Collect input output a => Collect input output (SepBy tok a) where
+instance (Collect input output a) => Collect input output (SepBy tok a) where
   collect xs = forM_ (Foldable.toList xs) collect
