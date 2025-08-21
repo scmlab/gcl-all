@@ -3,6 +3,8 @@ name: CI
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - gcl
     branches:
       - main
 
@@ -23,17 +25,22 @@ jobs:
           - macos-latest
           - ubuntu-latest
 
+    # this is dumb https://stackoverflow.com/q/58139175
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+        working-directory: ./gcl
       - uses: haskell-actions/setup@v2
         with:
           enable-stack: true
+        working-directory: ./gcl
 
       - name:
         run: stack build
+        working-directory: ./gcl
 
       # TODO: `stack test` is broken currently
       # reenable this in the future
       # - name:
       #   run: stack test
+      #   working-directory: ./gcl
