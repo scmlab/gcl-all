@@ -240,11 +240,17 @@ lookupSpecByLines specs targetLines = do
       (lineStart == lineStart') && (lineEnd == lineEnd')
 
 collectFragmentHoles :: [C.Stmt] -> [Range]
-collectFragmentHoles concreteFragment = do
-  statement <- concreteFragment
-  case statement of
-    C.SpecQM range -> return range
-    _ -> []
+collectFragmentHoles = concat . map collectStmt
+  where
+    collectStmt (C.SpecQM range) = [range]
+    collectStmt (C.Do _ ss _) = collectSepBy ss
+    collectStmt (C.If _ ss _) = collectSepBy ss
+    collectStmt _ = []
+
+    collectSepBy (C.Head gcmd) = collectGdCmd gcmd
+    collectSepBy (C.Delim gcmd _ ss) = collectGdCmd gcmd ++ collectSepBy ss
+
+    collectGdCmd (C.GdCmd _ _ stmts) = concat (map collectStmt stmts)
 
 digImplHoles :: Pos -> FilePath -> Text -> Either ParseError Text
 digImplHoles parseStart filePath implText =
