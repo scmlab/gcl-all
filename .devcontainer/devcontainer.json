@@ -7,9 +7,18 @@
     "name": "GCL Language Server Development",
     "image": "ghcr.io/scmlab/gcl-all-builder-deps-bin:latest",
     "runArgs": ["--platform=linux/amd64"],
+
+    // pull the latest Docker image only if it does not exist locally (to avoid pulling from remote on every startup)
     "initializeCommand": "time bash -c 'docker image inspect ghcr.io/scmlab/gcl-all-builder-deps-bin:latest >/dev/null 2>&1 || docker pull ghcr.io/scmlab/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
     // always pull the newest image
     //"initializeCommand": "time bash -c 'docker pull ghcr.io/scmlab/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
+
+    "containerEnv": {
+        "LANG": "en_US.UTF-8",
+        "LC_ALL": "en_US.UTF-8",
+        "LC_CTYPE": "en_US.UTF-8",
+        "LANGUAGE": "en_US:en"
+    },
     "remoteUser": "vscode",
     "customizations": {
         "vscode": {
