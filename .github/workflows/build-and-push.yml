@@ -43,7 +43,7 @@ jobs:
         with:
           context: .
           target: gcl-all
-          push: 
+          push: true
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
