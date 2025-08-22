@@ -8,8 +8,8 @@ import Pretty ()
 import Server (runOnPort, runOnStdio)
 import System.Console.GetOpt
 import System.Environment
-import Prelude
 import System.IO
+import Prelude
 
 main :: IO ()
 main = do
