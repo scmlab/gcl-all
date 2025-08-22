@@ -1,65 +1,69 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GCL.WP (WP, TM, sweep, structStmts, runWP) where
 
-import           Control.Monad.Except           ( MonadError(throwError)
-                                                , runExcept
-                                                )
-import           Control.Monad.RWS              ( RWST(runRWST) )
-import           Data.Text                      ( Text )
-import           Data.IntMap                    ( IntMap )
-import qualified Data.List                     as List
-import           Data.Loc                       ( Located(..) )
-import qualified Data.Map                      as Map
-import           GCL.Predicate                  ( InfMode(..)
-                                                , PO(..)
-                                                , Pred
-                                                , Spec(..)
-                                                )
-import           Syntax.Typed
-import           Syntax.Typed.Operator          ( true )
-import           Syntax.Typed.Util              ( declaredNames
-                                                , programToScopeForSubstitution )
-import           Syntax.Common.Types            ( nameToText )
-import GCL.WP.Types
-import GCL.WP.Struct
-import GCL.WP.WP
+import Control.Monad.Except
+  ( MonadError (throwError),
+    runExcept,
+  )
+import Control.Monad.RWS (RWST (runRWST))
+import Data.IntMap (IntMap)
+import qualified Data.List as List
+import Data.Loc (Located (..))
+import qualified Data.Map as Map
+import Data.Text (Text)
+import GCL.Predicate
+  ( InfMode (..),
+    PO (..),
+    Pred,
+    Spec (..),
+  )
 import GCL.WP.SP
+import GCL.WP.Struct
+import GCL.WP.Types
+import GCL.WP.WP
+import Syntax.Common.Types (nameToText)
+import Syntax.Typed
+import Syntax.Typed.Operator (true)
+import Syntax.Typed.Util
+  ( declaredNames,
+    programToScopeForSubstitution,
+  )
 
-runWP
-  :: WP a
-  -> (Decls, [[Text]])
-  -> Int
-  -> Either
-       StructError
-       (a, Int, ([PO], [Spec], [StructWarning], IntMap (Int, Expr)))
+runWP ::
+  WP a ->
+  (Decls, [[Text]]) ->
+  Int ->
+  Either
+    StructError
+    (a, Int, ([PO], [Spec], [StructWarning], IntMap (Int, Expr)))
 runWP p decls counter = runExcept $ runRWST p decls counter
 
-sweep
-  :: Program
-  -> Either StructError ([PO], [Spec], [StructWarning], IntMap (Int, Expr), Int)
+sweep ::
+  Program ->
+  Either StructError ([PO], [Spec], [StructWarning], IntMap (Int, Expr), Int)
 sweep program@(Program _ decs _props stmts _) = do
   let decls = programToScopeForSubstitution program
   let dnames = [map nameToText $ declaredNames decs]
   (_, counter, (pos, specs, warnings, redexes)) <-
-           runWP (structProgram stmts) (decls, dnames) 0
+    runWP (structProgram stmts) (decls, dnames) 0
   -- update Proof Obligations with corresponding Proof Anchors
-  let proofAnchors = stmts >>= \case
-        Proof anchor _ r -> [(anchor,r)]
-        _                -> []
+  let proofAnchors =
+        stmts >>= \case
+          Proof anchor _ r -> [(anchor, r)]
+          _ -> []
   -- make a table of (#hash, range) from Proof Anchors
   let table = Map.fromList proofAnchors
   let updatePO po = case Map.lookup (poAnchorHash po) table of
-        Nothing    -> po
-        Just range -> po { poAnchorLoc = Just range }
+        Nothing -> po
+        Just range -> po {poAnchorLoc = Just range}
 
   let pos' = map updatePO pos
 
   return (pos', specs, warnings, redexes, counter)
-
 
 --------------------------------------------------------------------------------
 
@@ -71,7 +75,7 @@ data ProgView
   | ProgViewMissingBoth [Stmt]
 
 progView :: [Stmt] -> ProgView
-progView []               = ProgViewEmpty
+progView [] = ProgViewEmpty
 progView [Assert pre _] = do
   ProgViewMissingPrecondition [] pre
 progView stmts = do
@@ -96,16 +100,14 @@ structProgram stmts = do
       throwError . MissingPostcondition . locOf . last $ stmts'
     ProgViewMissingBoth stmts' ->
       throwError . MissingPostcondition . locOf . last $ stmts'
-
   where
-      -- ignore Proofs after the Postcondition
-      removeLastProofs :: [Stmt] -> [Stmt]
-      removeLastProofs = List.dropWhileEnd isProof
+    -- ignore Proofs after the Postcondition
+    removeLastProofs :: [Stmt] -> [Stmt]
+    removeLastProofs = List.dropWhileEnd isProof
 
-      isProof :: Stmt -> Bool
-      isProof Proof{} = True
-      isProof _       = False
-
+    isProof :: Stmt -> Bool
+    isProof Proof {} = True
+    isProof _ = False
 
 -- tying the knots
 -- handling mutual recursion functions across modules
@@ -113,7 +115,12 @@ structProgram stmts = do
 structStmts :: InfMode -> (Pred, Maybe Expr) -> [Stmt] -> Pred -> WP ()
 structStmts = this
   where
-    (this, structSegs, struct) = structFunctions (wpSegs, wpSStmts,
-                                                  wp, spSStmts)
-    (wpSegs, wpSStmts, wp)     = wpFunctions structSegs
-    spSStmts                   = spFunctions (structSegs, struct)
+    (this, structSegs, struct) =
+      structFunctions
+        ( wpSegs,
+          wpSStmts,
+          wp,
+          spSStmts
+        )
+    (wpSegs, wpSStmts, wp) = wpFunctions structSegs
+    spSStmts = spFunctions (structSegs, struct)

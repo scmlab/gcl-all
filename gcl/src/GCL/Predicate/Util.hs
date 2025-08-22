@@ -2,13 +2,14 @@ module GCL.Predicate.Util where
 
 import qualified Data.Char as Char
 import Data.Loc (Loc (..), Located (locOf), posCoff, posLine, unLoc)
+import Data.Loc.Range (Range (Range))
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate
 import GCL.Predicate.Located ()
 import Syntax.Abstract (Expr)
 import qualified Syntax.Abstract.Operator as A
-import Data.Loc.Range (Range(Range))
+
 {-
 toExpr :: Pred -> Expr
 toExpr (Constant e) = e
@@ -64,18 +65,19 @@ precond (Do l _ _) = unLoc l
 precond (If l _) = unLoc l
 precond (Spec l _) = unLoc l
 -}
+
 -- | Return lines within a Spec without indentation
 specPayloadWithoutIndentation :: Text -> Spec -> [Text]
 specPayloadWithoutIndentation source spec =
   let Range start end = specRange spec
       spansMultipleLines = posLine start /= posLine end
-    in if spansMultipleLines
-      then
-        let payload = Text.drop (posCoff start) $ Text.take (posCoff end) source
-            linesWithIndentation = init $ tail $ Text.lines payload
-            splittedIndentedLines = map (Text.break (not . Char.isSpace)) linesWithIndentation
-            smallestIndentation = minimum $ map (Text.length . fst) splittedIndentedLines
-            trimmedLines = map (\(indentation, content) -> Text.drop smallestIndentation indentation <> content) splittedIndentedLines
-        in trimmedLines
-      else
-        [Text.strip $ Text.drop (posCoff start + 2) $ Text.take (posCoff end - 2) source]
+   in if spansMultipleLines
+        then
+          let payload = Text.drop (posCoff start) $ Text.take (posCoff end) source
+              linesWithIndentation = init $ tail $ Text.lines payload
+              splittedIndentedLines = map (Text.break (not . Char.isSpace)) linesWithIndentation
+              smallestIndentation = minimum $ map (Text.length . fst) splittedIndentedLines
+              trimmedLines = map (\(indentation, content) -> Text.drop smallestIndentation indentation <> content) splittedIndentedLines
+           in trimmedLines
+        else
+          [Text.strip $ Text.drop (posCoff start + 2) $ Text.take (posCoff end - 2) source]

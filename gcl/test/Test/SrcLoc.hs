@@ -2,12 +2,12 @@
 
 module Test.SrcLoc where
 
+import Data.List (sort)
 import Data.Loc
+import Data.Loc.Range
+import GCL.Predicate (Origin (AtSkip))
 import Test.Tasty
 import Test.Tasty.HUnit
-import Data.Loc.Range
-import Data.List (sort)
-import GCL.Predicate (Origin (AtSkip))
 
 tests :: TestTree
 tests = testGroup "Source Location" [compareWithPositionTests, withinTests, withinRangeTests, sortingOriginsTests]
@@ -30,7 +30,7 @@ compareWithPositionTests =
     ]
   where
     run :: Int -> Item -> Ordering
-    run offset item = compareWithPosition (Pos "" 1 1 offset) item 
+    run offset item = compareWithPosition (Pos "" 1 1 offset) item
 
 --------------------------------------------------------------------------------
 
@@ -48,9 +48,9 @@ withinTests =
       testCase "8" $ run (make 30 40) (make 10 20) @?= False,
       testCase "9" $ run (make 15 40) (make 10 20) @?= False
     ]
-    where 
-      run :: Item -> Item -> Bool
-      run x y = rangeOf x `within` rangeOf y
+  where
+    run :: Item -> Item -> Bool
+    run x y = rangeOf x `within` rangeOf y
 
 --------------------------------------------------------------------------------
 
@@ -58,13 +58,13 @@ sortingOriginsTests :: TestTree
 sortingOriginsTests =
   testGroup
     "sorting Origins"
-    [ testCase "1" $ sort [mk 10 20, mk 20 30, mk 11 19, mk 21 29] @?= [mk 11 19, mk 10 20, mk 21 29, mk 20 30]
-    , testCase "2" $ sort [mk 80 184, mk 80 184, mk 92 102, mk 92 102] @?= [mk 92 102, mk 92 102, mk 80 184, mk 80 184]
-    , testCase "overlapped 1" $ sort [mk 10 20, mk 15 25, mk 20 30] @?= [mk 10 20, mk 15 25, mk 20 30]
+    [ testCase "1" $ sort [mk 10 20, mk 20 30, mk 11 19, mk 21 29] @?= [mk 11 19, mk 10 20, mk 21 29, mk 20 30],
+      testCase "2" $ sort [mk 80 184, mk 80 184, mk 92 102, mk 92 102] @?= [mk 92 102, mk 92 102, mk 80 184, mk 80 184],
+      testCase "overlapped 1" $ sort [mk 10 20, mk 15 25, mk 20 30] @?= [mk 10 20, mk 15 25, mk 20 30]
     ]
-    where 
-      mk :: Int -> Int -> Origin 
-      mk a b = AtSkip (Loc (Pos "" 1 (a + 1) a) (Pos "" 1 (b + 1) b))
+  where
+    mk :: Int -> Int -> Origin
+    mk a b = AtSkip (Loc (Pos "" 1 (a + 1) a) (Pos "" 1 (b + 1) b))
 
 --------------------------------------------------------------------------------
 

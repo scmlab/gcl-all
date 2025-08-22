@@ -1,21 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 {-# LANGUAGE TypeSynonymInstances #-}
+
 module Pretty.Error where
 
-import           Data.Foldable                  ( toList )
-import           Data.Loc
-import           Prettyprinter
-import           Error
-import           GCL.Type                     ( TypeError(..) )
-import           GCL.WP.Types                   ( StructError(..)
-                                                , StructWarning(..)
-                                                )
-import           Prelude                 hiding ( Ordering(..) )
-import           Pretty.Abstract                ( )
-import           Pretty.Predicate               ( )
-import           Pretty.Util                    ( )
-import           Syntax.Parser.Error           ( ParseError(..) )
+import Data.Foldable (toList)
+import Data.Loc
+import Error
+import GCL.Type (TypeError (..))
+import GCL.WP.Types
+  ( StructError (..),
+    StructWarning (..),
+  )
+import Pretty.Abstract ()
+import Pretty.Predicate ()
+import Pretty.Util ()
+import Prettyprinter
+import Syntax.Parser.Error (ParseError (..))
+import Prelude hiding (Ordering (..))
 
 -- | Error
 instance Pretty Error where
@@ -25,19 +26,22 @@ instance Pretty Error where
   pretty (StructError err) =
     "Struct Error" <+> pretty (locOf err) <> line <> pretty err
   pretty (CannotReadFile path) = "CannotReadFile" <+> pretty path
-  pretty (Others         title msg loc) = "Others" <+> pretty title <+> pretty msg <+> pretty (displayLoc loc)
+  pretty (Others title msg loc) = "Others" <+> pretty title <+> pretty msg <+> pretty (displayLoc loc)
 
 instance Pretty ParseError where
-  pretty (LexicalError   pos  ) = "Lexical Error" <+> pretty (displayPos pos)
-  pretty (SyntacticError pairs _) = "Parse Error" <+> vsep
-    (map (\(loc, msg) -> pretty (displayLoc loc) <+> pretty msg) $ toList pairs)
-    -- the second argument was parsing log, used for debugging
+  pretty (LexicalError pos) = "Lexical Error" <+> pretty (displayPos pos)
+  pretty (SyntacticError pairs _) =
+    "Parse Error"
+      <+> vsep
+        (map (\(loc, msg) -> pretty (displayLoc loc) <+> pretty msg) $ toList pairs)
+
+-- the second argument was parsing log, used for debugging
 
 instance Pretty StructWarning where
   pretty (MissingBound loc) = "Missing Bound" <+> pretty loc
 
 instance Pretty StructError where
-  pretty (MissingAssertion     loc) = "Missing Assertion" <+> pretty loc
+  pretty (MissingAssertion loc) = "Missing Assertion" <+> pretty loc
   pretty (MissingPostcondition loc) = "Missing Postcondition" <+> pretty loc
   pretty (MultiDimArrayAsgnNotImp loc) =
     "Assignment to Multi-Dimensional Array" <+> pretty loc

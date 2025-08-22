@@ -1,13 +1,12 @@
 module Pretty.Common where
 
-import           Prelude                 hiding ( Ordering(..) )
-import           Pretty.Util
-import           Prettyprinter                  ( Pretty(pretty) )
-import           Syntax.Common
-
-import           Render.Error                   ( )
-import           Render.Predicate               ( )
-import           Render.Syntax.Common           ( )
+import Pretty.Util
+import Prettyprinter (Pretty (pretty))
+import Render.Error ()
+import Render.Predicate ()
+import Render.Syntax.Common ()
+import Syntax.Common
+import Prelude hiding (Ordering (..))
 
 -- | Name
 instance Pretty Name where

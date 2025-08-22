@@ -1,4 +1,3 @@
-
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -6,10 +5,10 @@ module Main where
 
 -- import Server (run)
 import Pretty ()
+import Server (runOnPort, runOnStdio)
 import System.Console.GetOpt
 import System.Environment
 import Prelude
-import Server (runOnPort, runOnStdio)
 
 main :: IO ()
 main = do
@@ -23,19 +22,20 @@ main = do
 --------------------------------------------------------------------------------
 
 -- | Command-line arguments
-data Mode = ModeHelp | ModeRun deriving Show
+data Mode = ModeHelp | ModeRun deriving (Show)
 
 data Options = Options
-  { _mode :: Mode
-  , _out  :: Maybe FilePath
+  { _mode :: Mode,
+    _out :: Maybe FilePath
   }
-  deriving Show
+  deriving (Show)
 
 defaultOptions :: Options
-defaultOptions = Options
-  { _mode = ModeRun
-  , _out  = Nothing
-  }
+defaultOptions =
+  Options
+    { _mode = ModeRun,
+      _out = Nothing
+    }
 
 options :: [OptDescr (Options -> Options)]
 options =

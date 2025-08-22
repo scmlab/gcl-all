@@ -1,10 +1,9 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-    oldNixpkgs.url = "github:NixOS/nixpkgs/release-21.11";
     utils.url = "github:numtide/flake-utils";
   };
-  outputs = { self, nixpkgs, oldNixpkgs, utils }: utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, utils }: utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs {
         inherit system;
@@ -40,7 +39,6 @@
         buildInputs = devTools;
 
         LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath devTools;
-        # HACK: brittany is currently marked as broken
       };
     }
   );

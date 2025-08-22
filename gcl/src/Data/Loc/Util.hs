@@ -8,4 +8,3 @@ translate n (Pos path ln col offset) = Pos path ln ((col + n) `max` 0) ((offset 
 translateLoc :: Int -> Int -> Loc -> Loc
 translateLoc _ _ NoLoc = NoLoc
 translateLoc m n (Loc a b) = Loc (translate m a) (translate n b)
-

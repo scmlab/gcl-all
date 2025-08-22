@@ -3,6 +3,6 @@ module Syntax.Common
   )
 where
 
-import Syntax.Common.Instances.Located ()
 import Syntax.Common.Instances.Json ()
+import Syntax.Common.Instances.Located ()
 import Syntax.Common.Types

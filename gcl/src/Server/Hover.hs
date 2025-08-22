@@ -1,24 +1,23 @@
-
-
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Server.Hover
-  ( collectHoverInfo
-  ) where
+  ( collectHoverInfo,
+  )
+where
 
-
+import Data.Loc
+  ( Located,
+    locOf,
+  )
+import Data.Loc.Range
 import qualified Language.LSP.Protocol.Types as J
-import           Pretty
-import           Data.Loc           ( Located
-                                    , locOf
-                                    )
-import           Data.Loc.Range
-import           Server.IntervalMap ( IntervalMap )
+import Pretty
+import Server.IntervalMap (IntervalMap)
 import qualified Server.IntervalMap as IntervalMap
-import           Syntax.Abstract                as UnTyped
-import           Syntax.Typed                   as Typed
+import Syntax.Abstract as UnTyped
+import Syntax.Typed as Typed
 
 collectHoverInfo :: Typed.Program -> IntervalMap J.Hover
 collectHoverInfo = collect
@@ -26,20 +25,20 @@ collectHoverInfo = collect
 --------------------------------------------------------------------------------
 -- helper function for annotating some syntax node with its type or kind
 
-annotateType :: Located a => a -> Type -> IntervalMap J.Hover
+annotateType :: (Located a) => a -> Type -> IntervalMap J.Hover
 annotateType node t = case fromLoc (locOf node) of
-  Nothing    -> mempty
+  Nothing -> mempty
   Just range -> IntervalMap.singleton range hover
   where
-    hover   = J.Hover (J.InL content) Nothing
+    hover = J.Hover (J.InL content) Nothing
     content = J.MarkupContent J.MarkupKind_PlainText ("gcl" <> toText t)
 
-annotateKind :: Located a => a -> Kind -> IntervalMap J.Hover
+annotateKind :: (Located a) => a -> Kind -> IntervalMap J.Hover
 annotateKind node k = case fromLoc (locOf node) of
-  Nothing    -> mempty
+  Nothing -> mempty
   Just range -> IntervalMap.singleton range hover
   where
-    hover   = J.Hover (J.InL content) Nothing
+    hover = J.Hover (J.InL content) Nothing
     content = J.MarkupContent J.MarkupKind_PlainText ("gcl" <> toText k)
 
 --------------------------------------------------------------------------------
@@ -162,6 +161,7 @@ instance Collect Type (J.Hover, Type) Pattern where
   collect (PattConstructor _ patts) = collect patts -}
 
 --------------------------------------------------------------------------------
+
 -- | Types
 
 {-

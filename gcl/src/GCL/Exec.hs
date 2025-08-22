@@ -3,7 +3,8 @@
 -- {-# LANGUAGE LambdaCase #-}
 -- {-# LANGUAGE MultiParamTypeClasses #-}
 
-module GCL.Exec where 
+module GCL.Exec where
+
 --   ( module GCL.Exec,
 --     module GCL.Exec.ExecMonad,
 --   )

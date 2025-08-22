@@ -1,17 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Pretty.Abstract
-  () where
+module Pretty.Abstract () where
 
-import           Prelude                 hiding ( Ordering(..) )
-import           Pretty.Common                  ( )
-import           Pretty.Util
-import           Prettyprinter
-import           Render.Error                   ( )
-import           Render.Predicate               ( )
-import           Render.Syntax.Common           ( )
-import           Syntax.Abstract
-import Render.Class (PrecContext(NoContext))
+import Pretty.Common ()
+import Pretty.Util
+import Prettyprinter
+import Render.Class (PrecContext (NoContext))
+import Render.Error ()
+import Render.Predicate ()
+import Render.Syntax.Common ()
+import Syntax.Abstract
+import Prelude hiding (Ordering (..))
 
 --------------------------------------------------------------------------------
 
@@ -47,8 +46,12 @@ instance Pretty Declaration where
 
 instance Pretty Definition where
   pretty (TypeDefn name binders qdcons _) =
-    "data " <> pretty name <+> hsep (map pretty binders) <> "= " <> hsep
-      (punctuate "| " (map pretty qdcons))
+    "data "
+      <> pretty name
+      <+> hsep (map pretty binders)
+      <> "= "
+      <> hsep
+        (punctuate "| " (map pretty qdcons))
   pretty (FuncDefnSig name typ Nothing _) = pretty name <> ": " <> pretty typ
   pretty (FuncDefnSig name typ (Just prop) _) =
     pretty name <> ": " <> pretty typ <> "{ " <> pretty prop <> " }"
@@ -61,11 +64,13 @@ instance Pretty TypeDefnCtor where
 
 -- | Stmt
 instance Pretty Stmt where
-  pretty (Skip  _) = "skip"
+  pretty (Skip _) = "skip"
   pretty (Abort _) = "abort"
   pretty (Assign xs es _) =
-    hsep (punctuate ", " (map pretty xs)) <> ":= " <> hsep
-      (punctuate ", " (map pretty es))
+    hsep (punctuate ", " (map pretty xs))
+      <> ":= "
+      <> hsep
+        (punctuate ", " (map pretty es))
   pretty (AAssign x i e _) =
     pretty x <> "[" <> pretty i <> "]" <> ":=" <> pretty e
   pretty (Assert p _) = "{ " <> pretty p <> " }"
@@ -85,10 +90,10 @@ instance Pretty Stmt where
       <+> "new ("
       <+> hsep (punctuate ", " (map pretty es))
       <+> ")"
-  pretty (HLookup x  e  _) = pretty x <+> ":=" <+> pretty e <> "*"
+  pretty (HLookup x e _) = pretty x <+> ":=" <+> pretty e <> "*"
   pretty (HMutate e1 e2 _) = pretty e1 <> "*" <+> ":=" <+> pretty e2
-  pretty (Dispose e _    ) = "free" <+> pretty e
-  pretty (Block   p _    ) = "|[" <+> pretty p <+> "]|"
+  pretty (Dispose e _) = "free" <+> pretty e
+  pretty (Block p _) = "|[" <+> pretty p <+> "]|"
 
 instance Pretty GdCmd where
   pretty (GdCmd guard body _) =

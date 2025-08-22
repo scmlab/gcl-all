@@ -5,16 +5,16 @@
 
 module Pretty.Concrete where
 
-import           Data.Loc                       ( locOf )
-import           Prelude                 hiding ( Ordering(..) )
-import           Pretty.Common                  ( )
-import           Pretty.Util
-import           Pretty.Variadic
-import           Prettyprinter                  ( Pretty(pretty) )
-import           Syntax.Common
-import           Syntax.Concrete
-import           Syntax.Parser.Lexer (Tok(..))
-import           Data.Text (unpack)
+import Data.Loc (locOf)
+import Data.Text (unpack)
+import Pretty.Common ()
+import Pretty.Util
+import Pretty.Variadic
+import Prettyprinter (Pretty (pretty))
+import Syntax.Common
+import Syntax.Concrete
+import Syntax.Parser.Lexer (Tok (..))
+import Prelude hiding (Ordering (..))
 
 --------------------------------------------------------------------------------
 
@@ -81,7 +81,6 @@ instance PrettyWithLoc (Token "*") where
 
 instance PrettyWithLoc (Token "=") where
   prettyWithLoc (Token l r) = DocWithLoc (pretty $ show TokEQ) l r
-
 
 instance PrettyWithLoc (Token ",") where
   prettyWithLoc (Token l r) = DocWithLoc (pretty $ show TokComma) l r
@@ -162,7 +161,6 @@ instance PrettyWithLoc Program where
 --------------------------------------------------------------------------------
 
 -- | Definition
-
 instance Pretty DefinitionBlock where
   pretty = toDoc . prettyWithLoc
 
@@ -214,7 +212,7 @@ instance Pretty Declaration where
 
 instance PrettyWithLoc Declaration where
   prettyWithLoc (ConstDecl con decl) = prettyWithLoc con <> prettyWithLoc decl
-  prettyWithLoc (VarDecl   v   decl) = prettyWithLoc v <> prettyWithLoc decl
+  prettyWithLoc (VarDecl v decl) = prettyWithLoc v <> prettyWithLoc decl
 
 instance Pretty TypeDefnCtor where
   pretty = toDoc . prettyWithLoc
@@ -223,15 +221,16 @@ instance PrettyWithLoc TypeDefnCtor where
   prettyWithLoc (TypeDefnCtor n ts) = prettyWithLoc n <> prettyWithLoc ts
 
 --------------------------------------------------------------------------------
+
 -- | Literals
 instance Pretty Lit where
   pretty = toDoc . prettyWithLoc
 
 instance PrettyWithLoc Lit where
-  prettyWithLoc (LitBool True  l) = fromDoc (locOf l) (pretty $ show TokTrue)
+  prettyWithLoc (LitBool True l) = fromDoc (locOf l) (pretty $ show TokTrue)
   prettyWithLoc (LitBool False l) = fromDoc (locOf l) (pretty $ show TokFalse)
-  prettyWithLoc (LitInt  n     l) = fromDoc (locOf l) (pretty n)
-  prettyWithLoc (LitChar c     l) = fromDoc (locOf l) ("'" <> pretty [c] <> "'")
+  prettyWithLoc (LitInt n l) = fromDoc (locOf l) (pretty n)
+  prettyWithLoc (LitChar c l) = fromDoc (locOf l) ("'" <> pretty [c] <> "'")
 
 --------------------------------------------------------------------------------
 
@@ -240,7 +239,7 @@ instance Pretty Stmt where
   pretty = toDoc . prettyWithLoc
 
 instance PrettyWithLoc Stmt where
-  prettyWithLoc (Skip  l) = fromDoc (locOf l) (pretty $ show TokSkip)
+  prettyWithLoc (Skip l) = fromDoc (locOf l) (pretty $ show TokSkip)
   prettyWithLoc (Abort l) = fromDoc (locOf l) (pretty $ show TokAbort)
   prettyWithLoc (Assign xs a es) =
     prettyWithLoc xs <> prettyWithLoc a <> prettyWithLoc es
@@ -270,15 +269,15 @@ instance PrettyWithLoc Stmt where
     prettyWithLoc l
       <> prettyWithLoc (map (fmap show) s)
       <> prettyWithLoc r
-      -- where 
-        -- don't show Tokens like <newline> or <indent>
-        -- show' Tok = case Tok of 
-        --   TokNewlineAndWhitespace _ -> ""
-        --   TokNewlineAndWhitespaceAndBar _ -> ""
-        --   TokIndent            -> ""
-        --   TokDedent            -> ""
-        --   TokNewline           -> ""
-        --   _ -> show Tok 
+  -- where
+  -- don't show Tokens like <newline> or <indent>
+  -- show' Tok = case Tok of
+  --   TokNewlineAndWhitespace _ -> ""
+  --   TokNewlineAndWhitespaceAndBar _ -> ""
+  --   TokIndent            -> ""
+  --   TokDedent            -> ""
+  --   TokNewline           -> ""
+  --   _ -> show Tok
   prettyWithLoc (Proof _ _ whole r) =
     fromDoc (locOf r) (pretty whole)
   prettyWithLoc (Alloc p a n l es r) =
@@ -322,44 +321,44 @@ instance Pretty Expr where
 
 instance PrettyWithLoc Expr where
   prettyWithLoc expr = case handleExpr expr of
-    Expect   _ -> mempty
+    Expect _ -> mempty
     Complete s -> s
 
 handleExpr :: Expr -> Variadic Expr (DocWithLoc ann)
 handleExpr (Paren l x r) =
   return $ prettyWithLoc l <> prettyWithLoc x <> prettyWithLoc r
-handleExpr (Var   x) = return $ prettyWithLoc x
+handleExpr (Var x) = return $ prettyWithLoc x
 handleExpr (Const x) = return $ prettyWithLoc x
-handleExpr (Lit   x) = return $ prettyWithLoc x
-handleExpr (Op    x) = handleArithOp x
+handleExpr (Lit x) = return $ prettyWithLoc x
+handleExpr (Op x) = handleArithOp x
 handleExpr (Chain c) = handleChain c
 handleExpr (Arr arr l i r) =
-  return
-    $  prettyWithLoc arr
-    <> prettyWithLoc l
-    <> prettyWithLoc i
-    <> prettyWithLoc r
+  return $
+    prettyWithLoc arr
+      <> prettyWithLoc l
+      <> prettyWithLoc i
+      <> prettyWithLoc r
 handleExpr (App p q) = case handleExpr p of
-  Expect   f -> f q
+  Expect f -> f q
   Complete s -> do
     t <- handleExpr q
     return $ s <> t
 handleExpr (Quant open op xs m r n t close) =
-  return
-    $  prettyWithLoc open
-    <> prettyWithLoc op
-    <> prettyWithLoc xs
-    <> prettyWithLoc m
-    <> prettyWithLoc r
-    <> prettyWithLoc n
-    <> prettyWithLoc t
-    <> prettyWithLoc close
+  return $
+    prettyWithLoc open
+      <> prettyWithLoc op
+      <> prettyWithLoc xs
+      <> prettyWithLoc m
+      <> prettyWithLoc r
+      <> prettyWithLoc n
+      <> prettyWithLoc t
+      <> prettyWithLoc close
 handleExpr (Case a expr b cases) =
-  return
-    $  prettyWithLoc a
-    <> prettyWithLoc expr
-    <> prettyWithLoc b
-    <> prettyWithLoc cases
+  return $
+    prettyWithLoc a
+      <> prettyWithLoc expr
+      <> prettyWithLoc b
+      <> prettyWithLoc cases
 
 handleArithOp :: ArithOp -> Variadic Expr (DocWithLoc ann)
 handleArithOp op = case classify (ArithOp op) of -- TODO: rewrite `classify` to only handle `ArithOp`s.
@@ -389,7 +388,6 @@ handleChain chain = case chain of
     ch' <- handleChain ch
     return $ ch' <> prettyWithLoc op <> prettyWithLoc expr
 
-
 showWithParentheses :: Expr -> String
 showWithParentheses expr = case handleExpr' expr of
   Expect _ -> error "strange case in printWithParenses"
@@ -397,20 +395,20 @@ showWithParentheses expr = case handleExpr' expr of
   where
     handleExpr' :: Expr -> Variadic Expr String
     handleExpr' (Paren _ x _) = handleExpr' x
-    handleExpr' (Var   x) = return $ unpack $ nameToText x
+    handleExpr' (Var x) = return $ unpack $ nameToText x
     handleExpr' (Const x) = return $ unpack $ nameToText x
-    handleExpr' (Lit   x) = case x of
+    handleExpr' (Lit x) = case x of
       LitInt n _ -> return $ show n
       LitBool b _ -> return $ show b
       LitChar c _ -> return $ show c
-    handleExpr' (Op    x) = handleArithOp' x
+    handleExpr' (Op x) = handleArithOp' x
     handleExpr' (Chain c) = handleChain' c
     handleExpr' (Arr arr _ i _) = do
       arrs <- handleExpr' arr
-      inds   <- handleExpr' i
-      return $  arrs <> "[" <> inds <> "]"
+      inds <- handleExpr' i
+      return $ arrs <> "[" <> inds <> "]"
     handleExpr' (App p q) = case handleExpr' p of
-      Expect   f -> f q
+      Expect f -> f q
       Complete s -> do
         t <- handleExpr' q
         return $ "(" <> s <> " " <> t <> ")"
@@ -456,10 +454,9 @@ showWithParentheses expr = case handleExpr' expr of
         ex' <- handleExpr' ex
         return $ ch' <> show (pretty op) <> ex'
 
-
 --------------------------------------------------------------------------------
--- | Pattern
 
+-- | Pattern
 instance PrettyWithLoc CaseClause where
   prettyWithLoc (CaseClause a b c) =
     prettyWithLoc a <> prettyWithLoc b <> prettyWithLoc c
@@ -469,10 +466,10 @@ instance Pretty Pattern where
 
 instance PrettyWithLoc Pattern where
   prettyWithLoc patt = case patt of
-    PattLit a           -> prettyWithLoc a
-    PattParen a b c     -> prettyWithLoc a <> prettyWithLoc b <> prettyWithLoc c
-    PattBinder   a      -> prettyWithLoc a
-    PattWildcard a      -> prettyWithLoc a
+    PattLit a -> prettyWithLoc a
+    PattParen a b c -> prettyWithLoc a <> prettyWithLoc b <> prettyWithLoc c
+    PattBinder a -> prettyWithLoc a
+    PattWildcard a -> prettyWithLoc a
     PattConstructor a b -> prettyWithLoc a <> prettyWithLoc b
 
 --------------------------------------------------------------------------------
@@ -485,14 +482,14 @@ instance PrettyWithLoc Type where -- TODO: Prettyprint infix type operators corr
   prettyWithLoc (TParen l t r) =
     prettyWithLoc l <> prettyWithLoc t <> prettyWithLoc r
   -- DocWithLoc "(" l l <> prettyWithLoc t <> DocWithLoc ")" m m
-  prettyWithLoc (TBase (TInt  l)) = fromDoc (locOf l) (pretty ("Int"::String))
-  prettyWithLoc (TBase (TBool l)) = fromDoc (locOf l) (pretty ("Bool"::String))
-  prettyWithLoc (TBase (TChar l)) = fromDoc (locOf l) (pretty ("Char"::String))
+  prettyWithLoc (TBase (TInt l)) = fromDoc (locOf l) (pretty ("Int" :: String))
+  prettyWithLoc (TBase (TBool l)) = fromDoc (locOf l) (pretty ("Bool" :: String))
+  prettyWithLoc (TBase (TChar l)) = fromDoc (locOf l) (pretty ("Char" :: String))
   prettyWithLoc (TArray l a r b) =
     prettyWithLoc l <> prettyWithLoc a <> prettyWithLoc r <> prettyWithLoc b
-  prettyWithLoc (TOp op   ) = prettyWithLoc op
+  prettyWithLoc (TOp op) = prettyWithLoc op
   prettyWithLoc (TData d _) = prettyWithLoc d
-  prettyWithLoc (TApp a b ) = prettyWithLoc a <> prettyWithLoc b
+  prettyWithLoc (TApp a b) = prettyWithLoc a <> prettyWithLoc b
   prettyWithLoc (TMetaVar i _) = prettyWithLoc i
 
 --------------------------------------------------------------------------------

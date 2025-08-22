@@ -1,18 +1,20 @@
 module Syntax.Abstract.Operator where
 
-import           Syntax.Abstract                ( Expr(..)
-                                                , Lit(..)
-                                                , Chain(..)
-                                                , Type(..)
-                                                , TBase(..)
-                                                )
-import           Syntax.Common
-import           Data.Text                      ( Text )
-import           Data.Loc                       ( Loc(..)
-                                                , (<-->)
-                                                , locOf
-                                                )
-import           Prelude                 hiding ( Ordering(..) )
+import Data.Loc
+  ( Loc (..),
+    locOf,
+    (<-->),
+  )
+import Data.Text (Text)
+import Syntax.Abstract
+  ( Chain (..),
+    Expr (..),
+    Lit (..),
+    TBase (..),
+    Type (..),
+  )
+import Syntax.Common
+import Prelude hiding (Ordering (..))
 
 -- | Constructors
 unary :: ArithOp -> Expr -> Expr
@@ -86,7 +88,6 @@ sconjunct [] = true
 sconjunct xs = foldl1 sConj xs
 
 -- | Frequently Used Types / Type Operators
-
 tBool :: Type
 tBool = TBase TBool NoLoc
 

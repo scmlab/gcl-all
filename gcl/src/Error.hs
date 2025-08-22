@@ -2,13 +2,13 @@
 
 module Error where
 
-import           GCL.Type                       ( TypeError )
-import           GCL.WP.Types                   ( StructError )
-import           GHC.Generics
-import           Syntax.Common                  ( )
-import           Syntax.Parser.Error            ( ParseError )
 import qualified Data.Aeson.Types as JSON
 import Data.Loc (Loc)
+import GCL.Type (TypeError)
+import GCL.WP.Types (StructError)
+import GHC.Generics
+import Syntax.Common ()
+import Syntax.Parser.Error (ParseError)
 
 --------------------------------------------------------------------------------
 
@@ -20,4 +20,3 @@ data Error
   | CannotReadFile FilePath
   | Others String String Loc
   deriving (Eq, Show)
-

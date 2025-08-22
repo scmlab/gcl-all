@@ -1,20 +1,20 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE DeriveFoldable #-}
 
 module Syntax.Concrete.Types where
 
+import Data.Loc (L, Loc (Loc), Located (locOf), Pos)
 import Data.Loc.Range
 import Data.Text (Text)
 import GHC.Base (Symbol)
 import GHC.Generics (Generic)
-import Syntax.Common (Name, ArithOp, ChainOp, TypeOp)
-import Prelude hiding (Ordering (..))
-import Data.Loc (Located (locOf), Pos, Loc (Loc), L)
+import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)
 import Syntax.Parser.Lexer (Tok)
+import Prelude hiding (Ordering (..))
 
 --------------------------------------------------------------------------------
 
@@ -55,23 +55,24 @@ data Program
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
--- | Definitions
 
+-- | Definitions
 data DefinitionBlock = DefinitionBlock (Token "{:") [Definition] (Token ":}") deriving (Eq, Show)
+
 data Definition
   = -- data T a1 a2 ... = K1 v1 v2 ... | K2 u1 u2 ...
     TypeDefn (Token "data") Name [Name] (Token "=") (SepBy "|" TypeDefnCtor)
-    -- f : A -> B { Prop }
-  | FuncDefnSig DeclBase (Maybe DeclProp)
-    -- f a = a
-  | FuncDefn Name [Name] (Token "=") Expr
+  | -- f : A -> B { Prop }
+    FuncDefnSig DeclBase (Maybe DeclProp)
+  | -- f a = a
+    FuncDefn Name [Name] (Token "=") Expr
   deriving (Eq, Show)
 
 data TypeDefnCtor = TypeDefnCtor Name [Type] deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
--- | Declaration
 
+-- | Declaration
 data Declaration
   = ConstDecl (Token "con") DeclType
   | VarDecl (Token "var") DeclType
@@ -81,12 +82,14 @@ data Declaration
 
 -- Low level Declaration wrapper, and synonym types
 data DeclBase = DeclBase (SepBy "," Name) (Token ":") Type deriving (Eq, Show)
+
 data DeclProp = DeclProp (Token "{") Expr (Token "}") deriving (Eq, Show)
+
 data DeclType = DeclType DeclBase (Maybe DeclProp) deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
--- | Statements
 
+-- | Statements
 data Stmt
   = Skip Range
   | Abort Range
@@ -107,11 +110,11 @@ data Stmt
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr TokArrows [Stmt] deriving (Eq, Show)
+
 -- data ProofAnchor = ProofAnchor Text Range deriving (Eq, Show)
 -- data TextContents = TextContents Text Range deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
-
 
 -- | Endpoint
 data EndpointOpen
@@ -166,8 +169,8 @@ data Expr
       (Token ":")
       Expr
       TokQuantEnds
-  -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
-  | Case (Token "case") Expr (Token "of") [CaseClause]
+  | -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
+    Case (Token "case") Expr (Token "of") [CaseClause]
   deriving (Eq, Show, Generic)
 
 data Chain = Pure Expr | More Chain ChainOp Expr
@@ -176,6 +179,7 @@ data Chain = Pure Expr | More Chain ChainOp Expr
 type QuantOp' = Either ArithOp Name
 
 --------------------------------------------------------------------------------
+
 -- | Pattern matching
 
 -- ctor1 binder1 binder2 ... -> expr

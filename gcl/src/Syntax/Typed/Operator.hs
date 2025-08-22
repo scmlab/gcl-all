@@ -1,17 +1,18 @@
 module Syntax.Typed.Operator where
 
-import           Syntax.Abstract.Operator ( tBool, tInt, tFunc )
-import           Syntax.Typed.Types
-import           Syntax.Typed.Util        ( typeOf )
-import           Syntax.Typed.Instances.Located
-import           Syntax.Common
-import           Data.Text                      ( Text )
-import           Data.Loc                       ( Loc(..)
-                                                , (<-->)
-                                                , locOf
-                                                )
-import           Prelude                 hiding ( Ordering(..) )
-import           Syntax.Abstract.Types          ( Type(..), Lit (..) )
+import Data.Loc
+  ( Loc (..),
+    locOf,
+    (<-->),
+  )
+import Data.Text (Text)
+import Syntax.Abstract.Operator (tBool, tFunc, tInt)
+import Syntax.Abstract.Types (Lit (..), Type (..))
+import Syntax.Common
+import Syntax.Typed.Instances.Located
+import Syntax.Typed.Types
+import Syntax.Typed.Util (typeOf)
+import Prelude hiding (Ordering (..))
 
 unary :: ArithOp -> Type -> Expr -> Expr
 unary op t x = App (Op (ArithOp op) t) x (x <--> op)
@@ -25,9 +26,9 @@ chain op t x y = Chain (More (Pure x) (ChainOp op) t y)
 neg :: Expr -> Expr
 neg = unary (NegU NoLoc) (tBool `tFunc` tBool)
 
-  -- Type of binary logic operators: Bool -> Bool -> Bool
-  -- Type of binary Int operators: Int -> Int -> Int, etc.
-  -- Because they are used in many occassions.
+-- Type of binary logic operators: Bool -> Bool -> Bool
+-- Type of binary Int operators: Int -> Int -> Int, etc.
+-- Because they are used in many occassions.
 
 tBinLogicOp :: Type
 tBinLogicOp = tBool `tFunc` (tBool `tFunc` tBool)
@@ -39,25 +40,25 @@ tBinIntROp :: Type
 tBinIntROp = tInt `tFunc` (tInt `tFunc` tBool)
 
 lt, gt, gte, lte :: Expr -> Expr -> Expr
-lt  = chain (LT   NoLoc) tBinIntROp
-gt  = chain (GT   NoLoc) tBinIntROp
+lt = chain (LT NoLoc) tBinIntROp
+gt = chain (GT NoLoc) tBinIntROp
 gte = chain (GTEU NoLoc) tBinIntROp
 lte = chain (LTEU NoLoc) tBinIntROp
 
 conj, disj, implies :: Expr -> Expr -> Expr
-conj    = arith (ConjU    NoLoc) tBinLogicOp
-disj    = arith (DisjU    NoLoc) tBinLogicOp
+conj = arith (ConjU NoLoc) tBinLogicOp
+disj = arith (DisjU NoLoc) tBinLogicOp
 implies = arith (ImpliesU NoLoc) tBinLogicOp
 
 add :: Expr -> Expr -> Expr
-add    = arith (Add    NoLoc) tBinIntOp
+add = arith (Add NoLoc) tBinIntOp
 
 eqq :: Expr -> Expr -> Expr
 e0 `eqq` e1 =
-   Chain (More (Pure e0) (ChainOp (EQ NoLoc)) (typeOf e0) e1)
+  Chain (More (Pure e0) (ChainOp (EQ NoLoc)) (typeOf e0) e1)
 
 true, false :: Expr
-true  = Lit (Bol True)  tBool NoLoc
+true = Lit (Bol True) tBool NoLoc
 false = Lit (Bol False) tBool NoLoc
 
 conjunct :: [Expr] -> Expr
@@ -84,17 +85,27 @@ number :: Int -> Expr
 number n = Lit (Num n) tInt NoLoc
 
 exists :: [Name] -> Expr -> Expr -> Expr
-exists xs ran term = Quant (Op (ArithOp (DisjU NoLoc)) tBinLogicOp)
-                           xs ran term NoLoc
+exists xs ran term =
+  Quant
+    (Op (ArithOp (DisjU NoLoc)) tBinLogicOp)
+    xs
+    ran
+    term
+    NoLoc
 
 forAll :: [Name] -> Expr -> Expr -> Expr
-forAll xs ran term = Quant (Op (ArithOp (ConjU NoLoc)) tBinLogicOp)
-                           xs ran term NoLoc
+forAll xs ran term =
+  Quant
+    (Op (ArithOp (ConjU NoLoc)) tBinLogicOp)
+    xs
+    ran
+    term
+    NoLoc
 
 pointsTo, sConj, sImp :: Expr -> Expr -> Expr
 pointsTo = arith (PointsTo NoLoc) tBinIntOp
-sConj    = arith (SConj    NoLoc) tBinLogicOp
-sImp     = arith (SImp     NoLoc) tBinLogicOp
+sConj = arith (SConj NoLoc) tBinLogicOp
+sImp = arith (SImp NoLoc) tBinLogicOp
 
 sconjunct :: [Expr] -> Expr
 sconjunct [] = true
