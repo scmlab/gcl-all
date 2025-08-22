@@ -9,9 +9,13 @@ import Server (runOnPort, runOnStdio)
 import System.Console.GetOpt
 import System.Environment
 import Prelude
+import System.IO
 
 main :: IO ()
 main = do
+  hSetEncoding stdin utf8
+  hSetEncoding stdout utf8
+  hSetEncoding stderr utf8
   (Options mode logFilePath, _) <- getArgs >>= parseOpts
   case mode of
     ModeHelp -> putStrLn $ usageInfo usage options

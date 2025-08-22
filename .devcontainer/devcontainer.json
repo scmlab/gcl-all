@@ -13,12 +13,12 @@
     // always pull the newest image
     //"initializeCommand": "time bash -c 'docker pull ghcr.io/scmlab/gcl-all-builder-deps-bin:latest --platform=linux/amd64'",
 
-    "containerEnv": {
-        "LANG": "en_US.UTF-8",
-        "LC_ALL": "en_US.UTF-8",
-        "LC_CTYPE": "en_US.UTF-8",
-        "LANGUAGE": "en_US:en"
-    },
+    // "containerEnv": {
+    //     "LANG": "en_US.UTF-8",
+    //     "LC_ALL": "en_US.UTF-8",
+    //     "LC_CTYPE": "en_US.UTF-8",
+    //     "LANGUAGE": "en_US:en"
+    // },
     "remoteUser": "vscode",
     "customizations": {
         "vscode": {
