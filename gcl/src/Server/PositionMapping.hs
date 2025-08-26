@@ -46,7 +46,6 @@ import Language.LSP.Protocol.Types
     Range (Range),
     TextDocumentContentChangeEvent (TextDocumentContentChangeEvent),
     TextDocumentContentChangePartial (TextDocumentContentChangePartial),
-    UInt,
     type (|?) (..),
   )
 
@@ -97,15 +96,15 @@ instance Show PositionDelta where
 instance NFData PositionDelta where
   rnf (PositionDelta a b) = a `seq` b `seq` ()
 
-fromCurrentPosition :: PositionMapping -> Position -> Maybe Position
-fromCurrentPosition (PositionMapping pm) = positionResultToMaybe . fromDelta pm
-
-toCurrentPosition :: PositionMapping -> Position -> Maybe Position
-toCurrentPosition (PositionMapping pm) = positionResultToMaybe . toDelta pm
-
 -- A position mapping is the difference from the current version to
 -- a specific version
 newtype PositionMapping = PositionMapping PositionDelta
+
+fromCurrentPosition :: PositionMapping -> Position -> Maybe Position
+fromCurrentPosition (PositionMapping pd) = positionResultToMaybe . fromDelta pd
+
+toCurrentPosition :: PositionMapping -> Position -> Maybe Position
+toCurrentPosition (PositionMapping pd) = positionResultToMaybe . toDelta pd
 
 toCurrentRange :: PositionMapping -> Range -> Maybe Range
 toCurrentRange mapping (Range a b) =
@@ -163,61 +162,64 @@ applyChange PositionDelta {..} (TextDocumentContentChangeEvent (InL (TextDocumen
     }
 applyChange posMapping _ = posMapping
 
+posToInt :: Position -> (Int, Int)
+posToInt (Position l c) = (fromIntegral l, fromIntegral c)
+
+intToPos :: Int -> Int -> Position
+intToPos !l !c = Position (Hack.intToUInt l) (Hack.intToUInt c)
+
 toCurrent :: Range -> T.Text -> Position -> PositionResult Position
-toCurrent (Range start@(Position startLine startColumn) end@(Position endLine endColumn)) t (Position line column)
+toCurrent (Range start end) txt pos
+  -- Position is before the change and thereby unchanged.
   | line < startLine || line == startLine && column < startColumn =
-      -- Position is before the change and thereby unchanged.
-      PositionExact $ Position line column
+      PositionExact $ intToPos line column
+  -- Position is after the change so increase line and column number as necessary.
   | line > endLine || line == endLine && column >= endColumn =
-      -- Position is after the change so increase line and column number
-      -- as necessary.
-      PositionExact $ newLine `seq` newColumn `seq` Position newLine newColumn
+      PositionExact $ intToPos newLine newColumn
+  -- Position is in the region that was changed.
   | otherwise = PositionRange start end
   where
-    -- Position is in the region that was changed.
+    (startLine, startColumn) = posToInt start
+    (endLine, endColumn) = posToInt end
+    (line, column) = posToInt pos
 
-    lineDiff = linesNew - linesOld
-    linesNew = T.count "\n" t
-    linesOld = fromIntegral endLine - fromIntegral startLine
-    newEndColumn :: UInt
-    newEndColumn
-      | linesNew == 0 = fromIntegral $ fromIntegral startColumn + T.length t
-      | otherwise = fromIntegral $ T.length $ T.takeWhileEnd (/= '\n') t
-    newColumn :: UInt
-    newColumn
-      | line == endLine = fromIntegral $ (fromIntegral column + newEndColumn) - fromIntegral endColumn
+    !lineDiff = linesNew - linesOld
+    !linesNew = T.count "\n" txt
+    !linesOld = endLine - startLine
+    !newEndColumn
+      | linesNew == 0 = startColumn + T.length txt
+      | otherwise = T.length $ T.takeWhileEnd (/= '\n') txt
+    !newColumn
+      | line == endLine = column + (newEndColumn - endColumn)
       | otherwise = column
-    newLine :: UInt
-    newLine = fromIntegral $ fromIntegral line + lineDiff
+    !newLine = line + lineDiff
 
 fromCurrent :: Range -> T.Text -> Position -> PositionResult Position
-fromCurrent (Range start@(Position startLine startColumn) end@(Position endLine endColumn)) t (Position line column)
+fromCurrent (Range start end) txt pos
+  -- Position is before the change and thereby unchanged
   | line < startLine || line == startLine && column < startColumn =
-      -- Position is before the change and thereby unchanged
-      PositionExact $ Position line column
+      PositionExact $ intToPos line column
+  -- Position is after the change so increase line and column number as necessary.
   | line > newEndLine || line == newEndLine && column >= newEndColumn =
-      -- Position is after the change so increase line and column number
-      -- as necessary.
-      PositionExact $ newLine `seq` newColumn `seq` Position newLine newColumn
+      PositionExact $ intToPos newLine newColumn
+  -- Position is in the region that was changed.
   | otherwise = PositionRange start end
   where
-    -- Position is in the region that was changed.
+    (startLine, startColumn) = posToInt start
+    (endLine, endColumn) = posToInt end
+    (line, column) = posToInt pos
 
-    lineDiff = linesNew - linesOld
-    linesNew = T.count "\n" t
-    linesOld = fromIntegral endLine - fromIntegral startLine
-    newEndLine :: UInt
-    newEndLine = fromIntegral $ fromIntegral endLine + lineDiff
-    newEndColumn :: UInt
-    newEndColumn
-      | linesNew == 0 = fromIntegral $ fromIntegral startColumn + T.length t
-      | otherwise = fromIntegral $ T.length $ T.takeWhileEnd (/= '\n') t
-    newColumn :: UInt
-    newColumn
-      | line == newEndLine = fromIntegral $ (fromIntegral column + fromIntegral endColumn) - newEndColumn
+    !lineDiff = linesNew - linesOld
+    !linesNew = T.count "\n" txt
+    !linesOld = endLine - startLine
+    !newEndLine = endLine + lineDiff
+    !newEndColumn
+      | linesNew == 0 = startColumn + T.length txt
+      | otherwise = T.length $ T.takeWhileEnd (/= '\n') txt
+    !newColumn
+      | line == newEndLine = column + (endColumn - newEndColumn)
       | otherwise = column
-    newLine :: UInt
-    newLine = fromIntegral $ fromIntegral line - lineDiff
+    !newLine = line - lineDiff
 
 deltaFromDiff :: T.Text -> T.Text -> PositionDelta
 deltaFromDiff (T.lines -> old) (T.lines -> new) =
