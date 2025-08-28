@@ -164,11 +164,22 @@ posToInt (Position l c) = (fromIntegral l, fromIntegral c)
 intToPos :: Int -> Int -> Position
 intToPos !l !c = Position (Hack.intToUInt l) (Hack.intToUInt c)
 
--- SEE: mkChangeInfo
-type ChangeInfo = (Position, Position, Int, Int, Int, Int, Int, Int, Int)
+data ChangeInfo = ChangeInfo
+  { start :: !Position,
+    end :: !Position,
+    startLine :: !Int,
+    startColumn :: !Int,
+    endLine :: !Int,
+    endColumn :: !Int,
+    linesDiff :: !Int,
+    newEndLine :: !Int,
+    newEndColumn :: !Int
+  }
+  deriving (Eq, Show)
 
 mkChangeInfo :: Range -> T.Text -> ChangeInfo
-mkChangeInfo (Range start end) txt = (start, end, startLine, startColumn, endLine, endColumn, linesDiff, newEndLine, newEndColumn)
+mkChangeInfo (Range start end) txt =
+  ChangeInfo {start, end, startLine, startColumn, endLine, endColumn, linesDiff, newEndLine, newEndColumn}
   where
     (startLine, startColumn) = posToInt start
     (endLine, endColumn) = posToInt end
@@ -181,7 +192,7 @@ mkChangeInfo (Range start end) txt = (start, end, startLine, startColumn, endLin
       | otherwise = T.length $ T.takeWhileEnd (/= '\n') txt
 
 mkToCurrent :: ChangeInfo -> (Position -> PositionResult Position)
-mkToCurrent (start, end, startLine, startColumn, endLine, endColumn, linesDiff, _newEndLine, newEndColumn) = toCurrent
+mkToCurrent ChangeInfo {start, end, startLine, startColumn, endLine, endColumn, linesDiff, newEndLine, newEndColumn} = toCurrent
   where
     toCurrent pos@(posToInt -> (line, column))
       -- Position is before the change and thereby unchanged.
@@ -198,7 +209,7 @@ mkToCurrent (start, end, startLine, startColumn, endLine, endColumn, linesDiff, 
       | otherwise = PositionRange start end
 
 mkFromCurrent :: ChangeInfo -> (Position -> PositionResult Position)
-mkFromCurrent (start, end, startLine, startColumn, _endLine, endColumn, linesDiff, newEndLine, newEndColumn) = fromCurrent
+mkFromCurrent ChangeInfo {start, end, startLine, startColumn, endLine, endColumn, linesDiff, newEndLine, newEndColumn} = fromCurrent
   where
     fromCurrent pos@(posToInt -> (line, column))
       -- Position is before the change and thereby unchanged
