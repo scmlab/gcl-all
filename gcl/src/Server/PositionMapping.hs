@@ -3,8 +3,8 @@
 -- Copyright (c) 2019 The DAML Authors. All rights reserved.
 -- SPDX-License-Identifier: Apache-2.0
 {-# LANGUAGE ExplicitNamespaces #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Server.PositionMapping
@@ -24,10 +24,6 @@ module Server.PositionMapping
     fromCurrentRange,
     applyChange,
     zeroMapping,
-    deltaFromDiff,
-    -- toCurrent and fromCurrent are mainly exposed for testing
-    toCurrent,
-    fromCurrent,
     toCurrentRange',
     fromCurrentRange',
   )
@@ -35,11 +31,8 @@ where
 
 import Control.DeepSeq
 import Control.Monad
-import Data.Algorithm.Diff
-import Data.Bifunctor
 import Data.List (foldl')
 import qualified Data.Text as T
-import qualified Data.Vector.Unboxed as V
 import qualified Hack
 import Language.LSP.Protocol.Types
   ( Position (Position),
@@ -155,11 +148,14 @@ addOldDelta delta (PositionMapping pm) = PositionMapping (composeDelta pm delta)
 -- TODO: We currently ignore the right hand side (if there is only text), as
 -- that was what was done with lsp* 1.6 packages
 applyChange :: PositionDelta -> TextDocumentContentChangeEvent -> PositionDelta
-applyChange PositionDelta {..} (TextDocumentContentChangeEvent (InL (TextDocumentContentChangePartial range _ text))) =
-  PositionDelta
-    { toDelta = toCurrent range text <=< toDelta,
-      fromDelta = fromDelta <=< fromCurrent range text
-    }
+applyChange PositionDelta {toDelta, fromDelta} (TextDocumentContentChangeEvent (InL (TextDocumentContentChangePartial range _ text))) =
+  let ci = mkChangeInfo range text
+      toCurrent = mkToCurrent ci
+      fromCurrent = mkFromCurrent ci
+   in PositionDelta
+        { toDelta = toCurrent <=< toDelta,
+          fromDelta = fromDelta <=< fromCurrent
+        }
 applyChange posMapping _ = posMapping
 
 posToInt :: Position -> (Int, Int)
@@ -168,59 +164,57 @@ posToInt (Position l c) = (fromIntegral l, fromIntegral c)
 intToPos :: Int -> Int -> Position
 intToPos !l !c = Position (Hack.intToUInt l) (Hack.intToUInt c)
 
-toCurrent :: Range -> T.Text -> Position -> PositionResult Position
-toCurrent (Range start end) txt pos
-  -- Position is before the change and thereby unchanged.
-  | line < startLine || line == startLine && column < startColumn =
-      PositionExact $ intToPos line column
-  -- Position is after the change so increase line and column number as necessary.
-  | line > endLine || line == endLine && column >= endColumn =
-      PositionExact $ intToPos newLine newColumn
-  -- Position is in the region that was changed.
-  | otherwise = PositionRange start end
+-- SEE: mkChangeInfo
+type ChangeInfo = (Position, Position, Int, Int, Int, Int, Int, Int, Int)
+
+mkChangeInfo :: Range -> T.Text -> ChangeInfo
+mkChangeInfo (Range start end) txt = (start, end, startLine, startColumn, endLine, endColumn, linesDiff, newEndLine, newEndColumn)
   where
     (startLine, startColumn) = posToInt start
     (endLine, endColumn) = posToInt end
-    (line, column) = posToInt pos
-
-    !lineDiff = linesNew - linesOld
-    !linesNew = T.count "\n" txt
-    !linesOld = endLine - startLine
+    !linesOld = endLine - startLine -- intermediate
+    !linesNew = T.count "\n" txt -- intermediate
+    !linesDiff = linesNew - linesOld
+    !newEndLine = endLine + linesDiff
     !newEndColumn
       | linesNew == 0 = startColumn + T.length txt
       | otherwise = T.length $ T.takeWhileEnd (/= '\n') txt
-    !newColumn
-      | line == endLine = column + (newEndColumn - endColumn)
-      | otherwise = column
-    !newLine = line + lineDiff
 
-fromCurrent :: Range -> T.Text -> Position -> PositionResult Position
-fromCurrent (Range start end) txt pos
-  -- Position is before the change and thereby unchanged
-  | line < startLine || line == startLine && column < startColumn =
-      PositionExact $ intToPos line column
-  -- Position is after the change so increase line and column number as necessary.
-  | line > newEndLine || line == newEndLine && column >= newEndColumn =
-      PositionExact $ intToPos newLine newColumn
-  -- Position is in the region that was changed.
-  | otherwise = PositionRange start end
+mkToCurrent :: ChangeInfo -> (Position -> PositionResult Position)
+mkToCurrent (start, end, startLine, startColumn, endLine, endColumn, linesDiff, _newEndLine, newEndColumn) = toCurrent
   where
-    (startLine, startColumn) = posToInt start
-    (endLine, endColumn) = posToInt end
-    (line, column) = posToInt pos
+    toCurrent pos@(posToInt -> (line, column))
+      -- Position is before the change and thereby unchanged.
+      | line < startLine || line == startLine && column < startColumn =
+          PositionExact pos
+      -- Position is after the change so increase line and column number as necessary.
+      | line > endLine || line == endLine && column >= endColumn =
+          let !newLine = line + linesDiff
+              !newColumn
+                | line == endLine = column + (newEndColumn - endColumn)
+                | otherwise = column
+           in PositionExact $ intToPos newLine newColumn
+      -- Position is in the region that was changed.
+      | otherwise = PositionRange start end
 
-    !lineDiff = linesNew - linesOld
-    !linesNew = T.count "\n" txt
-    !linesOld = endLine - startLine
-    !newEndLine = endLine + lineDiff
-    !newEndColumn
-      | linesNew == 0 = startColumn + T.length txt
-      | otherwise = T.length $ T.takeWhileEnd (/= '\n') txt
-    !newColumn
-      | line == newEndLine = column + (endColumn - newEndColumn)
-      | otherwise = column
-    !newLine = line - lineDiff
+mkFromCurrent :: ChangeInfo -> (Position -> PositionResult Position)
+mkFromCurrent (start, end, startLine, startColumn, _endLine, endColumn, linesDiff, newEndLine, newEndColumn) = fromCurrent
+  where
+    fromCurrent pos@(posToInt -> (line, column))
+      -- Position is before the change and thereby unchanged
+      | line < startLine || line == startLine && column < startColumn =
+          PositionExact pos
+      -- Position is after the change so increase line and column number as necessary.
+      | line > newEndLine || line == newEndLine && column >= newEndColumn =
+          let !newLine = line - linesDiff
+              !newColumn
+                | line == newEndLine = column + (endColumn - newEndColumn)
+                | otherwise = column
+           in PositionExact $ intToPos newLine newColumn
+      -- Position is in the region that was changed.
+      | otherwise = PositionRange start end
 
+{-
 deltaFromDiff :: T.Text -> T.Text -> PositionDelta
 deltaFromDiff (T.lines -> old) (T.lines -> new) =
   PositionDelta (lookupPos (fromIntegral lnew) o2nPrevs o2nNexts old2new) (lookupPos (fromIntegral lold) n2oPrevs n2oNexts new2old)
@@ -260,3 +254,4 @@ deltaFromDiff (T.lines -> old) (T.lines -> new) =
     go (Both _ _ : xs) !glold !glnew = bimap (glnew :) (glold :) $ go xs (glold + 1) (glnew + 1)
     go (First _ : xs) !glold !glnew = first (-1 :) $ go xs (glold + 1) glnew
     go (Second _ : xs) !glold !glnew = second (-1 :) $ go xs glold (glnew + 1)
+-}
