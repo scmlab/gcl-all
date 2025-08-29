@@ -2,25 +2,23 @@ module Syntax.Typed.Operator where
 
 import Data.Loc
   ( Loc (..),
-    locOf,
     (<-->),
   )
 import Data.Text (Text)
 import Syntax.Abstract.Operator (tBool, tFunc, tInt)
 import Syntax.Abstract.Types (Lit (..), Type (..))
 import Syntax.Common
-import Syntax.Typed.Instances.Located
 import Syntax.Typed.Types
 import Syntax.Typed.Util (typeOf)
 import Prelude hiding (Ordering (..))
 
-unary :: ArithOp -> Type -> Expr -> Expr
+unary :: ArithOp Loc -> Type -> Expr -> Expr
 unary op t x = App (Op (ArithOp op) t) x (x <--> op)
 
-arith :: ArithOp -> Type -> Expr -> Expr -> Expr
+arith :: ArithOp Loc -> Type -> Expr -> Expr -> Expr
 arith op t x y = App (App (Op (ArithOp op) t) x (x <--> op)) y (x <--> y)
 
-chain :: ChainOp -> Type -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
+chain :: ChainOp Loc -> Type -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
 chain op t x y = Chain (More (Pure x) (ChainOp op) t y)
 
 neg :: Expr -> Expr

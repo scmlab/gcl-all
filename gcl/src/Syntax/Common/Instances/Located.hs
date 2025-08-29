@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Syntax.Common.Instances.Located where
 
 import Data.Loc
@@ -11,7 +13,7 @@ instance (Located a, Located b) => Located (Either a b) where
 instance Located Name where
   locOf (Name _ l) = l
 
-instance Located ChainOp where
+instance Located (ChainOp Loc) where
   locOf (EQProp l) = l
   locOf (EQPropU l) = l
   locOf (EQ l) = l
@@ -24,7 +26,7 @@ instance Located ChainOp where
   locOf (LT l) = l
   locOf (GT l) = l
 
-instance Located ArithOp where
+instance Located (ArithOp Loc) where
   locOf (Implies l) = l
   locOf (ImpliesU l) = l
   locOf (Disj l) = l
@@ -47,10 +49,10 @@ instance Located ArithOp where
   locOf (SConj l) = l
   locOf (SImp l) = l
 
-instance Located TypeOp where
+instance Located (TypeOp Loc) where
   locOf (Arrow l) = l
 
-instance Located Op where
+instance Located (Op Loc) where
   locOf (ChainOp op) = locOf op
   locOf (ArithOp op) = locOf op
   locOf (TypeOp op) = locOf op

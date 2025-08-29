@@ -5,7 +5,7 @@
 
 module Pretty.Concrete where
 
-import Data.Loc (locOf)
+import Data.Loc (locOf, Loc)
 import Data.Text (unpack)
 import Pretty.Common ()
 import Pretty.Util
@@ -360,7 +360,7 @@ handleExpr (Case a expr b cases) =
       <> prettyWithLoc b
       <> prettyWithLoc cases
 
-handleArithOp :: ArithOp -> Variadic Expr (DocWithLoc ann)
+handleArithOp :: ArithOp Loc -> Variadic Expr (DocWithLoc ann)
 handleArithOp op = case classify (ArithOp op) of -- TODO: rewrite `classify` to only handle `ArithOp`s.
   (Infix, _) -> do
     p <- var
@@ -417,7 +417,7 @@ showWithParentheses expr = case handleExpr' expr of
     handleExpr' c@Case {} =
       return $ show $ pretty c
 
-    handleArithOp' :: ArithOp -> Variadic Expr String
+    handleArithOp' :: ArithOp Loc -> Variadic Expr String
     handleArithOp' op = case classify (ArithOp op) of
       (Infix, _) -> do
         p <- var

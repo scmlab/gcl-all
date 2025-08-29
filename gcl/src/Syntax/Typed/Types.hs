@@ -55,7 +55,7 @@ data Expr
   = Lit Lit Type Loc
   | Var Name Type Loc
   | Const Name Type Loc
-  | Op Op Type
+  | Op (Op Loc) Type
   | Chain Chain
   | App Expr Expr Loc
   | Lam Name Type Expr Loc
@@ -71,7 +71,7 @@ data CaseClause = CaseClause Pattern Expr
 
 data Chain
   = Pure Expr
-  | More Chain Op Type Expr
+  | More Chain (Op Loc) Type Expr
   deriving (Eq, Show)
 
 data KindedType
@@ -79,7 +79,7 @@ data KindedType
   | TArray Interval KindedType Loc
   | TTuple Int Kind
   | TFunc KindedType KindedType Loc
-  | TOp TypeOp Kind
+  | TOp (TypeOp Loc) Kind
   | TData Name Kind Loc
   | TApp KindedType KindedType Loc
   | TVar Name Kind Loc
