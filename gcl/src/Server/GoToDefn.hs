@@ -10,8 +10,9 @@ where
 
 import Control.Monad.RWS
 import Data.Loc
-  ( Located,
-    locOf, Loc,
+  ( Loc,
+    Located,
+    locOf,
   )
 import Data.Loc.Range
 import Data.Map (Map)

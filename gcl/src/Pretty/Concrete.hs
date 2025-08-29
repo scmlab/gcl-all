@@ -5,7 +5,7 @@
 
 module Pretty.Concrete where
 
-import Data.Loc (locOf, Loc)
+import Data.Loc (Loc, locOf)
 import Data.Text (unpack)
 import Pretty.Common ()
 import Pretty.Util

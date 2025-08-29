@@ -2,11 +2,11 @@
 
 module Render.Syntax.Common where
 
+import Data.Loc (Loc)
 import Render.Class
 import Syntax.Common
 import Syntax.Parser.Lexer
 import Prelude hiding (Ordering (..))
-import Data.Loc (Loc)
 
 instance Render Name where
   render (Name n l) = tempHandleLoc l (render n)
