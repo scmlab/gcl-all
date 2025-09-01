@@ -132,14 +132,13 @@ runM scopes f = let (_, _, w) = runRWS f scopes () in w
 -- | See if a name is in a series of scopes (from local to global)
 -- | Return the first result (which should be the most local target)
 lookupScopes :: Text -> M input output (Maybe input)
-lookupScopes name = asks lookupScopesPrim
+lookupScopes name = asks findFirstInScopes
   where
-    lookupScopesPrim :: [Scope input] -> Maybe input
-    lookupScopesPrim scopes = foldl findFirst Nothing scopes
-
-    findFirst :: Maybe input -> Scope input -> Maybe input
-    findFirst (Just found) _ = Just found
-    findFirst Nothing scope = Map.lookup name scope
+    findFirstInScopes :: [Scope input] -> Maybe input
+    findFirstInScopes [] = Nothing
+    findFirstInScopes (s : ss) = case Map.lookup name s of
+      Just v -> Just v
+      Nothing -> findFirstInScopes ss
 
 localScope :: (MonadReader [Scope input] m) => Scope input -> m a -> m a
 localScope scope = local (scope :)
