@@ -120,7 +120,7 @@ data Type
   -- TTuple has no srcloc info because it has no conrete syntax at the moment
   | TTuple Int -- `Int` represents the arity of the tuple.
   | TFunc Type Type Loc
-  | TOp TypeOp
+  | TOp (TypeOp Loc)
   | TData Name Loc
   | TApp Type Type Loc
   | TVar Name Loc
@@ -145,7 +145,7 @@ data Expr
   = Lit Lit Loc
   | Var Name Loc
   | Const Name Loc
-  | Op ArithOp
+  | Op (ArithOp Loc)
   | Chain Chain
   | App Expr Expr Loc
   | Lam Name Expr Loc
@@ -173,11 +173,11 @@ data Expr
   | Case Expr [CaseClause] Loc
   deriving (Eq, Show, Generic)
 
-data Chain = Pure Expr Loc | More Chain ChainOp Expr Loc
+data Chain = Pure Expr Loc | More Chain (ChainOp Loc) Expr Loc
   deriving (Eq, Show, Generic)
 
 -- QuantOp' seems not being used at current version of abstract?
-type QuantOp' = Either ArithOp Expr
+type QuantOp' = Either (ArithOp Loc) Expr
 
 type Mapping = Map Text Expr
 

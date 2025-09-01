@@ -11,7 +11,7 @@ where
 import Control.Monad.RWS
 import Data.Loc
   ( Located,
-    locOf,
+    locOf, Loc,
   )
 import Data.Loc.Range
 import Data.Map (Map)
@@ -228,10 +228,10 @@ instance Collect LocationLinkToBe LocationLink Expr where
 --     localScope args $ do
 --       collect body
 
-instance Collect LocationLinkToBe LocationLink ArithOp where
+instance Collect LocationLinkToBe LocationLink (ArithOp Loc) where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink ChainOp where
+instance Collect LocationLinkToBe LocationLink (ChainOp Loc) where
   collect _ = return ()
 
 instance Collect LocationLinkToBe LocationLink Chain where

@@ -175,7 +175,7 @@ instance Render Kind where
 --------------------------------------------------------------------------------
 
 -- | The second argument: Nothing means the op at-issue is application.
-parensIf :: PrecContext -> Maybe Op -> Inlines -> Inlines
+parensIf :: PrecContext -> Maybe (Op Loc) -> Inlines -> Inlines
 parensIf pc mop = case isomerismOfContextAndCurrentOp pc mop of
   Nothing ->
     let conditionOfOmittingParens = case mop of
@@ -223,7 +223,7 @@ parensIf pc mop = case isomerismOfContextAndCurrentOp pc mop of
       OpHOLE op -> isChainOp' (Just op)
       HOLEOp op -> isChainOp' (Just op)
 
-    isChainOp' :: Maybe Op -> Bool
+    isChainOp' :: Maybe (Op Loc) -> Bool
     isChainOp' mop' = case mop' of
       Nothing -> False
       Just op -> case op of
@@ -232,7 +232,7 @@ parensIf pc mop = case isomerismOfContextAndCurrentOp pc mop of
         TypeOp _ -> False
 
     -- In this scope, every "Nothing" case of "Maybe Op" means application.
-    sameOpSym' :: PrecContext -> Maybe Op -> Bool
+    sameOpSym' :: PrecContext -> Maybe (Op Loc) -> Bool
     sameOpSym' pc' Nothing = case pc' of
       AppHOLE -> True
       HOLEApp -> True
@@ -242,11 +242,11 @@ parensIf pc mop = case isomerismOfContextAndCurrentOp pc mop of
       HOLEOp pcop -> sameOpSym pcop op
       _ -> False
 
-    isAssocOp' :: Maybe Op -> Bool
+    isAssocOp' :: Maybe (Op Loc) -> Bool
     isAssocOp' Nothing = False
     isAssocOp' (Just op) = isAssocOp op
 
-    precOf' :: Maybe Op -> Int
+    precOf' :: Maybe (Op Loc) -> Int
     precOf' Nothing = initOrderIndex - 1
     precOf' (Just op) = precOf op
 
@@ -262,7 +262,7 @@ data Isomerism = Cis | Trans deriving (Show) -- taking the concept from chemistr
 
 -- | The Nothing in the second argument means application.
 -- Recalling that application is left associative "a b c" == "(a b) c"
-isomerismOfContextAndCurrentOp :: PrecContext -> Maybe Op -> Maybe Isomerism
+isomerismOfContextAndCurrentOp :: PrecContext -> Maybe (Op Loc) -> Maybe Isomerism
 isomerismOfContextAndCurrentOp pc mop = case pc of
   NoContext -> Nothing
   AppHOLE -> case classify' mop of
@@ -276,7 +276,7 @@ isomerismOfContextAndCurrentOp pc mop = case pc of
   OpHOLE _ -> isomerismOfContextAndCurrentOp AppHOLE mop
   HOLEOp _ -> isomerismOfContextAndCurrentOp HOLEApp mop
 
-classify' :: Maybe Op -> Fixity
+classify' :: Maybe (Op Loc) -> Fixity
 classify' Nothing = InfixL
 classify' (Just op) = fst $ classify op
 

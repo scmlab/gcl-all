@@ -1,14 +1,17 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Render.Syntax.Common where
 
 import Render.Class
 import Syntax.Common
 import Syntax.Parser.Lexer
 import Prelude hiding (Ordering (..))
+import Data.Loc (Loc)
 
 instance Render Name where
   render (Name n l) = tempHandleLoc l (render n)
 
-instance Render ChainOp where
+instance Render (ChainOp Loc) where
   render (EQProp l) = tempHandleLoc l $ render (show TokEQProp)
   render (EQPropU l) = tempHandleLoc l $ render (show TokEQPropU)
   render (EQ l) = tempHandleLoc l $ render (show TokEQ)
@@ -21,7 +24,7 @@ instance Render ChainOp where
   render (LT l) = tempHandleLoc l $ render (show TokLT)
   render (GT l) = tempHandleLoc l $ render (show TokGT)
 
-instance Render ArithOp where
+instance Render (ArithOp Loc) where
   render (Implies l) = tempHandleLoc l $ render (show TokImpl)
   render (ImpliesU l) = tempHandleLoc l $ render (show TokImplU)
   render (Conj l) = tempHandleLoc l $ render (show TokConj)
@@ -44,10 +47,10 @@ instance Render ArithOp where
   render (SConj l) = tempHandleLoc l $ render (show TokSConj)
   render (SImp l) = tempHandleLoc l $ render (show TokLolipop)
 
-instance Render TypeOp where
+instance Render (TypeOp Loc) where
   render (Arrow l) = tempHandleLoc l $ render (show TokArrowU)
 
-instance Render Op where
+instance Render (Op Loc) where
   render (ChainOp op) = render op
   render (ArithOp op) = render op
   render (TypeOp op) = render op

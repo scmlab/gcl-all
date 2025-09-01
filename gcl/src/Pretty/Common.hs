@@ -1,5 +1,8 @@
+{-# LANGUAGE FlexibleInstances #-}
+
 module Pretty.Common where
 
+import Data.Loc (Loc)
 import Pretty.Util
 import Prettyprinter (Pretty (pretty))
 import Render.Error ()
@@ -16,26 +19,53 @@ instance PrettyWithLoc Name where
   prettyWithLoc = fromRenderAndLocated
 
 -- | Operators
-instance Pretty ChainOp where
+instance Pretty (ChainOp Loc) where
   pretty = toDoc . prettyWithLoc
 
-instance PrettyWithLoc ChainOp where
+instance PrettyWithLoc (ChainOp Loc) where
   prettyWithLoc = fromRenderAndLocated
 
-instance Pretty ArithOp where
+instance Pretty (ArithOp Loc) where
   pretty = toDoc . prettyWithLoc
 
-instance PrettyWithLoc ArithOp where
+instance PrettyWithLoc (ArithOp Loc) where
   prettyWithLoc = fromRenderAndLocated
 
-instance Pretty TypeOp where
+instance Pretty (TypeOp Loc) where
   pretty = toDoc . prettyWithLoc
 
-instance PrettyWithLoc TypeOp where
+instance PrettyWithLoc (TypeOp Loc) where
   prettyWithLoc = fromRenderAndLocated
 
-instance Pretty Op where
+instance Pretty (Op Loc) where
   pretty = toDoc . prettyWithLoc
 
-instance PrettyWithLoc Op where
+instance PrettyWithLoc (Op Loc) where
   prettyWithLoc = fromRenderAndLocated
+
+-- FIXME: this should work but fix it later
+
+-- -- | Operators
+-- instance Pretty a => Pretty (ChainOp a) where
+--   pretty = toDoc . prettyWithLoc
+
+-- instance PrettyWithLoc a => PrettyWithLoc (ChainOp a) where
+--   prettyWithLoc = fromRenderAndLocated
+
+-- instance Pretty a => Pretty (ArithOp a) where
+--   pretty = toDoc . prettyWithLoc
+
+-- instance PrettyWithLoc a => PrettyWithLoc (ArithOp a) where
+--   prettyWithLoc = fromRenderAndLocated
+
+-- instance Pretty a => Pretty (TypeOp a) where
+--   pretty = toDoc . prettyWithLoc
+
+-- instance PrettyWithLoc a => PrettyWithLoc (TypeOp a) where
+--   prettyWithLoc = fromRenderAndLocated
+
+-- instance Pretty a => Pretty (Op a) where
+--   pretty = toDoc . prettyWithLoc
+
+-- instance PrettyWithLoc a => PrettyWithLoc (Op a) where
+--   prettyWithLoc = fromRenderAndLocated

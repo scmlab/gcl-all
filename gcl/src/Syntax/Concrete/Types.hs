@@ -142,7 +142,7 @@ data Type
   = TParen (Token "(") Type (Token ")")
   | TBase TBase
   | TArray (Token "array") Interval (Token "of") Type
-  | TOp TypeOp
+  | TOp (TypeOp Loc)
   | TData Name Range
   | TApp Type Type
   | TMetaVar Name Range
@@ -156,7 +156,7 @@ data Expr
   | Lit Lit
   | Var Name
   | Const Name
-  | Op ArithOp
+  | Op (ArithOp Loc)
   | Chain Chain
   | Arr Expr (Token "[") Expr (Token "]")
   | App Expr Expr
@@ -173,10 +173,10 @@ data Expr
     Case (Token "case") Expr (Token "of") [CaseClause]
   deriving (Eq, Show, Generic)
 
-data Chain = Pure Expr | More Chain ChainOp Expr
+data Chain = Pure Expr | More Chain (ChainOp Loc) Expr
   deriving (Eq, Show, Generic)
 
-type QuantOp' = Either ArithOp Name
+type QuantOp' = Either (ArithOp Loc) Name
 
 --------------------------------------------------------------------------------
 

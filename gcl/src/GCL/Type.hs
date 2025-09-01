@@ -494,9 +494,9 @@ type family Typed untyped where
   Typed CaseClause = T.CaseClause
   Typed Chain = T.Chain
   Typed Name = Name
-  Typed ChainOp = Op
-  Typed ArithOp = Op
-  Typed TypeOp = Op
+  Typed (ChainOp Loc) = (Op Loc)
+  Typed (ArithOp Loc) = (Op Loc)
+  Typed (TypeOp Loc) = (Op Loc)
   Typed Type = ()
   Typed Interval = ()
   Typed Endpoint = ()
@@ -983,7 +983,7 @@ instance Elab Chain where -- TODO: Make sure the below implementation is correct
     return (Just $ subst unifyTy tv, subst sub $ T.More (T.Pure typedExpr1) opTyped (subst unifyTy opTy') typedExpr2, sub)
   elaborate (Pure _expr _loc) _ = error "Chain of length 1 shouldn't exist."
 
-instance Elab ChainOp where
+instance Elab (ChainOp Loc) where
   elaborate (EQProp l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ChainOp $ EQProp l, mempty)
   elaborate (EQPropU l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ChainOp $ EQPropU l, mempty)
   elaborate (EQ l) _ = do
@@ -1002,7 +1002,7 @@ instance Elab ChainOp where
   elaborate (LT l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ LT l, mempty)
   elaborate (GT l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ GT l, mempty)
 
-instance Elab ArithOp where
+instance Elab (ArithOp Loc) where
   elaborate (Implies l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ Implies l, mempty)
   elaborate (ImpliesU l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ ImpliesU l, mempty)
   elaborate (Conj l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ Conj l, mempty)
@@ -1025,7 +1025,7 @@ instance Elab ArithOp where
   elaborate (SConj l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ SConj l, mempty)
   elaborate (SImp l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ SImp l, mempty)
 
-instance Elab TypeOp where
+instance Elab (TypeOp Loc) where
   elaborate (Arrow _) _ = undefined -- We do not have a kind system yet.
 
 --------------------------------------------------------------------------------

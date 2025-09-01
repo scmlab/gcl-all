@@ -508,12 +508,12 @@ expression = do
         ]
       ]
       where
-        arithOp :: (Loc -> ArithOp) -> Tok -> Parser (Expr -> Expr -> Expr)
+        arithOp :: (Loc -> ArithOp Loc) -> Tok -> Parser (Expr -> Expr -> Expr)
         arithOp operator' tok = do
           (op, loc) <- getLoc (operator' <$ symbol tok)
           return $ \x y -> App (App (Expr.Op (op loc)) x) y
 
-        chainOp :: (Loc -> ChainOp) -> Tok -> Parser (Expr -> Expr -> Expr)
+        chainOp :: (Loc -> ChainOp Loc) -> Tok -> Parser (Expr -> Expr -> Expr)
         chainOp operator' tok = do
           (op, loc) <- getLoc (operator' <$ symbol tok)
           return (`makeChain` op loc)
@@ -522,7 +522,7 @@ expression = do
             asChain (Chain c) = c
             asChain e = Pure e
 
-    unary :: (Loc -> ArithOp) -> Tok -> Parser (Expr -> Expr)
+    unary :: (Loc -> ArithOp Loc) -> Tok -> Parser (Expr -> Expr)
     unary operator' tok = do
       loc <- symbol tok
       return $ \result -> App (Expr.Op (operator' loc)) result
@@ -569,7 +569,7 @@ expression = do
         helper a [] = a
         helper a ((o, x, c) : xs) = helper (Arr a o x c) xs
 
-    chainOp :: Parser ChainOp
+    chainOp :: Parser (ChainOp Loc)
     chainOp =
       choice
         [ EQProp <$> symbol TokEQProp,
@@ -586,7 +586,7 @@ expression = do
         ]
         <?> "chain operator"
 
-    arithOp :: Parser ArithOp
+    arithOp :: Parser (ArithOp Loc)
     arithOp =
       choice
         [ Implies <$> symbol TokImpl,
@@ -647,7 +647,7 @@ type' = do
     table :: [[Operator Parser Type]]
     table = [[InfixL (return TApp)], [InfixR $ typeOp Arrow TokArrow]]
 
-    typeOp :: (Loc -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
+    typeOp :: (Loc -> TypeOp Loc) -> Tok -> Parser (Type -> Type -> Type)
     typeOp operator' tok = do
       (op, loc) <- getLoc (operator' <$ symbol tok)
       return $ \x y -> TApp (TApp (TOp (op loc)) x) y
