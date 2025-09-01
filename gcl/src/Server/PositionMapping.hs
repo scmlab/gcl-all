@@ -16,9 +16,9 @@ module Server.PositionMapping
     fromCurrentPosition,
     toCurrentPosition,
     PositionDelta (..),
-    addOldDelta,
+    -- addOldDelta,
     idDelta,
-    composeDelta,
+    -- composeDelta,
     mkDelta,
     toCurrentRange,
     fromCurrentRange,
@@ -116,6 +116,7 @@ fromCurrentRange' = fromCurrentRange . PositionMapping
 zeroMapping :: PositionMapping
 zeroMapping = PositionMapping idDelta
 
+{-
 -- | Compose two position mappings. Composes in the same way as function
 -- composition (ie the second argument is applied to the position first).
 composeDelta ::
@@ -126,6 +127,7 @@ composeDelta (PositionDelta to1 from1) (PositionDelta to2 from2) =
   PositionDelta
     (to1 <=< to2)
     (from1 >=> from2)
+-}
 
 idDelta :: PositionDelta
 idDelta = PositionDelta pure pure
@@ -134,6 +136,7 @@ idDelta = PositionDelta pure pure
 mkDelta :: [TextDocumentContentChangeEvent] -> PositionDelta
 mkDelta cs = foldl' applyChange idDelta cs
 
+{-
 -- | addOldDelta
 -- Add a old delta onto a Mapping k n to make a Mapping (k - 1) n
 addOldDelta ::
@@ -144,6 +147,7 @@ addOldDelta ::
   -- | The output mapping is from version k - 1 to version n
   PositionMapping
 addOldDelta delta (PositionMapping pm) = PositionMapping (composeDelta pm delta)
+-}
 
 -- TODO: We currently ignore the right hand side (if there is only text), as
 -- that was what was done with lsp* 1.6 packages
