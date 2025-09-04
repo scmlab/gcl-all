@@ -120,6 +120,8 @@ lookup pos m = snd <$> lookup' pos m
 --------------------------------------------------------------------------------
 
 -- | A mapping from names to something else
+--   for go to definition: Scope LocationLinkToBe
+--   for syntax highlighting: Scope ()
 type Scope input = Map Text input
 
 -- | Accumulates the result of `IntervalMap` in writer
