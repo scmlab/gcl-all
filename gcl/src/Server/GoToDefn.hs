@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Server.GoToDefn
   ( collectLocationLinks,
@@ -33,8 +32,10 @@ collectLocationLinks program = runM (programToScopes program) (collect program)
 type LocationLinkToBe = Range -> LocationLink
 
 -- | Extracts Scopes from a Program
+-- | The LocationLinkToBe here contains only the "target" info, i.e. the definition / declaration parts.
+-- | It will become a full LocationLink when we have the "origin" info.
 programToScopes :: Program -> [Scope LocationLinkToBe]
-programToScopes (Program defns decls _ _ _) = [topLevelScope]
+programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a single scope for now
   where
     topLevelScope :: Map Text LocationLinkToBe
     topLevelScope = Map.mapKeys nameToText locationLinks
