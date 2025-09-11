@@ -110,7 +110,6 @@ adapt :: Tok -> String -> Parser (Token a)
 adapt t errMsg = do
   loc <- symbol t <?> errMsg
   case loc of
-    NoLoc -> error "NoLoc when parsing token"
     Loc l r -> return $ Token l r
 
 tokenConst :: Parser (Token "con")

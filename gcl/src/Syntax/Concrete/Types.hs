@@ -48,68 +48,68 @@ data SepBy (sep :: Symbol) a = Head a | Delim a (Token sep) (SepBy sep a)
 --------------------------------------------------------------------------------
 
 -- | Program
-data Program
+data Program a
   = Program
-      [Either Declaration DefinitionBlock] -- constant and variable declarations
-      [Stmt] -- main program
+      [Either (Declaration a) (DefinitionBlock a)] -- constant and variable declarations
+      [Stmt a] -- main program
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Definitions
-data DefinitionBlock = DefinitionBlock (Token "{:") [Definition] (Token ":}") deriving (Eq, Show)
+data DefinitionBlock a = DefinitionBlock (Token "{:") [Definition a] (Token ":}") deriving (Eq, Show)
 
-data Definition
+data Definition a
   = -- data T a1 a2 ... = K1 v1 v2 ... | K2 u1 u2 ...
-    TypeDefn (Token "data") Name [Name] (Token "=") (SepBy "|" TypeDefnCtor)
+    TypeDefn (Token "data") (Name a) [Name a] (Token "=") (SepBy "|" (TypeDefnCtor a))
   | -- f : A -> B { Prop }
-    FuncDefnSig DeclBase (Maybe DeclProp)
+    FuncDefnSig (DeclBase a) (Maybe (DeclProp a))
   | -- f a = a
-    FuncDefn Name [Name] (Token "=") Expr
+    FuncDefn (Name a) [Name a] (Token "=") (Expr a)
   deriving (Eq, Show)
 
-data TypeDefnCtor = TypeDefnCtor Name [Type] deriving (Eq, Show)
+data TypeDefnCtor a = TypeDefnCtor (Name a) [Type a] deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Declaration
-data Declaration
-  = ConstDecl (Token "con") DeclType
-  | VarDecl (Token "var") DeclType
+data Declaration a
+  = ConstDecl (Token "con") (DeclType a)
+  | VarDecl (Token "var") (DeclType a)
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- Low level Declaration wrapper, and synonym types
-data DeclBase = DeclBase (SepBy "," Name) (Token ":") Type deriving (Eq, Show)
+data DeclBase a = DeclBase (SepBy "," (Name a)) (Token ":") (Type a) deriving (Eq, Show)
 
-data DeclProp = DeclProp (Token "{") Expr (Token "}") deriving (Eq, Show)
+data DeclProp a = DeclProp (Token "{") (Expr a) (Token "}") deriving (Eq, Show)
 
-data DeclType = DeclType DeclBase (Maybe DeclProp) deriving (Eq, Show)
+data DeclType a = DeclType (DeclBase a) (Maybe (DeclProp a)) deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Statements
-data Stmt
+data Stmt a
   = Skip Range
   | Abort Range
-  | Assign (SepBy "," Name) (Token ":=") (SepBy "," Expr)
-  | AAssign Name (Token "[") Expr (Token "]") (Token ":=") Expr
-  | Assert (Token "{") Expr (Token "}")
-  | LoopInvariant (Token "{") Expr (Token ",") (Token "bnd") (Token ":") Expr (Token "}")
-  | Do (Token "do") (SepBy "|" GdCmd) (Token "od")
-  | If (Token "if") (SepBy "|" GdCmd) (Token "fi")
+  | Assign (SepBy "," (Name a)) (Token ":=") (SepBy "," (Expr a))
+  | AAssign (Name a) (Token "[") (Expr a) (Token "]") (Token ":=") (Expr a)
+  | Assert (Token "{") (Expr a) (Token "}")
+  | LoopInvariant (Token "{") (Expr a) (Token ",") (Token "bnd") (Token ":") (Expr a) (Token "}")
+  | Do (Token "do") (SepBy "|" (GdCmd a)) (Token "od")
+  | If (Token "if") (SepBy "|" (GdCmd a)) (Token "fi")
   | SpecQM Range -- ? to be rewritten as [!!]
   | Spec (Token "[!") [L Tok] (Token "!]")
   | Proof Text Text Text Range -- anchor, the content of the block, the whole proof block (for pretty's reconstruction)
-  | Alloc Name (Token ":=") (Token "new") (Token "(") (SepBy "," Expr) (Token ")")
-  | HLookup Name (Token ":=") (Token "*") Expr
-  | HMutate (Token "*") Expr (Token ":=") Expr
-  | Dispose (Token "dispose") Expr
-  | Block (Token "|[") Program (Token "]|")
+  | Alloc (Name a) (Token ":=") (Token "new") (Token "(") (SepBy "," (Expr a)) (Token ")")
+  | HLookup (Name a) (Token ":=") (Token "*") (Expr a)
+  | HMutate (Token "*") (Expr a) (Token ":=") (Expr a)
+  | Dispose (Token "dispose") (Expr a)
+  | Block (Token "|[") (Program a) (Token "]|")
   deriving (Eq, Show)
 
-data GdCmd = GdCmd Expr TokArrows [Stmt] deriving (Eq, Show)
+data GdCmd a = GdCmd (Expr a) TokArrows [Stmt a] deriving (Eq, Show)
 
 -- data ProofAnchor = ProofAnchor Text Range deriving (Eq, Show)
 -- data TextContents = TextContents Text Range deriving (Eq, Show)
@@ -117,18 +117,18 @@ data GdCmd = GdCmd Expr TokArrows [Stmt] deriving (Eq, Show)
 --------------------------------------------------------------------------------
 
 -- | Endpoint
-data EndpointOpen
-  = IncludingOpening (Token "[") Expr
-  | ExcludingOpening (Token "(") Expr
+data EndpointOpen a
+  = IncludingOpening (Token "[") (Expr a)
+  | ExcludingOpening (Token "(") (Expr a)
   deriving (Eq, Show)
 
-data EndpointClose
-  = IncludingClosing Expr (Token "]")
-  | ExcludingClosing Expr (Token ")")
+data EndpointClose a
+  = IncludingClosing (Expr a) (Token "]")
+  | ExcludingClosing (Expr a) (Token ")")
   deriving (Eq, Show)
 
 -- | Interval
-data Interval = Interval EndpointOpen (Token "..") EndpointClose deriving (Eq, Show)
+data Interval a = Interval (EndpointOpen a) (Token "..") (EndpointClose a) deriving (Eq, Show)
 
 -- | Base Type
 data TBase
@@ -138,61 +138,61 @@ data TBase
   deriving (Eq, Show)
 
 -- | Type
-data Type
-  = TParen (Token "(") Type (Token ")")
+data Type a
+  = TParen (Token "(") (Type a) (Token ")")
   | TBase TBase
-  | TArray (Token "array") Interval (Token "of") Type
+  | TArray (Token "array") (Interval a) (Token "of") (Type a)
   | TOp (TypeOp Loc)
-  | TData Name Range
-  | TApp Type Type
-  | TMetaVar Name Range
+  | TData (Name a) Range
+  | TApp (Type a) (Type a)
+  | TMetaVar (Name a) Range
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Expressions
-data Expr
-  = Paren (Token "(") Expr (Token ")")
+data Expr a
+  = Paren (Token "(") (Expr a) (Token ")")
   | Lit Lit
-  | Var Name
-  | Const Name
+  | Var (Name a)
+  | Const (Name a)
   | Op (ArithOp Loc)
-  | Chain Chain
-  | Arr Expr (Token "[") Expr (Token "]")
-  | App Expr Expr
+  | Chain (Chain a)
+  | Arr (Expr a) (Token "[") (Expr a) (Token "]")
+  | App (Expr a) (Expr a)
   | Quant
       TokQuantStarts
       QuantOp'
-      [Name]
+      [Name a]
       (Token ":")
-      Expr
+      (Expr a)
       (Token ":")
-      Expr
+      (Expr a)
       TokQuantEnds
   | -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
-    Case (Token "case") Expr (Token "of") [CaseClause]
+    Case (Token "case") (Expr a) (Token "of") [CaseClause a]
   deriving (Eq, Show, Generic)
 
-data Chain = Pure Expr | More Chain (ChainOp Loc) Expr
+data Chain a = Pure (Expr a) | More (Chain a) (ChainOp Loc) (Expr a)
   deriving (Eq, Show, Generic)
 
-type QuantOp' = Either (ArithOp Loc) Name
+type QuantOp' = Either (ArithOp Loc) (Name Loc)
 
 --------------------------------------------------------------------------------
 
 -- | Pattern matching
 
 -- ctor1 binder1 binder2 ... -> expr
-data CaseClause = CaseClause Pattern TokArrows Expr
+data CaseClause a = CaseClause (Pattern a) TokArrows (Expr a)
   deriving (Eq, Show, Generic)
 
 -- NOTE: current not in use
-data Pattern
+data Pattern a
   = PattLit Lit
-  | PattParen (Token "(") Pattern (Token ")") -- pattern wrapped inside a pair of parenthesis
-  | PattBinder Name -- binder
+  | PattParen (Token "(") (Pattern a) (Token ")") -- pattern wrapped inside a pair of parenthesis
+  | PattBinder (Name a) -- binder
   | PattWildcard (Token "_") -- matches anything
-  | PattConstructor Name [Pattern] -- destructs a constructor
+  | PattConstructor (Name a) [Pattern a] -- destructs a constructor
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------

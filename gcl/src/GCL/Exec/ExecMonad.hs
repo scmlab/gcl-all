@@ -43,7 +43,7 @@ class
   where
   lookupStore :: Loc -> Var -> m Val
   updateStore :: Loc -> Var -> Val -> m ()
-  shuffle :: [GdCmd] -> m [GdCmd]
+  shuffle :: [GdCmd a] -> m [GdCmd a]
 
   lookupStore l x =
     (lookup x <$> get) >>= \case

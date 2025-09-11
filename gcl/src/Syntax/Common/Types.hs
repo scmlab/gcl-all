@@ -5,7 +5,6 @@ module Syntax.Common.Types where
 
 import Control.Arrow (Arrow (second))
 import Data.Function (on)
-import Data.Loc
 import Data.Loc.Range ()
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -17,17 +16,17 @@ import Prelude hiding (Ordering (..))
 --------------------------------------------------------------------------------
 
 -- | Variables and stuff
-data Name = Name Text Loc
+data Name a = Name Text a
   deriving (Show, Generic)
 
 -- | Compare regardless of their locations
-instance Eq Name where
+instance (Eq a) => Eq (Name a) where
   (==) = (==) `on` nameToText
 
-instance Ord Name where
+instance (Ord a) => Ord (Name a) where
   compare (Name a _) (Name b _) = compare a b
 
-nameToText :: Name -> Text
+nameToText :: Name a -> Text
 nameToText (Name x _) = x
 
 --------------------------------------------------------------------------------

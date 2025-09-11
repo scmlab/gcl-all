@@ -3,7 +3,6 @@
 module Syntax.Abstract.Types where
 
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc (Loc)
 import Data.Loc.Range (Range)
 import Data.Map (Map)
 import Data.Set (Set)
@@ -28,58 +27,58 @@ type TypeVar = Text
 --------------------------------------------------------------------------------
 
 -- | Program
-data Program
+data Program a
   = Program
-      [Definition] -- definitions (the functional language part)
-      [Declaration] -- constant and variable declarations
-      [Expr] -- global properties
-      [Stmt] -- main program
-      Loc
+      [Definition a] -- definitions (the functional language part)
+      [Declaration a] -- constant and variable declarations
+      [Expr a] -- global properties
+      [Stmt a] -- main program
+      a
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Definition (the functional language part)
-data Definition
-  = TypeDefn Name [Name] [TypeDefnCtor] Loc
-  | FuncDefnSig Name Type (Maybe Expr) Loc
-  | FuncDefn Name Expr
+data Definition a
+  = TypeDefn (Name a) [Name a] [TypeDefnCtor a] a
+  | FuncDefnSig (Name a) (Type a) (Maybe (Expr a)) a
+  | FuncDefn (Name a) (Expr a)
   deriving (Eq, Show)
 
 -- constructor of type definition
-data TypeDefnCtor = TypeDefnCtor Name [Type]
+data TypeDefnCtor a = TypeDefnCtor (Name a) [Type a]
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Declaration
-data Declaration
-  = ConstDecl [Name] Type (Maybe Expr) Loc
-  | VarDecl [Name] Type (Maybe Expr) Loc
+data Declaration a
+  = ConstDecl [Name a] (Type a) (Maybe (Expr a)) a
+  | VarDecl [Name a] (Type a) (Maybe (Expr a)) a
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
-data Stmt
-  = Skip Loc
-  | Abort Loc
-  | Assign [Name] [Expr] Loc
-  | AAssign Expr Expr Expr Loc
-  | Assert Expr Loc
-  | LoopInvariant Expr Expr Loc
-  | Do [GdCmd] Loc
-  | If [GdCmd] Loc
+data Stmt a
+  = Skip a
+  | Abort a
+  | Assign [Name a] [Expr a] a
+  | AAssign (Expr a) (Expr a) (Expr a) a
+  | Assert (Expr a) a
+  | LoopInvariant (Expr a) (Expr a) a
+  | Do [GdCmd a] a
+  | If [GdCmd a] a
   | Spec Text Range
   | Proof Text Text Range
   | -- pointer operations
-    Alloc Name [Expr] Loc --  p := new (e1,e2,..,en)
-  | HLookup Name Expr Loc --  x := *e
-  | HMutate Expr Expr Loc --  *e1 := e2
-  | Dispose Expr Loc --  dispose e
-  | Block Program Loc
+    Alloc (Name a) [Expr a] a --  p := new (e1,e2,..,en)
+  | HLookup (Name a) (Expr a) a --  x := *e
+  | HMutate (Expr a) (Expr a) a --  *e1 := e2
+  | Dispose (Expr a) a --  dispose e
+  | Block (Program a) a
   deriving (Eq, Show)
 
-data GdCmd = GdCmd Expr [Stmt] Loc
+data GdCmd a = GdCmd (Expr a) [Stmt a] a
   deriving (Eq, Show)
 
 -- data ProofAnchor = ProofAnchor Text Range
@@ -88,13 +87,13 @@ data GdCmd = GdCmd Expr [Stmt] Loc
 --------------------------------------------------------------------------------
 
 -- | Kinds
-data Kind
-  = KStar Loc
-  | KFunc Kind Kind Loc
-  | KMetaVar Name
+data Kind a
+  = KStar a
+  | KFunc (Kind a) (Kind a) a
+  | KMetaVar (Name a)
   deriving (Show, Generic)
 
-instance Eq Kind where
+instance (Eq a) => Eq (Kind a) where
   KStar _ == KStar _ = True
   KFunc l1 r1 _ == KFunc l2 r2 _ = l1 == l2 && r1 == r2
   KMetaVar name1 == KMetaVar name2 = name1 == name2
@@ -103,10 +102,10 @@ instance Eq Kind where
 --------------------------------------------------------------------------------
 
 -- | Endpoint
-data Endpoint = Including Expr | Excluding Expr deriving (Eq, Show, Generic)
+data Endpoint a = Including (Expr a) | Excluding (Expr a) deriving (Eq, Show, Generic)
 
 -- | Interval
-data Interval = Interval Endpoint Endpoint Loc
+data Interval a = Interval (Endpoint a) (Endpoint a) a
   deriving (Eq, Show, Generic)
 
 -- | Base Types
@@ -114,20 +113,20 @@ data TBase = TInt | TBool | TChar
   deriving (Show, Eq, Generic)
 
 -- | Types
-data Type
-  = TBase TBase Loc
-  | TArray Interval Type Loc -- TODO: Make this a higher-kinded type.
+data Type a
+  = TBase TBase a
+  | TArray (Interval a) (Type a) a -- TODO: Make this a higher-kinded type.
   -- TTuple has no srcloc info because it has no conrete syntax at the moment
   | TTuple Int -- `Int` represents the arity of the tuple.
-  | TFunc Type Type Loc
-  | TOp (TypeOp Loc)
-  | TData Name Loc
-  | TApp Type Type Loc
-  | TVar Name Loc
-  | TMetaVar Name Loc
+  | TFunc (Type a) (Type a) a
+  | TOp (TypeOp a)
+  | TData (Name a) a
+  | TApp (Type a) (Type a) a
+  | TVar (Name a) a
+  | TMetaVar (Name a) a
   deriving (Show, Generic)
 
-instance Eq Type where
+instance (Eq a) => Eq (Type a) where
   TBase base1 _ == TBase base2 _ = base1 == base2
   TArray int1 ty1 _ == TArray int2 ty2 _ = int1 == int2 && ty1 == ty2
   TTuple i1 == TTuple i2 = i1 == i2
@@ -141,66 +140,66 @@ instance Eq Type where
 --------------------------------------------------------------------------------
 
 -- | Expressions
-data Expr
-  = Lit Lit Loc
-  | Var Name Loc
-  | Const Name Loc
-  | Op (ArithOp Loc)
-  | Chain Chain
-  | App Expr Expr Loc
-  | Lam Name Expr Loc
-  | Func Name (NonEmpty FuncClause) Loc
+data Expr a
+  = Lit Lit a
+  | Var (Name a) a
+  | Const (Name a) a
+  | Op (ArithOp a)
+  | Chain (Chain a)
+  | App (Expr a) (Expr a) a
+  | Lam (Name a) (Expr a) a
+  | Func (Name a) (NonEmpty (FuncClause a)) a
   | -- Tuple has no srcloc info because it has no conrete syntax at the moment
-    Tuple [Expr]
-  | Quant Expr [Name] Expr Expr Loc
+    Tuple [Expr a]
+  | Quant (Expr a) [Name a] (Expr a) (Expr a) a
   | -- The innermost part of a Redex
     -- should look something like `P [ x \ a ] [ y \ b ]`
     RedexKernel
-      Name -- the variable to be substituted
-      Expr -- the expression for substituting the variable
-      (Set Name) -- free variables in that expression
+      (Name a) -- the variable to be substituted
+      (Expr a) -- the expression for substituting the variable
+      (Set (Name a)) -- free variables in that expression
       -- NOTE, the expression may be some definition like "P",
       --  in that case, the free variables should be that of after it's been expanded
-      (NonEmpty Mapping)
+      (NonEmpty (Mapping a))
   | -- a list of mappings of substitutions to be displayed to users (the `[ x \ a ] [ y \ b ]` part)
     -- The order is reflected.
     -- The outermost part of a Redex
     RedexShell
       Int -- for identifying Redexes in frontend-backend interactions
-      Expr -- should either be `RedexKernel` or `App (App (App ... RedexKernel arg0) ... argn`
-  | ArrIdx Expr Expr Loc
-  | ArrUpd Expr Expr Expr Loc
-  | Case Expr [CaseClause] Loc
+      (Expr a) -- should either be `RedexKernel` or `App (App (App ... RedexKernel arg0) ... argn`
+  | ArrIdx (Expr a) (Expr a) a
+  | ArrUpd (Expr a) (Expr a) (Expr a) a
+  | Case (Expr a) [CaseClause a] a
   deriving (Eq, Show, Generic)
 
-data Chain = Pure Expr Loc | More Chain (ChainOp Loc) Expr Loc
+data Chain a = Pure (Expr a) a | More (Chain a) (ChainOp a) (Expr a) a
   deriving (Eq, Show, Generic)
 
 -- QuantOp' seems not being used at current version of abstract?
-type QuantOp' = Either (ArithOp Loc) Expr
+type QuantOp' a = Either (ArithOp a) (Expr a)
 
-type Mapping = Map Text Expr
+type Mapping a = Map Text (Expr a)
 
 --------------------------------------------------------------------------------
 
 -- | Pattern matching
 
 -- pattern -> expr
-data CaseClause = CaseClause Pattern Expr
+data CaseClause a = CaseClause (Pattern a) (Expr a)
   deriving (Eq, Show, Generic)
 
 -- pattern0 pattern1 pattern2 ... -> expr
-data FuncClause = FuncClause [Pattern] Expr
+data FuncClause a = FuncClause [Pattern a] (Expr a)
   deriving (Eq, Show, Generic)
 
-data Pattern
+data Pattern a
   = PattLit Lit
-  | PattBinder Name -- binder
+  | PattBinder (Name a) -- binder
   | PattWildcard Range -- matches anything
-  | PattConstructor Name [Pattern] -- destructs a constructor
+  | PattConstructor (Name a) [Pattern a] -- destructs a constructor
   deriving (Eq, Show, Generic)
 
-extractBinder :: Pattern -> [Name]
+extractBinder :: Pattern a -> [Name a]
 extractBinder (PattLit _) = []
 extractBinder (PattBinder x) = [x]
 extractBinder (PattWildcard _) = []

@@ -44,29 +44,29 @@ import Prelude hiding
 --------------------------------------------------------------------------------
 -- The elaboration monad
 
-type ElaboratorM = StateT (FreshState, [(Index, Kind)], [(Index, TypeInfo)], [(Name, Type, [Type])]) (Except TypeError)
+type ElaboratorM a = StateT (FreshState, [(Index, Kind a)], [(Index, TypeInfo)], [(Name a, Type a, [Type a])]) (Except (TypeError a))
 
-instance Counterous ElaboratorM where
+instance Counterous (ElaboratorM a) where
   countUp = do
     (count, typeDefnInfo, typeInfo, patInfo) <- get
     put (succ count, typeDefnInfo, typeInfo, patInfo)
     return count
 
-data TypeError
-  = NotInScope Name
-  | UnifyFailed Type Type Loc
-  | KindUnifyFailed Kind Kind Loc -- TODO: Deal with this replication in a better way.
-  | RecursiveType Name Type Loc
-  | AssignToConst Name
-  | UndefinedType Name
-  | DuplicatedIdentifiers [Name]
-  | RedundantNames [Name]
-  | RedundantExprs [Expr]
-  | MissingArguments [Name]
-  | PatternArityMismatch {- Expected -} Int {- Actual -} Int Loc
+data TypeError a
+  = NotInScope (Name a)
+  | UnifyFailed (Type a) (Type a) a
+  | KindUnifyFailed (Kind a) (Kind a) a -- TODO: Deal with this replication in a better way.
+  | RecursiveType (Name a) (Type a) a
+  | AssignToConst (Name a)
+  | UndefinedType (Name a)
+  | DuplicatedIdentifiers [Name a]
+  | RedundantNames [Name a]
+  | RedundantExprs [Expr a]
+  | MissingArguments [Name a]
+  | PatternArityMismatch {- Expected -} Int {- Actual -} Int a
   deriving (Show, Eq, Generic)
 
-instance Located TypeError where
+instance Located (TypeError a) where
   locOf (NotInScope n) = locOf n
   locOf (UnifyFailed _ _ l) = l
   locOf (KindUnifyFailed _ _ l) = l

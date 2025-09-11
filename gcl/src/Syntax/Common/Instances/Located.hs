@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
-
 module Syntax.Common.Instances.Located where
 
 import Data.Loc
@@ -10,49 +8,49 @@ instance (Located a, Located b) => Located (Either a b) where
   locOf (Left a) = locOf a
   locOf (Right b) = locOf b
 
-instance Located Name where
-  locOf (Name _ l) = l
+instance (Located a) => Located (Name a) where
+  locOf (Name _ l) = locOf l
 
-instance Located (ChainOp Loc) where
-  locOf (EQProp l) = l
-  locOf (EQPropU l) = l
-  locOf (EQ l) = l
-  locOf (NEQ l) = l
-  locOf (NEQU l) = l
-  locOf (LTE l) = l
-  locOf (LTEU l) = l
-  locOf (GTE l) = l
-  locOf (GTEU l) = l
-  locOf (LT l) = l
-  locOf (GT l) = l
+instance (Located a) => Located (ChainOp a) where
+  locOf (EQProp l) = locOf l
+  locOf (EQPropU l) = locOf l
+  locOf (EQ l) = locOf l
+  locOf (NEQ l) = locOf l
+  locOf (NEQU l) = locOf l
+  locOf (LTE l) = locOf l
+  locOf (LTEU l) = locOf l
+  locOf (GTE l) = locOf l
+  locOf (GTEU l) = locOf l
+  locOf (LT l) = locOf l
+  locOf (GT l) = locOf l
 
-instance Located (ArithOp Loc) where
-  locOf (Implies l) = l
-  locOf (ImpliesU l) = l
-  locOf (Disj l) = l
-  locOf (DisjU l) = l
-  locOf (Conj l) = l
-  locOf (ConjU l) = l
-  locOf (Neg l) = l
-  locOf (NegU l) = l
-  locOf (NegNum l) = l
-  locOf (Add l) = l
-  locOf (Sub l) = l
-  locOf (Mul l) = l
-  locOf (Div l) = l
-  locOf (Mod l) = l
-  locOf (Max l) = l
-  locOf (Min l) = l
-  locOf (Exp l) = l
-  locOf (Hash l) = l
-  locOf (PointsTo l) = l
-  locOf (SConj l) = l
-  locOf (SImp l) = l
+instance (Located a) => Located (ArithOp a) where
+  locOf (Implies l) = locOf l
+  locOf (ImpliesU l) = locOf l
+  locOf (Disj l) = locOf l
+  locOf (DisjU l) = locOf l
+  locOf (Conj l) = locOf l
+  locOf (ConjU l) = locOf l
+  locOf (Neg l) = locOf l
+  locOf (NegU l) = locOf l
+  locOf (NegNum l) = locOf l
+  locOf (Add l) = locOf l
+  locOf (Sub l) = locOf l
+  locOf (Mul l) = locOf l
+  locOf (Div l) = locOf l
+  locOf (Mod l) = locOf l
+  locOf (Max l) = locOf l
+  locOf (Min l) = locOf l
+  locOf (Exp l) = locOf l
+  locOf (Hash l) = locOf l
+  locOf (PointsTo l) = locOf l
+  locOf (SConj l) = locOf l
+  locOf (SImp l) = locOf l
 
-instance Located (TypeOp Loc) where
-  locOf (Arrow l) = l
+instance (Located a) => Located (TypeOp a) where
+  locOf (Arrow l) = locOf l
 
-instance Located (Op Loc) where
+instance (Located a) => Located (Op a) where
   locOf (ChainOp op) = locOf op
   locOf (ArithOp op) = locOf op
   locOf (TypeOp op) = locOf op

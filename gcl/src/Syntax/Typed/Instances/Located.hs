@@ -5,22 +5,22 @@ import Syntax.Common ()
 import Syntax.Typed.Types
 import Prelude hiding (Ordering (..))
 
-instance Located Program where
+instance Located (Program a) where
   locOf (Program _ _ _ _ l) = l
 
-instance Located Declaration where
+instance Located (Declaration a) where
   locOf (ConstDecl _ _ _ l) = l
   locOf (VarDecl _ _ _ l) = l
 
-instance Located Definition where
+instance Located (Definition a) where
   locOf (TypeDefn _ _ _ r) = r
   locOf (FuncDefnSig _ _ _ r) = r
   locOf (FuncDefn l r) = l <--> r
 
-instance Located TypeDefnCtor where
+instance Located (TypeDefnCtor a) where
   locOf (TypeDefnCtor l r) = l <--> r
 
-instance Located Stmt where
+instance Located (Stmt a) where
   locOf (Skip l) = l
   locOf (Abort l) = l
   locOf (Assign _ _ l) = l
@@ -37,10 +37,10 @@ instance Located Stmt where
   locOf (Dispose _ l) = l
   locOf (Block _ l) = l
 
-instance Located GdCmd where
+instance Located (GdCmd a) where
   locOf (GdCmd _ _ l) = l
 
-instance Located Expr where
+instance Located (Expr a) where
   locOf (Lit _ _ l) = l
   locOf (Var _ _ l) = l
   locOf (Const _ _ l) = l
@@ -54,6 +54,6 @@ instance Located Expr where
   locOf (Case _ _ l) = l
   locOf (Subst _ _) = NoLoc
 
-instance Located Chain where
+instance Located (Chain a) where
   locOf (Pure e) = locOf e
   locOf (More _ _ _ e) = locOf e

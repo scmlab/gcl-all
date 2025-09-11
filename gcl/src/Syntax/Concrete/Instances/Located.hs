@@ -18,31 +18,31 @@ instance (Located a, Located c) => Located (a, b, c) where
 
 --------------------------------------------------------------------------------
 
-instance Located Program where
+instance (Located a) => Located (Program a) where
   locOf (Program a b) = a <--> b
 
-instance Located Declaration where
+instance (Located a) => Located (Declaration a) where
   locOf (ConstDecl l r) = l <--> r
   locOf (VarDecl l r) = l <--> r
 
-instance Located TypeDefnCtor where
+instance (Located a) => Located (TypeDefnCtor a) where
   locOf (TypeDefnCtor l r) = l <--> r
 
-instance Located DefinitionBlock where
+instance Located (DefinitionBlock a) where
   locOf (DefinitionBlock l _ r) = l <--> r
 
-instance Located DeclBase where
+instance (Located a) => Located (DeclBase a) where
   locOf (DeclBase l _ r) = l <--> r
 
-instance Located DeclProp where
+instance Located (DeclProp a) where
   locOf (DeclProp l _ r) = l <--> r
 
-instance Located DeclType where
+instance (Located a) => Located (DeclType a) where
   locOf (DeclType l r) = l <--> r
 
 -------------------------------------------------------------------------------
 
-instance Located Stmt where
+instance (Located a) => Located (Stmt a) where
   locOf (Skip l) = locOf l
   locOf (Abort l) = locOf l
   locOf (Assign l _ r) = l <--> r
@@ -62,15 +62,15 @@ instance Located Stmt where
 
 --------------------------------------------------------------------------------
 
-instance Located EndpointOpen where
+instance (Located a) => Located (EndpointOpen a) where
   locOf (IncludingOpening l e) = l <--> e
   locOf (ExcludingOpening l e) = l <--> e
 
-instance Located EndpointClose where
+instance (Located a) => Located (EndpointClose a) where
   locOf (IncludingClosing e l) = e <--> l
   locOf (ExcludingClosing e l) = e <--> l
 
-instance Located Interval where
+instance (Located a) => Located (Interval a) where
   locOf (Interval l _ r) = l <--> r
 
 instance Located TBase where
@@ -78,7 +78,7 @@ instance Located TBase where
   locOf (TBool l) = locOf l
   locOf (TChar l) = locOf l
 
-instance Located Type where
+instance Located (Type a) where
   locOf (TParen l _ r) = l <--> r
   locOf (TBase a) = locOf a
   locOf (TArray l _ _ r) = l <--> r
@@ -89,7 +89,7 @@ instance Located Type where
 
 --------------------------------------------------------------------------------
 
-instance Located Expr where
+instance (Located a) => Located (Expr a) where
   locOf (Paren l _ r) = l <--> r
   locOf (Lit x) = locOf x
   locOf (Var x) = locOf x
@@ -101,16 +101,16 @@ instance Located Expr where
   locOf (Quant l _ _ _ _ _ _ r) = l <--> r
   locOf (Case l _ _ r) = l <--> r
 
-instance Located Chain where
+instance (Located a) => Located (Chain a) where
   locOf (Pure expr) = locOf expr
   locOf (More ch _ expr) = ch <--> expr
 
-instance Located CaseClause where
+instance (Located a) => Located (CaseClause a) where
   locOf (CaseClause l _ r) = l <--> r
 
 --------------------------------------------------------------------------------
 
-instance Located Pattern where
+instance (Located a) => Located (Pattern a) where
   locOf (PattLit l) = locOf l
   locOf (PattParen l _ r) = l <--> r
   locOf (PattBinder l) = locOf l

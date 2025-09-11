@@ -7,81 +7,81 @@ import GCL.Common (Index, TypeInfo)
 import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
 import Syntax.Common.Types (Name, Op, TypeOp)
 
-data Program
+data Program a
   = Program
-      [Definition] -- definitions (the functional language part)
-      [Declaration] -- constant and variable declarations
-      [Expr] -- global properties
-      [Stmt] -- main program
-      Loc
+      [Definition a] -- definitions (the functional language part)
+      [Declaration a] -- constant and variable declarations
+      [Expr a] -- global properties
+      [Stmt a] -- main program
+      a
   deriving (Eq, Show)
 
-data Definition
-  = TypeDefn Name [Name] [TypeDefnCtor] Loc
-  | FuncDefnSig Name KindedType (Maybe Expr) Loc
-  | FuncDefn Name Expr
+data Definition a
+  = TypeDefn (Name a) [Name a] [TypeDefnCtor a] a
+  | FuncDefnSig (Name a) (KindedType a) (Maybe (Expr a)) a
+  | FuncDefn (Name a) (Expr a)
   deriving (Eq, Show)
 
-data TypeDefnCtor = TypeDefnCtor Name [Type]
+data TypeDefnCtor a = TypeDefnCtor (Name a) [Type a]
   deriving (Eq, Show)
 
-data Declaration
-  = ConstDecl [Name] Type (Maybe Expr) Loc
-  | VarDecl [Name] Type (Maybe Expr) Loc
+data Declaration a
+  = ConstDecl [Name a] (Type a) (Maybe (Expr a)) a
+  | VarDecl [Name a] (Type a) (Maybe (Expr a)) a
   deriving (Eq, Show)
 
-data Stmt
-  = Skip Loc
-  | Abort Loc
-  | Assign [Name] [Expr] Loc
-  | AAssign Expr Expr Expr Loc
-  | Assert Expr Loc
-  | LoopInvariant Expr Expr Loc
-  | Do [GdCmd] Loc
-  | If [GdCmd] Loc
+data Stmt a
+  = Skip a
+  | Abort a
+  | Assign [Name a] [Expr a] a
+  | AAssign (Expr a) (Expr a) (Expr a) a
+  | Assert (Expr a) a
+  | LoopInvariant (Expr a) (Expr a) a
+  | Do [GdCmd a] a
+  | If [GdCmd a] a
   | Spec Text Range [(Index, TypeInfo)]
   | Proof Text Text Range
-  | Alloc Name [Expr] Loc --  p := new (e1,e2,..,en)
-  | HLookup Name Expr Loc --  x := *e
-  | HMutate Expr Expr Loc --  *e1 := e2
-  | Dispose Expr Loc --  dispose e
-  | Block Program Loc
+  | Alloc (Name a) [Expr a] a --  p := new (e1,e2,..,en)
+  | HLookup (Name a) (Expr a) a --  x := *e
+  | HMutate (Expr a) (Expr a) a --  *e1 := e2
+  | Dispose (Expr a) a --  dispose e
+  | Block (Program a) a
   deriving (Eq, Show)
 
-data GdCmd = GdCmd Expr [Stmt] Loc
+data GdCmd a = GdCmd (Expr a) [Stmt] a
   deriving (Eq, Show)
 
-data Expr
-  = Lit Lit Type Loc
-  | Var Name Type Loc
-  | Const Name Type Loc
-  | Op (Op Loc) Type
-  | Chain Chain
-  | App Expr Expr Loc
-  | Lam Name Type Expr Loc
-  | Quant Expr [Name] Expr Expr Loc
-  | ArrIdx Expr Expr Loc
-  | ArrUpd Expr Expr Expr Loc
-  | Case Expr [CaseClause] Loc
-  | Subst Expr [(Name, Expr)]
+data Expr a
+  = Lit Lit (Type a) a
+  | Var (Name a) (Type a) a
+  | Const (Name a) (Type a) a
+  | Op (Op a) (Type a)
+  | Chain (Chain a)
+  | App (Expr a) (Expr a) a
+  | Lam (Name a) (Type a) (Expr a) a
+  | Quant (Expr a) [Name a] (Expr a) (Expr a) a
+  | ArrIdx (Expr a) (Expr a) a
+  | ArrUpd (Expr a) (Expr a) (Expr a) a
+  | Case (Expr a) [CaseClause a] a
+  | Subst (Expr a) [(Name a, Expr a)]
   deriving (Eq, Show)
 
-data CaseClause = CaseClause Pattern Expr
+data CaseClause a = CaseClause (Pattern a) (Expr a)
   deriving (Eq, Show)
 
-data Chain
-  = Pure Expr
-  | More Chain (Op Loc) Type Expr
+data Chain a
+  = Pure (Expr a)
+  | More (Chain a) (Op a) (Type a) (Expr a)
   deriving (Eq, Show)
 
-data KindedType
-  = TBase TBase Kind Loc
-  | TArray Interval KindedType Loc
-  | TTuple Int Kind
-  | TFunc KindedType KindedType Loc
-  | TOp (TypeOp Loc) Kind
-  | TData Name Kind Loc
-  | TApp KindedType KindedType Loc
-  | TVar Name Kind Loc
-  | TMetaVar Name Kind Loc
+data KindedType a
+  = TBase TBase (Kind a) a
+  | TArray (Interval a) (KindedType a) a
+  | TTuple Int (Kind a)
+  | TFunc (KindedType a) (KindedType a) a
+  | TOp (TypeOp a) (Kind a)
+  | TData (Name a) (Kind a) a
+  | TApp (KindedType a) (KindedType a) a
+  | TVar (Name a) (Kind a) a
+  | TMetaVar (Name a) (Kind a) a
   deriving (Show, Eq)

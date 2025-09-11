@@ -8,23 +8,23 @@ import Data.Aeson
 import Data.Loc (Loc (..), Pos (..))
 import Syntax.Common.Types
 
-instance ToJSON Name where
-  toJSON :: Name -> Value
+instance (ToJSON a) => ToJSON (Name a) where
+  toJSON :: Name a -> Value
   toJSON (Name text loc) =
     object
       [ "symbol" .= String text,
         "location" .= toJSON loc
       ]
 
-instance ToJSONKey Name
+instance (ToJSON a) => ToJSONKey (Name a)
 
-instance ToJSON (ChainOp Loc)
+instance (ToJSON a) => ToJSON (ChainOp a)
 
-instance ToJSON (ArithOp Loc)
+instance (ToJSON a) => ToJSON (ArithOp a)
 
-instance ToJSON (TypeOp Loc)
+instance (ToJSON a) => ToJSON (TypeOp a)
 
-instance ToJSON (Op Loc)
+instance (ToJSON a) => ToJSON (Op a)
 
 instance ToJSON Loc where
   toJSON :: Loc -> Value
