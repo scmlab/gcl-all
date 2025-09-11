@@ -1,30 +1,30 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Syntax.Common.Instances.Json where
 
 import Data.Aeson
-import Data.Aeson.Types (Parser)
 import Data.Loc (Loc (..), Pos (..))
 import Syntax.Common.Types
 
-instance ToJSON Name where
-  toJSON :: Name -> Value
+instance (ToJSON a) => ToJSON (Name a) where
+  toJSON :: Name a -> Value
   toJSON (Name text loc) =
     object
       [ "symbol" .= String text,
         "location" .= toJSON loc
       ]
 
-instance ToJSONKey Name
+instance (ToJSON a) => ToJSONKey (Name a)
 
-instance ToJSON ChainOp
+instance (ToJSON a) => ToJSON (ChainOp a)
 
-instance ToJSON ArithOp
+instance (ToJSON a) => ToJSON (ArithOp a)
 
-instance ToJSON TypeOp
+instance (ToJSON a) => ToJSON (TypeOp a)
 
-instance ToJSON Op
+instance (ToJSON a) => ToJSON (Op a)
 
 instance ToJSON Loc where
   toJSON :: Loc -> Value

@@ -33,21 +33,21 @@ import Syntax.Common
 -- Nothing
 -- (locOf cn)
 
-wrapTFunc :: [Type] -> Type -> Type
+wrapTFunc :: [Type Loc] -> Type Loc -> Type Loc -- FIXME: can't remove NoLoc right now
 wrapTFunc [] t = t
 wrapTFunc (t : ts) t0 = let t0' = wrapTFunc ts t0 in TApp (TApp (TOp (Arrow NoLoc)) t NoLoc) t0' (locOf t0) -- TODO: What should the loc be?
 
-getGuards :: [GdCmd] -> [Expr]
+getGuards :: [GdCmd a] -> [Expr a]
 getGuards = fst . unzipGdCmds
 
-unzipGdCmds :: [GdCmd] -> ([Expr], [[Stmt]])
+unzipGdCmds :: [GdCmd a] -> ([Expr a], [[Stmt a]])
 unzipGdCmds = unzip . map (\(GdCmd x y _) -> (x, y))
 
-wrapLam :: [Name] -> Expr -> Expr
+wrapLam :: [Name Loc] -> Expr Loc -> Expr Loc -- FIXME: can't remove (<-->) right now
 wrapLam [] body = body
 wrapLam (x : xs) body = let b = wrapLam xs body in Lam x b (x <--> b)
 
-declaredNames :: [Declaration] -> [Name]
+declaredNames :: [Declaration a] -> [Name a]
 declaredNames decls = concat . map extractNames $ decls
   where
     extractNames (ConstDecl ns _ _ _) = ns
@@ -57,7 +57,7 @@ declaredNames decls = concat . map extractNames $ decls
 -- constant/variable declaration => Nothing
 
 -- TODO:
-programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
+programToScopeForSubstitution :: (Ord a) => Program a -> Map Text (Maybe (Expr a))
 programToScopeForSubstitution (Program defns decls _ _ _) =
   Map.mapKeys nameToText $
     foldMap extractDeclaration decls
@@ -67,13 +67,13 @@ programToScopeForSubstitution (Program defns decls _ _ _) =
          )
         defns
   where
-    extractDeclaration :: Declaration -> Map Name (Maybe Expr)
+    extractDeclaration :: (Ord a) => Declaration a -> Map (Name a) (Maybe (Expr a))
     extractDeclaration (ConstDecl names _ _ _) =
       Map.fromList (zip names (repeat Nothing))
     extractDeclaration (VarDecl names _ _ _) =
       Map.fromList (zip names (repeat Nothing))
 
-pickFuncDefn :: Definition -> Maybe (Name, Expr)
+pickFuncDefn :: Definition a -> Maybe (Name a, Expr a)
 pickFuncDefn (FuncDefn n expr) = Just (n, expr)
 pickFuncDefn _ = Nothing
 
@@ -94,7 +94,7 @@ combineFuncDefns defns =
 -- mergeFuncDefnsOfTheSameName :: [Expr] -> [Expr] -> [Expr]
 -- mergeFuncDefnsOfTheSameName = (<>)
 
-baseToName :: TBase -> Name
-baseToName TInt = Name "Int" NoLoc
-baseToName TBool = Name "Bool" NoLoc
-baseToName TChar = Name "Char" NoLoc
+baseToName :: TBase -> Name ()
+baseToName TInt = Name "Int" ()
+baseToName TBool = Name "Bool" ()
+baseToName TChar = Name "Char" ()

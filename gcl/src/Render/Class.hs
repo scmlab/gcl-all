@@ -30,8 +30,8 @@ data PrecContext
   = NoContext
   | AppHOLE
   | HOLEApp
-  | OpHOLE Op
-  | HOLEOp Op
+  | OpHOLE (Op Loc)
+  | HOLEOp (Op Loc)
   deriving (Show, Eq)
 
 -- | Typeclass for rendering Inline Elements

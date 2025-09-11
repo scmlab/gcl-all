@@ -6,25 +6,25 @@ import Data.Aeson
   )
 import Syntax.Abstract.Types
 
-instance ToJSON Endpoint
+instance (ToJSON a) => ToJSON (Endpoint a)
 
-instance ToJSON Interval
+instance (ToJSON a) => ToJSON (Interval a)
 
 instance ToJSON TBase
 
-instance ToJSON Type
+instance (ToJSON a) => ToJSON (Type a)
 
-instance ToJSON Kind
+instance (ToJSON a) => ToJSON (Kind a)
 
-instance ToJSON Expr
+instance (ToJSON a) => ToJSON (Expr a)
 
-instance ToJSON Chain
+instance (ToJSON a) => ToJSON (Chain a)
 
-instance ToJSON FuncClause
+instance (ToJSON a) => ToJSON (FuncClause a)
 
-instance ToJSON CaseClause
+instance (ToJSON a) => ToJSON (CaseClause a)
 
-instance ToJSON Pattern
+instance (ToJSON a) => ToJSON (Pattern a)
 
 instance ToJSON Lit
 

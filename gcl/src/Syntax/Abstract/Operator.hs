@@ -17,13 +17,13 @@ import Syntax.Common
 import Prelude hiding (Ordering (..))
 
 -- | Constructors
-unary :: ArithOp -> Expr -> Expr
+unary :: ArithOp Loc -> Expr -> Expr
 unary op x = App (Op op) x (x <--> op)
 
-arith :: ArithOp -> Expr -> Expr -> Expr
+arith :: ArithOp Loc -> Expr -> Expr -> Expr
 arith op x y = App (App (Op op) x (x <--> op)) y (x <--> y)
 
-chain :: ChainOp -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
+chain :: ChainOp Loc -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
 chain op x y = Chain (More (Pure x (x <--> op)) op y (x <--> y))
 
 lt, gt, gte, lte, eqq, conj, disj, implies, add :: Expr -> Expr -> Expr
