@@ -7,15 +7,8 @@
 
 module GCL.Common where
 
-import Control.Monad.Except
-import Control.Monad.RWS (MonadState (get, put), RWST (..))
+import Control.Monad.RWS (RWST (..))
 import Control.Monad.State (StateT (..))
-import Data.Aeson (ToJSON)
-import Data.Loc
-  ( Loc (..),
-    Located,
-    locOf,
-  )
 import Data.Loc.Range (Range)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -30,15 +23,15 @@ import GHC.Generics
 import Syntax.Abstract
 import Syntax.Common.Types
 
-data Index = Index Name | Hole Range deriving (Eq, Show, Ord)
+data Index l = Index (Name l) | Hole Range deriving (Eq, Show, Ord)
 
-data TypeInfo
-  = TypeDefnCtorInfo Type
-  | ConstTypeInfo Type
-  | VarTypeInfo Type
+data TypeInfo l
+  = TypeDefnCtorInfo (Type l)
+  | ConstTypeInfo (Type l)
+  | VarTypeInfo (Type l)
   deriving (Eq, Show, Generic)
 
-toTypeEnv :: [(Index, TypeInfo)] -> TypeEnv
+toTypeEnv :: [(Index l, TypeInfo l)] -> TypeEnv l
 toTypeEnv infos =
   ( \(index, info) ->
       case info of
@@ -48,14 +41,14 @@ toTypeEnv infos =
   )
     <$> infos
 
-type TypeEnv = [(Index, Type)]
+type TypeEnv l = [(Index l, Type l)]
 
-type KindEnv = [KindItem]
+type KindEnv l = [KindItem l]
 
-data KindItem
-  = KindAnno Name Kind
-  | UnsolvedUni Name
-  | SolvedUni Name Kind
+data KindItem l
+  = KindAnno (Name l) (Kind l)
+  | UnsolvedUni (Name l)
+  | SolvedUni (Name l) (Kind l)
   deriving (Show)
 
 -- get a fresh variable
@@ -65,13 +58,13 @@ class (Monad m) => Fresh m where
 
   freshPre :: Text -> m Text
 
-freshName :: (Fresh m) => Text -> Loc -> m Name
+freshName :: (Fresh m) => Text -> l -> m (Name l)
 freshName prefix l = Name <$> freshPre prefix <*> pure l
 
-freshName' :: (Fresh m) => Text -> m Name
-freshName' prefix = freshName prefix NoLoc
+freshName' :: (Fresh m) => Text -> m (Name ())
+freshName' prefix = freshName prefix ()
 
-freshNames :: (Fresh m) => [Text] -> m [Name]
+freshNames :: (Fresh m) => [Text] -> m [Name ()]
 freshNames = mapM freshName'
 
 class Counterous m where
@@ -92,17 +85,17 @@ type FreshState = Int
 initFreshState :: FreshState
 initFreshState = 0
 
-type Subs a = Map Name a
+type Subs a l = Map (Name l) a
 
-type Env a = Map Name a
+type Env a l = Map (Name l) a
 
-emptySubs :: Subs a
+emptySubs :: Ord l => Subs a l
 emptySubs = mempty
 
-emptyEnv :: Env a
+emptyEnv :: Ord l => Env a l
 emptyEnv = mempty
 
-freeMetaVars :: Type -> Set Name
+freeMetaVars :: Ord l => Type l -> Set (Name l)
 freeMetaVars (TBase _ _) = mempty
 freeMetaVars (TArray _ t _) = freeMetaVars t
 freeMetaVars (TTuple _) = mempty
@@ -114,30 +107,30 @@ freeMetaVars (TVar _ _) = mempty
 freeMetaVars (TMetaVar n _) = Set.singleton n
 
 -- A class of types for which we may compute their free variables.
-class Free a where
-  freeVars :: a -> Set Name
-  freeVarsT :: a -> Set Text
-  freeVarsT = Set.map nameToText . freeVars
+class Free a l where
+  freeVars :: a -> Set (Name l)
+  -- freeVarsT :: a -> Set Text -- FIXME: cannot unify types
+  -- freeVarsT = Set.map nameToText . freeVars
 
-occurs :: (Free a) => Name -> a -> Bool
+occurs :: (Ord l, Free a l) => Name l -> a -> Bool
 occurs n x = n `Set.member` freeVars x
 
-instance (Free a) => Free (Subs a) where
+instance (Ord l, Free a l) => Free (Subs a l) l where
   freeVars = Set.unions . Map.map freeVars
 
-instance {-# OVERLAPPABLE #-} (Free a) => Free [a] where
+instance {-# OVERLAPPABLE #-} (Ord l, Free a l) => Free [a] l where
   freeVars l = foldMap freeVars l
 
-instance (Free a, Free b) => Free (a, b) where
+instance (Ord l, Free a l, Free b l) => Free (a, b) l where
   freeVars (x, y) = freeVars x <> freeVars y
 
-instance (Free a, Free b, Free c) => Free (a, b, c) where
+instance (Ord l, Free a l, Free b l, Free c l) => Free (a, b, c) l where
   freeVars (x, y, z) = freeVars x <> freeVars y <> freeVars z
 
-instance (Free a) => Free (Maybe a) where
+instance (Ord l, Free a l) => Free (Maybe a) l where
   freeVars = maybe mempty freeVars
 
-instance Free Type where
+instance Ord l => Free (Type l) l where
   freeVars (TBase _ _) = mempty
   freeVars (TArray _ t _) = freeVars t
   freeVars (TTuple _) = mempty
@@ -148,10 +141,10 @@ instance Free Type where
   freeVars (TVar x _) = Set.singleton x
   freeVars (TMetaVar n _) = Set.singleton n
 
-instance {-# OVERLAPS #-} Free TypeEnv where
+instance {-# OVERLAPS #-} Ord l => Free (TypeEnv l) l where
   freeVars env = foldMap freeVars $ Map.elems $ Map.fromList env
 
-instance Free Expr where
+instance Ord l => Free (Expr l) l where
   freeVars (Var x _) = Set.singleton x
   freeVars (Const x _) = Set.singleton x
   freeVars (Op _) = mempty
@@ -169,29 +162,29 @@ instance Free Expr where
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e clauses _) = freeVars e <> Set.unions (map freeVars clauses)
 
-instance Free Chain where
+instance Ord l => Free (Chain l) l where
   freeVars (Pure expr _) = freeVars expr
   freeVars (More chain _op expr _) = freeVars chain <> freeVars expr
 
-instance Free FuncClause where
+instance Ord l => Free (FuncClause l) l where
   freeVars (FuncClause patterns expr) = freeVars expr \\ Set.unions (map freeVars patterns)
 
-instance Free CaseClause where
+instance Ord l => Free (CaseClause l) l where
   freeVars (CaseClause patt expr) = freeVars expr \\ freeVars patt
 
-instance Free Pattern where
+instance Ord l => Free (Pattern l) l where
   freeVars (PattLit _) = mempty
   freeVars (PattBinder n) = Set.singleton n
   freeVars (PattWildcard _) = mempty
   freeVars (PattConstructor _ ps) = foldMap freeVars ps
 
-instance Free Declaration where
+instance Ord l => Free (Declaration l) l where
   freeVars (ConstDecl ns t expr _) =
     Set.fromList ns <> freeVars t <> freeVars expr
   freeVars (VarDecl ns t expr _) =
     Set.fromList ns <> freeVars t <> freeVars expr
 
-instance Free Stmt where
+instance Ord l => Free (Stmt l) l where
   freeVars (Skip _) = mempty
   freeVars (Abort _) = mempty
   freeVars (Assign ns es _) =
@@ -212,11 +205,11 @@ instance Free Stmt where
   freeVars (Dispose e _) = freeVars e
   freeVars (Block prog _) = freeVars prog
 
-instance Free GdCmd where
+instance Ord l => Free (GdCmd l) l where
   freeVars (GdCmd g stmts _) =
     freeVars g <> Set.unions (map freeVars stmts)
 
-instance Free Program where
+instance Ord l => Free (Program l) l where
   freeVars (Program _defns decls props stmts _) =
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 
