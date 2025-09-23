@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -89,13 +89,13 @@ type Subs a l = Map (Name l) a
 
 type Env a l = Map (Name l) a
 
-emptySubs :: Ord l => Subs a l
+emptySubs :: (Ord l) => Subs a l
 emptySubs = mempty
 
-emptyEnv :: Ord l => Env a l
+emptyEnv :: (Ord l) => Env a l
 emptyEnv = mempty
 
-freeMetaVars :: Ord l => Type l -> Set (Name l)
+freeMetaVars :: (Ord l) => Type l -> Set (Name l)
 freeMetaVars (TBase _ _) = mempty
 freeMetaVars (TArray _ t _) = freeMetaVars t
 freeMetaVars (TTuple _) = mempty
@@ -107,10 +107,10 @@ freeMetaVars (TVar _ _) = mempty
 freeMetaVars (TMetaVar n _) = Set.singleton n
 
 -- A class of types for which we may compute their free variables.
-class Free a l where
+class Free a l | a -> l where
   freeVars :: a -> Set (Name l)
-  -- freeVarsT :: a -> Set Text -- FIXME: cannot unify types
-  -- freeVarsT = Set.map nameToText . freeVars
+  freeVarsT :: a -> Set Text -- FIXME: cannot unify types
+  freeVarsT = Set.map nameToText . freeVars
 
 occurs :: (Ord l, Free a l) => Name l -> a -> Bool
 occurs n x = n `Set.member` freeVars x
@@ -130,7 +130,7 @@ instance (Ord l, Free a l, Free b l, Free c l) => Free (a, b, c) l where
 instance (Ord l, Free a l) => Free (Maybe a) l where
   freeVars = maybe mempty freeVars
 
-instance Ord l => Free (Type l) l where
+instance (Ord l) => Free (Type l) l where
   freeVars (TBase _ _) = mempty
   freeVars (TArray _ t _) = freeVars t
   freeVars (TTuple _) = mempty
@@ -141,10 +141,10 @@ instance Ord l => Free (Type l) l where
   freeVars (TVar x _) = Set.singleton x
   freeVars (TMetaVar n _) = Set.singleton n
 
-instance {-# OVERLAPS #-} Ord l => Free (TypeEnv l) l where
+instance {-# OVERLAPS #-} (Ord l) => Free (TypeEnv l) l where
   freeVars env = foldMap freeVars $ Map.elems $ Map.fromList env
 
-instance Ord l => Free (Expr l) l where
+instance (Ord l) => Free (Expr l) l where
   freeVars (Var x _) = Set.singleton x
   freeVars (Const x _) = Set.singleton x
   freeVars (Op _) = mempty
@@ -162,29 +162,29 @@ instance Ord l => Free (Expr l) l where
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e clauses _) = freeVars e <> Set.unions (map freeVars clauses)
 
-instance Ord l => Free (Chain l) l where
+instance (Ord l) => Free (Chain l) l where
   freeVars (Pure expr _) = freeVars expr
   freeVars (More chain _op expr _) = freeVars chain <> freeVars expr
 
-instance Ord l => Free (FuncClause l) l where
+instance (Ord l) => Free (FuncClause l) l where
   freeVars (FuncClause patterns expr) = freeVars expr \\ Set.unions (map freeVars patterns)
 
-instance Ord l => Free (CaseClause l) l where
+instance (Ord l) => Free (CaseClause l) l where
   freeVars (CaseClause patt expr) = freeVars expr \\ freeVars patt
 
-instance Ord l => Free (Pattern l) l where
+instance (Ord l) => Free (Pattern l) l where
   freeVars (PattLit _) = mempty
   freeVars (PattBinder n) = Set.singleton n
   freeVars (PattWildcard _) = mempty
   freeVars (PattConstructor _ ps) = foldMap freeVars ps
 
-instance Ord l => Free (Declaration l) l where
+instance (Ord l) => Free (Declaration l) l where
   freeVars (ConstDecl ns t expr _) =
     Set.fromList ns <> freeVars t <> freeVars expr
   freeVars (VarDecl ns t expr _) =
     Set.fromList ns <> freeVars t <> freeVars expr
 
-instance Ord l => Free (Stmt l) l where
+instance (Ord l) => Free (Stmt l) l where
   freeVars (Skip _) = mempty
   freeVars (Abort _) = mempty
   freeVars (Assign ns es _) =
@@ -205,11 +205,11 @@ instance Ord l => Free (Stmt l) l where
   freeVars (Dispose e _) = freeVars e
   freeVars (Block prog _) = freeVars prog
 
-instance Ord l => Free (GdCmd l) l where
+instance (Ord l) => Free (GdCmd l) l where
   freeVars (GdCmd g stmts _) =
     freeVars g <> Set.unions (map freeVars stmts)
 
-instance Ord l => Free (Program l) l where
+instance (Ord l) => Free (Program l) l where
   freeVars (Program _defns decls props stmts _) =
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 
