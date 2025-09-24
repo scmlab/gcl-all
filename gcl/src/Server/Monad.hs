@@ -73,6 +73,7 @@ data FileState = FileState
     positionDelta :: PositionDelta, -- loadedVersion ~> editedVersion
     editedVersion :: LSP.Int32 -- the version number of the last change
   }
+  deriving (Show)
 
 -- | Constructs an initial global state
 initGlobalEnv :: IO GlobalState
@@ -118,6 +119,9 @@ loadFileState filePath = do
 
 saveFileState :: FilePath -> FileState -> ServerM ()
 saveFileState filePath fileState = do
+  logTextLn ">>>> saveFileState: fileState"
+  logTextLn . Text.pack . show $ fileState
+  logTextLn "<<<< saveFileState: fileState"
   fileStateRef <- lift $ asks filesState
   liftIO $ modifyIORef fileStateRef (Map.insert filePath fileState)
 
@@ -140,8 +144,10 @@ modifyFileState :: FilePath -> (FileState -> FileState) -> ServerM ()
 modifyFileState filePath modifier = do
   maybeFileState <- loadFileState filePath
   case maybeFileState of
-    Nothing -> return ()
+    Nothing ->
+      logText "modifyFileState: not found\n"
     Just fileState -> do
+      logText "modifyFileState: found\n"
       let fileState' = modifier fileState
       saveFileState filePath fileState'
 

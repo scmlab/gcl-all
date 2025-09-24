@@ -85,6 +85,7 @@ toLSPPosition (Pos _path ln col _offset) = J.Position ((Hack.intToUInt (ln - 1))
 --  >ghi\r               (3, 15)
 --
 newtype ToOffset = ToOffset {unToOffset :: IntMap Int}
+  deriving (Show)
 
 data Accum = Accum
   { _accumPreviousChar :: Maybe Char,
