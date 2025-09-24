@@ -146,7 +146,7 @@ handler _params@RefineParams {filePath, specLines, specText, implStart} onFinish
                                   let FileState {editedVersion} = fileState
                                   updateIdCounter filePath idCount'
                                   logText "  counter updated (refine)\n"
-                                  let innerSpecs' = predictAndTranslateSpecRanges $ map (\spec -> spec {specTypeEnv = typeEnv}) innerSpecs
+                                  let innerSpecs' = predictAndTranslateSpecRanges innerSpecs
                                   let innerPos' = predictAndTranslatePosRanges innerPos
                                   let innerWarnings' = predictAndTranslateWarningsRanges innerWarnings
                                   pushSpecs (editedVersion + 1) filePath innerSpecs'
