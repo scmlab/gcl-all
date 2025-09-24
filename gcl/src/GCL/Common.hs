@@ -38,6 +38,7 @@ data TypeInfo
   | VarTypeInfo Type
   deriving (Eq, Show, Generic)
 
+{-
 toTypeEnv :: [(Index, TypeInfo)] -> TypeEnv
 toTypeEnv infos =
   ( \(index, info) ->
@@ -47,6 +48,7 @@ toTypeEnv infos =
         VarTypeInfo ty -> (index, ty)
   )
     <$> infos
+-}
 
 type TypeEnv = [(Index, Type)]
 
