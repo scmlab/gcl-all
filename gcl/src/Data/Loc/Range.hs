@@ -124,7 +124,7 @@ within :: Range -> Range -> Bool
 within (Range a b) (Range c d) = posCol c <= posCol a && posCol b <= posCol d
 
 instance Located Range where
-  locOf (Range x y) = Loc x y
+  locOf (Range x y) = Loc x y -- WARN: this maybe wrong
 
 -- | Merge two ranges by filling their gap
 instance Semigroup Range where

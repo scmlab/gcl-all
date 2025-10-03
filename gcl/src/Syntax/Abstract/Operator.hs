@@ -1,11 +1,8 @@
 module Syntax.Abstract.Operator where
 
-import Data.Loc
-  ( Loc (..),
-    locOf,
-    (<-->),
-  )
+import Data.Loc.Range (Range)
 import Data.Text (Text)
+import qualified Hack
 import Syntax.Abstract
   ( Chain (..),
     Expr (..),
@@ -17,82 +14,82 @@ import Syntax.Common
 import Prelude hiding (Ordering (..))
 
 -- | Constructors
-unary :: ArithOp Loc -> Expr -> Expr
-unary op x = App (Op op) x (x <--> op)
+unary :: (Hack.IsRange a) => ArithOp a -> Expr a -> Expr a
+unary op x = App (Op op) x (Hack.info x Hack.<--> Hack.info op)
 
-arith :: ArithOp Loc -> Expr -> Expr -> Expr
-arith op x y = App (App (Op op) x (x <--> op)) y (x <--> y)
+arith :: (Hack.IsRange a) => ArithOp a -> Expr a -> Expr a -> Expr a
+arith op x y = App (App (Op op) x (Hack.info x Hack.<--> Hack.info op)) y (Hack.info x Hack.<--> Hack.info y)
 
-chain :: ChainOp Loc -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
-chain op x y = Chain (More (Pure x (x <--> op)) op y (x <--> y))
+chain :: (Hack.IsRange a) => ChainOp a -> Expr a -> Expr a -> Expr a -- TODO: This might be wrong. Needs further investigation.
+chain op x y = Chain (More (Pure x (Hack.info x Hack.<--> Hack.info op)) op y (Hack.info x Hack.<--> Hack.info y))
 
-lt, gt, gte, lte, eqq, conj, disj, implies, add :: Expr -> Expr -> Expr
-lt = (chain . LT) NoLoc
-gt = (chain . GT) NoLoc
-gte = (chain . GTEU) NoLoc
-lte = (chain . LTEU) NoLoc
-eqq = (chain . EQ) NoLoc
-conj = (arith . ConjU) NoLoc
-disj = (arith . DisjU) NoLoc
-implies = (arith . ImpliesU) NoLoc
-add = (arith . Add) NoLoc
+lt, gt, gte, lte, eqq, conj, disj, implies, add :: Expr (Maybe Range) -> Expr (Maybe Range) -> Expr (Maybe Range)
+lt = (chain . LT) Nothing
+gt = (chain . GT) Nothing
+gte = (chain . GTEU) Nothing
+lte = (chain . LTEU) Nothing
+eqq = (chain . EQ) Nothing
+conj = (arith . ConjU) Nothing
+disj = (arith . DisjU) Nothing
+implies = (arith . ImpliesU) Nothing
+add = (arith . Add) Nothing
 
-neg :: Expr -> Expr
-neg = (unary . NegU) NoLoc
+neg :: Expr (Maybe Range) -> Expr (Maybe Range)
+neg = (unary . NegU) Nothing
 
-true :: Expr
-true = Lit (Bol True) NoLoc
+true :: Expr (Maybe Range)
+true = Lit (Bol True) Nothing
 
-false :: Expr
-false = Lit (Bol False) NoLoc
+false :: Expr (Maybe Range)
+false = Lit (Bol False) Nothing
 
-conjunct :: [Expr] -> Expr
+conjunct :: [Expr (Maybe Range)] -> Expr (Maybe Range)
 conjunct [] = true
 conjunct xs = foldl1 conj xs
 
-disjunct :: [Expr] -> Expr
+disjunct :: [Expr (Maybe Range)] -> Expr (Maybe Range)
 disjunct [] = false
 disjunct xs = foldl1 disj xs
 
-imply :: Expr -> Expr -> Expr
-imply p q = App (App ((Op . ImpliesU) NoLoc) p (locOf p)) q (locOf q)
+imply :: Expr (Maybe Range) -> Expr (Maybe Range) -> Expr (Maybe Range)
+imply p q = App (App ((Op . ImpliesU) Nothing) p (Hack.info p)) q (Hack.info q)
 
-predEq :: Expr -> Expr -> Bool
+predEq :: Expr (Maybe Range) -> Expr (Maybe Range) -> Bool
 predEq = (==)
 
-constant :: Text -> Expr
-constant x = Const (Name x NoLoc) NoLoc
+constant :: Text -> Expr (Maybe Range)
+constant x = Const (Name x Nothing) Nothing
 
-variable :: Text -> Expr
-variable x = Var (Name x NoLoc) NoLoc
+variable :: Text -> Expr (Maybe Range)
+variable x = Var (Name x Nothing) Nothing
 
-nameVar :: Name -> Expr
-nameVar x = Var x NoLoc
+nameVar :: Name (Maybe Range) -> Expr (Maybe Range)
+nameVar x = Var x Nothing
 
-number :: Int -> Expr
-number n = Lit (Num n) NoLoc
+number :: Int -> Expr (Maybe Range)
+number n = Lit (Num n) Nothing
 
-exists :: [Name] -> Expr -> Expr -> Expr
-exists xs ran term = Quant (Op (DisjU NoLoc)) xs ran term NoLoc
+exists :: [Name (Maybe Range)] -> Expr (Maybe Range) -> Expr (Maybe Range) -> Expr (Maybe Range)
+exists xs ran term = Quant (Op (DisjU Nothing)) xs ran term Nothing
 
-forAll :: [Name] -> Expr -> Expr -> Expr
-forAll xs ran term = Quant (Op (ConjU NoLoc)) xs ran term NoLoc
+forAll :: [Name (Maybe Range)] -> Expr (Maybe Range) -> Expr (Maybe Range) -> Expr (Maybe Range)
+forAll xs ran term = Quant (Op (ConjU Nothing)) xs ran term Nothing
 
-pointsTo, sConj, sImp :: Expr -> Expr -> Expr
-pointsTo = (arith . PointsTo) NoLoc
-sConj = (arith . SConj) NoLoc
-sImp = (arith . SImp) NoLoc
+pointsTo, sConj, sImp :: Expr (Maybe Range) -> Expr (Maybe Range) -> Expr (Maybe Range)
+pointsTo = (arith . PointsTo) Nothing
+sConj = (arith . SConj) Nothing
+sImp = (arith . SImp) Nothing
 
-sconjunct :: [Expr] -> Expr
+sconjunct :: [Expr (Maybe Range)] -> Expr (Maybe Range)
 sconjunct [] = true
 sconjunct xs = foldl1 sConj xs
 
 -- | Frequently Used Types / Type Operators
-tBool :: Type
-tBool = TBase TBool NoLoc
+tBool :: Type (Maybe Range)
+tBool = TBase TBool Nothing
 
-tInt :: Type
-tInt = TBase TInt NoLoc
+tInt :: Type (Maybe Range)
+tInt = TBase TInt Nothing
 
-tFunc :: Type -> Type -> Type
-s `tFunc` t = TFunc s t NoLoc
+tFunc :: Type (Maybe Range) -> Type (Maybe Range) -> Type (Maybe Range)
+s `tFunc` t = TFunc s t Nothing

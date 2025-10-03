@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -42,7 +43,7 @@ data ChainOp a
   | GTEU a
   | LT a
   | GT a
-  deriving (Eq, Show, Generic, Ord)
+  deriving (Eq, Show, Generic, Ord, Foldable)
 
 data ArithOp a
   = -- logic
@@ -69,7 +70,7 @@ data ArithOp a
     PointsTo a -- a |-> v
   | SConj a
   | SImp a
-  deriving (Eq, Show, Generic, Ord)
+  deriving (Eq, Show, Generic, Ord, Foldable)
 
 newtype TypeOp a = Arrow a
   deriving (Eq, Show, Generic, Ord)

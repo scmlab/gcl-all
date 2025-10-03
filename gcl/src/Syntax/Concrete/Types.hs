@@ -91,17 +91,17 @@ data DeclType a = DeclType (DeclBase a) (Maybe (DeclProp a)) deriving (Eq, Show)
 
 -- | Statements
 data Stmt a
-  = Skip Range
-  | Abort Range
+  = Skip a
+  | Abort a
   | Assign (SepBy "," (Name a)) (Token ":=") (SepBy "," (Expr a))
   | AAssign (Name a) (Token "[") (Expr a) (Token "]") (Token ":=") (Expr a)
   | Assert (Token "{") (Expr a) (Token "}")
   | LoopInvariant (Token "{") (Expr a) (Token ",") (Token "bnd") (Token ":") (Expr a) (Token "}")
   | Do (Token "do") (SepBy "|" (GdCmd a)) (Token "od")
   | If (Token "if") (SepBy "|" (GdCmd a)) (Token "fi")
-  | SpecQM Range -- ? to be rewritten as [!!]
+  | SpecQM a -- ? to be rewritten as [!!]
   | Spec (Token "[!") [L Tok] (Token "!]")
-  | Proof Text Text Text Range -- anchor, the content of the block, the whole proof block (for pretty's reconstruction)
+  | Proof Text Text Text a -- anchor, the content of the block, the whole proof block (for pretty's reconstruction)
   | Alloc (Name a) (Token ":=") (Token "new") (Token "(") (SepBy "," (Expr a)) (Token ")")
   | HLookup (Name a) (Token ":=") (Token "*") (Expr a)
   | HMutate (Token "*") (Expr a) (Token ":=") (Expr a)
@@ -131,21 +131,21 @@ data EndpointClose a
 data Interval a = Interval (EndpointOpen a) (Token "..") (EndpointClose a) deriving (Eq, Show)
 
 -- | Base Type
-data TBase
-  = TInt Range
-  | TBool Range
-  | TChar Range
+data TBase a
+  = TInt a
+  | TBool a
+  | TChar a
   deriving (Eq, Show)
 
 -- | Type
 data Type a
   = TParen (Token "(") (Type a) (Token ")")
-  | TBase TBase
+  | TBase (TBase a)
   | TArray (Token "array") (Interval a) (Token "of") (Type a)
-  | TOp (TypeOp Loc)
-  | TData (Name a) Range
+  | TOp (TypeOp a)
+  | TData (Name a) a
   | TApp (Type a) (Type a)
-  | TMetaVar (Name a) Range
+  | TMetaVar (Name a) a
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
@@ -153,16 +153,16 @@ data Type a
 -- | Expressions
 data Expr a
   = Paren (Token "(") (Expr a) (Token ")")
-  | Lit Lit
+  | Lit (Lit a)
   | Var (Name a)
   | Const (Name a)
-  | Op (ArithOp Loc)
+  | Op (ArithOp a)
   | Chain (Chain a)
   | Arr (Expr a) (Token "[") (Expr a) (Token "]")
   | App (Expr a) (Expr a)
   | Quant
       TokQuantStarts
-      QuantOp'
+      (QuantOp' a)
       [Name a]
       (Token ":")
       (Expr a)
@@ -173,10 +173,10 @@ data Expr a
     Case (Token "case") (Expr a) (Token "of") [CaseClause a]
   deriving (Eq, Show, Generic)
 
-data Chain a = Pure (Expr a) | More (Chain a) (ChainOp Loc) (Expr a)
+data Chain a = Pure (Expr a) | More (Chain a) (ChainOp a) (Expr a)
   deriving (Eq, Show, Generic)
 
-type QuantOp' = Either (ArithOp Loc) (Name Loc)
+type QuantOp' a = Either (ArithOp a) (Name a)
 
 --------------------------------------------------------------------------------
 
@@ -188,7 +188,7 @@ data CaseClause a = CaseClause (Pattern a) TokArrows (Expr a)
 
 -- NOTE: current not in use
 data Pattern a
-  = PattLit Lit
+  = PattLit (Lit a)
   | PattParen (Token "(") (Pattern a) (Token ")") -- pattern wrapped inside a pair of parenthesis
   | PattBinder (Name a) -- binder
   | PattWildcard (Token "_") -- matches anything
@@ -198,7 +198,7 @@ data Pattern a
 --------------------------------------------------------------------------------
 
 -- | Literals (Integer / Boolean / Character)
-data Lit = LitInt Int Range | LitBool Bool Range | LitChar Char Range
+data Lit a = LitInt Int a | LitBool Bool a | LitChar Char a
   deriving (Show, Eq, Generic)
 
 --------------------------------------------------------------------------------

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFoldable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Syntax.Abstract.Types where
@@ -58,7 +59,6 @@ data Declaration a
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
-
 data Stmt a
   = Skip a
   | Abort a
@@ -68,8 +68,8 @@ data Stmt a
   | LoopInvariant (Expr a) (Expr a) a
   | Do [GdCmd a] a
   | If [GdCmd a] a
-  | Spec Text Range
-  | Proof Text Text Range
+  | Spec Text a
+  | Proof Text Text a
   | -- pointer operations
     Alloc (Name a) [Expr a] a --  p := new (e1,e2,..,en)
   | HLookup (Name a) (Expr a) a --  x := *e
@@ -170,10 +170,10 @@ data Expr a
   | ArrIdx (Expr a) (Expr a) a
   | ArrUpd (Expr a) (Expr a) (Expr a) a
   | Case (Expr a) [CaseClause a] a
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Foldable)
 
 data Chain a = Pure (Expr a) a | More (Chain a) (ChainOp a) (Expr a) a
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Foldable)
 
 -- QuantOp' seems not being used at current version of abstract?
 type QuantOp' a = Either (ArithOp a) (Expr a)

@@ -2,6 +2,11 @@
 
 module Hack where
 
+import Control.Applicative ((<|>))
+import Data.Loc (Loc (NoLoc), Located (..))
+import Data.Loc.Range (Range (..))
+import Data.Maybe (fromJust)
+import Data.Monoid (getLast)
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 
@@ -26,3 +31,22 @@ uIntToInt = fromEnum
 -- - https://hackage.haskell.org/package/lsp-types-2.3.0.1/docs/Language-LSP-Protocol-Message.html#t:ErrorData
 resToTRes :: LSP.ResponseError -> LSP.TResponseError m
 resToTRes (LSP.ResponseError c m _) = LSP.TResponseError c m Nothing
+
+-- WARN: not properly tested
+-- hacky substitution for `Located.hs` definitions
+info :: (Foldable f) => f a -> a
+info = fromJust . getLast . foldMap pure
+
+instance Located () where
+  locOf _ = NoLoc
+
+class IsRange a where
+  (<-->) :: a -> a -> a
+
+instance IsRange Range where
+  -- WARN: not commutative
+  (Range s1 _) <--> (Range _ e2) = Range s1 e2
+
+instance (IsRange a) => IsRange (Maybe a) where
+  (Just r1) <--> (Just r2) = Just (r1 <--> r2)
+  r1 <--> r2 = r1 <|> r2
