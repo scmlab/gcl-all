@@ -66,9 +66,9 @@ data Definition a
     FuncDefnSig (DeclBase a) (Maybe (DeclProp a))
   | -- f a = a
     FuncDefn (Name a) [Name a] (Token "=") (Expr a)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
-data TypeDefnCtor a = TypeDefnCtor (Name a) [Type a] deriving (Eq, Show)
+data TypeDefnCtor a = TypeDefnCtor (Name a) [Type a] deriving (Eq, Show, Functor, Foldable)
 
 --------------------------------------------------------------------------------
 
@@ -81,11 +81,11 @@ data Declaration a
 --------------------------------------------------------------------------------
 
 -- Low level Declaration wrapper, and synonym types
-data DeclBase a = DeclBase (SepBy "," (Name a)) (Token ":") (Type a) deriving (Eq, Show)
+data DeclBase a = DeclBase (SepBy "," (Name a)) (Token ":") (Type a) deriving (Eq, Show, Functor, Foldable)
 
-data DeclProp a = DeclProp (Token "{") (Expr a) (Token "}") deriving (Eq, Show)
+data DeclProp a = DeclProp (Token "{") (Expr a) (Token "}") deriving (Eq, Show, Functor, Foldable)
 
-data DeclType a = DeclType (DeclBase a) (Maybe (DeclProp a)) deriving (Eq, Show)
+data DeclType a = DeclType (DeclBase a) (Maybe (DeclProp a)) deriving (Eq, Show, Functor, Foldable)
 
 --------------------------------------------------------------------------------
 
@@ -120,22 +120,22 @@ data GdCmd a = GdCmd (Expr a) TokArrows [Stmt a] deriving (Eq, Show)
 data EndpointOpen a
   = IncludingOpening (Token "[") (Expr a)
   | ExcludingOpening (Token "(") (Expr a)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
 data EndpointClose a
   = IncludingClosing (Expr a) (Token "]")
   | ExcludingClosing (Expr a) (Token ")")
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
 -- | Interval
-data Interval a = Interval (EndpointOpen a) (Token "..") (EndpointClose a) deriving (Eq, Show)
+data Interval a = Interval (EndpointOpen a) (Token "..") (EndpointClose a) deriving (Eq, Show, Functor, Foldable)
 
 -- | Base Type
 data TBase a
   = TInt a
   | TBool a
   | TChar a
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
 -- | Type
 data Type a
@@ -146,7 +146,7 @@ data Type a
   | TData (Name a) a
   | TApp (Type a) (Type a)
   | TMetaVar (Name a) a
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
 --------------------------------------------------------------------------------
 
@@ -171,10 +171,10 @@ data Expr a
       TokQuantEnds
   | -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
     Case (Token "case") (Expr a) (Token "of") [CaseClause a]
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Functor, Foldable)
 
 data Chain a = Pure (Expr a) | More (Chain a) (ChainOp a) (Expr a)
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Functor, Foldable)
 
 type QuantOp' a = Either (ArithOp a) (Name a)
 
@@ -184,7 +184,7 @@ type QuantOp' a = Either (ArithOp a) (Name a)
 
 -- ctor1 binder1 binder2 ... -> expr
 data CaseClause a = CaseClause (Pattern a) TokArrows (Expr a)
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Functor, Foldable)
 
 -- NOTE: current not in use
 data Pattern a
@@ -193,12 +193,12 @@ data Pattern a
   | PattBinder (Name a) -- binder
   | PattWildcard (Token "_") -- matches anything
   | PattConstructor (Name a) [Pattern a] -- destructs a constructor
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
 --------------------------------------------------------------------------------
 
 -- | Literals (Integer / Boolean / Character)
 data Lit a = LitInt Int a | LitBool Bool a | LitChar Char a
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq, Generic, Functor, Foldable)
 
 --------------------------------------------------------------------------------
