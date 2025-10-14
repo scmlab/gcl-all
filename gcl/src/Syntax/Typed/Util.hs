@@ -8,6 +8,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Text (Text)
+import qualified Hack
 import Syntax.Abstract.Types (TBase (TBool), Type (..))
 import Syntax.Common (Name (..), nameToText)
 import Syntax.Typed
@@ -18,9 +19,9 @@ getGuards = fst . unzipGdCmds
 unzipGdCmds :: [GdCmd a] -> ([Expr a], [[Stmt a]])
 unzipGdCmds = unzip . map (\(GdCmd x y _) -> (x, y))
 
-wrapLam :: [(Name Loc, Type Loc)] -> Expr Loc -> Expr Loc -- FIXME: can't remove (<-->) right now
+wrapLam :: (Hack.IsRange a) => [(Name a, Type a)] -> Expr a -> Expr a -- FIXME: can't remove (<-->) right now
 wrapLam [] body = body
-wrapLam ((x, t) : xs) body = let b = wrapLam xs body in Lam x t b (x <--> b)
+wrapLam ((x, t) : xs) body = let b = wrapLam xs body in Lam x t b (x Hack.<--> b)
 
 declaredNames :: [Declaration a] -> [Name a]
 declaredNames decls = concat . map extractNames $ decls

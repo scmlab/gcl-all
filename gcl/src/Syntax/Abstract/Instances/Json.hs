@@ -26,6 +26,6 @@ instance (ToJSON a) => ToJSON (CaseClause a)
 
 instance (ToJSON a) => ToJSON (Pattern a)
 
-instance ToJSON Lit
+instance ToJSON (Lit a)
 
-instance FromJSON Lit
+instance FromJSON (Lit a)

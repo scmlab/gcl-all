@@ -10,8 +10,8 @@ module Syntax.Concrete.Types where
 import Data.Loc (L, Loc (Loc), Located (locOf), Pos)
 import Data.Loc.Range
 import Data.Text (Text)
-import GHC.Base (Symbol)
 import GHC.Generics (Generic)
+import GHC.TypeLits (Symbol)
 import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)
 import Syntax.Parser.Lexer (Tok)
 import Prelude hiding (Ordering (..))
@@ -176,7 +176,17 @@ data Expr a
 data Chain a = Pure (Expr a) | More (Chain a) (ChainOp a) (Expr a)
   deriving (Eq, Show, Generic, Functor, Foldable)
 
-type QuantOp' a = Either (ArithOp a) (Name a)
+newtype QuantOp' a = QuantOp' (Either (ArithOp a) (Name a))
+  deriving (Eq, Show)
+
+-- NOTE: why can't these be derived
+instance Functor QuantOp' where
+  fmap f (QuantOp' (Left a)) = QuantOp' (Left (fmap f a))
+  fmap f (QuantOp' (Right a)) = QuantOp' (Right (fmap f a))
+
+instance Foldable QuantOp' where
+  foldMap m (QuantOp' (Left a)) = foldMap m a
+  foldMap m (QuantOp' (Right a)) = foldMap m a
 
 --------------------------------------------------------------------------------
 

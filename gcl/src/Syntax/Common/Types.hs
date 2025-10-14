@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 
@@ -18,7 +19,7 @@ import Prelude hiding (Ordering (..))
 
 -- | Variables and stuff
 data Name a = Name Text a
-  deriving (Show, Generic)
+  deriving (Show, Generic, Functor, Foldable)
 
 -- | Compare regardless of their locations
 instance (Eq a) => Eq (Name a) where
@@ -43,7 +44,7 @@ data ChainOp a
   | GTEU a
   | LT a
   | GT a
-  deriving (Eq, Show, Generic, Ord, Foldable)
+  deriving (Eq, Show, Generic, Ord, Functor, Foldable)
 
 data ArithOp a
   = -- logic
@@ -70,10 +71,10 @@ data ArithOp a
     PointsTo a -- a |-> v
   | SConj a
   | SImp a
-  deriving (Eq, Show, Generic, Ord, Foldable)
+  deriving (Eq, Show, Generic, Ord, Functor, Foldable)
 
 newtype TypeOp a = Arrow a
-  deriving (Eq, Show, Generic, Ord)
+  deriving (Eq, Show, Generic, Ord, Functor, Foldable)
 
 -- | Operators
 data Op a

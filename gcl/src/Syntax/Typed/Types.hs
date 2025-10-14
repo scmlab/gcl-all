@@ -39,7 +39,7 @@ data Stmt a
   | LoopInvariant (Expr a) (Expr a) a
   | Do [GdCmd a] a
   | If [GdCmd a] a
-  | Spec Text Range [(Index, TypeInfo)]
+  | Spec Text Range [(Index a, TypeInfo a)]
   | Proof Text Text Range
   | Alloc (Name a) [Expr a] a --  p := new (e1,e2,..,en)
   | HLookup (Name a) (Expr a) a --  x := *e
@@ -48,7 +48,7 @@ data Stmt a
   | Block (Program a) a
   deriving (Eq, Show)
 
-data GdCmd a = GdCmd (Expr a) [Stmt] a
+data GdCmd a = GdCmd (Expr a) [Stmt a] a
   deriving (Eq, Show)
 
 data Expr a

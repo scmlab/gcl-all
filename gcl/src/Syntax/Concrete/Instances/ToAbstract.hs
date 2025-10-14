@@ -13,12 +13,10 @@ import Control.Monad.Except
     throwError,
   )
 import Data.Loc
-  ( Loc (..),
-    Located (locOf),
-    (<-->),
+  ( Located (locOf),
   )
 import Data.Loc.Range
-import GHC.Float (logDouble)
+import qualified Hack
 import Pretty.Util
   ( PrettyWithLoc (prettyWithLoc),
     docToText,
@@ -47,24 +45,24 @@ instance (ToAbstract a b) => ToAbstract (Maybe a) (Maybe b) where
 instance (ToAbstract a b) => ToAbstract [a] [b] where
   toAbstract = mapM toAbstract
 
-instance ToAbstract Name Name where
-  toAbstract = return
+instance ToAbstract (Name a) (Name (Maybe a)) where
+  toAbstract = return . Hack.aToMaybeA
 
 --------------------------------------------------------------------------------
 
 -- | Program
-instance ToAbstract Program A.Program where
+instance ToAbstract (Program a) (A.Program (Maybe a)) where
   toAbstract prog@(Program ds stmts') = do
     (decls, defns) <- foldl (<>) ([], []) <$> toAbstract ds
 
     let (globProps, assertions) = ConstExpr.pickGlobals decls
     let pre =
-          [A.Assert (A.conjunct assertions) NoLoc | not (null assertions)]
+          [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
 
-    return $ A.Program defns decls globProps (pre ++ stmts) (locOf prog)
+    return $ A.Program defns decls globProps (pre ++ stmts) (Hack.justInfo prog)
 
-instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.Definition]) where
+instance ToAbstract (Either (Declaration a) (DefinitionBlock a)) ([A.Declaration (Maybe a)], [A.Definition (Maybe a)]) where
   toAbstract (Left d) = do
     decls <- toAbstract d
     return ([decls], [])
@@ -75,74 +73,74 @@ instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.De
 --------------------------------------------------------------------------------
 
 -- | Definition
-instance ToAbstract DefinitionBlock [A.Definition] where
+instance ToAbstract (DefinitionBlock a) [A.Definition (Maybe a)] where
   toAbstract (DefinitionBlock _ defns _) = concat <$> toAbstract defns
 
-instance ToAbstract Definition [A.Definition] where
+instance (Hack.IsRange a) => ToAbstract (Definition a) [A.Definition (Maybe a)] where
   toAbstract (TypeDefn tok name binders _ cons) = do
     (: [])
-      <$> (A.TypeDefn name binders <$> toAbstract cons <*> pure (tok <--> cons))
+      <$> (A.TypeDefn (Hack.aToMaybeA name) (map Hack.aToMaybeA binders) <$> toAbstract cons <*> pure (_ tok Hack.<--> _ cons))
   toAbstract (FuncDefnSig decl prop) = do
     (names, typ) <- toAbstract decl
     mapM
-      (\n -> A.FuncDefnSig n typ <$> toAbstract prop <*> pure (decl <--> prop))
+      (\n -> A.FuncDefnSig n typ <$> toAbstract prop <*> pure (Hack.info (Hack.aToMaybeA decl) Hack.<--> fmap Hack.info prop))
       names
   toAbstract (FuncDefn name args _ body) = do
     body' <- toAbstract body
-    return [A.FuncDefn name $ wrapLam args body']
+    return [A.FuncDefn (Hack.aToMaybeA name) $ wrapLam (map Hack.aToMaybeA args) body']
 
-instance ToAbstract TypeDefnCtor A.TypeDefnCtor where
+instance ToAbstract (TypeDefnCtor a) (A.TypeDefnCtor (Maybe a)) where
   toAbstract (TypeDefnCtor c tys) = do
     tys' <- mapM toAbstract tys
-    return $ A.TypeDefnCtor c tys'
+    return $ A.TypeDefnCtor (Hack.aToMaybeA c) tys'
 
 --------------------------------------------------------------------------------
 
 -- | Declaraion
-instance ToAbstract Declaration A.Declaration where
+instance ToAbstract (Declaration a) (A.Declaration (Maybe a)) where
   toAbstract d = case d of
     ConstDecl _ decl -> do
       (name, body, prop) <- toAbstract decl
-      return $ A.ConstDecl name body prop (locOf d)
+      return $ A.ConstDecl name body prop (Hack.justInfo d)
     VarDecl _ decl -> do
       (name, body, prop) <- toAbstract decl
-      return $ A.VarDecl name body prop (locOf d)
+      return $ A.VarDecl name body prop (Hack.justInfo d)
 
 --------------------------------------------------------------------------------
 
 -- | Statement
-instance ToAbstract Stmt A.Stmt where
+instance ToAbstract (Stmt a) (A.Stmt (Maybe a)) where
   toAbstract stmt = case stmt of
-    Skip _ -> pure (A.Skip (locOf stmt))
-    Abort _ -> pure (A.Abort (locOf stmt))
+    Skip _ -> pure (A.Skip (Hack.justInfo stmt))
+    Abort _ -> pure (A.Abort (Hack.justInfo stmt))
     Assign a _ b -> do
-      A.Assign <$> toAbstract a <*> toAbstract b <*> pure (locOf stmt)
+      A.Assign <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo stmt)
     AAssign x _ i _ _ e ->
-      A.AAssign (A.Var x (locOf x))
+      A.AAssign (A.Var (Hack.aToMaybeA x) (Hack.justInfo x))
         <$> toAbstract i
         <*> toAbstract e
         <*> pure
-          (locOf stmt)
-    Assert _ a _ -> A.Assert <$> toAbstract a <*> pure (locOf stmt)
+          (Hack.justInfo stmt)
+    Assert _ a _ -> A.Assert <$> toAbstract a <*> pure (Hack.justInfo stmt)
     LoopInvariant _ a _ _ _ b _ ->
-      A.LoopInvariant <$> toAbstract a <*> toAbstract b <*> pure (locOf stmt)
-    Do _ a _ -> A.Do <$> toAbstract a <*> pure (locOf stmt)
-    If _ a _ -> A.If <$> toAbstract a <*> pure (locOf stmt)
-    SpecQM l -> throwError l
+      A.LoopInvariant <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo stmt)
+    Do _ a _ -> A.Do <$> toAbstract a <*> pure (Hack.justInfo stmt)
+    If _ a _ -> A.If <$> toAbstract a <*> pure (Hack.justInfo stmt)
+    SpecQM l -> throwError $ Hack.aToRange l
     Spec l xs r -> do
       let text = docToText $ toDoc $ prettyWithLoc (map (fmap show) xs)
       pure (A.Spec text (rangeOf l <> rangeOf r))
-    Proof anchor contents _ r -> pure $ A.Proof anchor contents r
-    Alloc p _ _ _ es _ -> A.Alloc p <$> toAbstract es <*> pure (locOf stmt)
-    HLookup x _ _ e -> A.HLookup x <$> toAbstract e <*> pure (locOf stmt)
+    Proof anchor contents _ r -> pure $ A.Proof anchor contents (Just r)
+    Alloc p _ _ _ es _ -> A.Alloc p <$> toAbstract es <*> pure (Hack.justInfo stmt)
+    HLookup x _ _ e -> A.HLookup x <$> toAbstract e <*> pure (Hack.justInfo stmt)
     HMutate _ e1 _ e2 ->
-      A.HMutate <$> toAbstract e1 <*> toAbstract e2 <*> pure (locOf stmt)
-    Dispose _ e -> A.Dispose <$> toAbstract e <*> pure (locOf stmt)
-    Block _ p _ -> A.Block <$> toAbstract p <*> pure (locOf stmt)
+      A.HMutate <$> toAbstract e1 <*> toAbstract e2 <*> pure (Hack.justInfo stmt)
+    Dispose _ e -> A.Dispose <$> toAbstract e <*> pure (Hack.justInfo stmt)
+    Block _ p _ -> A.Block <$> toAbstract p <*> pure (Hack.justInfo stmt)
 
-instance ToAbstract GdCmd A.GdCmd where
+instance ToAbstract (GdCmd a) (A.GdCmd (Maybe a)) where
   toAbstract (GdCmd a _ b) =
-    A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (a <--> b)
+    A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo a Hack.<--> foldr (\x acc -> acc Hack.<--> Hack.justInfo x) Nothing b)
 
 -- instance ToAbstract ProofAnchor A.ProofAnchor where
 --   toAbstract (ProofAnchor hash range) = pure $ A.ProofAnchor hash range
@@ -153,13 +151,13 @@ instance ToAbstract GdCmd A.GdCmd where
 --------------------------------------------------------------------------------
 
 -- Low level Declaration wrapper, and synonym types
-instance ToAbstract DeclBase ([Name], A.Type) where
+instance ToAbstract (DeclBase a) ([Name (Maybe a)], A.Type (Maybe a)) where
   toAbstract (DeclBase a _ b) = (,) <$> toAbstract a <*> toAbstract b
 
-instance ToAbstract DeclProp A.Expr where
+instance ToAbstract (DeclProp a) (A.Expr (Maybe a)) where
   toAbstract (DeclProp _ e _) = toAbstract e
 
-instance ToAbstract DeclType ([Name], A.Type, Maybe A.Expr) where
+instance ToAbstract (DeclType a) ([Name (Maybe a)], A.Type (Maybe a), Maybe (A.Expr (Maybe a))) where
   toAbstract (DeclType decl prop) = do
     (ns, t) <- toAbstract decl
     e <- toAbstract prop
@@ -168,21 +166,21 @@ instance ToAbstract DeclType ([Name], A.Type, Maybe A.Expr) where
 --------------------------------------------------------------------------------
 
 -- | Endpoint
-instance ToAbstract EndpointOpen A.Endpoint where
+instance ToAbstract (EndpointOpen a) (A.Endpoint (Maybe a)) where
   toAbstract (IncludingOpening _ a) = A.Including <$> toAbstract a
   toAbstract (ExcludingOpening _ a) = A.Excluding <$> toAbstract a
 
-instance ToAbstract EndpointClose A.Endpoint where
+instance ToAbstract (EndpointClose a) (A.Endpoint (Maybe a)) where
   toAbstract (IncludingClosing a _) = A.Including <$> toAbstract a
   toAbstract (ExcludingClosing a _) = A.Excluding <$> toAbstract a
 
 -- | Interval
-instance ToAbstract Interval A.Interval where
+instance ToAbstract (Interval a) (A.Interval (Maybe a)) where
   toAbstract i@(Interval a _ b) =
-    A.Interval <$> toAbstract a <*> toAbstract b <*> pure (locOf i)
+    A.Interval <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo i)
 
 -- | Base Type
-instance ToAbstract TBase A.TBase where
+instance ToAbstract (TBase a) A.TBase where
   toAbstract (TInt _) = pure A.TInt
   toAbstract (TBool _) = pure A.TBool
   toAbstract (TChar _) = pure A.TChar
@@ -190,76 +188,76 @@ instance ToAbstract TBase A.TBase where
 -- | Type
 -- Base types were recognized as TCon (because Base types and TCon are identical at the syntactical level),
 -- and to be converted to TBase here.
-instance ToAbstract Type A.Type where
+instance ToAbstract (Type a) (A.Type (Maybe a)) where
   toAbstract t = case t of
-    (TBase a) -> A.TBase <$> toAbstract a <*> pure (locOf t)
+    (TBase a) -> A.TBase <$> toAbstract a <*> pure (Hack.justInfo t)
     (TArray _ a _ b) ->
-      A.TArray <$> toAbstract a <*> toAbstract b <*> pure (locOf t)
-    (TOp op) -> pure $ A.TOp op
-    (TData n _) -> pure $ A.TData n (locOf t)
-    (TApp l r) -> A.TApp <$> toAbstract l <*> toAbstract r <*> pure (l <--> r)
-    (TMetaVar a _) -> pure $ A.TMetaVar a (locOf t)
+      A.TArray <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo t)
+    (TOp op) -> pure $ A.TOp (Hack.aToMaybeA op)
+    (TData n _) -> pure $ A.TData (Hack.aToMaybeA n) (Hack.justInfo t)
+    (TApp l r) -> A.TApp <$> toAbstract l <*> toAbstract r <*> pure (Hack.justInfo l Hack.<--> Hack.justInfo r)
+    (TMetaVar a _) -> pure $ A.TMetaVar (Hack.aToMaybeA a) (Hack.justInfo t)
     (TParen _ a _) -> do
       t' <- toAbstract a
       case t' of
-        A.TBase a' _ -> pure $ A.TBase a' (locOf t)
-        A.TArray a' b' _ -> pure $ A.TArray a' b' (locOf t)
+        A.TBase a' _ -> pure $ A.TBase a' (Hack.justInfo t)
+        A.TArray a' b' _ -> pure $ A.TArray a' b' (Hack.justInfo t)
         A.TTuple as' -> pure $ A.TTuple as'
-        A.TFunc a' b' _ -> pure $ A.TFunc a' b' (locOf t)
+        A.TFunc a' b' _ -> pure $ A.TFunc a' b' (Hack.justInfo t)
         A.TOp op -> pure $ A.TOp op
-        A.TData name _ -> pure $ A.TData name (locOf t)
-        A.TApp a' b' _ -> pure $ A.TApp a' b' (locOf t)
-        A.TVar a' _ -> pure $ A.TVar a' (locOf t)
-        A.TMetaVar a' _ -> pure $ A.TMetaVar a' (locOf t)
+        A.TData name _ -> pure $ A.TData name (Hack.justInfo t)
+        A.TApp a' b' _ -> pure $ A.TApp a' b' (Hack.justInfo t)
+        A.TVar a' _ -> pure $ A.TVar a' (Hack.justInfo t)
+        A.TMetaVar a' _ -> pure $ A.TMetaVar a' (Hack.justInfo t)
 
 --------------------------------------------------------------------------------
 
 -- | Expressions
-instance ToAbstract Expr A.Expr where
+instance ToAbstract (Expr a) (A.Expr (Maybe a)) where
   toAbstract x = case x of
     Paren _ a _ -> toAbstract a
-    Lit a -> A.Lit <$> toAbstract a <*> pure (locOf x)
-    Var a -> pure $ A.Var a (locOf x)
-    Const a -> pure $ A.Const a (locOf x)
-    Op a -> pure $ A.Op a
+    Lit a -> A.Lit <$> toAbstract a <*> pure (Hack.justInfo x)
+    Var a -> pure $ A.Var (Hack.aToMaybeA a) (Hack.justInfo x)
+    Const a -> pure $ A.Const (Hack.aToMaybeA a) (Hack.justInfo x)
+    Op a -> pure $ A.Op (Hack.aToMaybeA a)
     Chain ch -> A.Chain <$> toAbstract ch
     Arr arr _ i _ ->
-      A.ArrIdx <$> toAbstract arr <*> toAbstract i <*> pure (locOf x)
-    App a b -> A.App <$> toAbstract a <*> toAbstract b <*> pure (locOf x)
+      A.ArrIdx <$> toAbstract arr <*> toAbstract i <*> pure (Hack.justInfo x)
+    App a b -> A.App <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo x)
     Quant _ a b _ c _ d _ ->
       A.Quant
-        <$> toAbstractQOp a
-        <*> pure b
+        <$> toAbstractQOp (Hack.aToMaybeA a)
+        <*> pure (map Hack.aToMaybeA b)
         <*> toAbstract c
         <*> toAbstract d
-        <*> pure (locOf x)
+        <*> pure (Hack.justInfo x)
       where
-        toAbstractQOp qop = case qop of
+        toAbstractQOp (QuantOp' qop) = case qop of
           Left op -> return (A.Op op)
           Right n@(Name _ l) -> return $ A.Const n l
     Case _ expr _ cases ->
-      A.Case <$> toAbstract expr <*> toAbstract cases <*> pure (locOf x)
+      A.Case <$> toAbstract expr <*> toAbstract cases <*> pure (Hack.justInfo x)
 
-instance ToAbstract Chain A.Chain where
+instance ToAbstract (Chain a) (A.Chain (Maybe a)) where
   toAbstract chain = case chain of
-    Pure expr -> A.Pure <$> toAbstract expr <*> pure (locOf expr)
-    More ch' op expr -> A.More <$> toAbstract ch' <*> pure op <*> toAbstract expr <*> pure (locOf expr)
+    Pure expr -> A.Pure <$> toAbstract expr <*> pure (Hack.justInfo expr)
+    More ch' op expr -> A.More <$> toAbstract ch' <*> pure (Hack.aToMaybeA op) <*> toAbstract expr <*> pure (Hack.justInfo expr)
 
-instance ToAbstract CaseClause A.CaseClause where
+instance ToAbstract (CaseClause a) (A.CaseClause (Maybe a)) where
   toAbstract (CaseClause patt _ body) =
     A.CaseClause <$> toAbstract patt <*> toAbstract body
 
-instance ToAbstract Pattern A.Pattern where
+instance ToAbstract (Pattern a) (A.Pattern (Maybe a)) where
   toAbstract (PattLit x) = A.PattLit <$> toAbstract x
   toAbstract (PattParen _ x _) = toAbstract x
-  toAbstract (PattBinder x) = return $ A.PattBinder x
+  toAbstract (PattBinder x) = return $ A.PattBinder (Hack.aToMaybeA x)
   toAbstract (PattWildcard x) = return $ A.PattWildcard (rangeOf x)
   toAbstract (PattConstructor ctor pats) = do
     pats' <- mapM toAbstract pats
-    return $ A.PattConstructor ctor pats'
+    return $ A.PattConstructor (Hack.aToMaybeA ctor) pats'
 
 -- | Literals (Integer / Boolean / Character)
-instance ToAbstract Lit A.Lit where
+instance ToAbstract (Lit a) (A.Lit (Maybe a)) where
   toAbstract (LitInt a _) = pure $ A.Num a
   toAbstract (LitBool a _) = pure $ A.Bol a
   toAbstract (LitChar a _) = pure $ A.Chr a

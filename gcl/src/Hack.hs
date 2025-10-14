@@ -3,10 +3,12 @@
 module Hack where
 
 import Control.Applicative ((<|>))
+import Data.Data (Typeable)
 import Data.Loc (Loc (NoLoc), Located (..))
 import Data.Loc.Range (Range (..))
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, fromMaybe)
 import Data.Monoid (getLast)
+import Data.Typeable (cast)
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 
@@ -37,6 +39,9 @@ resToTRes (LSP.ResponseError c m _) = LSP.TResponseError c m Nothing
 info :: (Foldable f) => f a -> a
 info = fromJust . getLast . foldMap pure
 
+justInfo :: (Foldable f) => f a -> Maybe a
+justInfo = Just . info
+
 instance Located () where
   locOf _ = NoLoc
 
@@ -50,3 +55,10 @@ instance IsRange Range where
 instance (IsRange a) => IsRange (Maybe a) where
   (Just r1) <--> (Just r2) = Just (r1 <--> r2)
   r1 <--> r2 = r1 <|> r2
+
+aToMaybeA :: (Functor f) => f a -> f (Maybe a)
+aToMaybeA = fmap Just
+
+-- WARN: unsafe function
+aToRange :: (Typeable a) => a -> Range
+aToRange r = fromMaybe (error "not range") (cast r)

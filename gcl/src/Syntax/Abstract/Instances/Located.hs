@@ -93,5 +93,5 @@ instance (Located a) => Located (Pattern a) where
   locOf (PattWildcard l) = locOf l
   locOf (PattConstructor l r) = l <--> r
 
-instance Located Lit where
+instance Located (Lit a) where
   locOf _ = NoLoc

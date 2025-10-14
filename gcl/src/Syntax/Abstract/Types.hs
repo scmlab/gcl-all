@@ -1,10 +1,10 @@
 {-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Syntax.Abstract.Types where
 
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc.Range (Range)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
@@ -102,11 +102,11 @@ instance (Eq a) => Eq (Kind a) where
 --------------------------------------------------------------------------------
 
 -- | Endpoint
-data Endpoint a = Including (Expr a) | Excluding (Expr a) deriving (Eq, Show, Generic)
+data Endpoint a = Including (Expr a) | Excluding (Expr a) deriving (Eq, Show, Generic, Foldable)
 
 -- | Interval
 data Interval a = Interval (Endpoint a) (Endpoint a) a
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Foldable)
 
 -- | Base Types
 data TBase = TInt | TBool | TChar
@@ -124,7 +124,7 @@ data Type a
   | TApp (Type a) (Type a) a
   | TVar (Name a) a
   | TMetaVar (Name a) a
-  deriving (Show, Generic)
+  deriving (Show, Generic, Foldable)
 
 instance (Eq a) => Eq (Type a) where
   TBase base1 _ == TBase base2 _ = base1 == base2
@@ -141,7 +141,7 @@ instance (Eq a) => Eq (Type a) where
 
 -- | Expressions
 data Expr a
-  = Lit Lit a
+  = Lit (Lit a) a
   | Var (Name a) a
   | Const (Name a) a
   | Op (ArithOp a)
@@ -186,18 +186,18 @@ type Mapping a = Map Text (Expr a)
 
 -- pattern -> expr
 data CaseClause a = CaseClause (Pattern a) (Expr a)
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Foldable)
 
 -- pattern0 pattern1 pattern2 ... -> expr
 data FuncClause a = FuncClause [Pattern a] (Expr a)
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Foldable)
 
 data Pattern a
-  = PattLit Lit
+  = PattLit (Lit a)
   | PattBinder (Name a) -- binder
-  | PattWildcard Range -- matches anything
+  | PattWildcard a -- matches anything
   | PattConstructor (Name a) [Pattern a] -- destructs a constructor
-  deriving (Eq, Show, Generic)
+  deriving (Eq, Show, Generic, Foldable)
 
 extractBinder :: Pattern a -> [Name a]
 extractBinder (PattLit _) = []
@@ -208,10 +208,10 @@ extractBinder (PattConstructor _ xs) = xs >>= extractBinder
 ----------------------------------------------------------------
 
 -- | Literals
-data Lit = Num Int | Bol Bool | Chr Char
-  deriving (Show, Eq, Generic)
+data Lit a = Num Int | Bol Bool | Chr Char
+  deriving (Show, Eq, Generic, Foldable)
 
-baseTypeOfLit :: Lit -> TBase
+baseTypeOfLit :: Lit a -> TBase
 baseTypeOfLit (Num _) = TInt
 baseTypeOfLit (Bol _) = TBool
 baseTypeOfLit (Chr _) = TChar

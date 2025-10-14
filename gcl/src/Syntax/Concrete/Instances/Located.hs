@@ -73,12 +73,12 @@ instance (Located a) => Located (EndpointClose a) where
 instance (Located a) => Located (Interval a) where
   locOf (Interval l _ r) = l <--> r
 
-instance Located TBase where
+instance (Located a) => Located (TBase a) where
   locOf (TInt l) = locOf l
   locOf (TBool l) = locOf l
   locOf (TChar l) = locOf l
 
-instance Located (Type a) where
+instance (Located a) => Located (Type a) where
   locOf (TParen l _ r) = l <--> r
   locOf (TBase a) = locOf a
   locOf (TArray l _ _ r) = l <--> r
@@ -119,7 +119,7 @@ instance (Located a) => Located (Pattern a) where
 
 --------------------------------------------------------------------------------
 
-instance Located Lit where
+instance (Located a) => Located (Lit a) where
   locOf (LitInt _ l) = locOf l
   locOf (LitBool _ l) = locOf l
   locOf (LitChar _ l) = locOf l
