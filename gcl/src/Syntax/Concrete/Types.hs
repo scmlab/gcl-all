@@ -12,10 +12,10 @@ import Data.Loc.Range
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import GHC.TypeLits (Symbol)
+import qualified Hack
 import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)
 import Syntax.Parser.Lexer (Tok)
 import Prelude hiding (Ordering (..))
-import qualified Hack
 
 --------------------------------------------------------------------------------
 
