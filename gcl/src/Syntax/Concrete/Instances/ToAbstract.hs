@@ -3,7 +3,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Syntax.Concrete.Instances.ToAbstract where
@@ -11,9 +10,6 @@ module Syntax.Concrete.Instances.ToAbstract where
 import Control.Monad.Except
   ( Except,
     throwError,
-  )
-import Data.Loc
-  ( Located (locOf),
   )
 import Data.Loc.Range
 import qualified Hack
@@ -26,13 +22,14 @@ import qualified Syntax.Abstract as A
 import qualified Syntax.Abstract.Operator as A
 import Syntax.Abstract.Util
 import Syntax.Common (Name (..))
-import Syntax.Concrete.Instances.Located
-  (
-  )
 import Syntax.Concrete.Types
 import qualified Syntax.ConstExpr as ConstExpr
 
 --------------------------------------------------------------------------------
+
+-- FIXME: find some way to make this
+-- class ToAbstract a b r | a -> b, a -> r where
+--   toAbstract :: a -> Except r b
 
 -- | Typeclass for converting Syntax.Concrete to Syntax.Abstract
 class ToAbstract a b | a -> b where
@@ -51,7 +48,7 @@ instance ToAbstract (Name a) (Name (Maybe a)) where
 --------------------------------------------------------------------------------
 
 -- | Program
-instance ToAbstract (Program a) (A.Program (Maybe a)) where
+instance (Ord a, Hack.IsRange a) => ToAbstract (Program a) (A.Program (Maybe a)) where
   toAbstract prog@(Program ds stmts') = do
     (decls, defns) <- foldl (<>) ([], []) <$> toAbstract ds
 
@@ -62,7 +59,7 @@ instance ToAbstract (Program a) (A.Program (Maybe a)) where
 
     return $ A.Program defns decls globProps (pre ++ stmts) (Hack.justInfo prog)
 
-instance ToAbstract (Either (Declaration a) (DefinitionBlock a)) ([A.Declaration (Maybe a)], [A.Definition (Maybe a)]) where
+instance (Hack.IsRange a) => ToAbstract (Either (Declaration a) (DefinitionBlock a)) ([A.Declaration (Maybe a)], [A.Definition (Maybe a)]) where
   toAbstract (Left d) = do
     decls <- toAbstract d
     return ([decls], [])
@@ -73,13 +70,13 @@ instance ToAbstract (Either (Declaration a) (DefinitionBlock a)) ([A.Declaration
 --------------------------------------------------------------------------------
 
 -- | Definition
-instance ToAbstract (DefinitionBlock a) [A.Definition (Maybe a)] where
+instance (Hack.IsRange a) => ToAbstract (DefinitionBlock a) [A.Definition (Maybe a)] where
   toAbstract (DefinitionBlock _ defns _) = concat <$> toAbstract defns
 
 instance (Hack.IsRange a) => ToAbstract (Definition a) [A.Definition (Maybe a)] where
   toAbstract (TypeDefn tok name binders _ cons) = do
     (: [])
-      <$> (A.TypeDefn (Hack.aToMaybeA name) (map Hack.aToMaybeA binders) <$> toAbstract cons <*> pure (_ tok Hack.<--> _ cons))
+      <$> (A.TypeDefn (Hack.aToMaybeA name) (map Hack.aToMaybeA binders) <$> toAbstract cons <*> pure (Hack.rangeToA (rangeOf tok) Hack.<--> Hack.justInfo (Hack.info cons)))
   toAbstract (FuncDefnSig decl prop) = do
     (names, typ) <- toAbstract decl
     mapM
@@ -89,7 +86,7 @@ instance (Hack.IsRange a) => ToAbstract (Definition a) [A.Definition (Maybe a)] 
     body' <- toAbstract body
     return [A.FuncDefn (Hack.aToMaybeA name) $ wrapLam (map Hack.aToMaybeA args) body']
 
-instance ToAbstract (TypeDefnCtor a) (A.TypeDefnCtor (Maybe a)) where
+instance (Hack.IsRange a) => ToAbstract (TypeDefnCtor a) (A.TypeDefnCtor (Maybe a)) where
   toAbstract (TypeDefnCtor c tys) = do
     tys' <- mapM toAbstract tys
     return $ A.TypeDefnCtor (Hack.aToMaybeA c) tys'
@@ -97,7 +94,7 @@ instance ToAbstract (TypeDefnCtor a) (A.TypeDefnCtor (Maybe a)) where
 --------------------------------------------------------------------------------
 
 -- | Declaraion
-instance ToAbstract (Declaration a) (A.Declaration (Maybe a)) where
+instance (Hack.IsRange a) => ToAbstract (Declaration a) (A.Declaration (Maybe a)) where
   toAbstract d = case d of
     ConstDecl _ decl -> do
       (name, body, prop) <- toAbstract decl
@@ -109,7 +106,7 @@ instance ToAbstract (Declaration a) (A.Declaration (Maybe a)) where
 --------------------------------------------------------------------------------
 
 -- | Statement
-instance ToAbstract (Stmt a) (A.Stmt (Maybe a)) where
+instance (Ord a, Hack.IsRange a) => ToAbstract (Stmt a) (A.Stmt (Maybe a)) where
   toAbstract stmt = case stmt of
     Skip _ -> pure (A.Skip (Hack.justInfo stmt))
     Abort _ -> pure (A.Abort (Hack.justInfo stmt))
@@ -129,16 +126,16 @@ instance ToAbstract (Stmt a) (A.Stmt (Maybe a)) where
     SpecQM l -> throwError $ Hack.aToRange l
     Spec l xs r -> do
       let text = docToText $ toDoc $ prettyWithLoc (map (fmap show) xs)
-      pure (A.Spec text (rangeOf l <> rangeOf r))
+      pure (A.Spec text (Hack.rangeToA (rangeOf l <> rangeOf r)))
     Proof anchor contents _ r -> pure $ A.Proof anchor contents (Just r)
-    Alloc p _ _ _ es _ -> A.Alloc p <$> toAbstract es <*> pure (Hack.justInfo stmt)
-    HLookup x _ _ e -> A.HLookup x <$> toAbstract e <*> pure (Hack.justInfo stmt)
+    Alloc p _ _ _ es _ -> A.Alloc (Hack.aToMaybeA p) <$> toAbstract es <*> pure (Hack.justInfo stmt)
+    HLookup x _ _ e -> A.HLookup (Hack.aToMaybeA x) <$> toAbstract e <*> pure (Hack.justInfo stmt)
     HMutate _ e1 _ e2 ->
       A.HMutate <$> toAbstract e1 <*> toAbstract e2 <*> pure (Hack.justInfo stmt)
     Dispose _ e -> A.Dispose <$> toAbstract e <*> pure (Hack.justInfo stmt)
     Block _ p _ -> A.Block <$> toAbstract p <*> pure (Hack.justInfo stmt)
 
-instance ToAbstract (GdCmd a) (A.GdCmd (Maybe a)) where
+instance (Ord a, Hack.IsRange a) => ToAbstract (GdCmd a) (A.GdCmd (Maybe a)) where
   toAbstract (GdCmd a _ b) =
     A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (Hack.justInfo a Hack.<--> foldr (\x acc -> acc Hack.<--> Hack.justInfo x) Nothing b)
 
@@ -151,13 +148,13 @@ instance ToAbstract (GdCmd a) (A.GdCmd (Maybe a)) where
 --------------------------------------------------------------------------------
 
 -- Low level Declaration wrapper, and synonym types
-instance ToAbstract (DeclBase a) ([Name (Maybe a)], A.Type (Maybe a)) where
+instance (Hack.IsRange a) => ToAbstract (DeclBase a) ([Name (Maybe a)], A.Type (Maybe a)) where
   toAbstract (DeclBase a _ b) = (,) <$> toAbstract a <*> toAbstract b
 
 instance ToAbstract (DeclProp a) (A.Expr (Maybe a)) where
   toAbstract (DeclProp _ e _) = toAbstract e
 
-instance ToAbstract (DeclType a) ([Name (Maybe a)], A.Type (Maybe a), Maybe (A.Expr (Maybe a))) where
+instance (Hack.IsRange a) => ToAbstract (DeclType a) ([Name (Maybe a)], A.Type (Maybe a), Maybe (A.Expr (Maybe a))) where
   toAbstract (DeclType decl prop) = do
     (ns, t) <- toAbstract decl
     e <- toAbstract prop
@@ -188,7 +185,7 @@ instance ToAbstract (TBase a) A.TBase where
 -- | Type
 -- Base types were recognized as TCon (because Base types and TCon are identical at the syntactical level),
 -- and to be converted to TBase here.
-instance ToAbstract (Type a) (A.Type (Maybe a)) where
+instance (Hack.IsRange a) => ToAbstract (Type a) (A.Type (Maybe a)) where
   toAbstract t = case t of
     (TBase a) -> A.TBase <$> toAbstract a <*> pure (Hack.justInfo t)
     (TArray _ a _ b) ->
@@ -251,7 +248,7 @@ instance ToAbstract (Pattern a) (A.Pattern (Maybe a)) where
   toAbstract (PattLit x) = A.PattLit <$> toAbstract x
   toAbstract (PattParen _ x _) = toAbstract x
   toAbstract (PattBinder x) = return $ A.PattBinder (Hack.aToMaybeA x)
-  toAbstract (PattWildcard x) = return $ A.PattWildcard (rangeOf x)
+  toAbstract (PattWildcard x) = return $ A.PattWildcard (Hack.rangeToA (rangeOf x))
   toAbstract (PattConstructor ctor pats) = do
     pats' <- mapM toAbstract pats
     return $ A.PattConstructor (Hack.aToMaybeA ctor) pats'

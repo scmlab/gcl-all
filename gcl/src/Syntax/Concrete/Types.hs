@@ -15,6 +15,7 @@ import GHC.TypeLits (Symbol)
 import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)
 import Syntax.Parser.Lexer (Tok)
 import Prelude hiding (Ordering (..))
+import qualified Hack
 
 --------------------------------------------------------------------------------
 
@@ -54,10 +55,22 @@ data Program a
       [Stmt a] -- main program
   deriving (Eq, Show)
 
+instance Functor Program where
+  fmap f (Program ds stmts) = Program (map aux ds) (map (fmap f) stmts)
+    where
+      aux (Left a) = Left (fmap f a)
+      aux (Right a) = Right (fmap f a)
+
+instance Foldable Program where
+  foldMap m (Program ds stmts) = foldMap m (map aux ds <> map Hack.info stmts)
+    where
+      aux (Left a) = Hack.info a
+      aux (Right a) = Hack.info a
+
 --------------------------------------------------------------------------------
 
 -- | Definitions
-data DefinitionBlock a = DefinitionBlock (Token "{:") [Definition a] (Token ":}") deriving (Eq, Show)
+data DefinitionBlock a = DefinitionBlock (Token "{:") [Definition a] (Token ":}") deriving (Eq, Show, Functor, Foldable)
 
 data Definition a
   = -- data T a1 a2 ... = K1 v1 v2 ... | K2 u1 u2 ...
@@ -76,7 +89,7 @@ data TypeDefnCtor a = TypeDefnCtor (Name a) [Type a] deriving (Eq, Show, Functor
 data Declaration a
   = ConstDecl (Token "con") (DeclType a)
   | VarDecl (Token "var") (DeclType a)
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
 --------------------------------------------------------------------------------
 
@@ -107,9 +120,9 @@ data Stmt a
   | HMutate (Token "*") (Expr a) (Token ":=") (Expr a)
   | Dispose (Token "dispose") (Expr a)
   | Block (Token "|[") (Program a) (Token "]|")
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor, Foldable)
 
-data GdCmd a = GdCmd (Expr a) TokArrows [Stmt a] deriving (Eq, Show)
+data GdCmd a = GdCmd (Expr a) TokArrows [Stmt a] deriving (Eq, Show, Functor, Foldable)
 
 -- data ProofAnchor = ProofAnchor Text Range deriving (Eq, Show)
 -- data TextContents = TextContents Text Range deriving (Eq, Show)

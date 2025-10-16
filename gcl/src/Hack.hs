@@ -3,14 +3,13 @@
 module Hack where
 
 import Control.Applicative ((<|>))
-import Data.Data (Typeable)
 import Data.Loc (Loc (NoLoc), Located (..))
 import Data.Loc.Range (Range (..))
-import Data.Maybe (fromJust, fromMaybe)
+import Data.Maybe (fromJust)
 import Data.Monoid (getLast)
-import Data.Typeable (cast)
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
+import Unsafe.Coerce (unsafeCoerce)
 
 -- FIXME: this function is to help migrating LSP library versions
 -- previous LSP uses `Int` for line and character offsets
@@ -60,5 +59,9 @@ aToMaybeA :: (Functor f) => f a -> f (Maybe a)
 aToMaybeA = fmap Just
 
 -- WARN: unsafe function
-aToRange :: (Typeable a) => a -> Range
-aToRange r = fromMaybe (error "not range") (cast r)
+aToRange :: a -> Range
+aToRange = unsafeCoerce
+
+-- WARN: unsafe function
+rangeToA :: Range -> a
+rangeToA = unsafeCoerce
