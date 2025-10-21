@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Server.GoToDefn
   ( collectLocationLinks,
@@ -10,14 +10,14 @@ where
 
 import Control.Monad.RWS
 import Data.Loc
-  ( Loc,
-    Located,
+  ( Located,
     locOf,
   )
 import Data.Loc.Range
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
+import qualified Hack
 import Language.LSP.Protocol.Types (LocationLink (..))
 import qualified Language.LSP.Protocol.Types as J
 import Server.IntervalMap
@@ -26,7 +26,7 @@ import qualified Server.SrcLoc as SrcLoc
 import Syntax.Abstract
 import Syntax.Common
 
-collectLocationLinks :: Program -> IntervalMap LocationLink
+collectLocationLinks :: Program Range -> IntervalMap LocationLink
 collectLocationLinks program = runM (programToScopes program) (collect program)
 
 --------------------------------------------------------------------------------
@@ -34,20 +34,20 @@ collectLocationLinks program = runM (programToScopes program) (collect program)
 type LocationLinkToBe = Range -> LocationLink
 
 -- | Extracts Scopes from a Program
-programToScopes :: Program -> [Scope LocationLinkToBe]
+programToScopes :: Program Range -> [Scope LocationLinkToBe]
 programToScopes (Program defns decls _ _ _) = [topLevelScope]
   where
     topLevelScope :: Map Text LocationLinkToBe
     topLevelScope = Map.mapKeys nameToText locationLinks
 
-    locationLinks :: Map Name LocationLinkToBe
+    locationLinks :: Map (Name Range) LocationLinkToBe
     locationLinks = locationLinksFromDecls <> locationLinksFromDefns
 
-    locationLinksFromDecls :: Map Name LocationLinkToBe
+    locationLinksFromDecls :: Map (Name Range) LocationLinkToBe
     locationLinksFromDecls =
       makeLocationLinks $ Map.fromList $ concatMap splitDecl decls
 
-    locationLinksFromDefns :: Map Name LocationLinkToBe
+    locationLinksFromDefns :: Map (Name Range) LocationLinkToBe
     locationLinksFromDefns =
       makeLocationLinks $ Map.fromList $ concatMap splitDefn defns
 
@@ -58,16 +58,16 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope]
     -- locationLinksFromTypeDefns = makeLocationLinks typeDefns
 
     -- split a parallel declaration into many simpler declarations
-    splitDecl :: Declaration -> [(Name, Declaration)]
+    splitDecl :: Declaration r -> [(Name r, Declaration r)]
     splitDecl decl@(ConstDecl names _ _ _) = [(name, decl) | name <- names]
     splitDecl decl@(VarDecl names _ _ _) = [(name, decl) | name <- names]
 
-    splitDefn :: Definition -> [(Name, Definition)]
+    splitDefn :: Definition r -> [(Name r, Definition r)]
     splitDefn def@(TypeDefn con _params ctors _) = (con, def) : concatMap (`splitCtor` def) ctors
     splitDefn FuncDefnSig {} = mempty
     splitDefn def@(FuncDefn name _exprs) = [(name, def)]
 
-    splitCtor :: TypeDefnCtor -> Definition -> [(Name, Definition)]
+    splitCtor :: TypeDefnCtor r -> Definition r -> [(Name r, Definition r)]
     splitCtor (TypeDefnCtor name _params) def = [(name, def)]
 
 --  Helper function for converting
@@ -92,10 +92,10 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope]
 --    ║                                ║
 --    ╚════════════════════════════════╝
 
-makeLocationLinks :: (Located a) => Map Name a -> Map Name LocationLinkToBe
+makeLocationLinks :: (Located a) => Map (Name Range) a -> Map (Name Range) LocationLinkToBe
 makeLocationLinks = Map.mapMaybeWithKey $ \name target -> do
   targetRange <- fromLoc (locOf target)
-  targetSelectionRange <- fromLoc (locOf name)
+  let targetSelectionRange = Hack.info name
   let toLocationLink originSelectionRange =
         LocationLink
           { -- Span of the origin of this link.
@@ -118,27 +118,26 @@ makeLocationLinks = Map.mapMaybeWithKey $ \name target -> do
           }
   return toLocationLink
 
-scopeFromLocalBinders :: [Name] -> Scope LocationLinkToBe
+scopeFromLocalBinders :: [Name Range] -> Scope LocationLinkToBe
 scopeFromLocalBinders names =
   Map.mapKeys nameToText $ makeLocationLinks $ Map.fromList $ zip names names
 
 --------------------------------------------------------------------------------
 -- Names
 
-instance Collect LocationLinkToBe LocationLink Name where
+instance Collect LocationLinkToBe LocationLink (Name Range) where
   collect name = do
     result <- lookupScopes (nameToText name)
     case result of
       Nothing -> return ()
-      Just locationLinkToBe -> case fromLoc (locOf name) of
-        Nothing -> return ()
-        Just range ->
-          tell $ IntervalMap.singleton range (locationLinkToBe range)
+      Just locationLinkToBe -> do
+        let range = Hack.info name
+        tell $ IntervalMap.singleton range (locationLinkToBe range)
 
 --------------------------------------------------------------------------------
 -- Program
 
-instance Collect LocationLinkToBe LocationLink Program where
+instance Collect LocationLinkToBe LocationLink (Program Range) where
   collect (Program defns decls _ stmts _) = do
     collect defns
     collect decls
@@ -146,7 +145,7 @@ instance Collect LocationLinkToBe LocationLink Program where
 
 --------------------------------------------------------------------------------
 -- Definition
-instance Collect LocationLinkToBe LocationLink Definition where
+instance Collect LocationLinkToBe LocationLink (Definition Range) where
   collect TypeDefn {} = return ()
   collect (FuncDefnSig n t prop _) = do
     collect n
@@ -159,7 +158,7 @@ instance Collect LocationLinkToBe LocationLink Definition where
 --------------------------------------------------------------------------------
 -- Declaration
 
-instance Collect LocationLinkToBe LocationLink Declaration where
+instance Collect LocationLinkToBe LocationLink (Declaration Range) where
   collect = \case
     ConstDecl a _ c _ -> do
       collect a
@@ -171,7 +170,7 @@ instance Collect LocationLinkToBe LocationLink Declaration where
 --------------------------------------------------------------------------------
 -- Stmt
 
-instance Collect LocationLinkToBe LocationLink Stmt where
+instance Collect LocationLinkToBe LocationLink (Stmt Range) where
   collect = \case
     Assign a b _ -> do
       collect a
@@ -184,14 +183,14 @@ instance Collect LocationLinkToBe LocationLink Stmt where
     If a _ -> collect a
     _ -> return ()
 
-instance Collect LocationLinkToBe LocationLink GdCmd where
+instance Collect LocationLinkToBe LocationLink (GdCmd Range) where
   collect (GdCmd gd stmts _) = do
     collect gd
     collect stmts
 
 --------------------------------------------------------------------------------
 
-instance Collect LocationLinkToBe LocationLink Expr where
+instance Collect LocationLinkToBe LocationLink (Expr Range) where
   collect = \case
     Lit _ _ -> return ()
     Var a _ -> collect a
@@ -229,27 +228,27 @@ instance Collect LocationLinkToBe LocationLink Expr where
 --     localScope args $ do
 --       collect body
 
-instance Collect LocationLinkToBe LocationLink (ArithOp Loc) where
+instance Collect LocationLinkToBe LocationLink (ArithOp Range) where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink (ChainOp Loc) where
+instance Collect LocationLinkToBe LocationLink (ChainOp Range) where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink Chain where
+instance Collect LocationLinkToBe LocationLink (Chain Range) where
   collect (Pure expr _) = collect expr
   collect (More ch' op expr _) = collect ch' >> collect op >> collect expr
 
-instance Collect LocationLinkToBe LocationLink FuncClause where
+instance Collect LocationLinkToBe LocationLink (FuncClause Range) where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink QuantOp' where
+instance Collect LocationLinkToBe LocationLink (QuantOp' Range) where
   collect (Left op) = collect op
   collect (Right expr) = collect expr
 
 --------------------------------------------------------------------------------
 
 -- | Types
-instance Collect LocationLinkToBe LocationLink Type where
+instance Collect LocationLinkToBe LocationLink (Type Range) where
   collect = \case
     TBase _ _ -> return ()
     TArray i x _ -> collect i >> collect x
@@ -261,10 +260,10 @@ instance Collect LocationLinkToBe LocationLink Type where
     TVar _ _ -> return ()
     TMetaVar _ _ -> return ()
 
-instance Collect LocationLinkToBe LocationLink Interval where
+instance Collect LocationLinkToBe LocationLink (Interval Range) where
   collect (Interval x y _) = collect x >> collect y
 
-instance Collect LocationLinkToBe LocationLink Endpoint where
+instance Collect LocationLinkToBe LocationLink (Endpoint Range) where
   collect = \case
     Including x -> collect x
     Excluding x -> collect x

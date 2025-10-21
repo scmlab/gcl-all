@@ -6,7 +6,7 @@ module GCL.Exec.ExNondet where
 import Control.Arrow ((***))
 import Control.Monad (MonadPlus, mplus, mzero)
 import Control.Monad.Except
-import Control.Monad.State hiding (guard)
+import Control.Monad.State (MonadState, get, put)
 import GCL.Exec.ExecMonad
 import GHC.Base (Alternative (..))
 
@@ -19,14 +19,13 @@ instance Functor (ExNondet e s) where
   fmap f (ExNd m) = ExNd (map (either Left (Right . f) *** id) . m)
 
 instance Applicative (ExNondet e s) where
-  pure = return
+  pure x = ExNd (\s -> [(Right x, s)])
   fs <*> xs = do
     f <- fs
-    x <- xs
-    return (f x)
+    f <$> xs
 
 instance Monad (ExNondet e s) where
-  return x = ExNd (\s -> [(Right x, s)])
+  return = pure
   (ExNd m) >>= f = ExNd (concat . map (bindW f) . m)
     where
       bindW _ (Left e, s) = [(Left e, s)]
