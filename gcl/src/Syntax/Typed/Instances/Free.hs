@@ -14,7 +14,7 @@ import GCL.Common
 import Syntax.Common
 import Syntax.Typed.Types
 
-instance Free Expr where
+instance (Ord l) => Free (Expr l) l where
   freeVars (Var x _ _) = Set.singleton x
   freeVars (Const x _ _) = Set.singleton x
   freeVars (Op _ _) = mempty
@@ -32,20 +32,20 @@ instance Free Expr where
       dom = map fst sb
       rng = map snd sb
 
-instance Free CaseClause where
+instance (Ord l) => Free (CaseClause l) l where
   freeVars (CaseClause _ expr) = freeVars expr
 
-instance Free Chain where
+instance (Ord l) => Free (Chain l) l where
   freeVars (Pure expr) = freeVars expr
   freeVars (More chain _op _ expr) = freeVars chain <> freeVars expr
 
-instance Free Declaration where
+instance (Ord l) => Free (Declaration l) l where
   freeVars (ConstDecl ns _ expr _) =
     Set.fromList ns <> freeVars expr
   freeVars (VarDecl ns _ expr _) =
     Set.fromList ns <> freeVars expr
 
-instance Free Stmt where
+instance (Ord l) => Free (Stmt l) l where
   freeVars (Skip _) = mempty
   freeVars (Abort _) = mempty
   freeVars (Assign ns es _) =
@@ -66,11 +66,11 @@ instance Free Stmt where
   freeVars (Dispose e _) = freeVars e
   freeVars (Block prog _) = freeVars prog
 
-instance Free GdCmd where
+instance (Ord l) => Free (GdCmd l) l where
   freeVars (GdCmd g stmts _) =
     freeVars g <> Set.unions (map freeVars stmts)
 
-instance Free Program where
+instance (Ord l) => Free (Program l) l where
   freeVars (Program _defns decls props stmts _) =
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 

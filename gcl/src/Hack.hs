@@ -36,10 +36,10 @@ resToTRes (LSP.ResponseError c m _) = LSP.TResponseError c m Nothing
 -- WARN: not properly tested
 -- hacky substitution for `Located.hs` definitions
 info :: (Foldable f) => f a -> a
-info = fromJust . getLast . foldMap pure
+info = fromJust . maybeInfo
 
-justInfo :: (Foldable f) => f a -> Maybe a
-justInfo = Just . info
+maybeInfo :: (Foldable f) => f a -> Maybe a
+maybeInfo = getLast . foldMap pure
 
 instance Located () where
   locOf _ = NoLoc

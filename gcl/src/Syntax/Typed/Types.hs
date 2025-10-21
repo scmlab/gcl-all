@@ -1,6 +1,5 @@
 module Syntax.Typed.Types where
 
-import Data.Loc (Loc)
 import Data.Loc.Range (Range)
 import Data.Text (Text)
 import GCL.Common (Index, TypeInfo)
@@ -52,7 +51,7 @@ data GdCmd a = GdCmd (Expr a) [Stmt a] a
   deriving (Eq, Show)
 
 data Expr a
-  = Lit Lit (Type a) a
+  = Lit (Lit a) (Type a) a
   | Var (Name a) (Type a) a
   | Const (Name a) (Type a) a
   | Op (Op a) (Type a)

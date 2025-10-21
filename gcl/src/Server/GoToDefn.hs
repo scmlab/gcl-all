@@ -95,7 +95,7 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope]
 makeLocationLinks :: (Located a) => Map (Name Range) a -> Map (Name Range) LocationLinkToBe
 makeLocationLinks = Map.mapMaybeWithKey $ \name target -> do
   targetRange <- fromLoc (locOf target)
-  let targetSelectionRange = Hack.info name
+  targetSelectionRange <- Hack.maybeInfo name
   let toLocationLink originSelectionRange =
         LocationLink
           { -- Span of the origin of this link.
@@ -130,9 +130,9 @@ instance Collect LocationLinkToBe LocationLink (Name Range) where
     result <- lookupScopes (nameToText name)
     case result of
       Nothing -> return ()
-      Just locationLinkToBe -> do
-        let range = Hack.info name
-        tell $ IntervalMap.singleton range (locationLinkToBe range)
+      Just locationLinkToBe -> case Hack.maybeInfo name of
+        Nothing -> return ()
+        Just range -> tell $ IntervalMap.singleton range (locationLinkToBe range)
 
 --------------------------------------------------------------------------------
 -- Program
