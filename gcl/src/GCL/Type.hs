@@ -509,7 +509,7 @@ class (Located a) => Elab a where
 runElaboration ::
   (Elab a) => a -> [(Index, TypeInfo)] -> Either TypeError (Typed a)
 runElaboration a env = do
-  ((_, elaborated, _), _state) <- runExcept (runStateT (elaborate a env) (0, mempty, mempty, mempty))
+  ((_, elaborated, _), _state) <- runExcept (runStateT (elaborate a env) (0, mempty, env, mempty))
   Right elaborated
 
 newtype TypeDefnInfo = TypeDefnInfo [Name]
