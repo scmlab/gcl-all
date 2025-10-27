@@ -31,6 +31,7 @@ import Language.LSP.Server
   )
 import qualified Language.LSP.Server as LSP
 import qualified Server.Handler.AutoCompletion as AutoCompletion
+import qualified Server.Handler.GCL.Debug as Debug
 import qualified Server.Handler.GCL.Refine as Refine
 import qualified Server.Handler.GCL.Reload as Reload
 import qualified Server.Handler.GoToDefinition as GoToDefinition
@@ -110,7 +111,9 @@ handlers =
       -- "gcl/reload" - reload
       requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Reload.handler,
       -- "gcl/refine" - refine
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine.handler
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine.handler,
+      -- "gcl/debug" - debug FileState
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/debug")) $ jsonMiddleware Debug.handler
     ]
 
 -- | A handler type for custom LSP methods.

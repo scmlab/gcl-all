@@ -110,6 +110,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(restartDisposable);
 
+	// request gcl/debug
+	const debugDisposable = vscode.commands.registerCommand('gcl.debug', async () => {
+		const editor = retrieveMainEditor();
+		const filePath = editor?.document.uri.fsPath;
+		const _response = await sendRequest("gcl/debug", {filePath: filePath})
+	});
+	context.subscriptions.push(debugDisposable);
+
 	// notification gcl/update
 	// 更新 fileState 裡的 specs, pos, warnings
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({

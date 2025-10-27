@@ -43,6 +43,11 @@
         "command": "gcl.restartServer",
         "title": "Restart GCL Server",
         "category": "GCL"
+      },
+      {
+        "command": "gcl.debug",
+        "title": "Debug FileState",
+        "category": "GCL"
       }
     ],
     "keybindings": [
@@ -55,6 +60,11 @@
         "command": "gcl.refine",
         "key": "ctrl+c ctrl+r",
         "when": "!editorHasSelection && editorTextFocus"
+      },
+      {
+        "command": "gcl.debug",
+        "key": "ctrl+c ctrl+/",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": [
