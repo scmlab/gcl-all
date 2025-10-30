@@ -46,7 +46,7 @@
       },
       {
         "command": "gcl.debug",
-        "title": "Debug FileState",
+        "title": "GCL Debug",
         "category": "GCL"
       }
     ],
