@@ -11,8 +11,10 @@ module Server.Monad where
 import Control.Concurrent
   ( Chan,
     newChan,
+    threadDelay,
     writeChan,
   )
+import Control.Exception (SomeException, catch, displayException, throwIO)
 import Control.Monad.Reader
 import qualified Data.Aeson as JSON
 import Data.IORef
@@ -88,6 +90,19 @@ type ServerM = LSP.LspT () (ReaderT GlobalState IO)
 
 runServerM :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
 runServerM globalState ctxEnv program = runReaderT (LSP.runLspT ctxEnv program) globalState
+
+-- Wrap runServerM with error logging
+runServerMLogError :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
+runServerMLogError globalState ctxEnv program =
+  catch (runServerM globalState ctxEnv program) (handleException globalState)
+  where
+    handleException :: GlobalState -> SomeException -> IO a
+    handleException gs e = do
+      let errorMsg = "\n========== FATAL ERROR in handler ==========\n" ++ displayException e ++ "\n"
+      appendFile "gcl_crash.log" errorMsg
+      writeChan (logChannel gs) (Text.pack errorMsg)
+      threadDelay 500000 -- sleep 0.5 sec (best effort)
+      throwIO e
 
 --------------------------------------------------------------------------------
 
