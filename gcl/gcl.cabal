@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.38.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -32,6 +32,10 @@ library
       GCL.Predicate.Util
       GCL.Substitution
       GCL.Type
+      GCL.Type2.Elaborate
+      GCL.Type2.Infer
+      GCL.Type2.RSE
+      GCL.Type2.Test
       GCL.WP
       GCL.WP.Explanation
       GCL.WP.SP
@@ -203,6 +207,10 @@ test-suite gcl-test
       GCL.Predicate.Util
       GCL.Substitution
       GCL.Type
+      GCL.Type2.Elaborate
+      GCL.Type2.Infer
+      GCL.Type2.RSE
+      GCL.Type2.Test
       GCL.WP
       GCL.WP.Explanation
       GCL.WP.SP
