@@ -10,7 +10,7 @@ import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name)
+import Syntax.Common.Types (Name, Op (..))
 import qualified Syntax.Typed.Types as T
 
 class Elaborate a t | a -> t where
@@ -105,10 +105,26 @@ elaborateAssign names exprs loc
       return $ T.Assign names typedExprs loc
 
 instance Elaborate A.Expr T.Expr where
-  elaborate (A.Lit lit loc) = do
-    (_, _, expr) <- inferLit lit loc
-    return expr
-  elaborate _expr = undefined
+  elaborate expr = do
+    (_, ty) <- infer expr
+    return $ toTypedExpr expr ty
+
+    where
+      toTypedExpr (A.Lit lit loc) ty = T.Lit lit ty loc
+      toTypedExpr (A.Var name loc) ty = T.Var name ty loc
+      toTypedExpr (A.Const name loc) ty = T.Const name ty loc -- XXX: should expr distinguish var and const?
+      toTypedExpr (A.Op op) ty = T.Op (ArithOp op) ty
+      toTypedExpr (A.Chain chain) ty = undefined
+      toTypedExpr (A.App e1 e2 loc) ty = undefined
+      toTypedExpr (A.Lam name expr loc) ty = undefined
+      toTypedExpr (A.Func name clauses loc) ty = undefined
+      toTypedExpr (A.Tuple exprs) ty = undefined
+      toTypedExpr (A.Quant _ _ _ _ _) ty = undefined
+      toTypedExpr (A.RedexKernel _ _ _ _) ty = undefined
+      toTypedExpr (A.RedexShell _ _) ty = undefined
+      toTypedExpr (A.ArrIdx arr index loc) ty = undefined
+      toTypedExpr (A.ArrUpd arr index expr loc) ty = undefined
+      toTypedExpr (A.Case expr clauses loc) ty = undefined
 
 runElaboration :: (Elaborate a t) => a -> Env -> Either TypeError t
 runElaboration a env = evalRSE (elaborate a) env (Inference 0)

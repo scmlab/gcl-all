@@ -15,7 +15,6 @@ import GCL.Type (TypeError (..))
 import GCL.Type2.RSE
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (Name))
-import qualified Syntax.Typed.Types as T
 
 newtype Inference = Inference
   { _counter :: Int
@@ -65,11 +64,42 @@ freshTyVar = do
   put $ Inference (n + 1)
   return . Text.pack $ "t" <> show n
 
+instantiate :: Scheme -> RSE Env Inference A.Type
+instantiate scheme = do
+  _
+
 unify :: A.Type -> A.Type -> Loc -> Result Subst
 unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
 unify t1 t2 l = undefined
 
-inferLit :: A.Lit -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
+infer :: A.Expr -> RSE Env Inference (Subst, A.Type)
+infer (A.Lit lit loc) = inferLit lit loc
+infer (A.Var name loc) = inferVar name loc
+infer (A.Const name loc) = inferVar name loc
+infer (A.Op op) = undefined
+infer (A.Chain chain) = undefined
+infer (A.App e1 e2 loc) = undefined
+infer (A.Lam name expr loc) = undefined
+infer (A.Func name clauses loc) = undefined
+infer (A.Tuple exprs) = undefined
+infer (A.Quant _ _ _ _ _) = undefined
+infer (A.RedexKernel _ _ _ _) = undefined
+infer (A.RedexShell _ _) = undefined
+infer (A.ArrIdx arr index loc) = undefined
+infer (A.ArrUpd arr index expr loc) = undefined
+infer (A.Case expr clauses loc) = undefined
+
+inferLit :: A.Lit -> Loc -> RSE Env Inference (Subst, A.Type)
 inferLit lit loc =
   let ty = A.TBase (A.baseTypeOfLit lit) loc
-   in return (mempty, ty, T.Lit lit ty loc)
+   in return (mempty, ty)
+
+inferVar :: Name -> Loc -> RSE Env Inference (Subst, A.Type)
+inferVar name loc = do
+  env <- ask
+  case Map.lookup name env of
+    Just scheme -> do
+      ty <- instantiate scheme
+      return (mempty, ty)
+    Nothing ->
+      throwError $ NotInScope name
