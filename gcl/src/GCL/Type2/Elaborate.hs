@@ -108,7 +108,6 @@ instance Elaborate A.Expr T.Expr where
   elaborate expr = do
     (_, ty) <- infer expr
     return $ toTypedExpr expr ty
-
     where
       toTypedExpr (A.Lit lit loc) ty = T.Lit lit ty loc
       toTypedExpr (A.Var name loc) ty = T.Var name ty loc
