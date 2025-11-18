@@ -34,6 +34,7 @@ library
       GCL.Type
       GCL.Type2.Elaborate
       GCL.Type2.Infer
+      GCL.Type2.MiniAst
       GCL.Type2.RSE
       GCL.Type2.Test
       GCL.WP
@@ -209,6 +210,7 @@ test-suite gcl-test
       GCL.Type
       GCL.Type2.Elaborate
       GCL.Type2.Infer
+      GCL.Type2.MiniAst
       GCL.Type2.RSE
       GCL.Type2.Test
       GCL.WP
