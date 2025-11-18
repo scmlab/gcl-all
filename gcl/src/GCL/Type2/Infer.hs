@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use tuple-section" #-}
@@ -15,8 +16,8 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Debug.Trace
 import GCL.Type (TypeError (..))
-import GCL.Type2.RSE
 import GCL.Type2.MiniAst
+import GCL.Type2.RSE
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp, ChainOp, Name (Name), Op (..))
 
@@ -34,13 +35,10 @@ data Scheme
 
 type Env = Map TmVar Scheme
 
-newtype Subst = Subst (Map TyVar A.Type)
+type Subst = Map TyVar A.Type
 
-instance Semigroup Subst where
-  s1@(Subst m1) <> (Subst m2) = Subst $ Map.map (applySubst s1) m2 `Map.union` m1
-
-instance Monoid Subst where
-  mempty = Subst Map.empty
+instance {-# OVERLAPPING #-} Semigroup Subst where
+  s1 <> s2 = Map.map (applySubst s1) s2 `Map.union` s1
 
 checkDuplicateNames :: [Name] -> Result ()
 checkDuplicateNames names =
@@ -75,16 +73,16 @@ applySubst _ ty@A.TOp {} = ty
 applySubst subst (A.TApp e1 e2 loc) =
   A.TApp (applySubst subst e1) (applySubst subst e2) loc
 applySubst _ ty@A.TData {} = ty
-applySubst (Subst subst) ty@(A.TVar name _) =
+applySubst subst ty@(A.TVar name _) =
   Map.findWithDefault ty name subst
-applySubst (Subst subst) ty@(A.TMetaVar name _) =
+applySubst subst ty@(A.TMetaVar name _) =
   Map.findWithDefault ty name subst
 
 applySubstScheme :: Subst -> Scheme -> Scheme
-applySubstScheme (Subst subst) (Forall vars ty) =
+applySubstScheme subst (Forall vars ty) =
   let -- Subst $ Map.filterWithKey (\k _ -> k `notElem` vars) subst
       -- is too inefficient i think if `vars` becomes long
-      filteredSubst = Subst $ foldl' (\acc var -> Map.delete var acc) subst vars -- XXX: why? what does this do?
+      filteredSubst = foldl' (\acc var -> Map.delete var acc) subst vars -- XXX: why? what does this do?
    in Forall vars (applySubst filteredSubst ty)
 
 applySubstEnv :: Subst -> Env -> Env
@@ -105,7 +103,7 @@ instantiate (Forall tvs ty) = do
           return (var, A.TVar fresh NoLoc)
       )
       tvs
-  let subst = Subst $ Map.fromList mappings
+  let subst = Map.fromList mappings
   return $ applySubst subst ty
 
 freeTypeVars :: A.Type -> Set TyVar
@@ -147,7 +145,7 @@ unifyVar name ty loc
   | A.TVar name NoLoc == ty = return mempty
   | checkOccurs name ty = throwError $ RecursiveType name ty loc
   | otherwise =
-      let subst = Subst $ Map.singleton name ty
+      let subst = Map.singleton name ty
        in return subst
 
 infer :: A.Expr -> RSE Env Inference (Subst, A.Type)
