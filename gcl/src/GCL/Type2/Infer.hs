@@ -1,23 +1,24 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use tuple-section" #-}
+{-# HLINT ignore "Avoid lambda" #-}
 
 module GCL.Type2.Infer where
 
+import Data.List (foldl')
 import qualified Data.List.NonEmpty as NE
 import Data.Loc (Loc (..))
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Text (Text)
 import qualified Data.Text as Text
 import Debug.Trace
 import GCL.Type (TypeError (..))
 import GCL.Type2.RSE
+import GCL.Type2.MiniAst
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name (Name))
+import Syntax.Common.Types (ArithOp, ChainOp, Name (Name), Op (..))
 
 newtype Inference = Inference
   { _counter :: Int
@@ -50,6 +51,10 @@ checkDuplicateNames names =
 
 -- checkAssign :: Name -> RSE Env Inference
 
+-- prevent infintite types by checking if the type occurs in itself
+checkOccurs :: Name -> A.Type -> Bool
+checkOccurs name ty = Set.member name (freeTypeVars ty)
+
 collectDeclToEnv :: A.Declaration -> Result Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
   checkDuplicateNames names
@@ -58,6 +63,7 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
   checkDuplicateNames names
   return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
 
+-- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
 applySubst _ ty@A.TBase {} = ty
 applySubst subst (A.TArray interval ty loc) =
@@ -74,7 +80,17 @@ applySubst (Subst subst) ty@(A.TVar name _) =
 applySubst (Subst subst) ty@(A.TMetaVar name _) =
   Map.findWithDefault ty name subst
 
-freshTyVar :: RSE Env Inference Name
+applySubstScheme :: Subst -> Scheme -> Scheme
+applySubstScheme (Subst subst) (Forall vars ty) =
+  let -- Subst $ Map.filterWithKey (\k _ -> k `notElem` vars) subst
+      -- is too inefficient i think if `vars` becomes long
+      filteredSubst = Subst $ foldl' (\acc var -> Map.delete var acc) subst vars -- XXX: why? what does this do?
+   in Forall vars (applySubst filteredSubst ty)
+
+applySubstEnv :: Subst -> Env -> Env
+applySubstEnv subst = Map.map (applySubstScheme subst)
+
+freshTyVar :: RSE Env Inference TyVar
 freshTyVar = do
   n <- gets _counter
   put $ Inference (n + 1)
@@ -119,13 +135,26 @@ generalize ty = do
 
 unify :: A.Type -> A.Type -> Loc -> Result Subst
 unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
-unify t1 t2 l = undefined
+unify (A.TArray _i1 t1 _) (A.TArray _i2 t2 _) l = unify t1 t2 l
+unify (A.TVar name _) ty l = unifyVar name ty l
+unify ty (A.TVar name _) l = unifyVar name ty l
+unify (A.TMetaVar name _) ty l = unifyVar name ty l
+unify ty (A.TMetaVar name _) l = unifyVar name ty l
+unify t1 t2 l = throwError $ UnifyFailed t1 t2 l
+
+unifyVar :: Name -> A.Type -> Loc -> Result Subst
+unifyVar name ty loc
+  | A.TVar name NoLoc == ty = return mempty
+  | checkOccurs name ty = throwError $ RecursiveType name ty loc
+  | otherwise =
+      let subst = Subst $ Map.singleton name ty
+       in return subst
 
 infer :: A.Expr -> RSE Env Inference (Subst, A.Type)
 infer (A.Lit lit loc) = inferLit lit loc
 infer (A.Var name loc) = inferVar name loc
 infer (A.Const name loc) = inferVar name loc
-infer (A.Op op) = undefined
+infer (A.Op op) = inferArithOp op
 infer (A.Chain chain) = trace ("\n" <> show chain <> "\n") $ inferChain chain
 infer (A.App e1 e2 loc) = undefined
 infer (A.Lam name expr loc) = undefined
@@ -154,8 +183,22 @@ inferVar name loc = do
       throwError $ NotInScope name
 
 inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type)
-inferChain (A.More chain' op expr loc) = do
+inferChain (A.More (A.Pure e1 l1) op e2 l2) = do
   ftv <- freshTyVar
-  (chainSubst, chainTy) <- inferChain chain'
-  _
-inferChain (A.Pure expr loc) = undefined
+  (opSubst, opTy) <- inferChainOp op
+
+  (s1, ty1) <- infer e1
+  (s2, ty2) <- local (applySubstEnv s1) (infer e2)
+  undefined
+inferChain _ = undefined
+
+inferOp :: Op -> RSE Env Inference (Subst, A.Type)
+inferOp (ArithOp op) = inferArithOp op
+inferOp (ChainOp op) = inferChainOp op
+inferOp (TypeOp _op) = undefined
+
+inferArithOp :: ArithOp -> RSE Env Inference (Subst, A.Type)
+inferArithOp op = undefined
+
+inferChainOp :: ChainOp -> RSE Env Inference (Subst, A.Type)
+inferChainOp op = undefined
