@@ -3,7 +3,6 @@
 import * as vscode from 'vscode';
 import { retrieveMainEditor, genSelectionRangeWithOffset } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
-import { getSpecLinesRange, getImplText, getSpecText, getImplLinesRange } from "./refine";
 import { GclPanel } from './gclPanel';
 import { FileState, ISpecification } from './data/FileState';
 import path from 'path';
@@ -76,23 +75,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	const refineDisposable = vscode.commands.registerCommand('gcl.refine', async () => {
 		const editor = retrieveMainEditor();
 		const filePath = editor.document.uri.fsPath;
-		const selectionRange = genSelectionRangeWithOffset(editor);
-		let specLines = getSpecLinesRange(editor, selectionRange);
-		
-		if (specLines) {
-			const implText = getImplText(editor, specLines);
-			const specText = getSpecText(editor, specLines);
-			const implLines = getImplLinesRange(editor, specLines);
-			const _response = await sendRequest("gcl/refine", {
-				filePath: filePath,
-				implStart: implLines.toJson().start,
-				specText,
-				specLines: specLines.toJson(),
-			})
-			// ignore the response and get results or errors from notifications
-		} else {
-			vscode.window.showWarningMessage("Please place the cursor inside the specification to refine.");
-		}
+		const _response = await sendRequest("gcl/refine", {
+			filePath: filePath,
+			line: editor.selection.start.line, // 0-based
+			character: editor.selection.start.character, // 0-based
+		})
+		// ignore the response and get results or errors from notifications
 	});
 	context.subscriptions.push(refineDisposable);
 
