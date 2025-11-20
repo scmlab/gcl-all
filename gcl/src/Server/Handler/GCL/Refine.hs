@@ -279,13 +279,11 @@ digImplHoles parseStart filePath implText =
 parseFragment :: Pos -> Text -> Either ParseError [C.Stmt]
 parseFragment fragmentStart fragment = do
   let Pos filePath _ _ _ = fragmentStart
-  case Syntax.Parser.Lexer.scan filePath fragment of
-    Left err -> Left (LexicalError err)
-    Right tokens -> do
-      let tokens' = translateTokStream fragmentStart tokens
-      case Parser.parse Parser.statements filePath tokens' of
-        Left (errors, logMsg) -> Left (SyntacticError errors logMsg)
-        Right val -> Right val
+  let tokens = Syntax.Parser.Lexer.scan filePath fragment
+  let tokens' = translateTokStream fragmentStart tokens
+  case Parser.parse Parser.statements filePath tokens' of
+    Left (errors, logMsg) -> Left (SyntacticError errors logMsg)
+    Right val -> Right val
   where
     translateRange :: Pos -> Pos -> Pos
     translateRange
