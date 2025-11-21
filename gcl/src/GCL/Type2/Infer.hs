@@ -20,6 +20,7 @@ import GCL.Type2.MiniAst
 import GCL.Type2.RSE
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp, ChainOp, Name (Name), Op (..))
+import qualified Syntax.Typed.Types as T
 
 newtype Inference = Inference
   { _counter :: Int
@@ -82,7 +83,8 @@ applySubstScheme :: Subst -> Scheme -> Scheme
 applySubstScheme subst (Forall vars ty) =
   let -- Subst $ Map.filterWithKey (\k _ -> k `notElem` vars) subst
       -- is too inefficient i think if `vars` becomes long
-      filteredSubst = foldl' (\acc var -> Map.delete var acc) subst vars -- XXX: why? what does this do?
+      -- TODO: change to rename here
+      filteredSubst = foldl' (\acc var -> Map.delete var acc) subst vars
    in Forall vars (applySubst filteredSubst ty)
 
 applySubstEnv :: Subst -> Env -> Env
@@ -94,6 +96,7 @@ freshTyVar = do
   put $ Inference (n + 1)
   return $ Name (Text.pack $ "t" <> show n) NoLoc
 
+-- assuming forall ONLY exists on the outside
 instantiate :: Scheme -> RSE Env Inference A.Type
 instantiate (Forall tvs ty) = do
   mappings <-
@@ -148,7 +151,8 @@ unifyVar name ty loc
       let subst = Map.singleton name ty
        in return subst
 
-infer :: A.Expr -> RSE Env Inference (Subst, A.Type)
+-- we keep `T.Expr` to prevent repeating calculate the same expression
+infer :: A.Expr -> RSE Env Inference (Subst, A.Type, T.Expr)
 infer (A.Lit lit loc) = inferLit lit loc
 infer (A.Var name loc) = inferVar name loc
 infer (A.Const name loc) = inferVar name loc
@@ -165,38 +169,39 @@ infer (A.ArrIdx arr index loc) = undefined
 infer (A.ArrUpd arr index expr loc) = undefined
 infer (A.Case expr clauses loc) = undefined
 
-inferLit :: A.Lit -> Loc -> RSE Env Inference (Subst, A.Type)
+inferLit :: A.Lit -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferLit lit loc =
   let ty = A.TBase (A.baseTypeOfLit lit) loc
-   in return (mempty, ty)
+   in return (mempty, ty, T.Lit lit ty loc)
 
-inferVar :: Name -> Loc -> RSE Env Inference (Subst, A.Type)
+inferVar :: Name -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferVar name loc = do
   env <- ask
   case Map.lookup name env of
     Just scheme -> do
       ty <- instantiate scheme
-      return (mempty, ty)
+      return (mempty, ty, T.Var name ty loc)
     Nothing ->
       throwError $ NotInScope name
 
-inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type)
+inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferChain (A.More (A.Pure e1 l1) op e2 l2) = do
   ftv <- freshTyVar
-  (opSubst, opTy) <- inferChainOp op
-
-  (s1, ty1) <- infer e1
-  (s2, ty2) <- local (applySubstEnv s1) (infer e2)
+  (opSubst, opTy, typedChain) <- inferChainOp op
+  -- TODO: make sure we need to instantiate here
+  -- ChainOp should already provide all ground types so it's probably unnecessary?
+  (s1, ty1, _) <- infer e1
+  (s2, ty2, _) <- local (applySubstEnv (opSubst <> s1)) (infer e2)
   undefined
 inferChain _ = undefined
 
-inferOp :: Op -> RSE Env Inference (Subst, A.Type)
+inferOp :: Op -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferOp (ArithOp op) = inferArithOp op
 inferOp (ChainOp op) = inferChainOp op
 inferOp (TypeOp _op) = undefined
 
-inferArithOp :: ArithOp -> RSE Env Inference (Subst, A.Type)
+inferArithOp :: ArithOp -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferArithOp op = undefined
 
-inferChainOp :: ChainOp -> RSE Env Inference (Subst, A.Type)
+inferChainOp :: ChainOp -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferChainOp op = undefined
