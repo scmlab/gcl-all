@@ -11,7 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import Error (Error (..))
 import qualified GCL.Type as Type
-import qualified GCL.Type2.Elaborate as Type2
+import qualified GCL.Type2.ToTyped as Type2
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Parser as Parser
@@ -58,7 +58,7 @@ simpleLoad filepath source = runExceptT $ do
 
     typecheck2 :: A.Program -> IO (Either Error T.Program)
     typecheck2 abstract =
-      case Type2.runElaboration abstract mempty of
+      case Type2.runToTyped abstract mempty of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError err)
