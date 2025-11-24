@@ -14,7 +14,7 @@ import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
 import Data.Loc (L (..), Loc (..), Pos (..))
-import Data.Loc.Range (Range (..), rangeStart, toLoc)
+import Data.Loc.Range (Range (..), mkRange, rangeStart, toLoc)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -220,7 +220,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
 
     shrinkRange :: Int -> Range -> Range
     shrinkRange diff (Range (Pos f1 l1 c1 o1) (Pos f2 l2 c2 o2)) =
-      Range (Pos f1 l1 (c1 + diff) (o1 + diff)) (Pos f2 l2 (c2 - diff) (o2 - diff))
+      mkRange (Pos f1 l1 (c1 + diff) (o1 + diff)) (Pos f2 l2 (c2 - diff) (o2 - diff))
 
     isFirstLineBlank :: Text -> Bool
     isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')

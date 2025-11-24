@@ -19,7 +19,7 @@ where
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.Loc
-import Data.Loc.Range
+import Data.Loc.Range (Range (..), mkRange)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Hack
@@ -35,7 +35,7 @@ import qualified Language.LSP.Protocol.Types as J
 -- | LSP Range -> Data.Range.Range
 fromLSPRange :: ToOffset -> FilePath -> J.Range -> Range
 fromLSPRange table filepath (J.Range start end) =
-  Range
+  mkRange
     (fromLSPPosition table filepath start)
     (fromLSPPosition table filepath end)
 
@@ -50,7 +50,7 @@ fromLSPPosition table filepath (J.Position line col) =
 
 fromLSPRangeWithoutCharacterOffset :: FilePath -> J.Range -> Range
 fromLSPRangeWithoutCharacterOffset filepath (J.Range start end) =
-  Range
+  mkRange
     (fromLSPPositionWithoutCharacterOffset filepath start)
     (fromLSPPositionWithoutCharacterOffset filepath end)
 
@@ -65,7 +65,7 @@ fromLSPPositionWithoutCharacterOffset filepath (J.Position line col) =
 
 toLSPLocation :: Range -> J.Location
 toLSPLocation (Range start end) =
-  J.Location (J.Uri $ Text.pack $ posFile start) (toLSPRange (Range start end))
+  J.Location (J.Uri $ Text.pack $ posFile start) (toLSPRange (mkRange start end))
 
 toLSPRange :: Range -> J.Range
 toLSPRange (Range start end) = J.Range (toLSPPosition start) (toLSPPosition end)

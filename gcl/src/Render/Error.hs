@@ -4,7 +4,7 @@ module Render.Error where
 
 import Data.Foldable (toList)
 import Data.Loc (locOf)
-import Data.Loc.Range
+import Data.Loc.Range (fromLoc, mkRange)
 import Error
 import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
@@ -29,7 +29,7 @@ instance RenderSection Error where
 
 instance RenderSection ParseError where
   renderSection (LexicalError pos) =
-    Section Red [Header "Lex Error" (Just $ Range pos pos)]
+    Section Red [Header "Lex Error" (Just $ mkRange pos pos)]
   renderSection (SyntacticError pairs _) =
     -- the logMsg (the second arg) was used for debugging
     Section Red

@@ -33,7 +33,7 @@ import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.List (intercalate)
 import qualified Data.List.NonEmpty as NEL
 import Data.Loc
-import Data.Loc.Range
+import Data.Loc.Range (Range, mkRange)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (..))
@@ -134,7 +134,7 @@ getRange parser = do
   (result, loc) <- getLoc parser
   case loc of
     NoLoc -> error "NoLoc when getting srcloc info from a token"
-    Loc start end -> return (result, Range start end)
+    Loc start end -> return (result, mkRange start end)
 
 withLoc :: Parser (Loc -> a) -> Parser a
 withLoc parser = do
