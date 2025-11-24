@@ -1,4 +1,7 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use tuple-section" #-}
 
 module GCL.Type2.ToTyped where
 
@@ -10,14 +13,27 @@ import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name, Op (..))
+import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
+import qualified Hack
+
+collectDeclToEnv :: A.Declaration -> Result Env
+collectDeclToEnv (A.ConstDecl names ty _ _) = do
+  checkDuplicateNames names
+  return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
+collectDeclToEnv (A.VarDecl names ty _ _) = do
+  checkDuplicateNames names
+  return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
 
 class ToTyped a t | a -> t where
   toTyped :: a -> RSE Env Inference t
 
 instance ToTyped A.Program T.Program where
   toTyped (A.Program defns decls exprs stmts loc) = do
+    traceM $ "defns: " <> show defns
+    traceM $ "decls: " <> show decls
+    traceM $ "exprs: " <> show exprs -- XXX: why is this repeating the same thing in `decls`
+    traceM $ "stmts: " <> show stmts
     env <- ask
     declEnv <-
       foldM
@@ -40,13 +56,13 @@ instance ToTyped A.Program T.Program where
     typedDecls <-
       mapM
         ( \decl -> do
-            toTyped decl
+            local (const declEnv) (toTyped decl)
         )
         decls
     typedExprs <-
       mapM
         ( \expr -> do
-            toTyped expr
+            local (const declEnv) (toTyped expr)
         )
         exprs
     typedStmts <-
@@ -106,7 +122,8 @@ toTypedAssign names exprs loc
 
 instance ToTyped A.Expr T.Expr where
   toTyped expr = do
-    (_, ty, typed) <- infer expr
+    (_, _, typed) <- infer expr
+    traceM $ "\n" <> Hack.sshow typed <> "\n"
     return typed
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t

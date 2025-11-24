@@ -32,11 +32,11 @@ library
       GCL.Predicate.Util
       GCL.Substitution
       GCL.Type
-      GCL.Type2.Elaborate
       GCL.Type2.Infer
       GCL.Type2.MiniAst
       GCL.Type2.RSE
       GCL.Type2.Test
+      GCL.Type2.ToTyped
       GCL.WP
       GCL.WP.Explanation
       GCL.WP.SP
@@ -208,11 +208,11 @@ test-suite gcl-test
       GCL.Predicate.Util
       GCL.Substitution
       GCL.Type
-      GCL.Type2.Elaborate
       GCL.Type2.Infer
       GCL.Type2.MiniAst
       GCL.Type2.RSE
       GCL.Type2.Test
+      GCL.Type2.ToTyped
       GCL.WP
       GCL.WP.Explanation
       GCL.WP.SP

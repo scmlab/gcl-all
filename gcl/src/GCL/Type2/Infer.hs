@@ -18,9 +18,11 @@ import Debug.Trace
 import GCL.Type (TypeError (..))
 import GCL.Type2.MiniAst
 import GCL.Type2.RSE
+import Pretty
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (ArithOp, ChainOp, Name (Name), Op (..))
+import Syntax.Common.Types (ArithOp, ChainOp (..), Name (Name), Op (..), TypeOp (..))
 import qualified Syntax.Typed.Types as T
+import Prelude hiding (GT)
 
 newtype Inference = Inference
   { _counter :: Int
@@ -38,8 +40,11 @@ type Env = Map TmVar Scheme
 
 type Subst = Map TyVar A.Type
 
+composeSubst :: Subst -> Subst -> Subst
+s1 `composeSubst` s2 = Map.map (applySubst s1) s2 `Map.union` s1
+
 instance {-# OVERLAPPING #-} Semigroup Subst where
-  s1 <> s2 = Map.map (applySubst s1) s2 `Map.union` s1
+  (<>) = composeSubst
 
 checkDuplicateNames :: [Name] -> Result ()
 checkDuplicateNames names =
@@ -53,14 +58,6 @@ checkDuplicateNames names =
 -- prevent infintite types by checking if the type occurs in itself
 checkOccurs :: Name -> A.Type -> Bool
 checkOccurs name ty = Set.member name (freeTypeVars ty)
-
-collectDeclToEnv :: A.Declaration -> Result Env
-collectDeclToEnv (A.ConstDecl names ty _ _) = do
-  checkDuplicateNames names
-  return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
-collectDeclToEnv (A.VarDecl names ty _ _) = do
-  checkDuplicateNames names
-  return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
 
 -- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
@@ -137,11 +134,20 @@ generalize ty = do
 unify :: A.Type -> A.Type -> Loc -> Result Subst
 unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
 unify (A.TArray _i1 t1 _) (A.TArray _i2 t2 _) l = unify t1 t2 l
+unify (A.TOp op1) (A.TOp op2) _ | op1 == op2 = return mempty
+unify (A.TApp a1 a2 _) (A.TApp b1 b2 _) l = do
+  s1 <- unify a1 b1 l
+  s2 <- unify (applySubst s1 a2) (applySubst s1 b2) l
+  return $ s2 <> s1
 unify (A.TVar name _) ty l = unifyVar name ty l
 unify ty (A.TVar name _) l = unifyVar name ty l
 unify (A.TMetaVar name _) ty l = unifyVar name ty l
 unify ty (A.TMetaVar name _) l = unifyVar name ty l
-unify t1 t2 l = throwError $ UnifyFailed t1 t2 l
+unify t1 t2 l =
+  trace
+    (show (pretty t1) <> "\n" <> show (pretty t2))
+    throwError
+    $ UnifyFailed t1 t2 l
 
 unifyVar :: Name -> A.Type -> Loc -> Result Subst
 unifyVar name ty loc
@@ -156,8 +162,12 @@ infer :: A.Expr -> RSE Env Inference (Subst, A.Type, T.Expr)
 infer (A.Lit lit loc) = inferLit lit loc
 infer (A.Var name loc) = inferVar name loc
 infer (A.Const name loc) = inferVar name loc
-infer (A.Op op) = inferArithOp op
-infer (A.Chain chain) = trace ("\n" <> show chain <> "\n") $ inferChain chain
+infer (A.Op op) = do
+  (subst, ty, op') <- inferArithOp op
+  return (subst, ty, T.Op op' ty)
+infer (A.Chain chain) = do
+  (subst, ty, chain') <- inferChain chain
+  return (subst, ty, T.Chain chain')
 infer (A.App e1 e2 loc) = undefined
 infer (A.Lam name expr loc) = undefined
 infer (A.Func name clauses loc) = undefined
@@ -182,26 +192,59 @@ inferVar name loc = do
       ty <- instantiate scheme
       return (mempty, ty, T.Var name ty loc)
     Nothing ->
+      -- trace (show env)
       throwError $ NotInScope name
 
-inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferChain (A.More (A.Pure e1 l1) op e2 l2) = do
-  ftv <- freshTyVar
-  (opSubst, opTy, typedChain) <- inferChainOp op
+inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type, T.Chain)
+inferChain (A.More chain2@(A.More chain1 op1 e1 l1) op2 e2 l2) = do
+  ftv <- A.TVar <$> freshTyVar <*> pure NoLoc
+  (chainSubst, _, typedChain) <- inferChain chain2
+  (opSubst, opTy, typedOp) <- inferChainOp op2
   -- TODO: make sure we need to instantiate here
   -- ChainOp should already provide all ground types so it's probably unnecessary?
-  (s1, ty1, _) <- infer e1
-  (s2, ty2, _) <- local (applySubstEnv (opSubst <> s1)) (infer e2)
-  undefined
-inferChain _ = undefined
+  -- XXX: i think this has redundant work being done due to `inferChain chain2` above?
+  (s1, ty1, typedE1) <- local (applySubstEnv chainSubst) (infer e1)
+  (s2, ty2, typedE2) <- local (applySubstEnv (chainSubst <> s1)) (infer e1)
+  unifiedSubst <- lift $ unify (ty1 `typeToType` ty2 `typeToType` ftv) opTy l2
+  -- XXX: no unifiedSubst needed here?
+  -- s1 and s2 are inverted from base case?
+  let resultSubst = chainSubst <> opSubst <> s1 <> s2
+  let typedChain' = T.More typedChain typedOp (applySubst unifiedSubst opTy) typedE2
+  return (resultSubst, applySubst resultSubst ftv, typedChain')
+inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
+  ftv <- A.TVar <$> freshTyVar <*> pure NoLoc
+  (opSubst, opTy, typedOp) <- inferChainOp op
+  -- TODO: make sure we need to instantiate here
+  -- ChainOp should already provide all ground types so it's probably unnecessary?
+  (s1, ty1, typedE1) <- infer e1
+  (s2, ty2, typedE2) <- local (applySubstEnv (opSubst <> s1)) (infer e2)
+  unifiedSubst <- lift $ unify (ty1 `typeToType` ty2 `typeToType` ftv) opTy l2
+  let resultSubst = unifiedSubst <> s2 <> s1 <> opSubst
+  let typedChain = T.More (T.Pure typedE1) typedOp (applySubst unifiedSubst opTy) typedE2
+  return (resultSubst, applySubst resultSubst ftv, typedChain)
+inferChain _ = error "this cannot happen"
 
-inferOp :: Op -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferOp (ArithOp op) = inferArithOp op
-inferOp (ChainOp op) = inferChainOp op
-inferOp (TypeOp _op) = undefined
-
-inferArithOp :: ArithOp -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferArithOp :: ArithOp -> RSE Env Inference (Subst, A.Type, Op)
 inferArithOp op = undefined
 
-inferChainOp :: ChainOp -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferChainOp op = undefined
+inferChainOp :: ChainOp -> RSE Env Inference (Subst, A.Type, Op)
+inferChainOp op = do
+  -- XXX: should we restrict types for comparison operations?
+  -- original implementation for `GT`, `LT`, etc. limits it to `Int -> Int -> Bool`
+  -- but equality is `forall a. a -> a -> Bool`
+  ftv <- A.TVar <$> freshTyVar <*> pure NoLoc
+  return (mempty, ftv `typeToType` ftv `typeToType` typeBool, ChainOp op)
+
+inferTypeOp :: TypeOp -> RSE Env Inference (Subst, A.Type, Op)
+inferTypeOp op = undefined
+
+-- | construct a type of `a -> b`
+typeToType :: A.Type -> A.Type -> A.Type
+typeToType t1 t2 = A.TApp (A.TApp (A.TOp (Arrow NoLoc)) t1 NoLoc) t2 NoLoc
+
+-- XXX: is including `Loc` relevant here?
+typeInt :: A.Type
+typeInt = A.TBase A.TInt NoLoc
+
+typeBool :: A.Type
+typeBool = A.TBase A.TBool NoLoc
