@@ -9,7 +9,6 @@ module Server.SrcLoc
     fromOffset,
     fromLSPRange,
     fromLSPPosition,
-    toLSPLocation,
     toLSPRange,
     toLSPPosition,
     fromLSPRangeWithoutCharacterOffset,
@@ -62,10 +61,6 @@ fromLSPPositionWithoutCharacterOffset filepath (J.Position line col) =
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1
     (-1) -- discard this field
-
-toLSPLocation :: Range -> J.Location
-toLSPLocation (Range start end) =
-  J.Location (J.Uri $ Text.pack $ posFile start) (toLSPRange (mkRange start end))
 
 toLSPRange :: Range -> J.Range
 toLSPRange (Range start end) = J.Range (toLSPPosition start) (toLSPPosition end)
