@@ -2,8 +2,29 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternSynonyms #-}
 
-module Data.Loc.Range where
+module Data.Loc.Range
+  ( Range (Range), -- only the type and the pattern, the constructor is hidden
+    mkRange, -- forcing users to use this constructor
+    R (..),
+    ShortRange (..),
+    rangeStart,
+    rangeEnd,
+    rangeFile,
+    fromLoc,
+    toLoc,
+    fromLocs,
+    mergeRangesUnsafe,
+    mergeRanges,
+    rangeSpan,
+    within,
+    Ranged (..),
+    unRange,
+    compareWithPosition,
+    withinRange,
+  )
+where
 
 import Data.Aeson
   ( FromJSON (..),
@@ -45,8 +66,20 @@ import Prettyprinter (Pretty (pretty))
 --
 --  We abuse `Pos` to represent what is actually the left endpoint of that `Pos`
 
-data Range = Range Pos Pos
+data Range = Range_ Pos Pos
   deriving (Eq, Generic)
+
+-- | Pattern synonym for Range, use mkRange to construct
+pattern Range :: Pos -> Pos -> Range
+pattern Range start end <- Range_ start end -- "<-" single direction pattern: only for matching, not for constructing
+
+{-# COMPLETE Range #-}
+
+-- | The only way to construct a Range
+mkRange :: Pos -> Pos -> Range
+mkRange start end
+  | start <= end = Range_ start end
+  | otherwise = error $ "mkRange: start <= end does not hold: start: " ++ show start ++ " end: " ++ show end
 
 -- First by comparing their starting positions and then their ending positions
 instance Ord Range where
@@ -99,7 +132,7 @@ rangeFile (Range a _) = posFile a
 -- | Loc -> Maybe Range
 fromLoc :: Loc -> Maybe Range
 fromLoc NoLoc = Nothing
-fromLoc (Loc x y) = Just (Range x y)
+fromLoc (Loc x y) = Just (mkRange x y)
 
 -- | Range -> Loc
 toLoc :: Range -> Loc
@@ -129,15 +162,15 @@ instance Located Range where
 -- | Merge two ranges by filling their gap
 instance Semigroup Range where
   Range a b <> Range c d = case (a `compare` c, b `compare` d) of
-    (LT, LT) -> Range a d
-    (LT, EQ) -> Range a d
-    (LT, GT) -> Range a b
-    (EQ, LT) -> Range a d
-    (EQ, EQ) -> Range a b
-    (EQ, GT) -> Range a b
-    (GT, LT) -> Range c d
-    (GT, EQ) -> Range c d
-    (GT, GT) -> Range c b
+    (LT, LT) -> mkRange a d
+    (LT, EQ) -> mkRange a d
+    (LT, GT) -> mkRange a b
+    (EQ, LT) -> mkRange a d
+    (EQ, EQ) -> mkRange a b
+    (EQ, GT) -> mkRange a b
+    (GT, LT) -> mkRange c d
+    (GT, EQ) -> mkRange c d
+    (GT, GT) -> mkRange c b
 
 --------------------------------------------------------------------------------
 
@@ -196,7 +229,7 @@ instance FromJSON Pos where
 -- | Make Range instances  of FromJSON and ToJSON
 instance FromJSON Range where
   parseJSON = withObject "Range" $ \v ->
-    Range
+    mkRange
       <$> v .: "start"
       <*> v .: "end"
 
