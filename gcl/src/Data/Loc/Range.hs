@@ -42,30 +42,7 @@ import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
--- | Represents an interval of two source locations
---
---  Very much like `Loc`, except that:
---    1. There's no `NoLoc`
---    2. Cursors is placed IN-BETWEEN two characters rather than ON a character
---
---  For example: to represent the selection of "ABC" in "ABCD"
---    (here we use the tip of ">" and "<" to represent a cursor between two characters)
---
---    charactor offset    :   0123
---    charactors          :   ABCD
-
--------------------------------------------------------
---    Loc       of "ABC"  :   ^^^     Loc   (Pos ... 0) (Pos ... 2)
---    Range     of "ABC"  :  >   <    Range (Pos ... 0) (Pos ... 3)
---
---    Loc       of "AB"   :   ^^      Loc   (Pos ... 0) (Pos ... 1)
---    Range     of "AB"   :  >  <     Range (Pos ... 0) (Pos ... 2)
---
---    Loc       of ""     :  ####### UNREPRESENTABLE ###################
---    Range     of ""     :  ><       Range (Pos ... 0) (Pos ... 0)
---
---  We abuse `Pos` to represent what is actually the left endpoint of that `Pos`
-
+-- TODO: write a short documentation about Range and its usage
 data Range = Range_ Pos Pos
   deriving (Eq, Generic)
 
