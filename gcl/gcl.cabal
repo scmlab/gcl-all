@@ -188,13 +188,8 @@ test-suite gcl-test
   other-modules:
       Test.Parser
       Test.Render
-      Test.Server
-      Test.Server.Interpreter
       Test.SrcLoc
-      Test.Substitution
-      Test.TypeChecking
       Test.Util
-      Test.WP
       Data.Loc.Range
       Data.Loc.Util
       Error
