@@ -15,6 +15,7 @@ module Data.Loc.Range
     fromLoc,
     toLoc,
     toMaybeRange,
+    maybeRangeToLoc,
     fromLocs,
     mergeRangesUnsafe,
     mergeRanges,
@@ -117,6 +118,11 @@ fromLoc (Loc x y) = Just (mkRange x y)
 -- | Loc -> Maybe Range (alias for fromLoc with clearer naming)
 toMaybeRange :: Loc -> Maybe Range
 toMaybeRange = fromLoc
+
+-- | Maybe Range -> Loc (convert back to Loc for backward compatibility)
+maybeRangeToLoc :: Maybe Range -> Loc
+maybeRangeToLoc Nothing = NoLoc
+maybeRangeToLoc (Just r) = toLoc r
 
 -- | Range -> Loc
 toLoc :: Range -> Loc

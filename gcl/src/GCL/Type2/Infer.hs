@@ -92,7 +92,7 @@ freshTyVar :: RSE Env Inference TyVar
 freshTyVar = do
   n <- gets _counter
   put $ Inference (n + 1)
-  return $ Name (Text.pack $ "t" <> show n) NoLoc
+  return $ Name (Text.pack $ "t" <> show n) Nothing
 
 instantiate :: Scheme -> RSE Env Inference A.Type
 instantiate (Forall tvs ty) = do

@@ -5,13 +5,14 @@ module Render.Class
   ( Render (..),
     RenderSection (..),
     tempHandleLoc,
+    tempHandleMaybeRange,
     renderManySepByComma,
     PrecContext (..),
   )
 where
 
 import Data.Loc (Loc)
-import Data.Loc.Range (fromLoc)
+import Data.Loc.Range (Range, fromLoc)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Prettyprinter (Doc)
@@ -56,6 +57,11 @@ tempHandleLoc :: Loc -> Inlines -> Inlines
 tempHandleLoc loc t = case fromLoc loc of
   Nothing -> t
   Just range -> linkE range t
+
+-- | Handle Maybe Range for locations (used after the Loc -> Maybe Range migration)
+tempHandleMaybeRange :: Maybe Range -> Inlines -> Inlines
+tempHandleMaybeRange Nothing t = t
+tempHandleMaybeRange (Just range) t = linkE range t
 
 -- renderLocatedAndPrettified :: (Located a, Pretty a) => a -> Inlines
 -- renderLocatedAndPrettified x = tempHandleLoc (locOf x) (render $ pretty x)

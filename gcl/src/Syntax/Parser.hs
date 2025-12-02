@@ -508,24 +508,24 @@ expression = do
         ]
       ]
       where
-        arithOp :: (Loc -> ArithOp) -> Tok -> Parser (Expr -> Expr -> Expr)
+        arithOp :: (Maybe Range -> ArithOp) -> Tok -> Parser (Expr -> Expr -> Expr)
         arithOp operator' tok = do
-          (op, loc) <- getLoc (operator' <$ symbol tok)
+          (op, loc) <- getLoc (operator' . toMaybeRange <$ symbol tok)
           return $ \x y -> App (App (Expr.Op (op loc)) x) y
 
-        chainOp :: (Loc -> ChainOp) -> Tok -> Parser (Expr -> Expr -> Expr)
+        chainOp :: (Maybe Range -> ChainOp) -> Tok -> Parser (Expr -> Expr -> Expr)
         chainOp operator' tok = do
-          (op, loc) <- getLoc (operator' <$ symbol tok)
+          (op, loc) <- getLoc (operator' . toMaybeRange <$ symbol tok)
           return (`makeChain` op loc)
           where
             makeChain a op b = Chain $ More (asChain a) op b
             asChain (Chain c) = c
             asChain e = Pure e
 
-    unary :: (Loc -> ArithOp) -> Tok -> Parser (Expr -> Expr)
+    unary :: (Maybe Range -> ArithOp) -> Tok -> Parser (Expr -> Expr)
     unary operator' tok = do
       loc <- symbol tok
-      return $ \result -> App (Expr.Op (operator' loc)) result
+      return $ \result -> App (Expr.Op (operator' (toMaybeRange loc))) result
 
     parensExpr :: Parser Expr
     parensExpr = Paren <$> tokenParenOpen <*> expression <*> tokenParenClose
@@ -572,44 +572,44 @@ expression = do
     chainOp :: Parser ChainOp
     chainOp =
       choice
-        [ EQProp <$> symbol TokEQProp,
-          EQPropU <$> symbol TokEQPropU,
-          EQ <$> symbol TokEQ,
-          NEQ <$> symbol TokNEQ,
-          NEQU <$> symbol TokNEQU,
-          LTE <$> symbol TokLTE,
-          LTEU <$> symbol TokLTEU,
-          GTE <$> symbol TokGTE,
-          GTEU <$> symbol TokGTEU,
-          LT <$> symbol TokLT,
-          GT <$> symbol TokGT
+        [ EQProp . toMaybeRange <$> symbol TokEQProp,
+          EQPropU . toMaybeRange <$> symbol TokEQPropU,
+          EQ . toMaybeRange <$> symbol TokEQ,
+          NEQ . toMaybeRange <$> symbol TokNEQ,
+          NEQU . toMaybeRange <$> symbol TokNEQU,
+          LTE . toMaybeRange <$> symbol TokLTE,
+          LTEU . toMaybeRange <$> symbol TokLTEU,
+          GTE . toMaybeRange <$> symbol TokGTE,
+          GTEU . toMaybeRange <$> symbol TokGTEU,
+          LT . toMaybeRange <$> symbol TokLT,
+          GT . toMaybeRange <$> symbol TokGT
         ]
         <?> "chain operator"
 
     arithOp :: Parser ArithOp
     arithOp =
       choice
-        [ Implies <$> symbol TokImpl,
-          ImpliesU <$> symbol TokImplU,
-          Conj <$> symbol TokConj,
-          ConjU <$> symbol TokConjU,
-          Disj <$> symbol TokDisj,
-          DisjU <$> symbol TokDisjU,
-          Neg <$> symbol TokNeg,
-          NegU <$> symbol TokNegU,
-          Add <$> symbol TokAdd,
-          Sub <$> symbol TokSub,
-          Mul <$> symbol TokMul,
-          Div <$> symbol TokDiv,
-          Mod <$> symbol TokMod,
-          Max <$> symbol TokMax,
-          Min <$> symbol TokMin,
-          Exp <$> symbol TokExp,
-          Add <$> symbol TokSum,
-          Mul <$> symbol TokProd,
-          Conj <$> symbol TokForall,
-          Disj <$> symbol TokExist,
-          Hash <$> symbol TokHash
+        [ Implies . toMaybeRange <$> symbol TokImpl,
+          ImpliesU . toMaybeRange <$> symbol TokImplU,
+          Conj . toMaybeRange <$> symbol TokConj,
+          ConjU . toMaybeRange <$> symbol TokConjU,
+          Disj . toMaybeRange <$> symbol TokDisj,
+          DisjU . toMaybeRange <$> symbol TokDisjU,
+          Neg . toMaybeRange <$> symbol TokNeg,
+          NegU . toMaybeRange <$> symbol TokNegU,
+          Add . toMaybeRange <$> symbol TokAdd,
+          Sub . toMaybeRange <$> symbol TokSub,
+          Mul . toMaybeRange <$> symbol TokMul,
+          Div . toMaybeRange <$> symbol TokDiv,
+          Mod . toMaybeRange <$> symbol TokMod,
+          Max . toMaybeRange <$> symbol TokMax,
+          Min . toMaybeRange <$> symbol TokMin,
+          Exp . toMaybeRange <$> symbol TokExp,
+          Add . toMaybeRange <$> symbol TokSum,
+          Mul . toMaybeRange <$> symbol TokProd,
+          Conj . toMaybeRange <$> symbol TokForall,
+          Disj . toMaybeRange <$> symbol TokExist,
+          Hash . toMaybeRange <$> symbol TokHash
         ]
         <?> "arithmetic operator"
 
@@ -647,9 +647,9 @@ type' = do
     table :: [[Operator Parser Type]]
     table = [[InfixL (return TApp)], [InfixR $ typeOp Arrow TokArrow]]
 
-    typeOp :: (Loc -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
+    typeOp :: (Maybe Range -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
     typeOp operator' tok = do
-      (op, loc) <- getLoc (operator' <$ symbol tok)
+      (op, loc) <- getLoc (operator' . toMaybeRange <$ symbol tok)
       return $ \x y -> TApp (TApp (TOp (op loc)) x) y
 
     term :: Parser Type
@@ -704,7 +704,7 @@ upperName = extract p
 
 upper :: Parser Name
 upper =
-  withLoc (Name <$> upperName)
+  withMaybeRange (Name <$> upperName)
     <?> "identifier that starts with an uppercase letter"
 
 lowerName :: Parser Text
@@ -715,12 +715,12 @@ lowerName = extract p
 
 lower :: Parser Name
 lower =
-  withLoc (Name <$> lowerName)
+  withMaybeRange (Name <$> lowerName)
     <?> "identifier that starts with a lowercase letter"
 
 identifier :: Parser Name
 identifier =
-  withLoc (choice [Name <$> lowerName, Name <$> upperName]) <?> "identifier"
+  withMaybeRange (choice [Name <$> lowerName, Name <$> upperName]) <?> "identifier"
 
 integer :: Parser Int
 integer = extract p <?> "integer"

@@ -24,7 +24,7 @@ chain :: ChainOp -> Type -> Expr -> Expr -> Expr -- TODO: This might be wrong. N
 chain op t x y = Chain (More (Pure x) (ChainOp op) t y)
 
 neg :: Expr -> Expr
-neg = unary (NegU NoLoc) (tBool `tFunc` tBool)
+neg = unary (NegU Nothing) (tBool `tFunc` tBool)
 
 -- Type of binary logic operators: Bool -> Bool -> Bool
 -- Type of binary Int operators: Int -> Int -> Int, etc.
@@ -40,22 +40,22 @@ tBinIntROp :: Type
 tBinIntROp = tInt `tFunc` (tInt `tFunc` tBool)
 
 lt, gt, gte, lte :: Expr -> Expr -> Expr
-lt = chain (LT NoLoc) tBinIntROp
-gt = chain (GT NoLoc) tBinIntROp
-gte = chain (GTEU NoLoc) tBinIntROp
-lte = chain (LTEU NoLoc) tBinIntROp
+lt = chain (LT Nothing) tBinIntROp
+gt = chain (GT Nothing) tBinIntROp
+gte = chain (GTEU Nothing) tBinIntROp
+lte = chain (LTEU Nothing) tBinIntROp
 
 conj, disj, implies :: Expr -> Expr -> Expr
-conj = arith (ConjU NoLoc) tBinLogicOp
-disj = arith (DisjU NoLoc) tBinLogicOp
-implies = arith (ImpliesU NoLoc) tBinLogicOp
+conj = arith (ConjU Nothing) tBinLogicOp
+disj = arith (DisjU Nothing) tBinLogicOp
+implies = arith (ImpliesU Nothing) tBinLogicOp
 
 add :: Expr -> Expr -> Expr
-add = arith (Add NoLoc) tBinIntOp
+add = arith (Add Nothing) tBinIntOp
 
 eqq :: Expr -> Expr -> Expr
 e0 `eqq` e1 =
-  Chain (More (Pure e0) (ChainOp (EQ NoLoc)) (typeOf e0) e1)
+  Chain (More (Pure e0) (ChainOp (EQ Nothing)) (typeOf e0) e1)
 
 true, false :: Expr
 true = Lit (Bol True) tBool NoLoc
@@ -73,10 +73,10 @@ predEq :: Expr -> Expr -> Bool
 predEq = (==)
 
 constant :: Text -> Type -> Expr
-constant x t = Const (Name x NoLoc) t NoLoc
+constant x t = Const (Name x Nothing) t NoLoc
 
 variable :: Text -> Type -> Expr
-variable x t = Var (Name x NoLoc) t NoLoc
+variable x t = Var (Name x Nothing) t NoLoc
 
 nameVar :: Name -> Type -> Expr
 nameVar x t = Var x t NoLoc
@@ -87,7 +87,7 @@ number n = Lit (Num n) tInt NoLoc
 exists :: [Name] -> Expr -> Expr -> Expr
 exists xs ran term =
   Quant
-    (Op (ArithOp (DisjU NoLoc)) tBinLogicOp)
+    (Op (ArithOp (DisjU Nothing)) tBinLogicOp)
     xs
     ran
     term
@@ -96,16 +96,16 @@ exists xs ran term =
 forAll :: [Name] -> Expr -> Expr -> Expr
 forAll xs ran term =
   Quant
-    (Op (ArithOp (ConjU NoLoc)) tBinLogicOp)
+    (Op (ArithOp (ConjU Nothing)) tBinLogicOp)
     xs
     ran
     term
     NoLoc
 
 pointsTo, sConj, sImp :: Expr -> Expr -> Expr
-pointsTo = arith (PointsTo NoLoc) tBinIntOp
-sConj = arith (SConj NoLoc) tBinLogicOp
-sImp = arith (SImp NoLoc) tBinLogicOp
+pointsTo = arith (PointsTo Nothing) tBinIntOp
+sConj = arith (SConj Nothing) tBinLogicOp
+sImp = arith (SImp Nothing) tBinLogicOp
 
 sconjunct :: [Expr] -> Expr
 sconjunct [] = true

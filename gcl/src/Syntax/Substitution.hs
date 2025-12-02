@@ -8,6 +8,7 @@ module Syntax.Substitution where
 
 import Control.Monad (forM)
 import Data.Loc (Loc)
+import Data.Loc.Range (maybeRangeToLoc)
 import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -211,8 +212,8 @@ genBinderRenaming ::
 genBinderRenaming _ [] = return empty
 genBinderRenaming fvs ((Name x l, t) : xs)
   | x `Set.member` fvs = do
-      x' <- freshName x l
-      insert x (mkVar x' t l) <$> genBinderRenaming fvs xs
+      x' <- freshName x (maybeRangeToLoc l)
+      insert x (mkVar x' t (maybeRangeToLoc l)) <$> genBinderRenaming fvs xs
   | otherwise = genBinderRenaming fvs xs
 
 renameVars :: (Variableous e t) => Subst e -> [Name] -> [Name]

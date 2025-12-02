@@ -17,7 +17,7 @@ import Data.Loc
     Located (locOf),
     (<-->),
   )
-import Data.Loc.Range
+import Data.Loc.Range (Range, maybeRangeToLoc, rangeOf)
 import GHC.Float (logDouble)
 import Pretty.Util
   ( PrettyWithLoc (prettyWithLoc),
@@ -236,7 +236,7 @@ instance ToAbstract Expr A.Expr where
       where
         toAbstractQOp qop = case qop of
           Left op -> return (A.Op op)
-          Right n@(Name _ l) -> return $ A.Const n l
+          Right n@(Name _ l) -> return $ A.Const n (maybeRangeToLoc l)
     Case _ expr _ cases ->
       A.Case <$> toAbstract expr <*> toAbstract cases <*> pure (locOf x)
 

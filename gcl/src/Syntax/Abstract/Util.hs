@@ -35,7 +35,7 @@ import Syntax.Common
 
 wrapTFunc :: [Type] -> Type -> Type
 wrapTFunc [] t = t
-wrapTFunc (t : ts) t0 = let t0' = wrapTFunc ts t0 in TApp (TApp (TOp (Arrow NoLoc)) t NoLoc) t0' (locOf t0) -- TODO: What should the loc be?
+wrapTFunc (t : ts) t0 = let t0' = wrapTFunc ts t0 in TApp (TApp (TOp (Arrow Nothing)) t NoLoc) t0' (locOf t0) -- TODO: What should the loc be?
 
 getGuards :: [GdCmd] -> [Expr]
 getGuards = fst . unzipGdCmds
@@ -95,6 +95,6 @@ combineFuncDefns defns =
 -- mergeFuncDefnsOfTheSameName = (<>)
 
 baseToName :: TBase -> Name
-baseToName TInt = Name "Int" NoLoc
-baseToName TBool = Name "Bool" NoLoc
-baseToName TChar = Name "Char" NoLoc
+baseToName TInt = Name "Int" Nothing
+baseToName TBool = Name "Bool" Nothing
+baseToName TChar = Name "Char" Nothing

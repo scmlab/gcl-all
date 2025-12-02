@@ -16,7 +16,7 @@ import Data.Loc
     Located,
     locOf,
   )
-import Data.Loc.Range (Range)
+import Data.Loc.Range (Range, mkRange)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set
@@ -68,10 +68,13 @@ class (Monad m) => Fresh m where
   freshPre :: Text -> m Text
 
 freshName :: (Fresh m) => Text -> Loc -> m Name
-freshName prefix l = Name <$> freshPre prefix <*> pure l
+freshName prefix l = Name <$> freshPre prefix <*> pure (toMaybeRange l)
+  where
+    toMaybeRange NoLoc = Nothing
+    toMaybeRange (Loc s e) = Just (mkRange s e)
 
 freshName' :: (Fresh m) => Text -> m Name
-freshName' prefix = freshName prefix NoLoc
+freshName' prefix = Name <$> freshPre prefix <*> pure Nothing
 
 freshNames :: (Fresh m) => [Text] -> m [Name]
 freshNames = mapM freshName'

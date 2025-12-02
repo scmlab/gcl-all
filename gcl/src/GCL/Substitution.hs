@@ -7,6 +7,7 @@
 module GCL.Substitution where
 
 import Data.Loc (locOf)
+import Data.Loc.Range (MaybeRanged(maybeRangeOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -66,7 +67,7 @@ produceBinderRenamings capturableNames binders = mconcat <$> mapM go binders
             Name
               <$> freshPre (nameToText binder)
               <*> pure
-                (locOf binder)
+                (maybeRangeOf binder)
           return $ Map.singleton binder binder'
         else
           -- not captured, returns the original binder

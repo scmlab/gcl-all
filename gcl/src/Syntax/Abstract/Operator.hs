@@ -27,18 +27,18 @@ chain :: ChainOp -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs fur
 chain op x y = Chain (More (Pure x (x <--> op)) op y (x <--> y))
 
 lt, gt, gte, lte, eqq, conj, disj, implies, add :: Expr -> Expr -> Expr
-lt = (chain . LT) NoLoc
-gt = (chain . GT) NoLoc
-gte = (chain . GTEU) NoLoc
-lte = (chain . LTEU) NoLoc
-eqq = (chain . EQ) NoLoc
-conj = (arith . ConjU) NoLoc
-disj = (arith . DisjU) NoLoc
-implies = (arith . ImpliesU) NoLoc
-add = (arith . Add) NoLoc
+lt = (chain . LT) Nothing
+gt = (chain . GT) Nothing
+gte = (chain . GTEU) Nothing
+lte = (chain . LTEU) Nothing
+eqq = (chain . EQ) Nothing
+conj = (arith . ConjU) Nothing
+disj = (arith . DisjU) Nothing
+implies = (arith . ImpliesU) Nothing
+add = (arith . Add) Nothing
 
 neg :: Expr -> Expr
-neg = (unary . NegU) NoLoc
+neg = (unary . NegU) Nothing
 
 true :: Expr
 true = Lit (Bol True) NoLoc
@@ -55,16 +55,16 @@ disjunct [] = false
 disjunct xs = foldl1 disj xs
 
 imply :: Expr -> Expr -> Expr
-imply p q = App (App ((Op . ImpliesU) NoLoc) p (locOf p)) q (locOf q)
+imply p q = App (App ((Op . ImpliesU) Nothing) p (locOf p)) q (locOf q)
 
 predEq :: Expr -> Expr -> Bool
 predEq = (==)
 
 constant :: Text -> Expr
-constant x = Const (Name x NoLoc) NoLoc
+constant x = Const (Name x Nothing) NoLoc
 
 variable :: Text -> Expr
-variable x = Var (Name x NoLoc) NoLoc
+variable x = Var (Name x Nothing) NoLoc
 
 nameVar :: Name -> Expr
 nameVar x = Var x NoLoc
@@ -73,15 +73,15 @@ number :: Int -> Expr
 number n = Lit (Num n) NoLoc
 
 exists :: [Name] -> Expr -> Expr -> Expr
-exists xs ran term = Quant (Op (DisjU NoLoc)) xs ran term NoLoc
+exists xs ran term = Quant (Op (DisjU Nothing)) xs ran term NoLoc
 
 forAll :: [Name] -> Expr -> Expr -> Expr
-forAll xs ran term = Quant (Op (ConjU NoLoc)) xs ran term NoLoc
+forAll xs ran term = Quant (Op (ConjU Nothing)) xs ran term NoLoc
 
 pointsTo, sConj, sImp :: Expr -> Expr -> Expr
-pointsTo = (arith . PointsTo) NoLoc
-sConj = (arith . SConj) NoLoc
-sImp = (arith . SImp) NoLoc
+pointsTo = (arith . PointsTo) Nothing
+sConj = (arith . SConj) Nothing
+sImp = (arith . SImp) Nothing
 
 sconjunct :: [Expr] -> Expr
 sconjunct [] = true

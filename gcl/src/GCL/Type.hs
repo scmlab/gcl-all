@@ -25,6 +25,7 @@ import Data.Loc
     locOf,
     (<-->),
   )
+import Data.Loc.Range (maybeRangeToLoc)
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Ord as Ord
@@ -360,7 +361,7 @@ inferKind env (TBase _ loc) = return (KStar loc, env)
 inferKind env (TArray _ _ loc) = return (KStar loc, env)
 inferKind env (TTuple int) = return (kindFromArity int, env)
 inferKind env (TFunc _ _ loc) = return (KStar loc, env)
-inferKind env (TOp (Arrow loc)) = return (KFunc (KStar loc) (KFunc (KStar loc) (KStar loc) loc) loc, env)
+inferKind env (TOp (Arrow loc)) = let loc' = maybeRangeToLoc loc in return (KFunc (KStar loc') (KFunc (KStar loc') (KStar loc') loc') loc', env)
 inferKind env (TData name _) =
   case find (isKindAnno name) env of
     Just (KindAnno _name kind) -> return (kind, env)
@@ -532,7 +533,7 @@ toKinded env ty = do
       _ <- unifyKind (toKindEnv env) lKind (KStar loc) loc
       _ <- unifyKind (toKindEnv env) rKind (KStar loc) loc
       return (KStar loc, T.TFunc kindedL kindedR loc)
-    TOp arrow@(Arrow loc) -> return (KFunc (KStar loc) (KFunc (KStar loc) (KStar loc) loc) loc, T.TOp arrow (KFunc (KStar loc) (KFunc (KStar loc) (KStar loc) loc) loc))
+    TOp arrow@(Arrow loc) -> let loc' = maybeRangeToLoc loc in return (KFunc (KStar loc') (KFunc (KStar loc') (KStar loc') loc') loc', T.TOp arrow (KFunc (KStar loc') (KFunc (KStar loc') (KStar loc') loc') loc'))
     TData name loc -> do
       case lookup (Index name) env of
         Just k -> return (k, T.TData name k loc)
@@ -541,7 +542,7 @@ toKinded env ty = do
       (ty1Kind, kindedTy1) <- toKinded env ty1
       (ty2Kind, kindedTy2) <- toKinded env ty2
       case ty1Kind of
-        KStar loc' -> throwError $ KindUnifyFailed (KStar loc') (KFunc (KMetaVar (Name "k" NoLoc)) (KStar NoLoc) NoLoc) loc
+        KStar loc' -> throwError $ KindUnifyFailed (KStar loc') (KFunc (KMetaVar (Name "k" Nothing)) (KStar NoLoc) NoLoc) loc
         KFunc kind1 kind2 loc -> do
           _ <- unifyKind (toKindEnv env) ty2Kind kind1 loc
           return (kind2, T.TApp kindedTy1 kindedTy2 loc)
@@ -984,46 +985,49 @@ instance Elab Chain where -- TODO: Make sure the below implementation is correct
   elaborate (Pure _expr _loc) _ = error "Chain of length 1 shouldn't exist."
 
 instance Elab ChainOp where
-  elaborate (EQProp l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ChainOp $ EQProp l, mempty)
-  elaborate (EQPropU l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ChainOp $ EQPropU l, mempty)
+  elaborate (EQProp l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ChainOp $ EQProp l, mempty)
+  elaborate (EQPropU l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ChainOp $ EQPropU l, mempty)
   elaborate (EQ l) _ = do
     x <- freshMetaVar
-    return (Just $ const x .-> const x .-> tBool $ l, ChainOp $ EQ l, mempty)
+    let l' = maybeRangeToLoc l
+    return (Just $ const x .-> const x .-> tBool $ l', ChainOp $ EQ l, mempty)
   elaborate (NEQ l) _ = do
     x <- freshMetaVar
-    return (Just $ const x .-> const x .-> tBool $ l, ChainOp $ NEQ l, mempty)
+    let l' = maybeRangeToLoc l
+    return (Just $ const x .-> const x .-> tBool $ l', ChainOp $ NEQ l, mempty)
   elaborate (NEQU l) _ = do
     x <- freshMetaVar
-    return (Just $ const x .-> const x .-> tBool $ l, ChainOp $ NEQU l, mempty)
-  elaborate (LTE l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ LTE l, mempty)
-  elaborate (LTEU l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ LTEU l, mempty)
-  elaborate (GTE l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ GTE l, mempty)
-  elaborate (GTEU l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ GTEU l, mempty)
-  elaborate (LT l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ LT l, mempty)
-  elaborate (GT l) _ = return (Just $ tInt .-> tInt .-> tBool $ l, ChainOp $ GT l, mempty)
+    let l' = maybeRangeToLoc l
+    return (Just $ const x .-> const x .-> tBool $ l', ChainOp $ NEQU l, mempty)
+  elaborate (LTE l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tBool $ l', ChainOp $ LTE l, mempty)
+  elaborate (LTEU l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tBool $ l', ChainOp $ LTEU l, mempty)
+  elaborate (GTE l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tBool $ l', ChainOp $ GTE l, mempty)
+  elaborate (GTEU l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tBool $ l', ChainOp $ GTEU l, mempty)
+  elaborate (LT l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tBool $ l', ChainOp $ LT l, mempty)
+  elaborate (GT l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tBool $ l', ChainOp $ GT l, mempty)
 
 instance Elab ArithOp where
-  elaborate (Implies l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ Implies l, mempty)
-  elaborate (ImpliesU l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ ImpliesU l, mempty)
-  elaborate (Conj l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ Conj l, mempty)
-  elaborate (ConjU l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ ConjU l, mempty)
-  elaborate (Disj l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ Disj l, mempty)
-  elaborate (DisjU l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ DisjU l, mempty)
-  elaborate (Neg l) _ = return (Just $ tBool .-> tBool $ l, ArithOp $ Neg l, mempty)
-  elaborate (NegU l) _ = return (Just $ tBool .-> tBool $ l, ArithOp $ NegU l, mempty)
-  elaborate (NegNum l) _ = return (Just $ tInt .-> tInt $ l, ArithOp $ NegNum l, mempty)
-  elaborate (Add l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Add l, mempty)
-  elaborate (Sub l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Sub l, mempty)
-  elaborate (Mul l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Mul l, mempty)
-  elaborate (Div l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Div l, mempty)
-  elaborate (Mod l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Mod l, mempty)
-  elaborate (Max l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Max l, mempty)
-  elaborate (Min l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Min l, mempty)
-  elaborate (Exp l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ Exp l, mempty)
-  elaborate (Hash l) _ = return (Just $ tBool .-> tInt $ l, ArithOp $ Hash l, mempty)
-  elaborate (PointsTo l) _ = return (Just $ tInt .-> tInt .-> tInt $ l, ArithOp $ PointsTo l, mempty)
-  elaborate (SConj l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ SConj l, mempty)
-  elaborate (SImp l) _ = return (Just $ tBool .-> tBool .-> tBool $ l, ArithOp $ SImp l, mempty)
+  elaborate (Implies l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ Implies l, mempty)
+  elaborate (ImpliesU l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ ImpliesU l, mempty)
+  elaborate (Conj l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ Conj l, mempty)
+  elaborate (ConjU l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ ConjU l, mempty)
+  elaborate (Disj l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ Disj l, mempty)
+  elaborate (DisjU l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ DisjU l, mempty)
+  elaborate (Neg l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool $ l', ArithOp $ Neg l, mempty)
+  elaborate (NegU l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool $ l', ArithOp $ NegU l, mempty)
+  elaborate (NegNum l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt $ l', ArithOp $ NegNum l, mempty)
+  elaborate (Add l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Add l, mempty)
+  elaborate (Sub l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Sub l, mempty)
+  elaborate (Mul l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Mul l, mempty)
+  elaborate (Div l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Div l, mempty)
+  elaborate (Mod l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Mod l, mempty)
+  elaborate (Max l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Max l, mempty)
+  elaborate (Min l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Min l, mempty)
+  elaborate (Exp l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ Exp l, mempty)
+  elaborate (Hash l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tInt $ l', ArithOp $ Hash l, mempty)
+  elaborate (PointsTo l) _ = let l' = maybeRangeToLoc l in return (Just $ tInt .-> tInt .-> tInt $ l', ArithOp $ PointsTo l, mempty)
+  elaborate (SConj l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ SConj l, mempty)
+  elaborate (SImp l) _ = let l' = maybeRangeToLoc l in return (Just $ tBool .-> tBool .-> tBool $ l', ArithOp $ SImp l, mempty)
 
 instance Elab TypeOp where
   elaborate (Arrow _) _ = undefined -- We do not have a kind system yet.
@@ -1090,12 +1094,12 @@ tInt = TBase TInt
 tChar = TBase TChar
 
 (.->) :: (Loc -> Type) -> (Loc -> Type) -> (Loc -> Type)
-(t1 .-> t2) l = TApp (TApp (TOp (Arrow NoLoc)) (t1 l) NoLoc) (t2 l) l
+(t1 .-> t2) l = TApp (TApp (TOp (Arrow Nothing)) (t1 l) NoLoc) (t2 l) l
 
 infixr 1 .->
 
 (~->) :: Type -> Type -> Type
-t1 ~-> t2 = TApp (TApp (TOp (Arrow NoLoc)) t1 NoLoc) t2 NoLoc
+t1 ~-> t2 = TApp (TApp (TOp (Arrow Nothing)) t1 NoLoc) t2 NoLoc
 
 infixr 1 ~->
 
