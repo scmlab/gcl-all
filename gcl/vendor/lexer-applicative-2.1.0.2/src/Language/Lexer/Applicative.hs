@@ -21,7 +21,7 @@ module Language.Lexer.Applicative
   ) where
 
 import Text.Regex.Applicative
-import Data.Loc
+import Data.Loc.Inclusive
 import Data.List
 import Data.Typeable (Typeable)
 import Data.Semigroup (Semigroup(..))

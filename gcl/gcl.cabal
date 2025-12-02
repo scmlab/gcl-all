@@ -112,6 +112,7 @@ library
       Syntax.Typed.Util
       Language.Lexer.Applicative
       Data.Loc
+      Data.Loc.Inclusive
   other-modules:
       Paths_gcl
   hs-source-dirs:
