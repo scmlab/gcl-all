@@ -14,12 +14,15 @@ module Data.Loc.Range
     rangeFile,
     fromLoc,
     toLoc,
+    toMaybeRange,
     fromLocs,
     mergeRangesUnsafe,
     mergeRanges,
     rangeSpan,
     within,
     Ranged (..),
+    MaybeRanged (..),
+    (<->>),
     unRange,
     compareWithPosition,
     withinRange,
@@ -111,6 +114,10 @@ fromLoc :: Loc -> Maybe Range
 fromLoc NoLoc = Nothing
 fromLoc (Loc x y) = Just (mkRange x y)
 
+-- | Loc -> Maybe Range (alias for fromLoc with clearer naming)
+toMaybeRange :: Loc -> Maybe Range
+toMaybeRange = fromLoc
+
 -- | Range -> Loc
 toLoc :: Range -> Loc
 toLoc (Range x y) = Loc x y
@@ -160,6 +167,35 @@ instance Ranged Range where
 
 instance (Ranged a) => Ranged (NonEmpty a) where
   rangeOf xs = rangeOf (NE.head xs) <> rangeOf (NE.last xs)
+
+--------------------------------------------------------------------------------
+
+-- | Like "Located" but for types that may not have a location (replaces NoLoc with Nothing)
+class MaybeRanged a where
+  maybeRangeOf :: a -> Maybe Range
+
+instance MaybeRanged Range where
+  maybeRangeOf = Just
+
+instance MaybeRanged (Maybe Range) where
+  maybeRangeOf = id
+
+instance (MaybeRanged a) => MaybeRanged [a] where
+  maybeRangeOf = foldr ((<->>) . maybeRangeOf) Nothing
+
+instance (MaybeRanged a) => MaybeRanged (NonEmpty a) where
+  maybeRangeOf xs = maybeRangeOf (NE.head xs) <->> maybeRangeOf (NE.last xs)
+
+-- | Merge two Maybe Ranges (like <--> for Loc, but for Maybe Range)
+-- Nothing <->> x       = x
+-- x       <->> Nothing = x
+-- Just a  <->> Just b  = Just (a <> b)
+(<->>) :: Maybe Range -> Maybe Range -> Maybe Range
+Nothing <->> x = x
+x <->> Nothing = x
+Just a <->> Just b = Just (a <> b)
+
+infixl 6 <->>
 
 --------------------------------------------------------------------------------
 
