@@ -110,10 +110,14 @@ library
       Syntax.Typed.Operator
       Syntax.Typed.Types
       Syntax.Typed.Util
+      Language.Lexer.Applicative
+      Data.Loc
   other-modules:
       Paths_gcl
   hs-source-dirs:
       src
+      vendor/lexer-applicative-2.1.0.2/src
+      vendor/srcloc-0.6.0.1
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       Diff
@@ -125,7 +129,6 @@ library
     , free
     , hashable
     , lens
-    , lexer-applicative
     , lsp
     , megaparsec >=9.2
     , mtl
@@ -137,7 +140,6 @@ library
     , prettyprinter
     , random
     , regex-applicative
-    , srcloc
     , template-haskell
     , text
     , transformers
@@ -162,7 +164,6 @@ executable gcl
     , gcl
     , hashable
     , lens
-    , lexer-applicative
     , lsp
     , megaparsec >=9.2
     , mtl
@@ -174,7 +175,6 @@ executable gcl
     , prettyprinter
     , random
     , regex-applicative
-    , srcloc
     , template-haskell
     , text
     , transformers
@@ -206,7 +206,6 @@ test-suite gcl-test
     , gcl
     , hashable
     , lens
-    , lexer-applicative
     , lsp
     , megaparsec >=9.2
     , mtl
@@ -219,7 +218,6 @@ test-suite gcl-test
     , prettyprinter
     , random
     , regex-applicative
-    , srcloc
     , tasty
     , tasty-golden
     , tasty-hunit
