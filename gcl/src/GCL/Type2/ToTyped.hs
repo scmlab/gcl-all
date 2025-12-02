@@ -12,10 +12,12 @@ import Debug.Trace
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE
+import qualified Hack
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
-import qualified Hack
+import Pretty
+import Data.IntMap.Merge.Lazy (lmapWhenMissing)
 
 collectDeclToEnv :: A.Declaration -> Result Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
@@ -74,7 +76,9 @@ instance ToTyped A.Program T.Program where
     return $ T.Program typedDefns typedDecls typedExprs typedStmts loc
 
 instance ToTyped A.Definition T.Definition where
-  toTyped = undefined
+  toTyped (A.TypeDefn _ _ _ _) = undefined
+  toTyped (A.FuncDefnSig name ty prop loc) = undefined
+  toTyped (A.FuncDefn name body) = T.FuncDefn name <$> toTyped body
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop loc) = do
@@ -122,8 +126,11 @@ toTypedAssign names exprs loc
 
 instance ToTyped A.Expr T.Expr where
   toTyped expr = do
-    (_, _, typed) <- infer expr
-    traceM $ "\n" <> Hack.sshow typed <> "\n"
+    (subst, ty, typed) <- infer expr
+    traceM $ show (pretty typed) <> "\n" <> show (pretty ty) <> "\n"
+    traceM $ show subst <> "\n"
+    let typed' = applySubstExpr subst typed -- BUG: some subst operations are missing
+    traceM $ "\n" <> Hack.sshow typed' <> "\n"
     return typed
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t

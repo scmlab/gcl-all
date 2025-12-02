@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Data.List (foldl')
+import Data.List (foldl', intercalate)
 import qualified Data.List.NonEmpty as NE
 import Data.Loc (Loc (..))
 import Data.Map (Map)
@@ -16,7 +16,6 @@ import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Debug.Trace
 import GCL.Type (TypeError (..))
-import GCL.Type2.MiniAst
 import GCL.Type2.RSE
 import Pretty
 import qualified Syntax.Abstract.Types as A
@@ -45,6 +44,9 @@ s1 `composeSubst` s2 = Map.map (applySubst s1) s2 `Map.union` s1
 
 instance {-# OVERLAPPING #-} Semigroup Subst where
   (<>) = composeSubst
+
+instance {-# OVERLAPPING #-} Show Subst where
+  show s = intercalate "\n" $ map (\(tv, ty) -> show tv <> " -> " <> show ty) (Map.toList s)
 
 checkDuplicateNames :: [Name] -> Result ()
 checkDuplicateNames names =
@@ -87,11 +89,33 @@ applySubstScheme subst (Forall vars ty) =
 applySubstEnv :: Subst -> Env -> Env
 applySubstEnv subst = Map.map (applySubstScheme subst)
 
+-- XXX: wouldn't this operation be extremely expensive?
+applySubstExpr :: Subst -> T.Expr -> T.Expr
+applySubstExpr subst (T.Lit lit ty loc) = T.Lit lit (applySubst subst ty) loc
+applySubstExpr subst (T.Var name ty loc) = T.Var name (applySubst subst ty) loc
+applySubstExpr subst (T.Const name ty loc) = T.Const name (applySubst subst ty) loc
+applySubstExpr subst (T.Op op ty) = T.Op op (applySubst subst ty)
+applySubstExpr subst (T.Chain chain) = T.Chain (applySubstChain subst chain)
+applySubstExpr subst (T.App e1 e2 loc) = T.App (applySubstExpr subst e1) (applySubstExpr subst e2) loc
+applySubstExpr subst (T.Lam param ty body loc) = T.Lam param (applySubst subst ty) (applySubstExpr subst body) loc
+applySubstExpr subst (T.Quant _ _ _ _ _) = undefined
+applySubstExpr subst (T.ArrIdx arr index loc) = T.ArrIdx (applySubstExpr subst arr) (applySubstExpr subst index) loc
+applySubstExpr subst (T.ArrUpd arr index expr loc) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) loc
+applySubstExpr subst (T.Case _ _ _) = undefined
+applySubstExpr subst (T.Subst _ _) = undefined
+
+applySubstChain :: Subst -> T.Chain -> T.Chain
+applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)
+applySubstChain subst (T.More chain op ty expr) = T.More (applySubstChain subst chain) op (applySubst subst ty) (applySubstExpr subst expr)
+
 freshTyVar :: RSE Env Inference TyVar
 freshTyVar = do
   n <- gets _counter
   put $ Inference (n + 1)
   return $ Name (Text.pack $ "t" <> show n) NoLoc
+
+freshTVar :: RSE Env Inference A.Type
+freshTVar = A.TVar <$> freshTyVar <*> pure NoLoc
 
 -- assuming forall ONLY exists on the outside
 instantiate :: Scheme -> RSE Env Inference A.Type
@@ -99,8 +123,8 @@ instantiate (Forall tvs ty) = do
   mappings <-
     mapM
       ( \var -> do
-          fresh <- freshTyVar
-          return (var, A.TVar fresh NoLoc)
+          ftv <- freshTVar
+          return (var, ftv)
       )
       tvs
   let subst = Map.fromList mappings
@@ -168,8 +192,8 @@ infer (A.Op op) = do
 infer (A.Chain chain) = do
   (subst, ty, chain') <- inferChain chain
   return (subst, ty, T.Chain chain')
-infer (A.App e1 e2 loc) = undefined
-infer (A.Lam name expr loc) = undefined
+infer (A.App e1 e2 loc) = inferApp e1 e2 loc
+infer (A.Lam param body loc) = inferLam param body loc
 infer (A.Func name clauses loc) = undefined
 infer (A.Tuple exprs) = undefined
 infer (A.Quant _ _ _ _ _) = undefined
@@ -224,6 +248,26 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   return (resultSubst, applySubst resultSubst ftv, typedChain)
 inferChain _ = error "this cannot happen"
 
+inferApp :: A.Expr -> A.Expr -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferApp e1 e2 loc = do
+  ftv <- freshTVar
+  (s1, ty1, typedE1) <- infer e1
+  (s2, ty2, typedE2) <- local (applySubstEnv s1) (infer e2)
+
+  s3 <- lift $ unify (applySubst s2 ty1) (ty2 `typeToType` ftv) loc
+  let resultSubst = s3 <> s2 <> s1
+
+  return (resultSubst, applySubst s3 ftv, T.App (applySubstExpr s2 typedE1) (applySubstExpr s3 typedE2) loc)
+
+inferLam :: Name -> A.Expr -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferLam param body loc = do
+  paramTy <- freshTVar
+  (bodySubst, bodyTy, typedBody) <- local (Map.insert param (Forall [] paramTy)) (infer body)
+
+  let paramTy' = applySubst bodySubst paramTy
+  let returnTy = paramTy' `typeToType` bodyTy
+
+  return (bodySubst, returnTy, T.Lam param paramTy' typedBody loc)
 inferArithOp :: ArithOp -> RSE Env Inference (Subst, A.Type, Op)
 inferArithOp op = undefined
 
