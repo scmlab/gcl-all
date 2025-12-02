@@ -376,11 +376,11 @@ parseError =
         runDeclaration
           "var if : Int"
           "Parse Error <test>:1:5-7 unexpected 'if'\nexpecting identifier\n"
-      -- TODO: failing test - quant with parentheses
-      -- testCase "quant with parentheses" $
-      --   runExpr
-      --     "<| (+) i : i > 0 : f i |>"
-      --     "Parse Error <test>:1:4-5 unexpected '('\nexpecting identifier or operator\n"
+          -- TODO: failing test - quant with parentheses
+          -- testCase "quant with parentheses" $
+          --   runExpr
+          --     "<| (+) i : i > 0 : f i |>"
+          --     "Parse Error <test>:1:4-5 unexpected '('\nexpecting identifier or operator\n"
     ]
   where
     runDeclaration = parserCompare Parser.declaration
