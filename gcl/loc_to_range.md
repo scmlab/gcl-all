@@ -31,7 +31,7 @@ stack test
 ## 進度追蹤
 
 - [x] Phase 1 - 擴展 `Data.Loc.Range`
-- [ ] Phase 2 - 遷移 Parser Util
+- [x] Phase 2 - 遷移 Parser Util
 - [ ] Phase 3 - 遷移 Syntax.Common
 - [ ] Phase 4 - 遷移 Syntax.Abstract
 - [ ] Phase 5 - 遷移 Syntax.Concrete 與 Parser

@@ -12,6 +12,8 @@ module Syntax.Parser.Util
     withLoc,
     getRange,
     withRange,
+    getMaybeRange,
+    withMaybeRange,
     logIfSuccess,
     withLog,
     clampLog,
@@ -33,7 +35,7 @@ import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.List (intercalate)
 import qualified Data.List.NonEmpty as NEL
 import Data.Loc
-import Data.Loc.Range (Range, mkRange)
+import Data.Loc.Range (Range, mkRange, toMaybeRange)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (..))
@@ -145,6 +147,18 @@ withRange :: Parser (Range -> a) -> Parser a
 withRange parser = do
   (result, range) <- getRange parser
   return $ result range
+
+-- | Like getLoc but returns Maybe Range (Nothing for NoLoc)
+getMaybeRange :: Parser a -> Parser (a, Maybe Range)
+getMaybeRange parser = do
+  (result, loc) <- getLoc parser
+  return (result, toMaybeRange loc)
+
+-- | Like withLoc but uses Maybe Range
+withMaybeRange :: Parser (Maybe Range -> a) -> Parser a
+withMaybeRange parser = do
+  (result, maybeRange) <- getMaybeRange parser
+  return $ result maybeRange
 
 --------------------------------------------------------------------------------
 -- ## Logging
