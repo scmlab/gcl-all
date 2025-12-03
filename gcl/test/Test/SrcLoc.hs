@@ -3,7 +3,6 @@
 module Test.SrcLoc where
 
 import Data.List (sort)
-import Data.Loc
 import Data.Loc.Range
 import GCL.Predicate (Origin (AtSkip))
 import Test.Tasty

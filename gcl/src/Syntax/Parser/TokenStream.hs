@@ -14,7 +14,7 @@ import Data.List.NonEmpty
     nonEmpty,
   )
 import qualified Data.List.NonEmpty as NE
-import Data.Loc (Loc (..), Pos (..), L (..), posLine, posCol, unLoc)
+import Data.Loc.Range (Loc (..), Pos (..), L (..), posLine, posCol, unLoc)
 import qualified Data.Loc.Inclusive as Inc
 import Data.Proxy
 import Language.Lexer.Applicative

@@ -12,8 +12,7 @@ import Control.Monad.Except
   ( Except,
     throwError,
   )
-import Data.Loc (Located (locOf))
-import Data.Loc.Range (Range, MaybeRanged(maybeRangeOf), rangeOf, toMaybeRange, (<->>))
+import Data.Loc.Range (Located (locOf), Range, MaybeRanged(maybeRangeOf), rangeOf, toMaybeRange, (<->>))
 import GHC.Float (logDouble)
 import Pretty.Util
   ( PrettyWithLoc (prettyWithLoc),

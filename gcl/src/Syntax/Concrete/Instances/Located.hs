@@ -1,10 +1,11 @@
 module Syntax.Concrete.Instances.Located where
 
-import Data.Loc
+import Data.Loc.Range
   ( Located (locOf),
     (<-->),
+    MaybeRanged (..), 
+    fromLoc,
   )
-import Data.Loc.Range (MaybeRanged (..), fromLoc)
 import Syntax.Common ()
 import Syntax.Concrete.Types
 

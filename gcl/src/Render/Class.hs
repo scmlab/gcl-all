@@ -11,8 +11,7 @@ module Render.Class
   )
 where
 
-import Data.Loc (Loc)
-import Data.Loc.Range (Range, fromLoc)
+import Data.Loc.Range (Loc, Range, fromLoc)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Prettyprinter (Doc)

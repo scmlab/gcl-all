@@ -18,7 +18,7 @@ import Data.Char
   )
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
-import Data.Loc (Loc (..), Pos (..), L (..), unLoc)
+import Data.Loc.Range (Loc (..), Pos (..), L (..), unLoc)
 import qualified Data.Loc.Inclusive as Inc
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)

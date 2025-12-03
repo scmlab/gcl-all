@@ -4,10 +4,7 @@ module Syntax.Parser.Error where
 
 import qualified Data.Aeson.Types as JSON
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc
-  ( Pos,
-  )
-import Data.Loc.Range (Range)
+import Data.Loc.Range (Pos, Range)
 import GHC.Generics (Generic)
 
 --------------------------------------------------------------------------------

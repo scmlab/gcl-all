@@ -11,8 +11,7 @@ import Control.Monad.RWS
   )
 import Data.Aeson (ToJSON)
 import Data.IntMap (IntMap)
-import Data.Loc.Range (Range, MaybeRanged (..), maybeRangeToLoc)
-import Data.Loc (Located (..))
+import Data.Loc.Range (Range, MaybeRanged (..), maybeRangeToLoc, Located (..))
 import Data.Map (Map)
 import Data.Text (Text)
 import GCL.Common

@@ -25,15 +25,29 @@ module Data.Loc.Range
     MaybeRanged (..),
     (<->>),
     unRange,
+    rangeOfR,
     compareWithPosition,
     withinRange,
-    -- Re-export from Data.Loc for convenience
+    compareWithPositionR,
+    withinRangeR,
+    -- Conversion from Data.Loc.Inclusive
+    fromInclusiveLoc,
+    fromInclusivePos,
+    -- Re-export from Data.Loc for convenience (Lexer/Parser compatibility)
     Pos (..),
     posLine,
     posCol,
     posFile,
     posCoff,
     displayPos,
+    startPos,
+    advancePos,
+    -- Re-export L and unLoc for Lexer/Parser compatibility
+    L (..),
+    unLoc,
+    Loc (..),
+    Located (..),
+    (<-->),
   )
 where
 
@@ -49,6 +63,7 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import Data.Loc hiding (fromLoc)
+import qualified Data.Loc.Inclusive as Inc
 import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
@@ -232,6 +247,13 @@ instance (Show x) => Show (R x) where
 instance Ranged (R a) where
   rangeOf (R range _) = range
 
+instance MaybeRanged (R a) where
+  maybeRangeOf (R range _) = Just range
+
+-- | Get the range of an R value (alias for rangeOf)
+rangeOfR :: R a -> Range
+rangeOfR (R range _) = range
+
 --------------------------------------------------------------------------------
 
 -- | Make Pos instances of FromJSON and ToJSON
@@ -288,6 +310,27 @@ withinRange (Range left right) x =
     || compareWithPosition right x
       == EQ
     || (compareWithPosition left x == LT && compareWithPosition right x == GT)
+
+-- | Compare the cursor position with something (MaybeRanged version)
+--  EQ: the cursor is placed within that thing
+--  LT: the cursor is placed BEFORE (but not touching) that thing
+--  GT: the cursor is placed AFTER (but not touching) that thing
+compareWithPositionR :: (MaybeRanged a) => Pos -> a -> Ordering
+compareWithPositionR pos x = case maybeRangeOf x of
+  Nothing -> EQ
+  Just (Range start end) ->
+    if posCoff pos < posCoff start
+      then LT
+      else if posCoff pos > posCoff end then GT else EQ
+
+-- | See if something is within the selection (MaybeRanged version)
+withinRangeR :: (MaybeRanged a) => Range -> a -> Bool
+withinRangeR (Range left right) x =
+  compareWithPositionR left x
+    == EQ
+    || compareWithPositionR right x
+      == EQ
+    || (compareWithPositionR left x == LT && compareWithPositionR right x == GT)
 
 --------------------------------------------------------------------------------
 
@@ -370,3 +413,25 @@ instance Show ShortRange where
 
 instance Pretty ShortRange where
   pretty = pretty . show
+
+--------------------------------------------------------------------------------
+-- Conversion from Data.Loc.Inclusive
+--------------------------------------------------------------------------------
+
+-- | Convert an end-inclusive Pos (from Data.Loc.Inclusive) to our Pos
+-- Note: The Pos type is structurally identical, but we explicitly convert
+-- to make the semantics clear.
+fromInclusivePos :: Inc.Pos -> Pos
+fromInclusivePos (Inc.Pos f l c co) = Pos f l c co
+
+-- | Convert an end-inclusive Loc (from Data.Loc.Inclusive) to Maybe Range
+-- This converts from end-inclusive to end-exclusive semantics:
+-- - end-inclusive: end position is the position of the last character
+-- - end-exclusive: end position is one past the last character
+-- For example, for the string "AB":
+--   - end-inclusive: end column is 2 (pointing to 'B')
+--   - end-exclusive: end column is 3 (pointing past 'B')
+fromInclusiveLoc :: Inc.Loc -> Maybe Range
+fromInclusiveLoc Inc.NoLoc = Nothing
+fromInclusiveLoc (Inc.Loc (Inc.Pos f1 l1 c1 co1) (Inc.Pos f2 l2 c2 co2)) =
+  Just $ mkRange (Pos f1 l1 c1 co1) (Pos f2 l2 (c2 + 1) (co2 + 1))

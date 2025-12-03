@@ -7,7 +7,6 @@ import Control.Monad.Combinators.Expr
 import Control.Monad.Except
 import qualified Data.Either as Either
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc
 import Data.Loc.Range
 import Data.Text (Text)
 import qualified Data.Text as Text
