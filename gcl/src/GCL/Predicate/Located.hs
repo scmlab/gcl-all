@@ -5,7 +5,6 @@ module GCL.Predicate.Located where
 -- from Loc to Maybe Range.
 
 {-
-import Data.Loc (Loc (..), Located, locOf)
 import GCL.Predicate (Pred (..))
 
 instance Located Pred where

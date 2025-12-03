@@ -8,7 +8,6 @@ import GCL.Predicate
 import GCL.Predicate.Located ()
 
 {-
-import Data.Loc (Loc (..), Located (locOf), unLoc)
 import Syntax.Abstract (Expr)
 import qualified Syntax.Abstract.Operator as A
 

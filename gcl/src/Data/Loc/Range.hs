@@ -4,6 +4,39 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 
+-- |
+-- Module      : Data.Loc.Range
+-- Description : Position and range types for source locations
+--
+-- This module provides the primary API for working with source locations.
+--
+-- == Usage
+--
+-- All application code should import this module instead of 'Data.Loc':
+--
+-- @
+-- import Data.Loc.Range (Range, Pos, MaybeRanged(..), Ranged(..), ...)
+-- @
+--
+-- == Design
+--
+-- * 'Range' represents a span with start and end positions (end-exclusive)
+-- * 'Maybe Range' replaces the old 'Loc' type (where 'Nothing' = 'NoLoc')
+-- * 'Ranged' typeclass for values that always have a range
+-- * 'MaybeRanged' typeclass for values that may or may not have a range
+--
+-- == Internal Dependencies
+--
+-- This module re-exports types from 'Data.Loc' (e.g., 'Pos', 'L', 'Located')
+-- for backward compatibility with the lexer\/parser layer.
+-- 'Data.Loc' should be considered an internal module and not imported directly
+-- by application code.
+--
+-- == Conversion from Inclusive Locations
+--
+-- The lexer produces end-inclusive locations ('Data.Loc.Inclusive').
+-- Use 'fromInclusiveLoc' to convert to end-exclusive 'Range'.
+
 module Data.Loc.Range
   ( Range (Range), -- only the type and the pattern, the constructor is hidden
     mkRange, -- forcing users to use this constructor
