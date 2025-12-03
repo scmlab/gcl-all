@@ -8,7 +8,7 @@
 module Syntax.Concrete.Types where
 
 import Data.Loc (L, Loc (Loc), Located (locOf), Pos)
-import Data.Loc.Range (Range, Ranged (..), mkRange)
+import Data.Loc.Range (Range, Ranged (..), MaybeRanged (..), mkRange)
 import Data.Text (Text)
 import GHC.Base (Symbol)
 import GHC.Generics (Generic)
@@ -27,6 +27,9 @@ instance Located (Token a) where
 
 instance Ranged (Token a) where
   rangeOf (Token l r) = mkRange l r
+
+instance MaybeRanged (Token a) where
+  maybeRangeOf = Just . rangeOf
 
 instance Ranged (Either (Token a) (Token b)) where
   rangeOf (Left x) = rangeOf x

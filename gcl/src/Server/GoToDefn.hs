@@ -8,11 +8,12 @@ module Server.GoToDefn
 where
 
 import Control.Monad.RWS
-import Data.Loc
-  ( Located,
-    locOf,
-  )
 import Data.Loc.Range
+  ( MaybeRanged,
+    maybeRangeOf,
+    Range,
+    rangeFile,
+  )
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
@@ -92,10 +93,10 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a 
 --    ║                                ║
 --    ╚════════════════════════════════╝
 
-makeLocationLinks :: (Located a) => Map Name a -> Map Name LocationLinkToBe
+makeLocationLinks :: (MaybeRanged a) => Map Name a -> Map Name LocationLinkToBe
 makeLocationLinks = Map.mapMaybeWithKey $ \name target -> do
-  targetRange <- fromLoc (locOf target)
-  targetSelectionRange <- fromLoc (locOf name)
+  targetRange <- maybeRangeOf target
+  targetSelectionRange <- maybeRangeOf name
   let toLocationLink originSelectionRange =
         LocationLink
           { -- Span of the origin of this link.
@@ -130,7 +131,7 @@ instance Collect LocationLinkToBe LocationLink Name where
     result <- lookupScopes (nameToText name)
     case result of
       Nothing -> return ()
-      Just locationLinkToBe -> case fromLoc (locOf name) of
+      Just locationLinkToBe -> case maybeRangeOf name of
         Nothing -> return ()
         Just range ->
           tell $ IntervalMap.singleton range (locationLinkToBe range)

@@ -4,6 +4,7 @@ import Data.Loc
   ( Located (locOf),
     (<-->),
   )
+import Data.Loc.Range (MaybeRanged (..), fromLoc)
 import Syntax.Common ()
 import Syntax.Concrete.Types
 
@@ -123,3 +124,15 @@ instance Located Lit where
   locOf (LitInt _ l) = locOf l
   locOf (LitBool _ l) = locOf l
   locOf (LitChar _ l) = locOf l
+
+--------------------------------------------------------------------------------
+-- MaybeRanged instances (convert Located to MaybeRanged via fromLoc)
+
+instance MaybeRanged Lit where
+  maybeRangeOf = fromLoc . locOf
+
+instance MaybeRanged Expr where
+  maybeRangeOf = fromLoc . locOf
+
+instance MaybeRanged TBase where
+  maybeRangeOf = fromLoc . locOf
