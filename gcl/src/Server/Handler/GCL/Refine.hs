@@ -56,21 +56,21 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
   maybeFileState <- loadFileState filePath
   case maybeFileState of
     Nothing -> do
-      onError (Others "Refine Error" "File not loaded in server." NoLoc)
+      onError (Others "Refine Error" "File not loaded in server." Nothing)
     Just fileState -> do
       logTextLn $ Text.pack $ "got fileState. specfications: " ++ show (specifications fileState)
       case findEnclosingSpec cursor (map snd $ specifications fileState) of
         Nothing -> do
           logTextLn $ Text.pack $ "cursor: " ++ show cursor
           logTextLn $ Text.pack $ "all the spec ranges: " ++ show (map (specRange . snd) $ specifications fileState)
-          onError (Others "Refine Error" "No enclosing spec found." NoLoc) -- TODO: show line column ?
+          onError (Others "Refine Error" "No enclosing spec found." Nothing) -- TODO: show line column ?
 
         -- spec
         Just spec -> do
           logTextLn $ Text.pack $ "spec found: " ++ show spec
           if isSingleLine $ specRange spec
             then do
-              onError (Others "Refine Error" "Spec should have more than one line." (toLoc $ specRange spec))
+              onError (Others "Refine Error" "Spec should have more than one line." (Just $ specRange spec))
             else do
               -- implRange
               let implRange = shrinkRange 2 (specRange spec) -- excludes [! and !]
@@ -78,7 +78,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
               maybeSource <- readSource filePath
               case maybeSource of
                 Nothing -> do
-                  onError (Others "Refine Error" ("Source not found: filePath: " ++ filePath) NoLoc)
+                  onError (Others "Refine Error" ("Source not found: filePath: " ++ filePath) Nothing)
                 Just source -> do
                   logTextLn $ Text.pack "source: " <> source
                   -- implText
@@ -88,7 +88,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
                   logTextLn "####===="
                   if not (isFirstLineBlank implText)
                     then do
-                      onError (Others "Refine Error" "The first line in the spec must be blank." (toLoc implRange))
+                      onError (Others "Refine Error" "The first line in the spec must be blank." (Just implRange))
                     else do
                       -- implStart
                       let implStart = rangeStart implRange
