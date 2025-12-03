@@ -6,8 +6,7 @@
 module Syntax.Typed.Instances.Substitution where
 
 import Control.Monad (forM)
-import Data.Loc
-import Data.Loc.Range (maybeRangeToLoc)
+import Data.Loc.Range (Range)
 import Data.Map hiding (map)
 import qualified Data.Map as Map
 import GCL.Common
@@ -22,7 +21,7 @@ instance Variableous Expr Type where
   isVar (Var x t _) = Just (x, t)
   isVar (Const x t _) = Just (x, t)
   isVar _ = Nothing
-  mkVar x t l = Var x t (maybeRangeToLoc l)
+  mkVar x t l = Var x t l
 
 instance (Fresh m) => Substitutable m Expr Expr where
   subst _ e@(Lit _ _ _) = return e

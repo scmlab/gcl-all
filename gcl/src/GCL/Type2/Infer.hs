@@ -8,8 +8,7 @@ module GCL.Type2.Infer where
 
 import Data.List (foldl')
 import qualified Data.List.NonEmpty as NE
-import Data.Loc (Loc (..))
-import Data.Loc.Range (Range, toMaybeRange, maybeRangeToLoc)
+import Data.Loc.Range (Range)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -132,7 +131,7 @@ generalize ty = do
   let freeVars = freeTypeVars ty `Set.difference` freeTypeVarsEnv env
   return $ Forall (Set.toAscList freeVars) ty
 
-unify :: A.Type -> A.Type -> Loc -> Result Subst
+unify :: A.Type -> A.Type -> Maybe Range -> Result Subst
 unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
 unify (A.TArray _i1 t1 _) (A.TArray _i2 t2 _) l = unify t1 t2 l
 unify (A.TVar name _) ty l = unifyVar name ty l
@@ -141,7 +140,7 @@ unify (A.TMetaVar name _) ty l = unifyVar name ty l
 unify ty (A.TMetaVar name _) l = unifyVar name ty l
 unify t1 t2 l = throwError $ UnifyFailed t1 t2 l
 
-unifyVar :: Name -> A.Type -> Loc -> Result Subst
+unifyVar :: Name -> A.Type -> Maybe Range -> Result Subst
 unifyVar name ty loc
   | A.TVar name Nothing == ty = return mempty
   | checkOccurs name ty = throwError $ RecursiveType name ty loc

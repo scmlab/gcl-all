@@ -4,8 +4,7 @@
 
 module Server.Handler.OnDidChangeTextDocument where
 
-import Data.Loc (Loc (..), Located (..))
-import Data.Loc.Range (Range (..), fromLoc)
+import Data.Loc.Range (Range (..), MaybeRanged (..))
 import GCL.Predicate (Origin (..), PO (..), Spec (..))
 import GCL.WP.Types (StructWarning (MissingBound))
 import qualified Language.LSP.Protocol.Types as LSP
@@ -68,11 +67,11 @@ translateSpecRange filePath delta spec@Specification {specRange = oldRange} = do
 -- 如果未來前端有需要的話，請在這裡維護
 translatePoRange :: FilePath -> PositionDelta -> PO -> Maybe PO
 translatePoRange filePath delta po@PO {poOrigin} = do
-  oldRange :: Range <- fromLoc (locOf poOrigin)
+  oldRange :: Range <- maybeRangeOf poOrigin
   let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
   currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let _newRange@(Range x y) = SrcLoc.fromLSPRangeWithoutCharacterOffset filePath currentLspRange
-  return $ po {poOrigin = setOriginLocation (Loc x y) poOrigin}
+  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset filePath currentLspRange
+  return $ po {poOrigin = setOriginLocation (Just newRange) poOrigin}
 
 translateWarningRange :: FilePath -> PositionDelta -> StructWarning -> Maybe StructWarning
 translateWarningRange filePath delta (MissingBound oldRange) = do
@@ -81,7 +80,7 @@ translateWarningRange filePath delta (MissingBound oldRange) = do
   let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset filePath currentLspRange
   return $ MissingBound newRange
 
-setOriginLocation :: Loc -> Origin -> Origin
+setOriginLocation :: Maybe Range -> Origin -> Origin
 setOriginLocation l (AtAbort _) = AtAbort l
 setOriginLocation l (AtSkip _) = AtSkip l
 setOriginLocation l (AtSpec _) = AtSpec l

@@ -47,7 +47,7 @@ scanAndParse :: Parser a -> FilePath -> Text -> Either ParseError a
 scanAndParse parser filepath source =
   let tokens = scan filepath source
    in case parse parser filepath tokens of
-        Left (errors, logMsg) -> throwError (SyntacticError errors logMsg)
+        Left (errors, logMsg) -> throwError (SyntacticError (fmap (\(l, s) -> (toMaybeRange l, s)) errors) logMsg)
         Right val -> return val
 
 parse :: Parser a -> FilePath -> TokStream -> Either (NonEmpty (Loc, String), String) a
@@ -71,8 +71,11 @@ parse parser filepath tokenStream =
         getLoc' _ = mempty
 
 parseWithTokList ::
-  Parser a -> FilePath -> [L Tok] -> Either (NonEmpty (Loc, String), String) a
-parseWithTokList parser filepath = parse parser filepath . convert
+  Parser a -> FilePath -> [L Tok] -> Either (NonEmpty (Maybe Range, String), String) a
+parseWithTokList parser filepath toks = 
+  case parse parser filepath (convert toks) of
+    Left (errors, logMsg) -> Left (fmap (\(l, s) -> (toMaybeRange l, s)) errors, logMsg)
+    Right val -> Right val
   where
     convert :: [L Tok] -> TokStream
     convert (x : xs) = TsToken x (convert xs)

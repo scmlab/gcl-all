@@ -14,7 +14,7 @@ import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
 import Data.Loc (L (..), Loc (..), Pos (..))
-import Data.Loc.Range (Range (..), mkRange, rangeStart, toLoc)
+import Data.Loc.Range (Range (..), mkRange, rangeStart, toLoc, toMaybeRange)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -282,7 +282,7 @@ parseFragment fragmentStart fragment = do
   let tokens = Syntax.Parser.Lexer.scan filePath fragment
   let tokens' = translateTokStream fragmentStart tokens
   case Parser.parse Parser.statements filePath tokens' of
-    Left (errors, logMsg) -> Left (SyntacticError errors logMsg)
+    Left (errors, logMsg) -> Left (SyntacticError (fmap (\(l, s) -> (toMaybeRange l, s)) errors) logMsg)
     Right val -> Right val
   where
     translateRange :: Pos -> Pos -> Pos

@@ -3,7 +3,7 @@
 module Syntax.Typed.Util where
 
 import Control.Arrow (second)
-import Data.Loc (Loc(..), (<-->))
+import Data.Loc.Range (MaybeRanged (..), (<->>))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -20,7 +20,7 @@ unzipGdCmds = unzip . map (\(GdCmd x y _) -> (x, y))
 
 wrapLam :: [(Name, Type)] -> Expr -> Expr
 wrapLam [] body = body
-wrapLam ((x, t) : xs) body = let b = wrapLam xs body in Lam x t b (x <--> b)
+wrapLam ((x, t) : xs) body = let b = wrapLam xs body in Lam x t b (maybeRangeOf x <->> maybeRangeOf b)
 
 declaredNames :: [Declaration] -> [Name]
 declaredNames decls = concat . map extractNames $ decls

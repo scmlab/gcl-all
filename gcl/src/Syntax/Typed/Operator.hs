@@ -1,10 +1,6 @@
 module Syntax.Typed.Operator where
 
-import Data.Loc
-  ( Loc (..),
-    locOf,
-    (<-->),
-  )
+import Data.Loc.Range (MaybeRanged (..), (<->>))
 import Data.Text (Text)
 import Syntax.Abstract.Operator (tBool, tFunc, tInt)
 import Syntax.Abstract.Types (Lit (..), Type (..))
@@ -15,10 +11,10 @@ import Syntax.Typed.Util (typeOf)
 import Prelude hiding (Ordering (..))
 
 unary :: ArithOp -> Type -> Expr -> Expr
-unary op t x = App (Op (ArithOp op) t) x (x <--> op)
+unary op t x = App (Op (ArithOp op) t) x (maybeRangeOf x <->> maybeRangeOf op)
 
 arith :: ArithOp -> Type -> Expr -> Expr -> Expr
-arith op t x y = App (App (Op (ArithOp op) t) x (x <--> op)) y (x <--> y)
+arith op t x y = App (App (Op (ArithOp op) t) x (maybeRangeOf x <->> maybeRangeOf op)) y (maybeRangeOf x <->> maybeRangeOf y)
 
 chain :: ChainOp -> Type -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
 chain op t x y = Chain (More (Pure x) (ChainOp op) t y)
@@ -58,8 +54,8 @@ e0 `eqq` e1 =
   Chain (More (Pure e0) (ChainOp (EQ Nothing)) (typeOf e0) e1)
 
 true, false :: Expr
-true = Lit (Bol True) tBool NoLoc
-false = Lit (Bol False) tBool NoLoc
+true = Lit (Bol True) tBool Nothing
+false = Lit (Bol False) tBool Nothing
 
 conjunct :: [Expr] -> Expr
 conjunct [] = true
@@ -73,16 +69,16 @@ predEq :: Expr -> Expr -> Bool
 predEq = (==)
 
 constant :: Text -> Type -> Expr
-constant x t = Const (Name x Nothing) t NoLoc
+constant x t = Const (Name x Nothing) t Nothing
 
 variable :: Text -> Type -> Expr
-variable x t = Var (Name x Nothing) t NoLoc
+variable x t = Var (Name x Nothing) t Nothing
 
 nameVar :: Name -> Type -> Expr
-nameVar x t = Var x t NoLoc
+nameVar x t = Var x t Nothing
 
 number :: Int -> Expr
-number n = Lit (Num n) tInt NoLoc
+number n = Lit (Num n) tInt Nothing
 
 exists :: [Name] -> Expr -> Expr -> Expr
 exists xs ran term =
@@ -91,7 +87,7 @@ exists xs ran term =
     xs
     ran
     term
-    NoLoc
+    Nothing
 
 forAll :: [Name] -> Expr -> Expr -> Expr
 forAll xs ran term =
@@ -100,7 +96,7 @@ forAll xs ran term =
     xs
     ran
     term
-    NoLoc
+    Nothing
 
 pointsTo, sConj, sImp :: Expr -> Expr -> Expr
 pointsTo = arith (PointsTo Nothing) tBinIntOp

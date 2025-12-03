@@ -5,10 +5,9 @@ module GCL.WP.Struct where
 import Control.Arrow (first, second)
 import Control.Monad (forM_)
 import Data.Loc
-  ( Loc (..),
-    Located (..),
+  ( Located (..)
   )
-import Data.Loc.Range (fromLoc)
+import Data.Loc.Range (MaybeRanged (..))
 import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common (freshName)
@@ -57,16 +56,16 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
         tellPO
           pre
           post'
-          (emptyExplain "Assertion (Secondary)" (locOf pre))
+          (emptyExplain "Assertion (Secondary)" (maybeRangeOf pre))
 
     -- handles  {P} [SegElm] {Q}
     structSegs :: (Pred, Maybe Expr) -> [SegElm] -> Pred -> WP ()
     structSegs (pre, _) [] post = do
-      case locOf pre of
-        NoLoc -> tellPO pre post (AtAssertion (locOf post))
+      case maybeRangeOf pre of
+        Nothing -> tellPO pre post (AtAssertion (maybeRangeOf post))
         others -> tellPO pre post (AtAssertion others)
     structSegs (pre, _) (SAsrt (Assert p _) : segs) post = do
-      tellPO pre p (AtAssertion (locOf pre))
+      tellPO pre p (AtAssertion (maybeRangeOf pre))
       structSegs (p, Nothing) segs post
     structSegs (pre, _) (SAsrt (LoopInvariant p bnd l) : segs) post = do
       tellPO pre p origin
@@ -99,8 +98,8 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
 
     structSStmts :: (Pred, Maybe Expr) -> [Stmt] -> Pred -> WP ()
     structSStmts (pre, _) [] post = do
-      case locOf pre of
-        NoLoc -> tellPO pre post (AtAssertion (locOf post))
+      case maybeRangeOf pre of
+        Nothing -> tellPO pre post (AtAssertion (maybeRangeOf post))
         others -> tellPO pre post (AtAssertion others)
     structSStmts (pre, bnd) (stmt : stmts) post = do
       post' <- wpSStmts stmts post
@@ -129,11 +128,11 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
       forM_ gcmds (structGdcmdInduct inv)
       tellPO
         (inv `conj` disjunct guards)
-        (bnd `gte` Lit (Num 0) tInt NoLoc)
+        (bnd `gte` Lit (Num 0) tInt Nothing)
         (explainTermination inv guards bnd l)
       forM_ gcmds (structGdcmdBnd inv bnd)
     struct (inv, Nothing) (Do gcmds l) post = do
-      case fromLoc l of
+      case l of
         Nothing -> return ()
         Just rng -> throwWarning (MissingBound rng)
       let guards = getGuards gcmds
@@ -178,13 +177,13 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
         (xs ++ (map (nameToText . fst . snd) ys))
         (structStmts Primary (pre, Nothing) stmts' post)
       where
-        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (locOf n')))
+        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
 
 calcLocalRenaming :: [Text] -> [(Name, Type)] -> WP ([Text], [(Text, (Name, Type))])
 calcLocalRenaming _ [] = return ([], [])
 calcLocalRenaming scope ((x, t) : xs)
   | tx `elem` scope = do
-      x' <- freshName tx (locOf x)
+      x' <- freshName tx x
       second ((tx, (x', t)) :) <$> calcLocalRenaming scope xs
   | otherwise =
       first (tx :) <$> calcLocalRenaming scope xs

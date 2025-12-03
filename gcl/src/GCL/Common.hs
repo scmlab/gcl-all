@@ -11,12 +11,7 @@ import Control.Monad.Except
 import Control.Monad.RWS (MonadState (get, put), RWST (..))
 import Control.Monad.State (StateT (..))
 import Data.Aeson (ToJSON)
-import Data.Loc
-  ( Loc (..),
-    Located,
-    locOf,
-  )
-import Data.Loc.Range (Range, mkRange)
+import Data.Loc.Range (Range, mkRange, maybeRangeToLoc, MaybeRanged(..))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set
@@ -67,11 +62,8 @@ class (Monad m) => Fresh m where
 
   freshPre :: Text -> m Text
 
-freshName :: (Fresh m) => Text -> Loc -> m Name
-freshName prefix l = Name <$> freshPre prefix <*> pure (toMaybeRange l)
-  where
-    toMaybeRange NoLoc = Nothing
-    toMaybeRange (Loc s e) = Just (mkRange s e)
+freshName :: (Fresh m, MaybeRanged a) => Text -> a -> m Name
+freshName prefix l = Name <$> freshPre prefix <*> pure (maybeRangeOf l)
 
 freshName' :: (Fresh m) => Text -> m Name
 freshName' prefix = Name <$> freshPre prefix <*> pure Nothing

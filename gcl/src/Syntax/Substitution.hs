@@ -211,7 +211,7 @@ genBinderRenaming ::
 genBinderRenaming _ [] = return empty
 genBinderRenaming fvs ((Name x l, t) : xs)
   | x `Set.member` fvs = do
-      x' <- freshName x (maybeRangeToLoc l)
+      x' <- freshName x l
       insert x (mkVar x' t l) <$> genBinderRenaming fvs xs
   | otherwise = genBinderRenaming fvs xs
 

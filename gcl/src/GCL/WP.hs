@@ -12,7 +12,7 @@ import Control.Monad.Except
 import Control.Monad.RWS (RWST (runRWST))
 import Data.IntMap (IntMap)
 import qualified Data.List as List
-import Data.Loc (Located (..))
+import Data.Loc.Range (MaybeRanged (..))
 import qualified Data.Map as Map
 import Data.Text (Text)
 import GCL.Predicate
@@ -97,9 +97,9 @@ structProgram stmts = do
     ProgViewMissingPrecondition stmts' post ->
       structStmts Primary (true, Nothing) stmts' post
     ProgViewMissingPostcondition _ stmts' ->
-      throwError . MissingPostcondition . locOf . last $ stmts'
+      throwError . MissingPostcondition . maybeRangeOf . last $ stmts'
     ProgViewMissingBoth stmts' ->
-      throwError . MissingPostcondition . locOf . last $ stmts'
+      throwError . MissingPostcondition . maybeRangeOf . last $ stmts'
   where
     -- ignore Proofs after the Postcondition
     removeLastProofs :: [Stmt] -> [Stmt]

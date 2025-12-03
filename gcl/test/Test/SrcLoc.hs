@@ -64,7 +64,7 @@ sortingOriginsTests =
     ]
   where
     mk :: Int -> Int -> Origin
-    mk a b = AtSkip (Loc (Pos "" 1 (a + 1) a) (Pos "" 1 (b + 1) b))
+    mk a b = AtSkip (Just (mkRange (Pos "" 1 (a + 1) a) (Pos "" 1 (b + 1) b)))
 
 --------------------------------------------------------------------------------
 

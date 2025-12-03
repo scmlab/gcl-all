@@ -3,8 +3,7 @@
 module GCL.Type2.Elaborate where
 
 import Control.Monad (foldM, unless, when)
-import Data.Loc (Loc)
-import Data.Loc.Range (Range, maybeRangeToLoc)
+import Data.Loc.Range (Range)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Type (TypeError (..))
@@ -56,7 +55,7 @@ instance Elaborate A.Program T.Program where
             local (const declEnv) (elaborate stmt)
         )
         stmts
-    return $ T.Program typedDefns typedDecls typedExprs typedStmts (maybeRangeToLoc loc)
+    return $ T.Program typedDefns typedDecls typedExprs typedStmts loc
 
 instance Elaborate A.Definition T.Definition where
   elaborate = undefined
@@ -67,23 +66,23 @@ instance Elaborate A.Declaration T.Declaration where
     case prop of
       Just p -> do
         p' <- elaborate p
-        return $ T.ConstDecl names ty (Just p') (maybeRangeToLoc loc)
+        return $ T.ConstDecl names ty (Just p') loc
       Nothing ->
-        return $ T.ConstDecl names ty Nothing (maybeRangeToLoc loc)
+        return $ T.ConstDecl names ty Nothing loc
   elaborate (A.VarDecl names ty prop loc) = do
     -- TODO: some kind stuff
     case prop of
       Just p -> do
         p' <- elaborate p
-        return $ T.VarDecl names ty (Just p') (maybeRangeToLoc loc)
+        return $ T.VarDecl names ty (Just p') loc
       Nothing ->
-        return $ T.VarDecl names ty Nothing (maybeRangeToLoc loc)
+        return $ T.VarDecl names ty Nothing loc
 
 instance Elaborate A.Stmt T.Stmt where
-  elaborate (A.Assign names exprs loc) = elaborateAssign names exprs (maybeRangeToLoc loc)
+  elaborate (A.Assign names exprs loc) = elaborateAssign names exprs loc
   elaborate _stmt = undefined
 
-elaborateAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
+elaborateAssign :: [Name] -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
 elaborateAssign names exprs loc
   | length names > length exprs = throwError $ RedundantNames (drop (length exprs) names)
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
@@ -110,9 +109,9 @@ instance Elaborate A.Expr T.Expr where
     (_, ty) <- infer expr
     return $ toTypedExpr expr ty
     where
-      toTypedExpr (A.Lit lit loc) ty = T.Lit lit ty (maybeRangeToLoc loc)
-      toTypedExpr (A.Var name loc) ty = T.Var name ty (maybeRangeToLoc loc)
-      toTypedExpr (A.Const name loc) ty = T.Const name ty (maybeRangeToLoc loc) -- XXX: should expr distinguish var and const?
+      toTypedExpr (A.Lit lit loc) ty = T.Lit lit ty loc
+      toTypedExpr (A.Var name loc) ty = T.Var name ty loc
+      toTypedExpr (A.Const name loc) ty = T.Const name ty loc -- XXX: should expr distinguish var and const?
       toTypedExpr (A.Op op) ty = T.Op (ArithOp op) ty
       toTypedExpr (A.Chain chain) ty = undefined
       toTypedExpr (A.App e1 e2 loc) ty = undefined
