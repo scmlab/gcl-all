@@ -27,6 +27,12 @@ module Data.Loc.Range
     unRange,
     compareWithPosition,
     withinRange,
+    -- Re-export from Data.Loc for convenience
+    Pos (..),
+    posLine,
+    posCol,
+    posFile,
+    posCoff,
   )
 where
 
