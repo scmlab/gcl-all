@@ -11,12 +11,10 @@ where
 
 import Control.Monad.RWS
 import Data.Foldable (toList)
-import Data.Loc
-  ( posCol,
-    posLine,
-  )
 import Data.Loc.Range
   ( MaybeRanged (maybeRangeOf),
+    posCol,
+    posLine,
     rangeSpan,
     rangeStart,
   )

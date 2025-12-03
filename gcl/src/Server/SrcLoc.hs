@@ -17,8 +17,7 @@ where
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Loc
-import Data.Loc.Range (Range (..), mkRange)
+import Data.Loc.Range (Pos (..), Range (..), mkRange)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Hack

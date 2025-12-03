@@ -2,7 +2,7 @@
 
 module Pretty.Predicate where
 
-import Data.Loc (unLoc)
+-- import Data.Loc (unLoc)  -- unused, code using this is commented out
 import GCL.Predicate
 import Pretty.Abstract ()
 import Pretty.Util

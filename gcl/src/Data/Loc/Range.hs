@@ -33,6 +33,7 @@ module Data.Loc.Range
     posCol,
     posFile,
     posCoff,
+    displayPos,
   )
 where
 
