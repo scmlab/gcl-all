@@ -34,7 +34,7 @@ stack test
 - [x] Phase 2 - 遷移 Parser Util
 - [x] Phase 3 - 遷移 Syntax.Common
 - [x] Phase 4 - 遷移 Syntax.Abstract
-- [ ] Phase 5 - 遷移 Syntax.Concrete 與 Parser
+- [x] Phase 5 - 遷移 Syntax.Concrete 與 Parser
 - [ ] Phase 6 - 遷移下游模組
 
 ---
