@@ -4,6 +4,7 @@ module GCL.Type2.Elaborate where
 
 import Control.Monad (foldM, unless, when)
 import Data.Loc (Loc)
+import Data.Loc.Range (Range, maybeRangeToLoc)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Type (TypeError (..))
@@ -55,7 +56,7 @@ instance Elaborate A.Program T.Program where
             local (const declEnv) (elaborate stmt)
         )
         stmts
-    return $ T.Program typedDefns typedDecls typedExprs typedStmts loc
+    return $ T.Program typedDefns typedDecls typedExprs typedStmts (maybeRangeToLoc loc)
 
 instance Elaborate A.Definition T.Definition where
   elaborate = undefined
@@ -66,20 +67,20 @@ instance Elaborate A.Declaration T.Declaration where
     case prop of
       Just p -> do
         p' <- elaborate p
-        return $ T.ConstDecl names ty (Just p') loc
+        return $ T.ConstDecl names ty (Just p') (maybeRangeToLoc loc)
       Nothing ->
-        return $ T.ConstDecl names ty Nothing loc
+        return $ T.ConstDecl names ty Nothing (maybeRangeToLoc loc)
   elaborate (A.VarDecl names ty prop loc) = do
     -- TODO: some kind stuff
     case prop of
       Just p -> do
         p' <- elaborate p
-        return $ T.VarDecl names ty (Just p') loc
+        return $ T.VarDecl names ty (Just p') (maybeRangeToLoc loc)
       Nothing ->
-        return $ T.VarDecl names ty Nothing loc
+        return $ T.VarDecl names ty Nothing (maybeRangeToLoc loc)
 
 instance Elaborate A.Stmt T.Stmt where
-  elaborate (A.Assign names exprs loc) = elaborateAssign names exprs loc
+  elaborate (A.Assign names exprs loc) = elaborateAssign names exprs (maybeRangeToLoc loc)
   elaborate _stmt = undefined
 
 elaborateAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
@@ -109,21 +110,21 @@ instance Elaborate A.Expr T.Expr where
     (_, ty) <- infer expr
     return $ toTypedExpr expr ty
     where
-      toTypedExpr (A.Lit lit loc) ty = T.Lit lit ty loc
-      toTypedExpr (A.Var name loc) ty = T.Var name ty loc
-      toTypedExpr (A.Const name loc) ty = T.Const name ty loc -- XXX: should expr distinguish var and const?
+      toTypedExpr (A.Lit lit loc) ty = T.Lit lit ty (maybeRangeToLoc loc)
+      toTypedExpr (A.Var name loc) ty = T.Var name ty (maybeRangeToLoc loc)
+      toTypedExpr (A.Const name loc) ty = T.Const name ty (maybeRangeToLoc loc) -- XXX: should expr distinguish var and const?
       toTypedExpr (A.Op op) ty = T.Op (ArithOp op) ty
       toTypedExpr (A.Chain chain) ty = undefined
       toTypedExpr (A.App e1 e2 loc) ty = undefined
-      toTypedExpr (A.Lam name expr loc) ty = undefined
+      toTypedExpr (A.Lam name expr' loc) ty = undefined
       toTypedExpr (A.Func name clauses loc) ty = undefined
       toTypedExpr (A.Tuple exprs) ty = undefined
       toTypedExpr (A.Quant _ _ _ _ _) ty = undefined
       toTypedExpr (A.RedexKernel _ _ _ _) ty = undefined
       toTypedExpr (A.RedexShell _ _) ty = undefined
       toTypedExpr (A.ArrIdx arr index loc) ty = undefined
-      toTypedExpr (A.ArrUpd arr index expr loc) ty = undefined
-      toTypedExpr (A.Case expr clauses loc) ty = undefined
+      toTypedExpr (A.ArrUpd arr index expr' loc) ty = undefined
+      toTypedExpr (A.Case expr' clauses loc) ty = undefined
 
 runElaboration :: (Elaborate a t) => a -> Env -> Either TypeError t
 runElaboration a env = evalRSE (elaborate a) env (Inference 0)

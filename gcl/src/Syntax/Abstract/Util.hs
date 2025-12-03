@@ -4,11 +4,7 @@ module Syntax.Abstract.Util where
 
 import Data.Bifunctor (second)
 import qualified Data.List as List
-import Data.Loc
-  ( Loc (NoLoc),
-    locOf,
-    (<-->),
-  )
+import Data.Loc.Range ((<->>), MaybeRanged(maybeRangeOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -35,7 +31,7 @@ import Syntax.Common
 
 wrapTFunc :: [Type] -> Type -> Type
 wrapTFunc [] t = t
-wrapTFunc (t : ts) t0 = let t0' = wrapTFunc ts t0 in TApp (TApp (TOp (Arrow Nothing)) t NoLoc) t0' (locOf t0) -- TODO: What should the loc be?
+wrapTFunc (t : ts) t0 = let t0' = wrapTFunc ts t0 in TApp (TApp (TOp (Arrow Nothing)) t Nothing) t0' (maybeRangeOf t0) -- TODO: What should the loc be?
 
 getGuards :: [GdCmd] -> [Expr]
 getGuards = fst . unzipGdCmds
@@ -45,7 +41,7 @@ unzipGdCmds = unzip . map (\(GdCmd x y _) -> (x, y))
 
 wrapLam :: [Name] -> Expr -> Expr
 wrapLam [] body = body
-wrapLam (x : xs) body = let b = wrapLam xs body in Lam x b (x <--> b)
+wrapLam (x : xs) body = let b = wrapLam xs body in Lam x b (maybeRangeOf x <->> maybeRangeOf b)
 
 declaredNames :: [Declaration] -> [Name]
 declaredNames decls = concat . map extractNames $ decls

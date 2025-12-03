@@ -6,7 +6,6 @@
 
 module GCL.Substitution where
 
-import Data.Loc (locOf)
 import Data.Loc.Range (MaybeRanged(maybeRangeOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -82,7 +81,7 @@ renameBinder renamings binder =
 renamingToMapping :: Map Name Name -> Mapping
 renamingToMapping =
   Map.fromList
-    . map (\(old, new) -> (nameToText old, A.Var new (locOf old)))
+    . map (\(old, new) -> (nameToText old, A.Var new (maybeRangeOf old)))
     . Map.toList
 
 ------------------------------------------------------------------

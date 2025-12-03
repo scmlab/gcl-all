@@ -61,15 +61,15 @@ instance Collect Typed.Program where
 -- Definition
 
 unkind :: KindedType -> Type
-unkind (Typed.TBase base _ loc) = UnTyped.TBase base loc
-unkind (Typed.TArray int ty loc) = UnTyped.TArray int (unkind ty) loc
+unkind (Typed.TBase base _ loc) = UnTyped.TBase base (toMaybeRange loc)
+unkind (Typed.TArray int ty loc) = UnTyped.TArray int (unkind ty) (toMaybeRange loc)
 unkind (Typed.TTuple int _) = UnTyped.TTuple int
-unkind (Typed.TFunc ty1 ty2 loc) = UnTyped.TFunc (unkind ty1) (unkind ty2) loc
+unkind (Typed.TFunc ty1 ty2 loc) = UnTyped.TFunc (unkind ty1) (unkind ty2) (toMaybeRange loc)
 unkind (Typed.TOp op _) = UnTyped.TOp op
-unkind (Typed.TData name _ loc) = UnTyped.TData name loc
-unkind (Typed.TApp ty1 ty2 loc) = UnTyped.TApp (unkind ty1) (unkind ty2) loc
-unkind (Typed.TVar name _ loc) = UnTyped.TVar name loc
-unkind (Typed.TMetaVar name _ loc) = UnTyped.TMetaVar name loc
+unkind (Typed.TData name _ loc) = UnTyped.TData name (toMaybeRange loc)
+unkind (Typed.TApp ty1 ty2 loc) = UnTyped.TApp (unkind ty1) (unkind ty2) (toMaybeRange loc)
+unkind (Typed.TVar name _ loc) = UnTyped.TVar name (toMaybeRange loc)
+unkind (Typed.TMetaVar name _ loc) = UnTyped.TMetaVar name (toMaybeRange loc)
 
 instance Collect Typed.Definition where
   collect (Typed.TypeDefn _ _ ctors _) = foldMap collect ctors

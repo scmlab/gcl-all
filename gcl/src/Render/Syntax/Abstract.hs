@@ -7,6 +7,7 @@ import Data.Foldable (toList)
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 
+import Data.Loc.Range (maybeRangeToLoc)
 import qualified Data.Map as Map
 import Render.Class
 import Render.Element
@@ -39,9 +40,9 @@ instance Render Expr where
   renderPrec prec expr = handleExpr prec expr
 
 handleExpr :: PrecContext -> Expr -> Inlines
-handleExpr _ (Var x l) = tempHandleLoc l $ render x
-handleExpr _ (Const x l) = tempHandleLoc l $ render x
-handleExpr _ (Lit x l) = tempHandleLoc l $ render x
+handleExpr _ (Var x l) = tempHandleLoc (maybeRangeToLoc l) $ render x
+handleExpr _ (Const x l) = tempHandleLoc (maybeRangeToLoc l) $ render x
+handleExpr _ (Lit x l) = tempHandleLoc (maybeRangeToLoc l) $ render x
 handleExpr _ (Op _) = error "erroneous syntax given to render"
 handleExpr _ (Chain ch) = render ch
 handleExpr n (App (App (Op op) left _) right _) =

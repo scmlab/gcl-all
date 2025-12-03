@@ -9,6 +9,7 @@ module GCL.Type2.Infer where
 import Data.List (foldl')
 import qualified Data.List.NonEmpty as NE
 import Data.Loc (Loc (..))
+import Data.Loc.Range (Range, toMaybeRange, maybeRangeToLoc)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
@@ -100,7 +101,7 @@ instantiate (Forall tvs ty) = do
     mapM
       ( \var -> do
           fresh <- freshTyVar
-          return (var, A.TVar fresh NoLoc)
+          return (var, A.TVar fresh Nothing)
       )
       tvs
   let subst = Map.fromList mappings
@@ -142,7 +143,7 @@ unify t1 t2 l = throwError $ UnifyFailed t1 t2 l
 
 unifyVar :: Name -> A.Type -> Loc -> Result Subst
 unifyVar name ty loc
-  | A.TVar name NoLoc == ty = return mempty
+  | A.TVar name Nothing == ty = return mempty
   | checkOccurs name ty = throwError $ RecursiveType name ty loc
   | otherwise =
       let subst = Map.singleton name ty
@@ -165,12 +166,12 @@ infer (A.ArrIdx arr index loc) = undefined
 infer (A.ArrUpd arr index expr loc) = undefined
 infer (A.Case expr clauses loc) = undefined
 
-inferLit :: A.Lit -> Loc -> RSE Env Inference (Subst, A.Type)
+inferLit :: A.Lit -> Maybe Range -> RSE Env Inference (Subst, A.Type)
 inferLit lit loc =
   let ty = A.TBase (A.baseTypeOfLit lit) loc
    in return (mempty, ty)
 
-inferVar :: Name -> Loc -> RSE Env Inference (Subst, A.Type)
+inferVar :: Name -> Maybe Range -> RSE Env Inference (Subst, A.Type)
 inferVar name loc = do
   env <- ask
   case Map.lookup name env of

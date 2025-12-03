@@ -7,8 +7,7 @@
 module Syntax.Substitution where
 
 import Control.Monad (forM)
-import Data.Loc (Loc)
-import Data.Loc.Range (maybeRangeToLoc)
+import Data.Loc.Range (Range, maybeRangeToLoc)
 import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -27,7 +26,7 @@ class Substitutable m a b where
 -- types that has a concept of a "variable"
 class Variableous e t | e -> t where -- t denotes the type of the variable
   isVar :: e -> Maybe (Name, t)
-  mkVar :: Name -> t -> Loc -> e
+  mkVar :: Name -> t -> Maybe Range -> e
 
 instance Variableous Expr () where
   isVar (Var x _) = Just (x, ())
@@ -213,7 +212,7 @@ genBinderRenaming _ [] = return empty
 genBinderRenaming fvs ((Name x l, t) : xs)
   | x `Set.member` fvs = do
       x' <- freshName x (maybeRangeToLoc l)
-      insert x (mkVar x' t (maybeRangeToLoc l)) <$> genBinderRenaming fvs xs
+      insert x (mkVar x' t l) <$> genBinderRenaming fvs xs
   | otherwise = genBinderRenaming fvs xs
 
 renameVars :: (Variableous e t) => Subst e -> [Name] -> [Name]
