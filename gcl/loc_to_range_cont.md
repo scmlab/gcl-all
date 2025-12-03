@@ -52,15 +52,56 @@ stack test
 
 ## 進度追蹤
 
-- [ ] Phase 7 - Syntax.Parser 周邊
-- [ ] Phase 8 - Syntax.Common Instances
-- [ ] Phase 9 - Syntax.Abstract Instances
-- [ ] Phase 10 - Syntax.Concrete Instances
-- [ ] Phase 11 - Syntax.Typed
-- [ ] Phase 12 - GCL 模組群
-- [ ] Phase 13 - Server 模組群
-- [ ] Phase 14 - Pretty/Render 模組群
-- [ ] Phase 15 - 清理與驗證
+- [x] Phase 7 - Syntax.Parser 周邊（保留 Data.Loc 用於 token 處理）
+- [x] Phase 8 - Syntax.Common Instances（已遷移 Json.hs 和 ExecMonad.hs）
+- [x] Phase 9 - Syntax.Abstract Instances（已有 MaybeRanged instances，保留 Located 向後相容）
+- [x] Phase 10 - Syntax.Concrete Instances（已有 MaybeRanged instances，保留 Located 向後相容）
+- [x] Phase 11 - Syntax.Typed（已有 MaybeRanged instances，保留 Located 向後相容）
+- [x] Phase 12 - GCL 模組群（清除未使用的 Data.Loc import）
+- [x] Phase 13 - Server 模組群（改用 Data.Loc.Range 的 Pos re-exports）
+- [x] Phase 14 - Pretty/Render 模組群（部分遷移，保留必要的 Data.Loc）
+- [x] Phase 15 - 清理與驗證（完成！詳見下方總結）
+
+## 最終狀態總結
+
+### 仍使用 Data.Loc 的檔案分類
+
+1. **Parser 層（必須保留）** - 處理 lexer tokens，需要 `L`、`Loc`、`Located`：
+   - `src/Syntax/Parser.hs`
+   - `src/Syntax/Parser/Error.hs`
+   - `src/Syntax/Parser/TokenStream.hs`
+   - `src/Syntax/Parser/Util.hs`
+   - `src/Syntax/Parser/Lexer.hs`
+   - `src/Syntax/Concrete/Types.hs`
+   - `src/Syntax/Concrete/Instances/Located.hs`
+   - `src/Syntax/Concrete/Instances/ToAbstract.hs`
+   - `src/Server/Handler/GCL/Refine.hs`
+   - `src/Pretty/Concrete.hs`
+   - `src/Pretty/Util.hs`
+
+2. **向後相容層（保留 Located instances）** - 使用 `maybeRangeToLoc . maybeRangeOf` 模式：
+   - `src/Syntax/Abstract/Instances/Located.hs`
+   - `src/Syntax/Common/Instances/Located.hs`
+   - `src/GCL/Predicate.hs`
+   - `src/GCL/WP/Types.hs`
+   - `src/Render/Class.hs`
+
+3. **已註解但保留檔案**：
+   - `src/GCL/Exec.hs`
+   - `src/GCL/Predicate/Located.hs`
+   - `src/GCL/Predicate/Util.hs`
+   - `src/Pretty/Predicate.hs`
+
+### 測試結果
+
+- 所有 202 個測試通過
+
+### 結論
+
+遷移已完成到可行的最大程度：
+- 上層模組（Server, GCL, Render）已改用 `Data.Loc.Range` 和 `MaybeRanged`
+- Parser 層保留 `Data.Loc` 用於 token 處理（這是設計決策）
+- 向後相容層透過 `maybeRangeToLoc` 橋接 `MaybeRanged` 和 `Located`
 
 ---
 
