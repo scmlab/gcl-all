@@ -1,9 +1,13 @@
 module GCL.Predicate.Located where
 
+-- This module is deprecated. Use MaybeRanged from Data.Loc.Range instead.
+-- The Located instances here have been commented out as part of the migration
+-- from Loc to Maybe Range.
+
+{-
 import Data.Loc (Loc (..), Located, locOf)
 import GCL.Predicate (Pred (..))
 
-{-
 instance Located Pred where
   locOf (Constant _) = NoLoc
   locOf (GuardIf _ l) = l
@@ -23,9 +27,3 @@ instance Located Stmt where
   locOf (If l _) = locOf l
   locOf (Spec l _) = locOf l
 -}
-
--- instance Ord Loc where
---   compare NoLoc NoLoc = EQ
---   compare NoLoc (Loc _ _) = LT
---   compare (Loc _ _) NoLoc = GT
---   compare (Loc x _) (Loc y _) = compare x y

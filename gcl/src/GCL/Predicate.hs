@@ -4,7 +4,7 @@ module GCL.Predicate where
 
 import Data.Aeson (ToJSON)
 import qualified Data.Aeson as JSON
-import Data.Loc (Located (locOf))
+import Data.Loc (Located (..))
 import Data.Loc.Range
   ( Range,
     Ranged (rangeOf),

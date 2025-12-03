@@ -1,16 +1,17 @@
 module GCL.Predicate.Util where
 
 import qualified Data.Char as Char
-import Data.Loc (Loc (..), Located (locOf), posCoff, posLine, unLoc)
-import Data.Loc.Range (Range (Range))
+import Data.Loc.Range (Range (Range), posLine, posCoff)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate
 import GCL.Predicate.Located ()
+
+{-
+import Data.Loc (Loc (..), Located (locOf), unLoc)
 import Syntax.Abstract (Expr)
 import qualified Syntax.Abstract.Operator as A
 
-{-
 toExpr :: Pred -> Expr
 toExpr (Constant e) = e
 toExpr (Bound e _) = e
