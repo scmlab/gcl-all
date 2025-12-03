@@ -2,7 +2,7 @@
 
 module Render.Predicate where
 
-import Data.Loc (Loc (NoLoc), locOf)
+import Data.Loc (locOf)
 import Data.Loc.Range (fromLoc)
 import qualified Data.Text as Text
 import GCL.Predicate
