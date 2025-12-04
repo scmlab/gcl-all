@@ -67,8 +67,8 @@ tests:
     main: Test.hs
     source-dirs:
       - test
-      - src
     dependencies:
+      - gcl
       - tasty
       - tasty-hunit
       - tasty-golden
