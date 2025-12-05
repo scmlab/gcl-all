@@ -27,7 +27,6 @@ library
       GCL.Exec.ExNondet
       GCL.Exec.ExRand
       GCL.Predicate
-      GCL.Predicate.Located
       GCL.Predicate.Util
       GCL.Substitution
       GCL.Type

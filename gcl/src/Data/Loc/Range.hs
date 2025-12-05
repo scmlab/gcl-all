@@ -27,7 +27,7 @@
 --
 -- == Internal Dependencies
 --
--- This module re-exports types from 'Data.Loc' (e.g., 'Pos', 'L', 'Located')
+-- This module re-exports types from 'Data.Loc' (e.g., 'Pos', 'L', 'Loc')
 -- for backward compatibility with the lexer\/parser layer.
 -- 'Data.Loc' should be considered an internal module and not imported directly
 -- by application code.
@@ -46,9 +46,7 @@ module Data.Loc.Range
     rangeEnd,
     rangeFile,
     fromLoc,
-    toLoc,
     toMaybeRange,
-    maybeRangeToLoc,
     fromLocs,
     mergeRangesUnsafe,
     mergeRanges,
@@ -58,15 +56,14 @@ module Data.Loc.Range
     MaybeRanged (..),
     (<->>),
     unRange,
+    unR,
     rangeOfR,
-    compareWithPosition,
-    withinRange,
     compareWithPositionR,
     withinRangeR,
     -- Conversion from Data.Loc.Inclusive
     fromInclusiveLoc,
     fromInclusivePos,
-    -- Re-export from Data.Loc for convenience (Lexer/Parser compatibility)
+    -- Re-export from Data.Loc for Pos manipulation
     Pos (..),
     posLine,
     posCol,
@@ -75,12 +72,6 @@ module Data.Loc.Range
     displayPos,
     startPos,
     advancePos,
-    -- Re-export L and unLoc for Lexer/Parser compatibility
-    L (..),
-    unLoc,
-    Loc (..),
-    Located (..),
-    (<-->),
   )
 where
 
@@ -174,21 +165,13 @@ fromLoc (Loc x y) = Just (mkRange x y)
 toMaybeRange :: Loc -> Maybe Range
 toMaybeRange = fromLoc
 
--- | Maybe Range -> Loc (convert back to Loc for backward compatibility)
-maybeRangeToLoc :: Maybe Range -> Loc
-maybeRangeToLoc Nothing = NoLoc
-maybeRangeToLoc (Just r) = toLoc r
-
--- | Range -> Loc
-toLoc :: Range -> Loc
-toLoc (Range x y) = Loc x y
-
 -- | [Loc] -> [Range]
 fromLocs :: [Loc] -> [Range]
 fromLocs = mapMaybe fromLoc
 
 mergeRangesUnsafe :: [Range] -> Range
-mergeRangesUnsafe xs = foldl (<>) (head xs) xs
+mergeRangesUnsafe [] = error "mergeRangesUnsafe: empty list"
+mergeRangesUnsafe (x:xs) = foldl (<>) x xs
 
 mergeRanges :: NonEmpty Range -> Range
 mergeRanges xs = foldl (<>) (NE.head xs) xs
@@ -200,9 +183,6 @@ rangeSpan (Range a b) = posCol b - posCol a
 -- | See if a Range is within another Range
 within :: Range -> Range -> Bool
 within (Range a b) (Range c d) = posCol c <= posCol a && posCol b <= posCol d
-
-instance Located Range where
-  locOf (Range x y) = Loc x y
 
 -- | Merge two ranges by filling their gap
 instance Semigroup Range where
@@ -219,7 +199,7 @@ instance Semigroup Range where
 
 --------------------------------------------------------------------------------
 
--- | Like "Located"
+-- | Typeclass for values that always have a range
 class Ranged a where
   rangeOf :: a -> Range
 
@@ -231,7 +211,7 @@ instance (Ranged a) => Ranged (NonEmpty a) where
 
 --------------------------------------------------------------------------------
 
--- | Like "Located" but for types that may not have a location (replaces NoLoc with Nothing)
+-- | Typeclass for values that may or may not have a location
 class MaybeRanged a where
   maybeRangeOf :: a -> Maybe Range
 
@@ -267,6 +247,10 @@ data R a = R Range a
 
 unRange :: R a -> a
 unRange (R _ a) = a
+
+-- | Alias for unRange (to match unLoc naming convention)
+unR :: R a -> a
+unR = unRange
 
 instance (Eq x) => Eq (R x) where
   (R _ x) == (R _ y) = x == y
@@ -322,27 +306,6 @@ instance ToJSON Range where
       ]
 
 --------------------------------------------------------------------------------
-
--- | Compare the cursor position with something
---  EQ: the cursor is placed within that thing
---  LT: the cursor is placed BEFORE (but not touching) that thing
---  GT: the cursor is placed AFTER (but not touching) that thing
-compareWithPosition :: (Located a) => Pos -> a -> Ordering
-compareWithPosition pos x = case locOf x of
-  NoLoc -> EQ
-  Loc start end ->
-    if posCoff pos < posCoff start
-      then LT
-      else if posCoff pos > posCoff end then GT else EQ
-
--- | See if something is within the selection
-withinRange :: (Located a) => Range -> a -> Bool
-withinRange (Range left right) x =
-  compareWithPosition left x
-    == EQ
-    || compareWithPosition right x
-      == EQ
-    || (compareWithPosition left x == LT && compareWithPosition right x == GT)
 
 -- | Compare the cursor position with something (MaybeRanged version)
 --  EQ: the cursor is placed within that thing

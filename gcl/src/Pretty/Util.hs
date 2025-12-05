@@ -85,9 +85,9 @@ instance Monoid (DocWithLoc ann) where
   mappend = (<>)
   mempty = Empty
 
-fromDoc :: Loc -> Doc ann -> DocWithLoc ann
-fromDoc NoLoc _ = Empty
-fromDoc (Loc a b) x = DocWithLoc x a b
+fromDoc :: Maybe Range -> Doc ann -> DocWithLoc ann
+fromDoc Nothing _ = Empty
+fromDoc (Just (Range a b)) x = DocWithLoc x a b
 
 -- prefixing spaces are ignored before converting to `Doc`
 toDoc :: DocWithLoc ann -> Doc ann
@@ -109,10 +109,10 @@ fromRenderPrec :: (Render a) => PrecContext -> a -> Doc ann
 fromRenderPrec n x = pretty (renderPrec n x)
 
 -- | If something can be rendered and located, then make it a DocWithLoc
-fromRenderAndLocated :: (Located a, Render a) => a -> DocWithLoc ann
-fromRenderAndLocated x = case locOf x of
-  NoLoc -> mempty
-  Loc a b -> DocWithLoc (pretty (render x)) a b
+fromRenderAndLocated :: (MaybeRanged a, Render a) => a -> DocWithLoc ann
+fromRenderAndLocated x = case maybeRangeOf x of
+  Nothing -> mempty
+  Just (Range a b) -> DocWithLoc (pretty (render x)) a b
 
 -- | If something can be rendered, then make it a Doc
 fromRenderSection :: (RenderSection a) => a -> Doc ann
@@ -154,8 +154,8 @@ instance (Pretty a, Pretty b) => Pretty (Either a b) where
 instance (PrettyWithLoc a) => PrettyWithLoc [a] where
   prettyWithLoc = mconcat . map prettyWithLoc
 
-instance (Pretty a) => PrettyWithLoc (L a) where
-  prettyWithLoc (L loc x) = fromDoc loc (pretty x)
+instance (Pretty a) => PrettyWithLoc (R a) where
+  prettyWithLoc (R range x) = fromDoc (Just range) (pretty x)
 
 --------------------------------------------------------------------------------
 

@@ -11,7 +11,7 @@ import Control.Monad.RWS
   )
 import Data.Aeson (ToJSON)
 import Data.IntMap (IntMap)
-import Data.Loc.Range (Range, MaybeRanged (..), maybeRangeToLoc, Located (..))
+import Data.Loc.Range (Range, MaybeRanged (..))
 import Data.Map (Map)
 import Data.Text (Text)
 import GCL.Common
@@ -80,9 +80,6 @@ data StructWarning
 instance MaybeRanged StructWarning where
   maybeRangeOf (MissingBound rng) = Just rng
 
-instance Located StructWarning where
-  locOf = maybeRangeToLoc . maybeRangeOf
-
 data StructError
   = MissingAssertion (Maybe Range)
   | MissingPostcondition (Maybe Range)
@@ -97,9 +94,6 @@ instance MaybeRanged StructError where
   maybeRangeOf (MissingPostcondition l) = l
   maybeRangeOf (MultiDimArrayAsgnNotImp l) = l
   maybeRangeOf (LocalVarExceedScope l) = l
-
-instance Located StructError where
-  locOf = maybeRangeToLoc . maybeRangeOf
 
 -- freshPreInScope prefix scope
 --   generates a fresh name, with prefix, that does not appear in scope

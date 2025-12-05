@@ -7,7 +7,7 @@
 module Syntax.Substitution where
 
 import Control.Monad (forM)
-import Data.Loc.Range (Range, maybeRangeToLoc)
+import Data.Loc.Range (Range)
 import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set

@@ -29,7 +29,7 @@ compareWithPositionTests =
     ]
   where
     run :: Int -> Item -> Ordering
-    run offset item = compareWithPosition (Pos "" 1 1 offset) item
+    run offset item = compareWithPositionR (Pos "" 1 1 offset) item
 
 --------------------------------------------------------------------------------
 
@@ -84,7 +84,7 @@ withinRangeTests =
     ]
   where
     run :: (Int, Int) -> Item -> Bool
-    run (start, end) item = withinRange (mkRange (Pos "" 1 1 start) (Pos "" 1 1 end)) item
+    run (start, end) item = withinRangeR (mkRange (Pos "" 1 1 start) (Pos "" 1 1 end)) item
 
 -- | For testing selection related stuff
 newtype Item = Item {unItem :: Range}
@@ -100,5 +100,5 @@ make start end = Item (mkRange (Pos "" 1 (start + 1) start) (Pos "" 1 (end + 1) 
 instance Ranged Item where
   rangeOf = unItem
 
-instance Located Item where
-  locOf = locOf . unItem
+instance MaybeRanged Item where
+  maybeRangeOf = Just . unItem

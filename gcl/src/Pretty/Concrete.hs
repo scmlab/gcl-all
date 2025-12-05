@@ -5,7 +5,7 @@
 
 module Pretty.Concrete where
 
-import Data.Loc.Range (locOf)
+import Data.Loc.Range ()
 import Data.Text (unpack)
 import Pretty.Common ()
 import Pretty.Util
@@ -227,10 +227,10 @@ instance Pretty Lit where
   pretty = toDoc . prettyWithLoc
 
 instance PrettyWithLoc Lit where
-  prettyWithLoc (LitBool True l) = fromDoc (locOf l) (pretty $ show TokTrue)
-  prettyWithLoc (LitBool False l) = fromDoc (locOf l) (pretty $ show TokFalse)
-  prettyWithLoc (LitInt n l) = fromDoc (locOf l) (pretty n)
-  prettyWithLoc (LitChar c l) = fromDoc (locOf l) ("'" <> pretty [c] <> "'")
+  prettyWithLoc (LitBool True l) = fromDoc (Just l) (pretty $ show TokTrue)
+  prettyWithLoc (LitBool False l) = fromDoc (Just l) (pretty $ show TokFalse)
+  prettyWithLoc (LitInt n l) = fromDoc (Just l) (pretty n)
+  prettyWithLoc (LitChar c l) = fromDoc (Just l) ("'" <> pretty [c] <> "'")
 
 --------------------------------------------------------------------------------
 
@@ -239,8 +239,8 @@ instance Pretty Stmt where
   pretty = toDoc . prettyWithLoc
 
 instance PrettyWithLoc Stmt where
-  prettyWithLoc (Skip l) = fromDoc (locOf l) (pretty $ show TokSkip)
-  prettyWithLoc (Abort l) = fromDoc (locOf l) (pretty $ show TokAbort)
+  prettyWithLoc (Skip l) = fromDoc (Just l) (pretty $ show TokSkip)
+  prettyWithLoc (Abort l) = fromDoc (Just l) (pretty $ show TokAbort)
   prettyWithLoc (Assign xs a es) =
     prettyWithLoc xs <> prettyWithLoc a <> prettyWithLoc es
   prettyWithLoc (AAssign x l i r a e) =
@@ -264,7 +264,7 @@ instance PrettyWithLoc Stmt where
     prettyWithLoc l <> prettyWithLoc gdCmds <> prettyWithLoc r
   prettyWithLoc (If l gdCmds r) =
     prettyWithLoc l <> prettyWithLoc gdCmds <> prettyWithLoc r
-  prettyWithLoc (SpecQM l) = fromDoc (locOf l) (pretty $ show TokQM)
+  prettyWithLoc (SpecQM l) = fromDoc (Just l) (pretty $ show TokQM)
   prettyWithLoc (Spec l s r) =
     prettyWithLoc l
       <> prettyWithLoc (map (fmap show) s)
@@ -279,7 +279,7 @@ instance PrettyWithLoc Stmt where
   --   TokNewline           -> ""
   --   _ -> show Tok
   prettyWithLoc (Proof _ _ whole r) =
-    fromDoc (locOf r) (pretty whole)
+    fromDoc (Just r) (pretty whole)
   prettyWithLoc (Alloc p a n l es r) =
     prettyWithLoc p
       <> prettyWithLoc a
@@ -482,9 +482,9 @@ instance PrettyWithLoc Type where -- TODO: Prettyprint infix type operators corr
   prettyWithLoc (TParen l t r) =
     prettyWithLoc l <> prettyWithLoc t <> prettyWithLoc r
   -- DocWithLoc "(" l l <> prettyWithLoc t <> DocWithLoc ")" m m
-  prettyWithLoc (TBase (TInt l)) = fromDoc (locOf l) (pretty ("Int" :: String))
-  prettyWithLoc (TBase (TBool l)) = fromDoc (locOf l) (pretty ("Bool" :: String))
-  prettyWithLoc (TBase (TChar l)) = fromDoc (locOf l) (pretty ("Char" :: String))
+  prettyWithLoc (TBase (TInt l)) = fromDoc (Just l) (pretty ("Int" :: String))
+  prettyWithLoc (TBase (TBool l)) = fromDoc (Just l) (pretty ("Bool" :: String))
+  prettyWithLoc (TBase (TChar l)) = fromDoc (Just l) (pretty ("Char" :: String))
   prettyWithLoc (TArray l a r b) =
     prettyWithLoc l <> prettyWithLoc a <> prettyWithLoc r <> prettyWithLoc b
   prettyWithLoc (TOp op) = prettyWithLoc op

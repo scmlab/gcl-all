@@ -5,7 +5,6 @@ import Data.Loc.Range (Range (Range), posLine, posCoff)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate
-import GCL.Predicate.Located ()
 
 {-
 import Syntax.Abstract (Expr)

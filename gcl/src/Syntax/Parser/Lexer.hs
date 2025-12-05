@@ -18,7 +18,7 @@ import Data.Char
   )
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
-import Data.Loc.Range (Loc (..), Pos (..), L (..), unLoc)
+import Data.Loc.Range (Range, Pos (..), R (..), unR, mkRange, fromInclusiveLoc)
 import qualified Data.Loc.Inclusive as Inc
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
@@ -483,7 +483,7 @@ lexer =
 type LexicalError = Inc.Pos
 
 -- | Type alias for end-exclusive token stream (after translation)
-type TokStream = TokenStream (L Tok)
+type TokStream = TokenStream (R Tok)
 
 -- | Type alias for end-inclusive token stream (from lexer)
 type TokStreamInc = TokenStream (Inc.L Tok)
@@ -493,26 +493,28 @@ scan filepath =
   translateLoc . runLexer lexer filepath . Text.unpack
   where
     -- The lexer (lexer-applicative) records tokens' ranges in end-INCLUSIVE Loc (Inc.Loc),
-    -- and we use translateLoc to convert it to end-EXCLUSIVE Loc.
+    -- and we use translateLoc to convert it to end-EXCLUSIVE Range.
     -- For example, for the string "AB":
     --   - end-inclusive: end position is 2 (pointing to 'B')
     --   - end-exclusive: end position is 3 (pointing past 'B')
+    -- Note: lexer-applicative never produces NoLoc, so fromInclusiveLoc always returns Just.
     translateLoc :: TokStreamInc -> TokStream
-    translateLoc (TsToken (Inc.L loc x) rest) = TsToken (L (convertLoc loc) x) (translateLoc rest)
+    translateLoc (TsToken (Inc.L loc x) rest) = TsToken (R (convertLoc loc) x) (translateLoc rest)
     translateLoc TsEof = TsEof
     translateLoc (TsError e) = TsError e
 
-    -- Convert end-inclusive Loc to end-exclusive Loc
-    convertLoc :: Inc.Loc -> Loc
-    convertLoc Inc.NoLoc = NoLoc
-    convertLoc (Inc.Loc (Inc.Pos f1 l1 c1 co1) (Inc.Pos f2 l2 c2 co2)) =
-      Loc (Pos f1 l1 c1 co1) (Pos f2 l2 (c2 + 1) (co2 + 1))
+    -- Convert end-inclusive Inc.Loc to end-exclusive Range
+    -- The lexer never produces NoLoc, so we use fromJust here.
+    convertLoc :: Inc.Loc -> Range
+    convertLoc loc = case fromInclusiveLoc loc of
+      Just range -> range
+      Nothing -> error "Lexer.translateLoc: unexpected NoLoc from lexer-applicative"
 
 -- | Instances of PrettyToken
 instance PrettyToken Tok where
   prettyTokens (x :| []) =
-    fromMaybe ("'" <> show (unLoc x) <> "'") (prettyToken' (unLoc x))
-  prettyTokens xs = "\"" <> concatMap (f . unLoc) (NE.toList xs) <> "\""
+    fromMaybe ("'" <> show (unR x) <> "'") (prettyToken' (unR x))
+  prettyTokens xs = "\"" <> concatMap (f . unR) (NE.toList xs) <> "\""
     where
       f tok = case prettyToken' tok of
         Nothing -> show tok

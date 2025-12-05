@@ -46,10 +46,10 @@ scanAndParse :: Parser a -> FilePath -> Text -> Either ParseError a
 scanAndParse parser filepath source =
   let tokens = scan filepath source
    in case parse parser filepath tokens of
-        Left (errors, logMsg) -> throwError (SyntacticError (fmap (\(l, s) -> (toMaybeRange l, s)) errors) logMsg)
+        Left (errors, logMsg) -> throwError (SyntacticError errors logMsg)
         Right val -> return val
 
-parse :: Parser a -> FilePath -> TokStream -> Either (NonEmpty (Loc, String), String) a
+parse :: Parser a -> FilePath -> TokStream -> Either (NonEmpty (Maybe Range, String), String) a
 parse parser filepath tokenStream =
   case runM (runParserT (parser <* eof) filepath tokenStream) of
     (Left e, logMsg) -> Left (fromParseErrorBundle e, logMsg)
@@ -58,25 +58,23 @@ parse parser filepath tokenStream =
     fromParseErrorBundle ::
       (ShowErrorComponent e) =>
       ParseErrorBundle TokStream e ->
-      NonEmpty (Loc, String)
+      NonEmpty (Maybe Range, String)
     fromParseErrorBundle (ParseErrorBundle errors _) = fmap toError errors
       where
         toError ::
-          (ShowErrorComponent e) => Mega.ParseError TokStream e -> (Loc, String)
-        toError err = (getLoc' err, parseErrorTextPretty err)
-        -- get the Loc of all unexpected tokens
-        getLoc' :: (ShowErrorComponent e) => Mega.ParseError TokStream e -> Loc
-        getLoc' (TrivialError _ (Just (Tokens xs)) _) = foldMap locOf xs
-        getLoc' _ = mempty
+          (ShowErrorComponent e) => Mega.ParseError TokStream e -> (Maybe Range, String)
+        toError err = (getRange' err, parseErrorTextPretty err)
+        -- get the Range of all unexpected tokens
+        getRange' :: (ShowErrorComponent e) => Mega.ParseError TokStream e -> Maybe Range
+        getRange' (TrivialError _ (Just (Tokens xs)) _) = foldMap (Just . rangeOf) xs
+        getRange' _ = Nothing
 
 parseWithTokList ::
-  Parser a -> FilePath -> [L Tok] -> Either (NonEmpty (Maybe Range, String), String) a
+  Parser a -> FilePath -> [R Tok] -> Either (NonEmpty (Maybe Range, String), String) a
 parseWithTokList parser filepath toks = 
-  case parse parser filepath (convert toks) of
-    Left (errors, logMsg) -> Left (fmap (\(l, s) -> (toMaybeRange l, s)) errors, logMsg)
-    Right val -> Right val
+  parse parser filepath (convert toks)
   where
-    convert :: [L Tok] -> TokStream
+    convert :: [R Tok] -> TokStream
     convert (x : xs) = TsToken x (convert xs)
     convert [] = TsEof
 
@@ -110,10 +108,9 @@ sepByGuardBar = sepBy' tokenGuardBar
 -- for building parsers for tokens
 adapt :: Tok -> String -> Parser (Token a)
 adapt t errMsg = do
-  loc <- symbol t <?> errMsg
-  case loc of
-    NoLoc -> error "NoLoc when parsing token"
-    Loc l r -> return $ Token l r
+  range <- symbol t <?> errMsg
+  let Range l r = range
+  return $ Token l r
 
 tokenConst :: Parser (Token "con")
 tokenConst = adapt TokCon "reserved word \"con\""
@@ -376,8 +373,8 @@ spec =
     -- it is enclosed by parsers built with 'symbol'.
     <*> tokenSpecClose
   where
-    notTokSpecClose :: L Tok -> Bool
-    notTokSpecClose (L _ TokSpecClose) = False
+    notTokSpecClose :: R Tok -> Bool
+    notTokSpecClose (R _ TokSpecClose) = False
     notTokSpecClose _ = True
 
 proofBlock :: Parser Stmt
@@ -512,13 +509,15 @@ expression = do
       where
         arithOp :: (Maybe Range -> ArithOp) -> Tok -> Parser (Expr -> Expr -> Expr)
         arithOp operator' tok = do
-          (op, loc) <- getLoc (operator' . toMaybeRange <$ symbol tok)
-          return $ \x y -> App (App (Expr.Op (op loc)) x) y
+          range <- symbol tok
+          let op = operator' (Just range)
+          return $ \x y -> App (App (Expr.Op op) x) y
 
         chainOp :: (Maybe Range -> ChainOp) -> Tok -> Parser (Expr -> Expr -> Expr)
         chainOp operator' tok = do
-          (op, loc) <- getLoc (operator' . toMaybeRange <$ symbol tok)
-          return (`makeChain` op loc)
+          range <- symbol tok
+          let op = operator' (Just range)
+          return (`makeChain` op)
           where
             makeChain a op b = Chain $ More (asChain a) op b
             asChain (Chain c) = c
@@ -526,8 +525,8 @@ expression = do
 
     unary :: (Maybe Range -> ArithOp) -> Tok -> Parser (Expr -> Expr)
     unary operator' tok = do
-      loc <- symbol tok
-      return $ \result -> App (Expr.Op (operator' (toMaybeRange loc))) result
+      range <- symbol tok
+      return $ \result -> App (Expr.Op (operator' (Just range))) result
 
     parensExpr :: Parser Expr
     parensExpr = Paren <$> tokenParenOpen <*> expression <*> tokenParenClose
@@ -574,44 +573,44 @@ expression = do
     chainOp :: Parser ChainOp
     chainOp =
       choice
-        [ EQProp . toMaybeRange <$> symbol TokEQProp,
-          EQPropU . toMaybeRange <$> symbol TokEQPropU,
-          EQ . toMaybeRange <$> symbol TokEQ,
-          NEQ . toMaybeRange <$> symbol TokNEQ,
-          NEQU . toMaybeRange <$> symbol TokNEQU,
-          LTE . toMaybeRange <$> symbol TokLTE,
-          LTEU . toMaybeRange <$> symbol TokLTEU,
-          GTE . toMaybeRange <$> symbol TokGTE,
-          GTEU . toMaybeRange <$> symbol TokGTEU,
-          LT . toMaybeRange <$> symbol TokLT,
-          GT . toMaybeRange <$> symbol TokGT
+        [ EQProp . Just <$> symbol TokEQProp,
+          EQPropU . Just <$> symbol TokEQPropU,
+          EQ . Just <$> symbol TokEQ,
+          NEQ . Just <$> symbol TokNEQ,
+          NEQU . Just <$> symbol TokNEQU,
+          LTE . Just <$> symbol TokLTE,
+          LTEU . Just <$> symbol TokLTEU,
+          GTE . Just <$> symbol TokGTE,
+          GTEU . Just <$> symbol TokGTEU,
+          LT . Just <$> symbol TokLT,
+          GT . Just <$> symbol TokGT
         ]
         <?> "chain operator"
 
     arithOp :: Parser ArithOp
     arithOp =
       choice
-        [ Implies . toMaybeRange <$> symbol TokImpl,
-          ImpliesU . toMaybeRange <$> symbol TokImplU,
-          Conj . toMaybeRange <$> symbol TokConj,
-          ConjU . toMaybeRange <$> symbol TokConjU,
-          Disj . toMaybeRange <$> symbol TokDisj,
-          DisjU . toMaybeRange <$> symbol TokDisjU,
-          Neg . toMaybeRange <$> symbol TokNeg,
-          NegU . toMaybeRange <$> symbol TokNegU,
-          Add . toMaybeRange <$> symbol TokAdd,
-          Sub . toMaybeRange <$> symbol TokSub,
-          Mul . toMaybeRange <$> symbol TokMul,
-          Div . toMaybeRange <$> symbol TokDiv,
-          Mod . toMaybeRange <$> symbol TokMod,
-          Max . toMaybeRange <$> symbol TokMax,
-          Min . toMaybeRange <$> symbol TokMin,
-          Exp . toMaybeRange <$> symbol TokExp,
-          Add . toMaybeRange <$> symbol TokSum,
-          Mul . toMaybeRange <$> symbol TokProd,
-          Conj . toMaybeRange <$> symbol TokForall,
-          Disj . toMaybeRange <$> symbol TokExist,
-          Hash . toMaybeRange <$> symbol TokHash
+        [ Implies . Just <$> symbol TokImpl,
+          ImpliesU . Just <$> symbol TokImplU,
+          Conj . Just <$> symbol TokConj,
+          ConjU . Just <$> symbol TokConjU,
+          Disj . Just <$> symbol TokDisj,
+          DisjU . Just <$> symbol TokDisjU,
+          Neg . Just <$> symbol TokNeg,
+          NegU . Just <$> symbol TokNegU,
+          Add . Just <$> symbol TokAdd,
+          Sub . Just <$> symbol TokSub,
+          Mul . Just <$> symbol TokMul,
+          Div . Just <$> symbol TokDiv,
+          Mod . Just <$> symbol TokMod,
+          Max . Just <$> symbol TokMax,
+          Min . Just <$> symbol TokMin,
+          Exp . Just <$> symbol TokExp,
+          Add . Just <$> symbol TokSum,
+          Mul . Just <$> symbol TokProd,
+          Conj . Just <$> symbol TokForall,
+          Disj . Just <$> symbol TokExist,
+          Hash . Just <$> symbol TokHash
         ]
         <?> "arithmetic operator"
 
@@ -651,8 +650,9 @@ type' = do
 
     typeOp :: (Maybe Range -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
     typeOp operator' tok = do
-      (op, loc) <- getLoc (operator' . toMaybeRange <$ symbol tok)
-      return $ \x y -> TApp (TApp (TOp (op loc)) x) y
+      range <- symbol tok
+      let op = operator' (Just range)
+      return $ \x y -> TApp (TApp (TOp op) x) y
 
     term :: Parser Type
     term = primTy <|> parensType <|> array <|> typeVar <?> "type term"

@@ -13,7 +13,7 @@ import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
-import Data.Loc.Range (L (..), Loc (..), Pos (..), Range (..), mkRange, rangeStart, toLoc, toMaybeRange)
+import Data.Loc.Range (Pos (..), R (..), Range (..), mkRange, rangeStart, rangeEnd)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -281,7 +281,7 @@ parseFragment fragmentStart fragment = do
   let tokens = Syntax.Parser.Lexer.scan filePath fragment
   let tokens' = translateTokStream fragmentStart tokens
   case Parser.parse Parser.statements filePath tokens' of
-    Left (errors, logMsg) -> Left (SyntacticError (fmap (\(l, s) -> (toMaybeRange l, s)) errors) logMsg)
+    Left (errors, logMsg) -> Left (SyntacticError errors logMsg)
     Right val -> Right val
   where
     translateRange :: Pos -> Pos -> Pos
@@ -297,14 +297,13 @@ parseFragment fragmentStart fragment = do
               else colOffset
           co = coStart + coOffset
 
-    translateLoc :: Pos -> Loc -> Loc
-    translateLoc fragmentStart (Loc left right) =
-      Loc (translateRange fragmentStart left) (translateRange fragmentStart right)
-    translateLoc _ NoLoc = NoLoc
+    translateTokenRange :: Pos -> Range -> Range
+    translateTokenRange fragmentStart (Range left right) =
+      mkRange (translateRange fragmentStart left) (translateRange fragmentStart right)
 
     translateTokStream :: Pos -> Syntax.Parser.Lexer.TokStream -> Syntax.Parser.Lexer.TokStream
-    translateTokStream fragmentStart (TsToken (L loc x) rest) =
-      TsToken (L (translateLoc fragmentStart loc) x) (translateTokStream fragmentStart rest)
+    translateTokStream fragmentStart (TsToken (R range x) rest) =
+      TsToken (R (translateTokenRange fragmentStart range) x) (translateTokStream fragmentStart rest)
     translateTokStream _ TsEof = TsEof
     translateTokStream _ (TsError e) = TsError e
 

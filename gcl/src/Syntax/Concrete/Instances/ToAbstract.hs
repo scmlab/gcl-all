@@ -12,7 +12,7 @@ import Control.Monad.Except
   ( Except,
     throwError,
   )
-import Data.Loc.Range (Located (locOf), Range, MaybeRanged(maybeRangeOf), rangeOf, toMaybeRange, (<->>))
+import Data.Loc.Range (Range, MaybeRanged(maybeRangeOf), rangeOf, (<->>))
 import GHC.Float (logDouble)
 import Pretty.Util
   ( PrettyWithLoc (prettyWithLoc),
@@ -57,7 +57,7 @@ instance ToAbstract Program A.Program where
           [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
 
-    return $ A.Program defns decls globProps (pre ++ stmts) (toMaybeRange $ locOf prog)
+    return $ A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
 
 instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.Definition]) where
   toAbstract (Left d) = do
@@ -76,11 +76,11 @@ instance ToAbstract DefinitionBlock [A.Definition] where
 instance ToAbstract Definition [A.Definition] where
   toAbstract (TypeDefn tok name binders _ cons) = do
     (: [])
-      <$> (A.TypeDefn name binders <$> toAbstract cons <*> pure (toMaybeRange $ locOf tok <> locOf cons))
+      <$> (A.TypeDefn name binders <$> toAbstract cons <*> pure (maybeRangeOf tok <->> maybeRangeOf cons))
   toAbstract (FuncDefnSig decl prop) = do
     (names, typ) <- toAbstract decl
     mapM
-      (\n -> A.FuncDefnSig n typ <$> toAbstract prop <*> pure (toMaybeRange $ locOf decl <> locOf prop))
+      (\n -> A.FuncDefnSig n typ <$> toAbstract prop <*> pure (maybeRangeOf decl <->> maybe Nothing maybeRangeOf prop))
       names
   toAbstract (FuncDefn name args _ body) = do
     body' <- toAbstract body
@@ -98,45 +98,45 @@ instance ToAbstract Declaration A.Declaration where
   toAbstract d = case d of
     ConstDecl _ decl -> do
       (name, body, prop) <- toAbstract decl
-      return $ A.ConstDecl name body prop (toMaybeRange $ locOf d)
+      return $ A.ConstDecl name body prop (maybeRangeOf d)
     VarDecl _ decl -> do
       (name, body, prop) <- toAbstract decl
-      return $ A.VarDecl name body prop (toMaybeRange $ locOf d)
+      return $ A.VarDecl name body prop (maybeRangeOf d)
 
 --------------------------------------------------------------------------------
 
 -- | Statement
 instance ToAbstract Stmt A.Stmt where
   toAbstract stmt = case stmt of
-    Skip _ -> pure (A.Skip (toMaybeRange $ locOf stmt))
-    Abort _ -> pure (A.Abort (toMaybeRange $ locOf stmt))
+    Skip _ -> pure (A.Skip (maybeRangeOf stmt))
+    Abort _ -> pure (A.Abort (maybeRangeOf stmt))
     Assign a _ b -> do
-      A.Assign <$> toAbstract a <*> toAbstract b <*> pure (toMaybeRange $ locOf stmt)
+      A.Assign <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf stmt)
     AAssign x _ i _ _ e ->
       A.AAssign (A.Var x (maybeRangeOf x))
         <$> toAbstract i
         <*> toAbstract e
-        <*> pure (toMaybeRange $ locOf stmt)
-    Assert _ a _ -> A.Assert <$> toAbstract a <*> pure (toMaybeRange $ locOf stmt)
+        <*> pure (maybeRangeOf stmt)
+    Assert _ a _ -> A.Assert <$> toAbstract a <*> pure (maybeRangeOf stmt)
     LoopInvariant _ a _ _ _ b _ ->
-      A.LoopInvariant <$> toAbstract a <*> toAbstract b <*> pure (toMaybeRange $ locOf stmt)
-    Do _ a _ -> A.Do <$> toAbstract a <*> pure (toMaybeRange $ locOf stmt)
-    If _ a _ -> A.If <$> toAbstract a <*> pure (toMaybeRange $ locOf stmt)
+      A.LoopInvariant <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf stmt)
+    Do _ a _ -> A.Do <$> toAbstract a <*> pure (maybeRangeOf stmt)
+    If _ a _ -> A.If <$> toAbstract a <*> pure (maybeRangeOf stmt)
     SpecQM l -> throwError l
     Spec l xs r -> do
       let text = docToText $ toDoc $ prettyWithLoc (map (fmap show) xs)
       pure (A.Spec text (rangeOf l <> rangeOf r))
     Proof anchor contents _ r -> pure $ A.Proof anchor contents r
-    Alloc p _ _ _ es _ -> A.Alloc p <$> toAbstract es <*> pure (toMaybeRange $ locOf stmt)
-    HLookup x _ _ e -> A.HLookup x <$> toAbstract e <*> pure (toMaybeRange $ locOf stmt)
+    Alloc p _ _ _ es _ -> A.Alloc p <$> toAbstract es <*> pure (maybeRangeOf stmt)
+    HLookup x _ _ e -> A.HLookup x <$> toAbstract e <*> pure (maybeRangeOf stmt)
     HMutate _ e1 _ e2 ->
-      A.HMutate <$> toAbstract e1 <*> toAbstract e2 <*> pure (toMaybeRange $ locOf stmt)
-    Dispose _ e -> A.Dispose <$> toAbstract e <*> pure (toMaybeRange $ locOf stmt)
-    Block _ p _ -> A.Block <$> toAbstract p <*> pure (toMaybeRange $ locOf stmt)
+      A.HMutate <$> toAbstract e1 <*> toAbstract e2 <*> pure (maybeRangeOf stmt)
+    Dispose _ e -> A.Dispose <$> toAbstract e <*> pure (maybeRangeOf stmt)
+    Block _ p _ -> A.Block <$> toAbstract p <*> pure (maybeRangeOf stmt)
 
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =
-    A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (toMaybeRange $ locOf a <> locOf b)
+    A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf a <->> maybeRangeOf b)
 
 -- instance ToAbstract ProofAnchor A.ProofAnchor where
 --   toAbstract (ProofAnchor hash range) = pure $ A.ProofAnchor hash range
@@ -173,7 +173,7 @@ instance ToAbstract EndpointClose A.Endpoint where
 -- | Interval
 instance ToAbstract Interval A.Interval where
   toAbstract i@(Interval a _ b) =
-    A.Interval <$> toAbstract a <*> toAbstract b <*> pure (toMaybeRange $ locOf i)
+    A.Interval <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf i)
 
 -- | Base Type
 instance ToAbstract TBase A.TBase where
@@ -186,25 +186,25 @@ instance ToAbstract TBase A.TBase where
 -- and to be converted to TBase here.
 instance ToAbstract Type A.Type where
   toAbstract t = case t of
-    (TBase a) -> A.TBase <$> toAbstract a <*> pure (toMaybeRange $ locOf t)
+    (TBase a) -> A.TBase <$> toAbstract a <*> pure (maybeRangeOf t)
     (TArray _ a _ b) ->
-      A.TArray <$> toAbstract a <*> toAbstract b <*> pure (toMaybeRange $ locOf t)
+      A.TArray <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf t)
     (TOp op) -> pure $ A.TOp op
-    (TData n _) -> pure $ A.TData n (toMaybeRange $ locOf t)
-    (TApp l r) -> A.TApp <$> toAbstract l <*> toAbstract r <*> pure (toMaybeRange $ locOf l <> locOf r)
-    (TMetaVar a _) -> pure $ A.TMetaVar a (toMaybeRange $ locOf t)
+    (TData n _) -> pure $ A.TData n (maybeRangeOf t)
+    (TApp l r) -> A.TApp <$> toAbstract l <*> toAbstract r <*> pure (maybeRangeOf l <->> maybeRangeOf r)
+    (TMetaVar a _) -> pure $ A.TMetaVar a (maybeRangeOf t)
     (TParen _ a _) -> do
       t' <- toAbstract a
       case t' of
-        A.TBase a' _ -> pure $ A.TBase a' (toMaybeRange $ locOf t)
-        A.TArray a' b' _ -> pure $ A.TArray a' b' (toMaybeRange $ locOf t)
+        A.TBase a' _ -> pure $ A.TBase a' (maybeRangeOf t)
+        A.TArray a' b' _ -> pure $ A.TArray a' b' (maybeRangeOf t)
         A.TTuple as' -> pure $ A.TTuple as'
-        A.TFunc a' b' _ -> pure $ A.TFunc a' b' (toMaybeRange $ locOf t)
+        A.TFunc a' b' _ -> pure $ A.TFunc a' b' (maybeRangeOf t)
         A.TOp op -> pure $ A.TOp op
-        A.TData name _ -> pure $ A.TData name (toMaybeRange $ locOf t)
-        A.TApp a' b' _ -> pure $ A.TApp a' b' (toMaybeRange $ locOf t)
-        A.TVar a' _ -> pure $ A.TVar a' (toMaybeRange $ locOf t)
-        A.TMetaVar a' _ -> pure $ A.TMetaVar a' (toMaybeRange $ locOf t)
+        A.TData name _ -> pure $ A.TData name (maybeRangeOf t)
+        A.TApp a' b' _ -> pure $ A.TApp a' b' (maybeRangeOf t)
+        A.TVar a' _ -> pure $ A.TVar a' (maybeRangeOf t)
+        A.TMetaVar a' _ -> pure $ A.TMetaVar a' (maybeRangeOf t)
 
 --------------------------------------------------------------------------------
 
@@ -212,32 +212,32 @@ instance ToAbstract Type A.Type where
 instance ToAbstract Expr A.Expr where
   toAbstract x = case x of
     Paren _ a _ -> toAbstract a
-    Lit a -> A.Lit <$> toAbstract a <*> pure (toMaybeRange $ locOf x)
-    Var a -> pure $ A.Var a (toMaybeRange $ locOf x)
-    Const a -> pure $ A.Const a (toMaybeRange $ locOf x)
+    Lit a -> A.Lit <$> toAbstract a <*> pure (maybeRangeOf x)
+    Var a -> pure $ A.Var a (maybeRangeOf x)
+    Const a -> pure $ A.Const a (maybeRangeOf x)
     Op a -> pure $ A.Op a
     Chain ch -> A.Chain <$> toAbstract ch
     Arr arr _ i _ ->
-      A.ArrIdx <$> toAbstract arr <*> toAbstract i <*> pure (toMaybeRange $ locOf x)
-    App a b -> A.App <$> toAbstract a <*> toAbstract b <*> pure (toMaybeRange $ locOf x)
+      A.ArrIdx <$> toAbstract arr <*> toAbstract i <*> pure (maybeRangeOf x)
+    App a b -> A.App <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf x)
     Quant _ a b _ c _ d _ ->
       A.Quant
         <$> toAbstractQOp a
         <*> pure b
         <*> toAbstract c
         <*> toAbstract d
-        <*> pure (toMaybeRange $ locOf x)
+        <*> pure (maybeRangeOf x)
       where
         toAbstractQOp qop = case qop of
           Left op -> return (A.Op op)
           Right n@(Name _ l) -> return $ A.Const n l
     Case _ expr _ cases ->
-      A.Case <$> toAbstract expr <*> toAbstract cases <*> pure (toMaybeRange $ locOf x)
+      A.Case <$> toAbstract expr <*> toAbstract cases <*> pure (maybeRangeOf x)
 
 instance ToAbstract Chain A.Chain where
   toAbstract chain = case chain of
-    Pure expr -> A.Pure <$> toAbstract expr <*> pure (toMaybeRange $ locOf expr)
-    More ch' op expr -> A.More <$> toAbstract ch' <*> pure op <*> toAbstract expr <*> pure (toMaybeRange $ locOf expr)
+    Pure expr -> A.Pure <$> toAbstract expr <*> pure (maybeRangeOf expr)
+    More ch' op expr -> A.More <$> toAbstract ch' <*> pure op <*> toAbstract expr <*> pure (maybeRangeOf expr)
 
 instance ToAbstract CaseClause A.CaseClause where
   toAbstract (CaseClause patt _ body) =

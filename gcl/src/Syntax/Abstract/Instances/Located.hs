@@ -1,13 +1,9 @@
 module Syntax.Abstract.Instances.Located where
 
-import Data.Loc.Range (Loc(..), Located(..), (<-->), Range, MaybeRanged(..), maybeRangeToLoc, (<->>))
+import Data.Loc.Range (MaybeRanged(..), (<->>))
 import Syntax.Abstract.Types
 import Syntax.Common ()
 import Prelude hiding (Ordering (..))
-
--- Helper to convert Maybe Range to Loc for backward compatibility
-mrToLoc :: Maybe Range -> Loc
-mrToLoc = maybeRangeToLoc
 
 -- MaybeRanged instances (primary)
 instance MaybeRanged Program where
@@ -100,95 +96,3 @@ instance MaybeRanged Pattern where
 
 instance MaybeRanged Lit where
   maybeRangeOf _ = Nothing
-
--- Backward compatibility: Located instances (convert Maybe Range to Loc)
-instance Located Program where
-  locOf (Program _ _ _ _ l) = mrToLoc l
-
-instance Located Declaration where
-  locOf (ConstDecl _ _ _ l) = mrToLoc l
-  locOf (VarDecl _ _ _ l) = mrToLoc l
-
-instance Located Definition where
-  locOf (TypeDefn _ _ _ r) = mrToLoc r
-  locOf (FuncDefnSig _ _ _ r) = mrToLoc r
-  locOf (FuncDefn l r) = locOf l <--> locOf r
-
-instance Located TypeDefnCtor where
-  locOf (TypeDefnCtor l r) = locOf l <--> locOf r
-
-instance Located Stmt where
-  locOf (Skip l) = mrToLoc l
-  locOf (Abort l) = mrToLoc l
-  locOf (Assign _ _ l) = mrToLoc l
-  locOf (AAssign _ _ _ l) = mrToLoc l
-  locOf (Assert _ l) = mrToLoc l
-  locOf (LoopInvariant _ _ l) = mrToLoc l
-  locOf (Do _ l) = mrToLoc l
-  locOf (If _ l) = mrToLoc l
-  locOf (Spec _ l) = locOf l
-  locOf (Proof _ _ r) = locOf r
-  locOf (Alloc _ _ l) = mrToLoc l
-  locOf (HLookup _ _ l) = mrToLoc l
-  locOf (HMutate _ _ l) = mrToLoc l
-  locOf (Dispose _ l) = mrToLoc l
-  locOf (Block _ l) = mrToLoc l
-
-instance Located GdCmd where
-  locOf (GdCmd _ _ l) = mrToLoc l
-
-instance Located Endpoint where
-  locOf (Including e) = locOf e
-  locOf (Excluding e) = locOf e
-
-instance Located Interval where
-  locOf (Interval _ _ l) = mrToLoc l
-
-instance Located Type where
-  locOf (TBase _ l) = mrToLoc l
-  locOf (TArray _ _ l) = mrToLoc l
-  locOf (TTuple _) = NoLoc
-  locOf (TFunc _ _ l) = mrToLoc l
-  locOf (TOp op) = locOf op
-  locOf (TData _ l) = mrToLoc l
-  locOf (TApp _ _ l) = mrToLoc l
-  locOf (TVar _ l) = mrToLoc l
-  locOf (TMetaVar _ l) = mrToLoc l
-
-instance Located Kind where
-  locOf (KStar loc) = mrToLoc loc
-  locOf (KFunc _ _ loc) = mrToLoc loc
-  locOf (KMetaVar _) = NoLoc
-
-instance Located Expr where
-  locOf (Var _ l) = mrToLoc l
-  locOf (Const _ l) = mrToLoc l
-  locOf (Lit _ l) = mrToLoc l
-  locOf (Op op) = locOf op
-  locOf (Chain chain) = locOf chain
-  locOf (App _ _ l) = mrToLoc l
-  locOf (Func _ _ l) = mrToLoc l
-  locOf (Lam _ _ l) = mrToLoc l
-  locOf (Tuple _) = NoLoc
-  locOf (Quant _ _ _ _ l) = mrToLoc l
-  locOf (RedexKernel es _ _ _) = locOf es
-  locOf (RedexShell _ x) = locOf x
-  locOf (ArrIdx _ _ l) = mrToLoc l
-  locOf (ArrUpd _ _ _ l) = mrToLoc l
-  locOf (Case _ _ l) = mrToLoc l
-
-instance Located Chain where
-  locOf (Pure _ l) = mrToLoc l
-  locOf (More _ _ _ l) = mrToLoc l
-
-instance Located CaseClause where
-  locOf (CaseClause l r) = locOf l <--> locOf r
-
-instance Located Pattern where
-  locOf (PattLit l) = locOf l
-  locOf (PattBinder l) = locOf l
-  locOf (PattWildcard l) = locOf l
-  locOf (PattConstructor l r) = locOf l <--> locOf r
-
-instance Located Lit where
-  locOf _ = NoLoc

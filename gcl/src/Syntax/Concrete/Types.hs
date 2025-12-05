@@ -7,7 +7,7 @@
 
 module Syntax.Concrete.Types where
 
-import Data.Loc.Range (Loc (Loc), Located (locOf), Pos, Range, Ranged (..), MaybeRanged (..), mkRange, L)
+import Data.Loc.Range (Pos, Range, Ranged (..), MaybeRanged (..), mkRange, R)
 import Data.Text (Text)
 import GHC.Base (Symbol)
 import GHC.Generics (Generic)
@@ -20,9 +20,6 @@ import Prelude hiding (Ordering (..))
 -- | A Token with start & ending Pos
 data Token (a :: Symbol) = Token Pos Pos
   deriving (Eq, Show)
-
-instance Located (Token a) where
-  locOf (Token l r) = Loc l r
 
 instance Ranged (Token a) where
   rangeOf (Token l r) = mkRange l r
@@ -102,7 +99,7 @@ data Stmt
   | Do (Token "do") (SepBy "|" GdCmd) (Token "od")
   | If (Token "if") (SepBy "|" GdCmd) (Token "fi")
   | SpecQM Range -- ? to be rewritten as [!!]
-  | Spec (Token "[!") [L Tok] (Token "!]")
+  | Spec (Token "[!") [R Tok] (Token "!]")
   | Proof Text Text Text Range -- anchor, the content of the block, the whole proof block (for pretty's reconstruction)
   | Alloc Name (Token ":=") (Token "new") (Token "(") (SepBy "," Expr) (Token ")")
   | HLookup Name (Token ":=") (Token "*") Expr

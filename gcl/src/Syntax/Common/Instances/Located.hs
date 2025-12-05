@@ -1,13 +1,8 @@
 module Syntax.Common.Instances.Located where
 
-import Data.Loc.Range (Located(..), MaybeRanged(..), maybeRangeToLoc)
+import Data.Loc.Range (MaybeRanged(..))
 import Syntax.Common.Types
 import Prelude hiding (Ordering (..))
-
--- Located instance for Either (backward compatibility)
-instance (Located a, Located b) => Located (Either a b) where
-  locOf (Left a) = locOf a
-  locOf (Right b) = locOf b
 
 instance (MaybeRanged a, MaybeRanged b) => MaybeRanged (Either a b) where
   maybeRangeOf (Left a) = maybeRangeOf a
@@ -59,22 +54,3 @@ instance MaybeRanged Op where
   maybeRangeOf (ChainOp op) = maybeRangeOf op
   maybeRangeOf (ArithOp op) = maybeRangeOf op
   maybeRangeOf (TypeOp op) = maybeRangeOf op
-
--- Backward compatibility: Located instances (convert Maybe Range to Loc)
--- These instances allow downstream code to continue using locOf
-instance Located Name where
-  locOf (Name _ l) = maybeRangeToLoc l
-
-instance Located ChainOp where
-  locOf op = maybeRangeToLoc (maybeRangeOf op)
-
-instance Located ArithOp where
-  locOf op = maybeRangeToLoc (maybeRangeOf op)
-
-instance Located TypeOp where
-  locOf op = maybeRangeToLoc (maybeRangeOf op)
-
-instance Located Op where
-  locOf (ChainOp op) = locOf op
-  locOf (ArithOp op) = locOf op
-  locOf (TypeOp op) = locOf op

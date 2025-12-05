@@ -5,11 +5,9 @@ module GCL.Predicate where
 import Data.Aeson (ToJSON)
 import qualified Data.Aeson as JSON
 import Data.Loc.Range
-  ( Located (..),
-    Range,
+  ( Range,
     Ranged (rangeOf),
     MaybeRanged (..),
-    maybeRangeToLoc,
     within,
   )
 import qualified Data.Set as Set
@@ -112,9 +110,6 @@ instance Ord PO where
 instance MaybeRanged PO where
   maybeRangeOf (PO _ _ _ _ o) = maybeRangeOf o
 
-instance Located PO where
-  locOf = maybeRangeToLoc . maybeRangeOf
-
 -- instance ToJSON PO
 
 data InfMode
@@ -165,9 +160,6 @@ instance MaybeRanged Origin where
   maybeRangeOf (AtTermination l) = l
   maybeRangeOf (Explain _ _ _ _ l) = l
 
-instance Located Origin where
-  locOf = maybeRangeToLoc . maybeRangeOf
-
 data Spec = Specification
   { specID :: Int,
     specPreCond :: Pred,
@@ -179,9 +171,6 @@ data Spec = Specification
 
 instance MaybeRanged Spec where
   maybeRangeOf (Specification _ _ _ r _) = Just r
-
-instance Located Spec where
-  locOf = maybeRangeToLoc . maybeRangeOf
 
 instance Ranged Spec where
   rangeOf (Specification _ _ _ r _) = r
