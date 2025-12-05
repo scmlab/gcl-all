@@ -343,9 +343,6 @@ instance Pretty Range where
           <> ":"
           <> pretty (posCol end)
 
-instance Pretty Loc where
-  pretty = pretty . displayLoc
-
 instance Pretty Pos where
   pretty = pretty . displayPos
 
