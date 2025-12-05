@@ -23,8 +23,7 @@ import Data.IORef
     newIORef,
     readIORef,
   )
-import Data.Loc (posCol)
-import Data.Loc.Range (Range, rangeStart)
+import Data.Loc.Range (Range, posCol, rangeStart)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Proxy

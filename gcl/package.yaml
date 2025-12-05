@@ -24,9 +24,9 @@ dependencies:
   - mtl
   - network
   - network-simple
-  - srcloc
+#  - srcloc
   - text
-  - lexer-applicative
+#  - lexer-applicative
   - regex-applicative
   - random
   - vector
@@ -40,7 +40,10 @@ dependencies:
   - Diff
 
 library:
-  source-dirs: src
+  source-dirs:
+    - src
+    - vendor/lexer-applicative-2.1.0.2/src
+    - vendor/srcloc-0.6.0.1
 
   ghc-options:
     - -Wall

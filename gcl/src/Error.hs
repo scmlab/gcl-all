@@ -3,7 +3,7 @@
 module Error where
 
 import qualified Data.Aeson.Types as JSON
-import Data.Loc (Loc)
+import Data.Loc.Range (Range)
 import GCL.Type (TypeError)
 import GCL.WP.Types (StructError)
 import GHC.Generics
@@ -18,5 +18,5 @@ data Error
   | TypeError TypeError
   | StructError StructError
   | CannotReadFile FilePath
-  | Others String String Loc
+  | Others String String (Maybe Range)
   deriving (Eq, Show)

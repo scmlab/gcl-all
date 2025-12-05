@@ -5,7 +5,6 @@ module GCL.WP.SP where
 import Control.Arrow (first)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
-import Data.Loc (Loc (..))
 import GCL.Common
 import GCL.Predicate (Pred)
 import GCL.Substitution (syntaxSubst)
@@ -95,7 +94,7 @@ spFunctions (structSegs, struct) = spSStmts
       return $
         exists
           [xn]
-          (nameVar x t `eqq` ArrUpd x' i' e' NoLoc)
+          (nameVar x t `eqq` ArrUpd x' i' e' Nothing)
           pre'
     sp (_, _) (AAssign _ _ _ l) = throwError (MultiDimArrayAsgnNotImp l)
     sp (pre, _) (If gcmds _) = do

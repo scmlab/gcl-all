@@ -10,32 +10,32 @@ import Prelude hiding (Ordering (..))
 
 -- | Name
 instance Pretty Name where
-  pretty = toDoc . prettyWithLoc
+  pretty = toDoc . prettyWithRange
 
-instance PrettyWithLoc Name where
-  prettyWithLoc = fromRenderAndLocated
+instance PrettyWithRange Name where
+  prettyWithRange = fromRenderAndRanged
 
 -- | Operators
 instance Pretty ChainOp where
-  pretty = toDoc . prettyWithLoc
+  pretty = toDoc . prettyWithRange
 
-instance PrettyWithLoc ChainOp where
-  prettyWithLoc = fromRenderAndLocated
+instance PrettyWithRange ChainOp where
+  prettyWithRange = fromRenderAndRanged
 
 instance Pretty ArithOp where
-  pretty = toDoc . prettyWithLoc
+  pretty = toDoc . prettyWithRange
 
-instance PrettyWithLoc ArithOp where
-  prettyWithLoc = fromRenderAndLocated
+instance PrettyWithRange ArithOp where
+  prettyWithRange = fromRenderAndRanged
 
 instance Pretty TypeOp where
-  pretty = toDoc . prettyWithLoc
+  pretty = toDoc . prettyWithRange
 
-instance PrettyWithLoc TypeOp where
-  prettyWithLoc = fromRenderAndLocated
+instance PrettyWithRange TypeOp where
+  prettyWithRange = fromRenderAndRanged
 
 instance Pretty Op where
-  pretty = toDoc . prettyWithLoc
+  pretty = toDoc . prettyWithRange
 
-instance PrettyWithLoc Op where
-  prettyWithLoc = fromRenderAndLocated
+instance PrettyWithRange Op where
+  prettyWithRange = fromRenderAndRanged

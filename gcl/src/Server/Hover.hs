@@ -7,11 +7,10 @@ module Server.Hover
   )
 where
 
-import Data.Loc
-  ( Located,
-    locOf,
-  )
 import Data.Loc.Range
+  ( MaybeRanged,
+    maybeRangeOf,
+  )
 import qualified Language.LSP.Protocol.Types as J
 import Pretty
 import Server.IntervalMap (IntervalMap)
@@ -25,16 +24,16 @@ collectHoverInfo = collect
 --------------------------------------------------------------------------------
 -- helper function for annotating some syntax node with its type or kind
 
-annotateType :: (Located a) => a -> Type -> IntervalMap J.Hover
-annotateType node t = case fromLoc (locOf node) of
+annotateType :: (MaybeRanged a) => a -> Type -> IntervalMap J.Hover
+annotateType node t = case maybeRangeOf node of
   Nothing -> mempty
   Just range -> IntervalMap.singleton range hover
   where
     hover = J.Hover (J.InL content) Nothing
     content = J.MarkupContent J.MarkupKind_PlainText ("gcl" <> toText t)
 
-annotateKind :: (Located a) => a -> Kind -> IntervalMap J.Hover
-annotateKind node k = case fromLoc (locOf node) of
+annotateKind :: (MaybeRanged a) => a -> Kind -> IntervalMap J.Hover
+annotateKind node k = case maybeRangeOf node of
   Nothing -> mempty
   Just range -> IntervalMap.singleton range hover
   where

@@ -63,7 +63,7 @@ instance JSON.ToJSON PO where
       [ "assumption" .= JSON.toJSON (show $ pretty poPre),
         "goal" .= JSON.toJSON (show $ pretty poPost),
         "hash" .= JSON.toJSON poAnchorHash,
-        "proofLocation" .= case poAnchorLoc of
+        "proofLocation" .= case poAnchorRange of
           Nothing -> JSON.Null
           Just range -> JSON.toJSON (toLSPRange range),
         "origin" .= JSON.toJSON poOrigin
@@ -75,45 +75,45 @@ instance JSON.ToJSON Origin where
   toJSON (AtAbort loc) =
     object
       [ "tag" .= JSON.String "Abort",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtSkip loc) =
     object
       [ "tag" .= JSON.String "Skip",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtSpec loc) =
     object
       [ "tag" .= JSON.String "Spec",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtAssignment loc) =
     object
       [ "tag" .= JSON.String "Assignment",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtAssertion loc) =
     object
       [ "tag" .= JSON.String "Assertion",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtIf loc) =
     object
       [ "tag" .= JSON.String "Conditional",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtLoop loc) =
     object
       [ "tag" .= JSON.String "Loop invariant",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
   toJSON (AtTermination loc) =
     object
       [ "tag" .= JSON.String "Loop termination",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLSPRange loc
       ]
-  toJSON Explain {originHeader, originLoc} =
+  toJSON Explain {originHeader, originRange} =
     object
       [ "tag" .= JSON.String originHeader,
-        "location" .= JSON.toJSON originLoc
+        "location" .= fmap toLSPRange originRange
       ]

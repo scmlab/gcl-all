@@ -2,7 +2,6 @@
 
 module Pretty.Predicate where
 
-import Data.Loc (unLoc)
 import GCL.Predicate
 import Pretty.Abstract ()
 import Pretty.Util

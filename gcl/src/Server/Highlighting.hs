@@ -11,12 +11,13 @@ where
 
 import Control.Monad.RWS
 import Data.Foldable (toList)
-import Data.Loc
-  ( Located (locOf),
+import Data.Loc.Range
+  ( MaybeRanged (maybeRangeOf),
     posCol,
     posLine,
+    rangeSpan,
+    rangeStart,
   )
-import Data.Loc.Range
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as J
 import Server.IntervalMap
@@ -37,12 +38,12 @@ collectHighlighting program =
 --------------------------------------------------------------------------------
 -- helper function for converting some syntax node to Highlighting
 addHighlighting ::
-  (Located a) =>
+  (MaybeRanged a) =>
   J.SemanticTokenTypes ->
   [J.SemanticTokenModifiers] ->
   a ->
   M () Highlighting ()
-addHighlighting types modifiers node = case fromLoc (locOf node) of
+addHighlighting types modifiers node = case maybeRangeOf node of
   Nothing -> return ()
   Just range ->
     tell $
