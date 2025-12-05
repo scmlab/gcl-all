@@ -45,9 +45,6 @@ module Data.Loc.Range
     rangeStart,
     rangeEnd,
     rangeFile,
-    fromLoc,
-    toMaybeRange,
-    fromLocs,
     mergeRangesUnsafe,
     mergeRanges,
     rangeSpan,
@@ -86,9 +83,8 @@ import Data.Aeson
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-import Data.Loc hiding (fromLoc)
+import Data.Loc
 import qualified Data.Loc.Inclusive as Inc
-import Data.Maybe (mapMaybe)
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
@@ -155,19 +151,6 @@ rangeEnd (Range _ b) = b
 -- | Filepath of the range
 rangeFile :: Range -> FilePath
 rangeFile (Range a _) = posFile a
-
--- | Loc -> Maybe Range
-fromLoc :: Loc -> Maybe Range
-fromLoc NoLoc = Nothing
-fromLoc (Loc x y) = Just (mkRange x y)
-
--- | Loc -> Maybe Range (alias for fromLoc with clearer naming)
-toMaybeRange :: Loc -> Maybe Range
-toMaybeRange = fromLoc
-
--- | [Loc] -> [Range]
-fromLocs :: [Loc] -> [Range]
-fromLocs = mapMaybe fromLoc
 
 mergeRangesUnsafe :: [Range] -> Range
 mergeRangesUnsafe [] = error "mergeRangesUnsafe: empty list"
