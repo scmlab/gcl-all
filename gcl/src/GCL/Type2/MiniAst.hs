@@ -5,7 +5,7 @@ module GCL.Type2.MiniAst where
 
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-import Data.Loc.Range (Range, MaybeRanged(maybeRangeOf))
+import Data.Loc.Range (MaybeRanged (maybeRangeOf), Range)
 import Syntax.Abstract.Instances.Located ()
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp, ChainOp, Name)

@@ -1,32 +1,38 @@
-{-# LANGUAGE ScopedTypeVariables, DeriveDataTypeable, DeriveFunctor #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
 -- | For some background, see
 -- <https://ro-che.info/articles/2015-01-02-lexical-analysis>
 module Language.Lexer.Applicative
-  (
-    -- * Building a Lexer
-    Lexer(..)
-  , token
-  , whitespace
-    -- ** Building Recognizers
-  , Recognizer
-  , longest
-  , longestShortest
-    -- * Running a Lexer
-  , runLexer
-    -- ** Working with a token stream
-  , TokenStream(..)
-  , streamToList
-  , streamToEitherList
-  , LexicalError(..)
-  ) where
+  ( -- * Building a Lexer
+    Lexer (..),
+    token,
+    whitespace,
 
-import Text.Regex.Applicative
-import Data.Loc.Inclusive
-import Data.List
-import Data.Typeable (Typeable)
-import Data.Semigroup (Semigroup(..))
-import Data.Function
+    -- ** Building Recognizers
+    Recognizer,
+    longest,
+    longestShortest,
+
+    -- * Running a Lexer
+    runLexer,
+
+    -- ** Working with a token stream
+    TokenStream (..),
+    streamToList,
+    streamToEitherList,
+    LexicalError (..),
+  )
+where
+
 import Control.Exception
+import Data.Function
+import Data.List
+import Data.Loc.Inclusive
+import Data.Semigroup (Semigroup (..))
+import Data.Typeable (Typeable)
+import Text.Regex.Applicative
 
 ----------------------------------------------------------------------
 --                             Lexer
@@ -47,10 +53,10 @@ import Control.Exception
 --    ]
 -- @
 data Lexer tok = Lexer
-  { lexerTokenRE :: Recognizer tok
-  , lexerWhitespaceRE :: Recognizer ()
+  { lexerTokenRE :: Recognizer tok,
+    lexerWhitespaceRE :: Recognizer ()
   }
-  deriving Functor
+  deriving (Functor)
 
 instance Semigroup (Lexer tok) where
   Lexer t1 w1 <> Lexer t2 w2 = Lexer (t1 <> t2) (w1 <> w2)
@@ -90,7 +96,7 @@ whitespace r = Lexer mempty (() <$ r)
 -- When a recognizer returns without consuming any characters, a lexical
 -- error is signaled.
 newtype Recognizer tok = Recognizer (RE Char (RE Char tok))
-  deriving Functor
+  deriving (Functor)
 
 instance Semigroup (Recognizer tok) where
   Recognizer r1 <> Recognizer r2 = Recognizer (r1 <|> r2)
@@ -108,9 +114,9 @@ instance Monoid (Recognizer tok) where
 -- * @'longest' (r1 '<|>' r2) = 'longest' r1 '<>' 'longest' r2@
 --
 -- * @'longest' r = 'longestShortest' r 'pure'@
-longest
-  :: RE Char tok
-  -> Recognizer tok
+longest ::
+  RE Char tok ->
+  Recognizer tok
 longest re = longestShortest re pure
 
 -- | This is a more sophisticated recognizer than 'longest'.
@@ -175,10 +181,12 @@ longest re = longestShortest re pure
 --          =
 -- 'longestShortest' (pref1 '<|>' pref2) suff
 -- @
-longestShortest
-  :: RE Char pref -- ^ regex for the longest prefix
-  -> (pref -> RE Char tok) -- ^ regex for the shortest suffix
-  -> Recognizer tok
+longestShortest ::
+  -- | regex for the longest prefix
+  RE Char pref ->
+  -- | regex for the shortest suffix
+  (pref -> RE Char tok) ->
+  Recognizer tok
 longestShortest prefRE suffRE =
   Recognizer $
     suffRE <$> prefRE
@@ -193,6 +201,7 @@ data LexicalError = LexicalError !Pos
 
 instance Show LexicalError where
   show (LexicalError pos) = "Lexical error at " ++ displayPos pos
+
 instance Exception LexicalError
 
 -- | A stream of tokens
@@ -217,72 +226,71 @@ streamToList stream =
 -- a result.
 streamToEitherList :: TokenStream tok -> Either LexicalError [tok]
 streamToEitherList =
-  sequence .
-  fix (\rec stream ->
-    case stream of
-      TsToken t stream' -> Right t : rec stream'
-      TsEof -> []
-      TsError e -> [Left e]
-  )
+  sequence
+    . fix
+      ( \rec stream ->
+          case stream of
+            TsToken t stream' -> Right t : rec stream'
+            TsEof -> []
+            TsError e -> [Left e]
+      )
 
 -- | Run a lexer on a string and produce a lazy stream of tokens
-runLexer
-  :: forall tok.
-     Lexer tok -- ^ lexer specification
-  -> String -- ^ source file name (used in locations)
-  -> String -- ^ source text
-  -> TokenStream (L tok)
+runLexer ::
+  forall tok.
+  -- | lexer specification
+  Lexer tok ->
+  -- | source file name (used in locations)
+  String ->
+  -- | source text
+  String ->
+  TokenStream (L tok)
 runLexer (Lexer (Recognizer pToken) (Recognizer pJunk)) src = go . annotate src
   where
-  go l = case l of
-    [] -> TsEof
-    s@((_, pos1, _):_) ->
-      let
-        -- last position in the stream
-        -- in this branch s is non-empty, so this is safe
-        last_pos :: Pos
-        last_pos = case last s of (_, p, _) -> p
-      in
-      case findLongestPrefix re s of
+    go l = case l of
+      [] -> TsEof
+      s@((_, pos1, _) : _) ->
+        let -- last position in the stream
+            -- in this branch s is non-empty, so this is safe
+            last_pos :: Pos
+            last_pos = case last s of (_, p, _) -> p
+         in case findLongestPrefix re s of
+              Nothing -> TsError (LexicalError pos1)
+              Just (shortest_re, rest1) ->
+                case findShortestPrefix shortest_re rest1 of
+                  Nothing -> TsError . LexicalError $
+                    case rest1 of
+                      (_, _, p) : _ -> p
+                      [] -> last_pos
+                  -- If the combined match is empty, we have a lexical error
+                  Just (_, (_, pos1', _) : _)
+                    | pos1' == pos1 ->
+                        TsError $ LexicalError pos1
+                  Just (Just tok, rest) ->
+                    let pos2 =
+                          case rest of
+                            (_, _, p) : _ -> p
+                            [] -> last_pos
+                     in TsToken (L (Loc pos1 pos2) tok) (go rest)
+                  Just (Nothing, rest) -> go rest
 
-        Nothing -> TsError (LexicalError pos1)
+    extend :: RE Char a -> RE (Char, Pos, Pos) a
+    extend = comap (\(c, _, _) -> c)
 
-        Just (shortest_re, rest1) ->
+    re :: RE (Char, Pos, Pos) (RE (Char, Pos, Pos) (Maybe tok))
+    re =
+      extend . fmap extend $
+        ((Just <$>) <$> pToken) <|> ((Nothing <$) <$> pJunk)
 
-          case findShortestPrefix shortest_re rest1 of
-            Nothing -> TsError . LexicalError $
-              case rest1 of
-                (_, _, p):_ -> p
-                [] -> last_pos
-
-            -- If the combined match is empty, we have a lexical error
-            Just (_, (_, pos1', _):_) | pos1' == pos1 ->
-              TsError $ LexicalError pos1
-
-            Just (Just tok, rest) ->
-              let
-                pos2 =
-                  case rest of
-                    (_, _, p):_ -> p
-                    [] -> last_pos
-
-              in TsToken (L (Loc pos1 pos2) tok) (go rest)
-
-            Just (Nothing, rest) -> go rest
-
-  extend :: RE Char a -> RE (Char, Pos, Pos) a
-  extend = comap (\(c, _, _) -> c)
-
-  re :: RE (Char, Pos, Pos) (RE (Char, Pos, Pos) (Maybe tok))
-  re = extend . fmap extend $
-    ((Just <$>) <$> pToken) <|> ((Nothing <$) <$> pJunk)
-
-annotate
-  :: String -- ^ source file name
-  -> String -- ^ contents
-  -> [(Char, Pos, Pos)] -- ^ the character, its position, and the previous position
+annotate ::
+  -- | source file name
+  String ->
+  -- | contents
+  String ->
+  -- | the character, its position, and the previous position
+  [(Char, Pos, Pos)]
 annotate src s = snd $ mapAccumL f (startPos src, startPos src) s
   where
     f (pos, prev_pos) ch =
       let pos' = advancePos pos ch
-      in pos' `seq` ((pos', pos), (ch, pos, prev_pos))
+       in pos' `seq` ((pos', pos), (ch, pos, prev_pos))

@@ -2,7 +2,7 @@
 
 module Render.Predicate where
 
-import Data.Loc.Range (MaybeRanged(..))
+import Data.Loc.Range (MaybeRanged (..))
 import qualified Data.Text as Text
 import GCL.Predicate
 import GCL.WP.Types

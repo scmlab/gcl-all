@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Aeson
-import Data.Loc.Range (Range, MaybeRanged(..))
+import Data.Loc.Range (MaybeRanged (..), Range)
 import GHC.Generics
 import Syntax.Abstract.Types (GdCmd, Var)
 

@@ -4,7 +4,8 @@
 module Syntax.Common.Instances.Json where
 
 import Data.Aeson
-import Data.Loc.Range ()  -- Import ToJSON Range instance
+import Data.Loc.Range ()
+-- Import ToJSON Range instance
 import Syntax.Common.Types
 
 instance ToJSON Name where

@@ -71,7 +71,7 @@ parse parser filepath tokenStream =
 
 parseWithTokList ::
   Parser a -> FilePath -> [R Tok] -> Either (NonEmpty (Maybe Range, String), String) a
-parseWithTokList parser filepath toks = 
+parseWithTokList parser filepath toks =
   parse parser filepath (convert toks)
   where
     convert :: [R Tok] -> TokStream

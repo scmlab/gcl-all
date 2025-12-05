@@ -36,7 +36,6 @@
 --
 -- The lexer produces end-inclusive locations ('Data.Loc.Inclusive').
 -- Use 'fromInclusiveLoc' to convert to end-exclusive 'Range'.
-
 module Data.Loc.Range
   ( Range (Range), -- only the type and the pattern, the constructor is hidden
     mkRange, -- forcing users to use this constructor
@@ -154,7 +153,7 @@ rangeFile (Range a _) = posFile a
 
 mergeRangesUnsafe :: [Range] -> Range
 mergeRangesUnsafe [] = error "mergeRangesUnsafe: empty list"
-mergeRangesUnsafe (x:xs) = foldl (<>) x xs
+mergeRangesUnsafe (x : xs) = foldl (<>) x xs
 
 mergeRanges :: NonEmpty Range -> Range
 mergeRanges xs = foldl (<>) (NE.head xs) xs

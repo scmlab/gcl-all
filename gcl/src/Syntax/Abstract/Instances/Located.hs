@@ -1,6 +1,6 @@
 module Syntax.Abstract.Instances.Located where
 
-import Data.Loc.Range (MaybeRanged(..), (<->>))
+import Data.Loc.Range (MaybeRanged (..), (<->>))
 import Syntax.Abstract.Types
 import Syntax.Common ()
 import Prelude hiding (Ordering (..))

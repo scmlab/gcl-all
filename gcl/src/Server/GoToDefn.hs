@@ -10,8 +10,8 @@ where
 import Control.Monad.RWS
 import Data.Loc.Range
   ( MaybeRanged,
-    maybeRangeOf,
     Range,
+    maybeRangeOf,
     rangeFile,
   )
 import Data.Map (Map)

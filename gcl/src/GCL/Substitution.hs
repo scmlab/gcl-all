@@ -6,7 +6,7 @@
 
 module GCL.Substitution where
 
-import Data.Loc.Range (MaybeRanged(maybeRangeOf))
+import Data.Loc.Range (MaybeRanged (maybeRangeOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe

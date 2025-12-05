@@ -30,8 +30,8 @@ import qualified Data.IntMap as IntMap
 import Data.List.NonEmpty (NonEmpty)
 import Data.Loc.Range
   ( Pos,
-    posCoff,
     Range,
+    posCoff,
     rangeEnd,
     rangeStart,
   )

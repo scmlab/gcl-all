@@ -149,11 +149,11 @@ withRange parser = do
 
 -- | Like getLoc but returns Maybe Range (Nothing for NoLoc)
 getMaybeRange :: Parser a -> Parser (a, Maybe Range)
-getMaybeRange = getLoc  -- Now getLoc already returns Maybe Range
+getMaybeRange = getLoc -- Now getLoc already returns Maybe Range
 
 -- | Like withLoc but uses Maybe Range
 withMaybeRange :: Parser (Maybe Range -> a) -> Parser a
-withMaybeRange = withLoc  -- Now withLoc already uses Maybe Range
+withMaybeRange = withLoc -- Now withLoc already uses Maybe Range
 
 --------------------------------------------------------------------------------
 -- ## Logging

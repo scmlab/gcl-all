@@ -14,7 +14,7 @@ import Data.List.NonEmpty
     nonEmpty,
   )
 import qualified Data.List.NonEmpty as NE
-import Data.Loc.Range (Range (..), Pos (..), R (..), posLine, posCol, unR)
+import Data.Loc.Range (Pos (..), R (..), Range (..), posCol, posLine, unR)
 import Data.Proxy
 import Language.Lexer.Applicative
 import Text.Megaparsec hiding (Pos)
