@@ -63,7 +63,7 @@ instance JSON.ToJSON PO where
       [ "assumption" .= JSON.toJSON (show $ pretty poPre),
         "goal" .= JSON.toJSON (show $ pretty poPost),
         "hash" .= JSON.toJSON poAnchorHash,
-        "proofLocation" .= case poAnchorLoc of
+        "proofLocation" .= case poAnchorRange of
           Nothing -> JSON.Null
           Just range -> JSON.toJSON (toLSPRange range),
         "origin" .= JSON.toJSON poOrigin

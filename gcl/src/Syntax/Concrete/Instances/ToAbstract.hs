@@ -15,7 +15,7 @@ import Control.Monad.Except
 import Data.Loc.Range (Range, MaybeRanged(maybeRangeOf), rangeOf, (<->>))
 import GHC.Float (logDouble)
 import Pretty.Util
-  ( PrettyWithLoc (prettyWithLoc),
+  ( PrettyWithRange (prettyWithRange),
     docToText,
     toDoc,
   )
@@ -124,7 +124,7 @@ instance ToAbstract Stmt A.Stmt where
     If _ a _ -> A.If <$> toAbstract a <*> pure (maybeRangeOf stmt)
     SpecQM l -> throwError l
     Spec l xs r -> do
-      let text = docToText $ toDoc $ prettyWithLoc (map (fmap show) xs)
+      let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
       pure (A.Spec text (rangeOf l <> rangeOf r))
     Proof anchor contents _ r -> pure $ A.Proof anchor contents r
     Alloc p _ _ _ es _ -> A.Alloc p <$> toAbstract es <*> pure (maybeRangeOf stmt)

@@ -99,7 +99,7 @@ data PO = PO
   { poPre :: Pred, -- precondition
     poPost :: Pred, -- post-condition
     poAnchorHash :: Text, -- anchor hash
-    poAnchorLoc :: Maybe Range, -- anchor location, if it exists in the source
+    poAnchorRange :: Maybe Range, -- anchor location, if it exists in the source
     poOrigin :: Origin -- whereabouts
   }
   deriving (Eq, Show, Generic)

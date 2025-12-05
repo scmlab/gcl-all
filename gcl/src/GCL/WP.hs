@@ -59,7 +59,7 @@ sweep program@(Program _ decs _props stmts _) = do
   let table = Map.fromList proofAnchors
   let updatePO po = case Map.lookup (poAnchorHash po) table of
         Nothing -> po
-        Just range -> po {poAnchorLoc = Just range}
+        Just range -> po {poAnchorRange = Just range}
 
   let pos' = map updatePO pos
 

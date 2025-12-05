@@ -71,7 +71,7 @@ translatePoRange filePath delta po@PO {poOrigin} = do
   let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
   currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
   let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset filePath currentLspRange
-  return $ po {poOrigin = setOriginLocation (Just newRange) poOrigin}
+  return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
 
 translateWarningRange :: FilePath -> PositionDelta -> StructWarning -> Maybe StructWarning
 translateWarningRange filePath delta (MissingBound oldRange) = do
@@ -80,13 +80,13 @@ translateWarningRange filePath delta (MissingBound oldRange) = do
   let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset filePath currentLspRange
   return $ MissingBound newRange
 
-setOriginLocation :: Maybe Range -> Origin -> Origin
-setOriginLocation l (AtAbort _) = AtAbort l
-setOriginLocation l (AtSkip _) = AtSkip l
-setOriginLocation l (AtSpec _) = AtSpec l
-setOriginLocation l (AtAssignment _) = AtAssignment l
-setOriginLocation l (AtAssertion _) = AtAssertion l
-setOriginLocation l (AtIf _) = AtIf l
-setOriginLocation l (AtLoop _) = AtLoop l
-setOriginLocation l (AtTermination _) = AtTermination l
-setOriginLocation l (Explain h e i p _) = Explain h e i p l
+setOriginRange :: Maybe Range -> Origin -> Origin
+setOriginRange l (AtAbort _) = AtAbort l
+setOriginRange l (AtSkip _) = AtSkip l
+setOriginRange l (AtSpec _) = AtSpec l
+setOriginRange l (AtAssignment _) = AtAssignment l
+setOriginRange l (AtAssertion _) = AtAssertion l
+setOriginRange l (AtIf _) = AtIf l
+setOriginRange l (AtLoop _) = AtLoop l
+setOriginRange l (AtTermination _) = AtTermination l
+setOriginRange l (Explain h e i p _) = Explain h e i p l
