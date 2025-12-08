@@ -34,7 +34,7 @@
 --
 -- == Conversion from Inclusive Locations
 --
--- The lexer produces end-inclusive locations ('Data.Loc.Inclusive').
+-- The lexer produces end-inclusive locations ('Data.Loc').
 -- Use 'fromInclusiveLoc' to convert to end-exclusive 'Range'.
 module Data.Loc.Range
   ( Range (Range), -- only the type and the pattern, the constructor is hidden
@@ -56,7 +56,7 @@ module Data.Loc.Range
     rangeOfR,
     compareWithPositionR,
     withinRangeR,
-    -- Conversion from Data.Loc.Inclusive
+    -- Conversion from Data.Loc
     fromInclusiveLoc,
     fromInclusivePos,
     -- Re-export from Data.Loc for Pos manipulation
@@ -83,7 +83,7 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import Data.Loc
-import qualified Data.Loc.Inclusive as Inc
+import qualified Data.Loc as Inc
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
@@ -390,16 +390,16 @@ instance Pretty ShortRange where
   pretty = pretty . show
 
 --------------------------------------------------------------------------------
--- Conversion from Data.Loc.Inclusive
+-- Conversion from Data.Loc
 --------------------------------------------------------------------------------
 
--- | Convert an end-inclusive Pos (from Data.Loc.Inclusive) to our Pos
+-- | Convert an end-inclusive Pos (from Data.Loc) to our Pos
 -- Note: The Pos type is structurally identical, but we explicitly convert
 -- to make the semantics clear.
 fromInclusivePos :: Inc.Pos -> Pos
 fromInclusivePos (Inc.Pos f l c co) = Pos f l c co
 
--- | Convert an end-inclusive Loc (from Data.Loc.Inclusive) to Maybe Range
+-- | Convert an end-inclusive Loc (from Data.Loc) to Maybe Range
 -- This converts from end-inclusive to end-exclusive semantics:
 -- - end-inclusive: end position is the position of the last character
 -- - end-exclusive: end position is one past the last character
