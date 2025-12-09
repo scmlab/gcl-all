@@ -1,6 +1,6 @@
 module Syntax.Abstract.Instances.Located where
 
-import Data.Loc.Range (MaybeRanged (..), (<->>))
+import Data.Loc.Range (MaybeRanged (..), (<--->))
 import Syntax.Abstract.Types
 import Syntax.Common ()
 import Prelude hiding (Ordering (..))
@@ -16,10 +16,10 @@ instance MaybeRanged Declaration where
 instance MaybeRanged Definition where
   maybeRangeOf (TypeDefn _ _ _ r) = r
   maybeRangeOf (FuncDefnSig _ _ _ r) = r
-  maybeRangeOf (FuncDefn l r) = maybeRangeOf l <->> maybeRangeOf r
+  maybeRangeOf (FuncDefn l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged TypeDefnCtor where
-  maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <->> maybeRangeOf r
+  maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Stmt where
   maybeRangeOf (Skip l) = l
@@ -86,13 +86,13 @@ instance MaybeRanged Chain where
   maybeRangeOf (More _ _ _ l) = l
 
 instance MaybeRanged CaseClause where
-  maybeRangeOf (CaseClause l r) = maybeRangeOf l <->> maybeRangeOf r
+  maybeRangeOf (CaseClause l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Pattern where
   maybeRangeOf (PattLit l) = maybeRangeOf l
   maybeRangeOf (PattBinder l) = maybeRangeOf l
   maybeRangeOf (PattWildcard l) = Just l
-  maybeRangeOf (PattConstructor l r) = maybeRangeOf l <->> maybeRangeOf r
+  maybeRangeOf (PattConstructor l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Lit where
   maybeRangeOf _ = Nothing

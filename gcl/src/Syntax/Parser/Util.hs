@@ -98,7 +98,7 @@ markEnd i = do
   loggedPos <- gets logged
   let loc = case Map.lookup i loggedPos of
         Nothing -> Nothing
-        Just start -> start <->> end
+        Just start -> start <---> end
   modify $ \st -> st {logged = Map.delete i loggedPos}
   return loc
 

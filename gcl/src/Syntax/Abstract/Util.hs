@@ -4,7 +4,7 @@ module Syntax.Abstract.Util where
 
 import Data.Bifunctor (second)
 import qualified Data.List as List
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), (<->>))
+import Data.Loc.Range (MaybeRanged (maybeRangeOf), (<--->))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -41,7 +41,7 @@ unzipGdCmds = unzip . map (\(GdCmd x y _) -> (x, y))
 
 wrapLam :: [Name] -> Expr -> Expr
 wrapLam [] body = body
-wrapLam (x : xs) body = let b = wrapLam xs body in Lam x b (maybeRangeOf x <->> maybeRangeOf b)
+wrapLam (x : xs) body = let b = wrapLam xs body in Lam x b (maybeRangeOf x <---> maybeRangeOf b)
 
 declaredNames :: [Declaration] -> [Name]
 declaredNames decls = concat . map extractNames $ decls

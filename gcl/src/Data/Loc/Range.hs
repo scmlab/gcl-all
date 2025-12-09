@@ -50,7 +50,7 @@ module Data.Loc.Range
     within,
     Ranged (..),
     MaybeRanged (..),
-    (<->>),
+    (<--->),
     unRange,
     unR,
     rangeOfR,
@@ -204,21 +204,21 @@ instance MaybeRanged (Maybe Range) where
   maybeRangeOf = id
 
 instance (MaybeRanged a) => MaybeRanged [a] where
-  maybeRangeOf = foldr ((<->>) . maybeRangeOf) Nothing
+  maybeRangeOf = foldr ((<--->) . maybeRangeOf) Nothing
 
 instance (MaybeRanged a) => MaybeRanged (NonEmpty a) where
-  maybeRangeOf xs = maybeRangeOf (NE.head xs) <->> maybeRangeOf (NE.last xs)
+  maybeRangeOf xs = maybeRangeOf (NE.head xs) <---> maybeRangeOf (NE.last xs)
 
 -- | Merge two Maybe Ranges (like <--> for Loc, but for Maybe Range)
--- Nothing <->> x       = x
--- x       <->> Nothing = x
--- Just a  <->> Just b  = Just (a <> b)
-(<->>) :: Maybe Range -> Maybe Range -> Maybe Range
-Nothing <->> x = x
-x <->> Nothing = x
-Just a <->> Just b = Just (a <> b)
+-- Nothing <---> x       = x
+-- x       <---> Nothing = x
+-- Just a  <---> Just b  = Just (a <> b)
+(<--->) :: Maybe Range -> Maybe Range -> Maybe Range
+Nothing <---> x = x
+x <---> Nothing = x
+Just a <---> Just b = Just (a <> b)
 
-infixl 6 <->>
+infixl 6 <--->
 
 --------------------------------------------------------------------------------
 

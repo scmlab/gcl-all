@@ -1,6 +1,6 @@
 module Syntax.Typed.Operator where
 
-import Data.Loc.Range (MaybeRanged (..), (<->>))
+import Data.Loc.Range (MaybeRanged (..), (<--->))
 import Data.Text (Text)
 import Syntax.Abstract.Operator (tBool, tFunc, tInt)
 import Syntax.Abstract.Types (Lit (..), Type (..))
@@ -11,10 +11,10 @@ import Syntax.Typed.Util (typeOf)
 import Prelude hiding (Ordering (..))
 
 unary :: ArithOp -> Type -> Expr -> Expr
-unary op t x = App (Op (ArithOp op) t) x (maybeRangeOf x <->> maybeRangeOf op)
+unary op t x = App (Op (ArithOp op) t) x (maybeRangeOf x <---> maybeRangeOf op)
 
 arith :: ArithOp -> Type -> Expr -> Expr -> Expr
-arith op t x y = App (App (Op (ArithOp op) t) x (maybeRangeOf x <->> maybeRangeOf op)) y (maybeRangeOf x <->> maybeRangeOf y)
+arith op t x y = App (App (Op (ArithOp op) t) x (maybeRangeOf x <---> maybeRangeOf op)) y (maybeRangeOf x <---> maybeRangeOf y)
 
 chain :: ChainOp -> Type -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
 chain op t x y = Chain (More (Pure x) (ChainOp op) t y)

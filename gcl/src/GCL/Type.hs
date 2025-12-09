@@ -19,7 +19,7 @@ import Control.Monad.State.Lazy
 import Data.Bifunctor
 import Data.Foldable (foldlM)
 import Data.List
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), Range, (<->>))
+import Data.Loc.Range (MaybeRanged (maybeRangeOf), Range, (<--->))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Ord as Ord
@@ -277,12 +277,12 @@ collectTypeDefns typeDefns = do
       where
         wrapKFunc :: [Kind] -> Kind -> Kind
         wrapKFunc [] k = k
-        wrapKFunc (k : ks) k' = wrapKFunc ks (KFunc k k' $ maybeRangeOf k <->> maybeRangeOf k')
+        wrapKFunc (k : ks) k' = wrapKFunc ks (KFunc k k' $ maybeRangeOf k <---> maybeRangeOf k')
 
         formTy con params =
           case params of
             [] -> con
-            n : ns -> formTy (TApp con n $ maybeRangeOf con <->> maybeRangeOf n) ns
+            n : ns -> formTy (TApp con n $ maybeRangeOf con <---> maybeRangeOf n) ns
 
         -- This is an entry for "Typing Data Constructor Decl." several times, presented in page 53:8.
         inferCtors :: KindEnv -> Name -> [Name] -> [TypeDefnCtor] -> ElaboratorM ([Type], KindEnv)
@@ -377,7 +377,7 @@ inferKind env (TMetaVar name _) =
 -- This is "Application Kinding" mentioned in 53:10 in the paper "Kind Inference for Datatypes".
 inferKApp :: KindEnv -> Kind -> Kind -> ElaboratorM (Kind, KindEnv)
 inferKApp env (KFunc k1 k2 _) k = do
-  env' <- unifyKind env k1 k (maybeRangeOf k1 <->> maybeRangeOf k)
+  env' <- unifyKind env k1 k (maybeRangeOf k1 <---> maybeRangeOf k)
   return (k2, env')
 inferKApp env (KMetaVar a) k = do
   case nameIndex of
@@ -387,7 +387,7 @@ inferKApp env (KMetaVar a) k = do
       a2 <- freshKindName
       let env' =
             let (list1, list2) = splitAt nameIndex' env
-             in list1 ++ [SolvedUni a $ KFunc (KMetaVar a1) (KMetaVar a2) (maybeRangeOf a1 <->> maybeRangeOf a2), UnsolvedUni a2, UnsolvedUni a1] ++ tail list2
+             in list1 ++ [SolvedUni a $ KFunc (KMetaVar a1) (KMetaVar a2) (maybeRangeOf a1 <---> maybeRangeOf a2), UnsolvedUni a2, UnsolvedUni a1] ++ tail list2
       env'' <- unifyKind env' (KMetaVar a1) k (maybeRangeOf k)
       return (KMetaVar a2, env'')
   where

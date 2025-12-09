@@ -1,6 +1,6 @@
 module Syntax.Abstract.Operator where
 
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), (<->>))
+import Data.Loc.Range (MaybeRanged (maybeRangeOf), (<--->))
 import Data.Text (Text)
 import Syntax.Abstract
   ( Chain (..),
@@ -14,13 +14,13 @@ import Prelude hiding (Ordering (..))
 
 -- | Constructors
 unary :: ArithOp -> Expr -> Expr
-unary op x = App (Op op) x (maybeRangeOf x <->> maybeRangeOf op)
+unary op x = App (Op op) x (maybeRangeOf x <---> maybeRangeOf op)
 
 arith :: ArithOp -> Expr -> Expr -> Expr
-arith op x y = App (App (Op op) x (maybeRangeOf x <->> maybeRangeOf op)) y (maybeRangeOf x <->> maybeRangeOf y)
+arith op x y = App (App (Op op) x (maybeRangeOf x <---> maybeRangeOf op)) y (maybeRangeOf x <---> maybeRangeOf y)
 
 chain :: ChainOp -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
-chain op x y = Chain (More (Pure x (maybeRangeOf x <->> maybeRangeOf op)) op y (maybeRangeOf x <->> maybeRangeOf y))
+chain op x y = Chain (More (Pure x (maybeRangeOf x <---> maybeRangeOf op)) op y (maybeRangeOf x <---> maybeRangeOf y))
 
 lt, gt, gte, lte, eqq, conj, disj, implies, add :: Expr -> Expr -> Expr
 lt = (chain . LT) Nothing

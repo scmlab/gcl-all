@@ -1,6 +1,6 @@
 module Syntax.Typed.Instances.Located where
 
-import Data.Loc.Range (MaybeRanged (..), (<->>))
+import Data.Loc.Range (MaybeRanged (..), (<--->))
 import Syntax.Common ()
 import Syntax.Typed.Types
 import Prelude hiding (Ordering (..))
@@ -15,10 +15,10 @@ instance MaybeRanged Declaration where
 instance MaybeRanged Definition where
   maybeRangeOf (TypeDefn _ _ _ r) = r
   maybeRangeOf (FuncDefnSig _ _ _ r) = r
-  maybeRangeOf (FuncDefn l r) = maybeRangeOf l <->> maybeRangeOf r
+  maybeRangeOf (FuncDefn l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged TypeDefnCtor where
-  maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <->> maybeRangeOf r
+  maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Stmt where
   maybeRangeOf (Skip l) = l

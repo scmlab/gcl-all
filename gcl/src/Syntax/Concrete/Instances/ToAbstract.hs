@@ -12,7 +12,7 @@ import Control.Monad.Except
   ( Except,
     throwError,
   )
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), Range, rangeOf, (<->>))
+import Data.Loc.Range (MaybeRanged (maybeRangeOf), Range, rangeOf, (<--->))
 import GHC.Float (logDouble)
 import Pretty.Util
   ( PrettyWithRange (prettyWithRange),
@@ -76,11 +76,11 @@ instance ToAbstract DefinitionBlock [A.Definition] where
 instance ToAbstract Definition [A.Definition] where
   toAbstract (TypeDefn tok name binders _ cons) = do
     (: [])
-      <$> (A.TypeDefn name binders <$> toAbstract cons <*> pure (maybeRangeOf tok <->> maybeRangeOf cons))
+      <$> (A.TypeDefn name binders <$> toAbstract cons <*> pure (maybeRangeOf tok <---> maybeRangeOf cons))
   toAbstract (FuncDefnSig decl prop) = do
     (names, typ) <- toAbstract decl
     mapM
-      (\n -> A.FuncDefnSig n typ <$> toAbstract prop <*> pure (maybeRangeOf decl <->> maybe Nothing maybeRangeOf prop))
+      (\n -> A.FuncDefnSig n typ <$> toAbstract prop <*> pure (maybeRangeOf decl <---> maybe Nothing maybeRangeOf prop))
       names
   toAbstract (FuncDefn name args _ body) = do
     body' <- toAbstract body
@@ -136,7 +136,7 @@ instance ToAbstract Stmt A.Stmt where
 
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =
-    A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf a <->> maybeRangeOf b)
+    A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf a <---> maybeRangeOf b)
 
 -- instance ToAbstract ProofAnchor A.ProofAnchor where
 --   toAbstract (ProofAnchor hash range) = pure $ A.ProofAnchor hash range
@@ -191,7 +191,7 @@ instance ToAbstract Type A.Type where
       A.TArray <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf t)
     (TOp op) -> pure $ A.TOp op
     (TData n _) -> pure $ A.TData n (maybeRangeOf t)
-    (TApp l r) -> A.TApp <$> toAbstract l <*> toAbstract r <*> pure (maybeRangeOf l <->> maybeRangeOf r)
+    (TApp l r) -> A.TApp <$> toAbstract l <*> toAbstract r <*> pure (maybeRangeOf l <---> maybeRangeOf r)
     (TMetaVar a _) -> pure $ A.TMetaVar a (maybeRangeOf t)
     (TParen _ a _) -> do
       t' <- toAbstract a
