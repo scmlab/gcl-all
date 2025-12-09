@@ -7,17 +7,17 @@ module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
 import Data.Loc (Loc)
+import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE
 import qualified Hack
+import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
-import Pretty
-import Data.IntMap.Merge.Lazy (lmapWhenMissing)
 
 collectDeclToEnv :: A.Declaration -> Result Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
@@ -27,28 +27,48 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
   checkDuplicateNames names
   return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
 
+type DefnMap = Map A.Definition Scheme
+
+collectDefnToEnv :: A.Definition -> RSE Env Inference Env
+collectDefnToEnv (A.TypeDefn _ _ _ _) = undefined
+collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
+  env <- ask
+  case Map.lookup name env of
+    Nothing -> return $ Map.singleton name (Forall [] ty)
+    Just _ -> undefined
+collectDefnToEnv (A.FuncDefn name body) = do
+  (_, ty, _) <- infer body
+  return $ Map.singleton name (Forall [] ty)
+
 class ToTyped a t | a -> t where
   toTyped :: a -> RSE Env Inference t
 
 instance ToTyped A.Program T.Program where
   toTyped (A.Program defns decls exprs stmts loc) = do
-    traceM $ "defns: " <> show defns
-    traceM $ "decls: " <> show decls
-    traceM $ "exprs: " <> show exprs -- XXX: why is this repeating the same thing in `decls`
-    traceM $ "stmts: " <> show stmts
+    traceM $ "defns: " <> show (pretty defns)
+    traceM $ "decls: " <> show (pretty decls)
+    traceM $ "exprs: " <> show (pretty exprs)
+    traceM $ "stmts: " <> show (pretty stmts)
     env <- ask
     declEnv <-
       foldM
         ( \env' decl -> do
             declEnv' <- lift $ collectDeclToEnv decl
-            let dups = Map.keys $ declEnv' `Map.intersection` env'
+            let dups = declEnv' `Map.intersection` env'
             unless
               (null dups)
-              (throwError $ DuplicatedIdentifiers dups)
+              (throwError $ DuplicatedIdentifiers (Map.keys dups))
             return $ declEnv' <> env'
         )
         env
         decls
+    -- defnEnv <-
+    --   foldM
+    --     ( \env' defn -> do
+    --         _
+    --     )
+    --     declEnv
+    --     defns
     typedDefns <-
       mapM
         ( \defn -> do
@@ -113,7 +133,6 @@ toTypedAssign names exprs loc
       typedExprs <-
         mapM
           ( \(name, expr) -> do
-              traceM $ show name <> show (Map.lookup name env)
               -- TODO: doesn't account for `AssignToConst`
               when
                 (Map.notMember name env)
@@ -127,10 +146,15 @@ toTypedAssign names exprs loc
 instance ToTyped A.Expr T.Expr where
   toTyped expr = do
     (subst, ty, typed) <- infer expr
-    traceM $ show (pretty typed) <> "\n" <> show (pretty ty) <> "\n"
-    traceM $ show subst <> "\n"
-    let typed' = applySubstExpr subst typed -- BUG: some subst operations are missing
-    traceM $ "\n" <> Hack.sshow typed' <> "\n"
+    -- NOTE: invariant doesn't hold during the inference
+    -- but `applySubstExpr` traverses the entire subtree
+    -- so it is probably really inefficient to do so when
+    -- there is likely a few tyvars needed to be substituted
+    let typed' = applySubstExpr subst typed
+    traceM $ show (pretty typed')
+    traceM $ show (pretty ty)
+    traceM $ show subst
+    -- traceM $ "\n" <> Hack.sshow typed <> "\n"
     return typed
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t
