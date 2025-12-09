@@ -40,8 +40,7 @@ dependencies:
   - Diff
 
 library:
-  source-dirs:
-    - src
+  source-dirs: src
 
   ghc-options:
     - -Wall
