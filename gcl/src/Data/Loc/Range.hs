@@ -168,16 +168,7 @@ within (Range a b) (Range c d) = posCol c <= posCol a && posCol b <= posCol d
 
 -- | Merge two ranges by filling their gap
 instance Semigroup Range where
-  Range a b <> Range c d = case (a `compare` c, b `compare` d) of
-    (LT, LT) -> mkRange a d
-    (LT, EQ) -> mkRange a d
-    (LT, GT) -> mkRange a b
-    (EQ, LT) -> mkRange a d
-    (EQ, EQ) -> mkRange a b
-    (EQ, GT) -> mkRange a b
-    (GT, LT) -> mkRange c d
-    (GT, EQ) -> mkRange c d
-    (GT, GT) -> mkRange c b
+  Range a b <> Range c d = mkRange (min a c) (max b d)
 
 --------------------------------------------------------------------------------
 
