@@ -58,7 +58,6 @@ module Data.Loc.Range
     withinRangeR,
     -- Conversion from Data.Loc
     fromInclusiveLoc,
-    fromInclusivePos,
     -- Re-export from Data.Loc for Pos manipulation
     Pos (..),
     posLine,
@@ -383,12 +382,6 @@ instance Pretty ShortRange where
 --------------------------------------------------------------------------------
 -- Conversion from Data.Loc
 --------------------------------------------------------------------------------
-
--- | Convert an end-inclusive Pos (from Data.Loc) to our Pos
--- Note: The Pos type is structurally identical, but we explicitly convert
--- to make the semantics clear.
-fromInclusivePos :: Inc.Pos -> Pos
-fromInclusivePos (Inc.Pos f l c co) = Pos f l c co
 
 -- | Convert an end-inclusive Loc (from Data.Loc) to Maybe Range
 -- This converts from end-inclusive to end-exclusive semantics:
