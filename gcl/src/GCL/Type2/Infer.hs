@@ -23,6 +23,7 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), ChainOp (..), Name (Name), Op (..), TypeOp (..))
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)
+import Data.Aeson (Value(Bool))
 
 newtype Inference = Inference
   { _counter :: Int
@@ -61,6 +62,13 @@ checkDuplicateNames names =
 -- prevent infintite types by checking if the type occurs in itself
 checkOccurs :: Name -> A.Type -> Bool
 checkOccurs name ty = Set.member name (freeTypeVars ty)
+
+-- should be the operation `_ : _ ↓ _`
+typecheck :: A.Expr -> A.Type -> RSE Env Inference (Subst, T.Expr)
+typecheck expr ty = do
+  (s1, exprTy, typedExpr) <- infer expr
+  s2 <- lift $ unify exprTy ty (locOf expr)
+  return (s2 <> s1, typedExpr)
 
 -- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
@@ -175,7 +183,7 @@ unify (A.TMetaVar name _) ty l = unifyVar name ty l
 unify ty (A.TMetaVar name _) l = unifyVar name ty l
 unify t1 t2 l =
   trace
-    (show (pretty t1) <> "\n" <> show (pretty t2))
+    (show (t1) <> "\n" <> show (t2))
     throwError
     $ UnifyFailed t1 t2 l
 
@@ -196,8 +204,9 @@ infer (A.Op op) = do
   ty <- getArithOpType op
   return (mempty, ty, T.Op (ArithOp op) ty)
 infer (A.Chain chain) = do
-  (subst, ty, chain') <- inferChain chain
-  return (subst, ty, T.Chain chain')
+  (subst, _ty, chain') <- inferChain chain
+  -- HACK: i don't like this
+  return (subst, typeBool, T.Chain chain')
 infer (A.App e1 e2 loc) = inferApp e1 e2 loc
 infer (A.Lam param body loc) = inferLam param body loc
 infer (A.Func name clauses loc) = undefined
@@ -224,11 +233,12 @@ inferVar name loc = do
     Nothing ->
       throwError $ NotInScope name
 
--- XXX: the inferred type of `Chain` doesn't really make sense because there is not a `TChain` so we repurpose it
--- what's important is the typechecking and substitution it generated
+-- NOTE: the inferred type of `Chain` should always be `typeBool`
+-- because it is a shorthand for chaining comparision operators with `&&`
 inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type, T.Chain)
 inferChain (A.More chain@A.More {} op2 e2 l2) = do
   -- XXX: this also looks similar to `inferApp`
+
   -- NOTE: when we encounter `EQ` we get TVar but not polymorphic type schemes
   -- i.e. `t0 -> t0 -> Bool` instead of `forall a. a -> a -> Bool`
   -- but unification still works so we can skip the `generalize` and `instantiate` step
@@ -241,8 +251,6 @@ inferChain (A.More chain@A.More {} op2 e2 l2) = do
   let resultSubst = s3 <> s2 <> chainSubst
   let typedChain' = T.More typedChain (ChainOp op2) (applySubst s3 opTy) typedE2
 
-  traceM $ "subst\n" <> show resultSubst
-
   return (resultSubst, ty2, typedChain')
 inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   opTy <- getChainOpType op
@@ -254,7 +262,7 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   let resultSubst = s3 <> s2 <> s1
   let typedChain = T.More (T.Pure typedE1) (ChainOp op) (applySubst s3 opTy) typedE2
 
-  -- XXX: return the type of the second expr for chain evaluation
+  -- HACK: return the type of the second expr for chain evaluation
   -- it's not actually important what this returns
   -- but i still think this is a bit hacky
   return (resultSubst, ty2, typedChain)
@@ -281,40 +289,38 @@ inferLam param body loc = do
 
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody loc)
 
--- XXX: shouldn't this be almost the same as `inferApp`
 inferArrIdx :: A.Expr -> A.Expr -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferArrIdx arr index loc = do
-  -- following the typing rules as of now
-  -- XXX: what are the semantics of `_ : _ ↓`?
-  ftv <- freshTVar
-  (s1, arrTy, typedArr) <- infer arr
-  (s2, indexTy, typedIndex) <- local (applySubstEnv s1) (infer index)
-
+inferArrIdx arr index _loc = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
-  arrSubst <- lift $ unify arrTy (typeInt `typeToType` ftv) (locOf arr)
-  indexSubst <- lift $ unify indexTy typeInt (locOf index)
+  -- arrSubst <- lift $ unify arrTy (typeInt `typeToType` ftv) (locOf arr)
+  (sa, arrTy, typedArr) <- infer arr
+  let (_interval, ty, loc) =
+          case arrTy of
+            (A.TArray i t l) -> (i, t, l)
+            _ -> error ""
+  (si, typedIndex) <- local (applySubstEnv sa) (typecheck index typeInt)
 
-  let resultSubst = indexSubst <> arrSubst <> s2 <> s1
-  return (resultSubst, applySubst resultSubst ftv, T.ArrIdx typedArr typedIndex loc)
+  let resultSubst = si <> sa
+  return (resultSubst, applySubst si ty, T.ArrIdx typedArr typedIndex loc)
 
--- XXX: should `ArrUpd` even have a type?
+-- TODO: verify this is correct
 inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferArrUpd arr index expr loc = do
-  ftv <- freshTVar
-  (s1, arrTy, typedArr) <- infer arr
-  (s2, indexTy, typedIndex) <- local (applySubstEnv s1) (infer index)
-  (s3, exprTy, typedExpr) <- local (applySubstEnv (s2 <> s1)) (infer expr)
-
+inferArrUpd arr index expr _loc = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
-  arrSubst <- lift $ unify arrTy (typeInt `typeToType` ftv) (locOf arr)
-  indexSubst <- lift $ unify indexTy typeInt (locOf index)
-  exprSubst <- lift $ unify exprTy ftv (locOf expr)
+  -- (sa, typedArr) <- check arr (typeInt `typeToType` ftv)
+  (sa, arrTy, typedArr) <- infer arr
+  let (interval, ty, loc) =
+          case arrTy of
+            (A.TArray i t l) -> (i, t, l)
+            _ -> error ""
 
-  let resultSubst = exprSubst <> indexSubst <> arrSubst <> s3 <> s2 <> s1
+  (si, typedIndex) <- local (applySubstEnv sa) (typecheck index typeInt)
+  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typecheck expr (applySubst si ty))
 
-  return (resultSubst, applySubst resultSubst ftv, T.ArrUpd typedArr typedIndex typedExpr loc)
+  let resultSubst = se <> si <> sa
+  return (resultSubst, A.TArray interval (applySubst si ty) loc, T.ArrUpd typedArr typedIndex typedExpr loc)
 
 getArithOpType :: ArithOp -> RSE Env Inference A.Type
 getArithOpType Implies {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
@@ -323,17 +329,17 @@ getArithOpType Conj {} = return (typeBool `typeToType` typeBool `typeToType` typ
 getArithOpType ConjU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getArithOpType Disj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getArithOpType DisjU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType Neg {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType NegU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType NegNum {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Add {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Sub {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Mul {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Div {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Mod {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Max {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Min {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getArithOpType Exp {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
+getArithOpType Neg {} = return (typeBool `typeToType` typeBool)
+getArithOpType NegU {} = return (typeBool `typeToType` typeBool)
+getArithOpType NegNum {} = return (typeInt `typeToType` typeInt)
+getArithOpType Add {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Sub {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Mul {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Div {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Mod {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Max {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Min {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
+getArithOpType Exp {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
 getArithOpType Hash {} = return (typeBool `typeToType` typeInt)
 getArithOpType PointsTo {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
 getArithOpType SConj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
@@ -361,6 +367,7 @@ getChainOpType GTEU {} = return (typeInt `typeToType` typeInt `typeToType` typeB
 inferTypeOp :: TypeOp -> RSE Env Inference (Subst, A.Type, Op)
 inferTypeOp op = undefined
 
+infixr 1 `typeToType`
 -- | construct a type of `a -> b`
 typeToType :: A.Type -> A.Type -> A.Type
 typeToType t1 t2 = A.TApp (A.TApp (A.TOp (Arrow NoLoc)) t1 NoLoc) t2 NoLoc

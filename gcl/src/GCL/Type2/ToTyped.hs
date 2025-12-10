@@ -72,7 +72,7 @@ instance ToTyped A.Program T.Program where
     typedDefns <-
       mapM
         ( \defn -> do
-            toTyped defn
+            local (const declEnv) (toTyped defn)
         )
         defns
     typedDecls <-
@@ -120,7 +120,7 @@ instance ToTyped A.Declaration T.Declaration where
 
 instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Assign names exprs loc) = toTypedAssign names exprs loc
-  toTyped _stmt = undefined
+  toTyped _stmt = trace (show _stmt) undefined
 
 toTypedAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
 toTypedAssign names exprs loc
