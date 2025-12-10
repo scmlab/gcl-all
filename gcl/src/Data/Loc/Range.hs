@@ -67,8 +67,6 @@ module Data.Loc.Range
     unRange,
     unR,
     rangeOfR,
-    compareWithPositionR,
-    withinRangeR,
     -- Conversion from Data.Loc
     fromInclusiveLoc,
     -- Re-export from Data.Loc for Pos manipulation
@@ -286,29 +284,6 @@ instance ToJSON Range where
       [ "start" .= start,
         "end" .= end
       ]
-
---------------------------------------------------------------------------------
-
--- | Compare the cursor position with something (MaybeRanged version)
---  EQ: the cursor is placed within that thing
---  LT: the cursor is placed BEFORE (but not touching) that thing
---  GT: the cursor is placed AFTER (but not touching) that thing
-compareWithPositionR :: (MaybeRanged a) => Pos -> a -> Ordering
-compareWithPositionR pos x = case maybeRangeOf x of
-  Nothing -> EQ
-  Just (Range start end) ->
-    if posCoff pos < posCoff start
-      then LT
-      else if posCoff pos > posCoff end then GT else EQ
-
--- | See if something is within the selection (MaybeRanged version)
-withinRangeR :: (MaybeRanged a) => Range -> a -> Bool
-withinRangeR (Range left right) x =
-  compareWithPositionR left x
-    == EQ
-    || compareWithPositionR right x
-      == EQ
-    || (compareWithPositionR left x == LT && compareWithPositionR right x == GT)
 
 --------------------------------------------------------------------------------
 
