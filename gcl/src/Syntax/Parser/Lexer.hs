@@ -18,8 +18,8 @@ import Data.Char
   )
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Loc as Inc
-import Data.Loc.Range (Pos (..), R (..), Range, fromInclusiveLoc, mkRange, unR)
+import qualified Data.Loc as IncLoc
+import Data.Loc.Range (R (..), Range, fromInclusiveLoc, unR)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -480,13 +480,13 @@ lexer =
     ]
 
 --------------------------------------------------------------------------------
-type LexicalError = Inc.Pos
+type LexicalError = IncLoc.Pos
 
 -- | Type alias for end-exclusive token stream (after translation)
 type TokStream = TokenStream (R Tok)
 
 -- | Type alias for end-inclusive token stream (from lexer)
-type TokStreamInc = TokenStream (Inc.L Tok)
+type TokStreamInc = TokenStream (IncLoc.L Tok)
 
 scan :: FilePath -> Text -> TokStream
 scan filepath =
@@ -499,13 +499,13 @@ scan filepath =
     --   - end-exclusive: end position is 3 (pointing past 'B')
     -- Note: lexer-applicative never produces NoLoc, so fromInclusiveLoc always returns Just.
     translateLoc :: TokStreamInc -> TokStream
-    translateLoc (TsToken (Inc.L loc x) rest) = TsToken (R (convertLoc loc) x) (translateLoc rest)
+    translateLoc (TsToken (IncLoc.L loc x) rest) = TsToken (R (convertLoc loc) x) (translateLoc rest)
     translateLoc TsEof = TsEof
     translateLoc (TsError e) = TsError e
 
-    -- Convert end-inclusive Inc.Loc to end-exclusive Range
+    -- Convert end-inclusive Loc to end-exclusive Range
     -- The lexer never produces NoLoc, so we use fromJust here.
-    convertLoc :: Inc.Loc -> Range
+    convertLoc :: IncLoc.Loc -> Range
     convertLoc loc = case fromInclusiveLoc loc of
       Just range -> range
       Nothing -> error "Lexer.translateLoc: unexpected NoLoc from lexer-applicative"

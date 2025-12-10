@@ -25,10 +25,23 @@
 -- * 'Ranged' typeclass for values that always have a range
 -- * 'MaybeRanged' typeclass for values that may or may not have a range
 --
+-- == Range Representations
+--
+-- This project uses three different ways to represent ranges:
+--
+-- 1. 'Data.Loc.Loc' (1-based, end-inclusive)
+-- 2. 'Data.Loc.Range.Range' (1-based, end-exclusive)
+-- 3. 'Language.LSP.Protocol.Types.Range' (0-based, end-exclusive)
+--
+-- For example, to represent the first two characters \"AB\" at the beginning of a file:
+--
+-- 1. 'Loc': (1, 1) ~ (1, 2)
+-- 2. 'Range': (1, 1) ~ (1, 3)
+-- 3. LSP 'Range': (0, 0) ~ (0, 2)
+--
 -- == Internal Dependencies
 --
--- This module re-exports types from 'Data.Loc' (e.g., 'Pos', 'L', 'Loc')
--- for backward compatibility with the lexer\/parser layer.
+-- This module re-exports 'Pos' from 'Data.Loc'.
 -- 'Data.Loc' should be considered an internal module and not imported directly
 -- by application code.
 --
@@ -65,8 +78,6 @@ module Data.Loc.Range
     posFile,
     posCoff,
     displayPos,
-    startPos,
-    advancePos,
   )
 where
 
@@ -82,11 +93,10 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import Data.Loc
-import qualified Data.Loc as Inc
+import qualified Data.Loc as IncLoc
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
--- TODO: write a short documentation about Range and its usage
 data Range = Range_ Pos Pos
   deriving (Eq, Generic)
 
@@ -390,7 +400,7 @@ instance Pretty ShortRange where
 -- For example, for the string "AB":
 --   - end-inclusive: end column is 2 (pointing to 'B')
 --   - end-exclusive: end column is 3 (pointing past 'B')
-fromInclusiveLoc :: Inc.Loc -> Maybe Range
-fromInclusiveLoc Inc.NoLoc = Nothing
-fromInclusiveLoc (Inc.Loc (Inc.Pos f1 l1 c1 co1) (Inc.Pos f2 l2 c2 co2)) =
+fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
+fromInclusiveLoc IncLoc.NoLoc = Nothing
+fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos f1 l1 c1 co1) (IncLoc.Pos f2 l2 c2 co2)) =
   Just $ mkRange (Pos f1 l1 c1 co1) (Pos f2 l2 (c2 + 1) (co2 + 1))
