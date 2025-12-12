@@ -3,7 +3,7 @@
 module Syntax.Typed.Util where
 
 import Control.Arrow (second)
-import Data.Loc (Loc (..), (<-->))
+import Data.Loc.Range (MaybeRanged (..), (<--->))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -20,7 +20,7 @@ unzipGdCmds = unzip . map (\(GdCmd x y _) -> (x, y))
 
 wrapLam :: [(Name, Type)] -> Expr -> Expr
 wrapLam [] body = body
-wrapLam ((x, t) : xs) body = let b = wrapLam xs body in Lam x t b (x <--> b)
+wrapLam ((x, t) : xs) body = let b = wrapLam xs body in Lam x t b (maybeRangeOf x <---> maybeRangeOf b)
 
 declaredNames :: [Declaration] -> [Name]
 declaredNames decls = concat . map extractNames $ decls
@@ -43,7 +43,7 @@ typeOf (Chain ch) = typeOfChain ch
 typeOf (App e0 _ _) = case typeOf e0 of
   Syntax.Abstract.Types.TFunc _ t _ -> t
   _ -> error "left term not having function type in a typed expression"
-typeOf (Lam _ t0 e _) = Syntax.Abstract.Types.TFunc t0 (typeOf e) NoLoc
+typeOf (Lam _ t0 e _) = Syntax.Abstract.Types.TFunc t0 (typeOf e) Nothing
 typeOf (Quant _ _ _ body _) = typeOf body
 typeOf (ArrIdx arr _ _) = case typeOf arr of
   Syntax.Abstract.Types.TArray _ t _ -> t
@@ -55,7 +55,7 @@ typeOf (Subst e _) = typeOf e
 
 typeOfChain :: Chain -> Type
 typeOfChain (Pure e) = typeOf e -- SCM: shouldn't happen?
-typeOfChain (More _ _ _ _) = Syntax.Abstract.Types.TBase TBool NoLoc
+typeOfChain (More _ _ _ _) = Syntax.Abstract.Types.TBase TBool Nothing
 
 programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
 programToScopeForSubstitution (Program defns decls _ _ _) =

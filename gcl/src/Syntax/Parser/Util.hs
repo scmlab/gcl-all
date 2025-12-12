@@ -12,6 +12,8 @@ module Syntax.Parser.Util
     withLoc,
     getRange,
     withRange,
+    getMaybeRange,
+    withMaybeRange,
     logIfSuccess,
     withLog,
     clampLog,
@@ -32,8 +34,7 @@ import Control.Monad.State
 import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.List (intercalate)
 import qualified Data.List.NonEmpty as NEL
-import Data.Loc
-import Data.Loc.Range (Range, mkRange)
+import Data.Loc.Range
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (..))
@@ -61,23 +62,23 @@ type M = StateT Bookkeeping (Writer (Endo [String]))
 type ID = Int
 
 data Bookkeeping = Bookkeeping
-  { currentLoc :: Loc, -- current Loc mark
+  { currentRange :: Maybe Range, -- current Range mark (Nothing = no range yet)
     lastToken :: Maybe Tok, -- the last accepcted token
     opened :: Set ID, -- waiting to be moved to the "logged" map
     -- when the starting position of the next token is determined
-    logged :: Map ID Loc, -- waiting to be removed when the ending position is determined
+    logged :: Map ID (Maybe Range), -- waiting to be removed when the ending position is determined
     index :: Int, -- for generating fresh IDs
-    indentStack :: [L Tok] -- Recording the tokens to indent/align to.
+    indentStack :: [R Tok] -- Recording the tokens to indent/align to.
     -- see the section: "## State (Bookkeeping) actions for indentation"
   }
 
 runM :: StateT Bookkeeping (Writer (Endo [String])) a -> (a, String)
 runM f =
-  let (a, pl) = runWriter $ evalStateT f (Bookkeeping NoLoc Nothing Set.empty Map.empty 0 [])
+  let (a, pl) = runWriter $ evalStateT f (Bookkeeping Nothing Nothing Set.empty Map.empty 0 [])
    in (a, "parsing log:\n" <> intercalate "\n" (appEndo pl []))
 
-getCurrentLoc :: M Loc
-getCurrentLoc = gets currentLoc
+getCurrentRange :: M (Maybe Range)
+getCurrentRange = gets currentRange
 
 getLastToken :: M (Maybe Tok)
 getLastToken = gets lastToken
@@ -91,24 +92,24 @@ markStart = do
 
 -- | Returns the range of some source location.
 --   The range starts from where the ID is retreived, and ends from here
-markEnd :: ID -> M Loc
+markEnd :: ID -> M (Maybe Range)
 markEnd i = do
-  end <- getCurrentLoc
+  end <- getCurrentRange
   loggedPos <- gets logged
   let loc = case Map.lookup i loggedPos of
-        Nothing -> NoLoc
-        Just start -> start <--> end
+        Nothing -> Nothing
+        Just start -> start <---> end
   modify $ \st -> st {logged = Map.delete i loggedPos}
   return loc
 
--- | Updates the current source location
-updateLoc :: Loc -> M ()
-updateLoc loc = do
+-- | Updates the current source range
+updateRange :: Range -> M ()
+updateRange range = do
   set <- gets opened
-  let addedLoc = Map.fromSet (const loc) set
+  let addedLoc = Map.fromSet (const (Just range)) set
   modify $ \st ->
     st
-      { currentLoc = loc,
+      { currentRange = Just range,
         opened = Set.empty,
         logged = Map.union (logged st) addedLoc
       }
@@ -122,29 +123,37 @@ updateToken tok = modify $ \st -> st {lastToken = Just tok}
 -- | Helper functions
 type Parser = ParsecT Void TokStream M
 
-getLoc :: Parser a -> Parser (a, Loc)
+getLoc :: Parser a -> Parser (a, Maybe Range)
 getLoc parser = do
   i <- lift markStart
   result <- parser
-  loc <- lift (markEnd i)
-  return (result, loc)
+  maybeRange <- lift (markEnd i)
+  return (result, maybeRange)
 
 getRange :: Parser a -> Parser (a, Range)
 getRange parser = do
-  (result, loc) <- getLoc parser
-  case loc of
-    NoLoc -> error "NoLoc when getting srcloc info from a token"
-    Loc start end -> return (result, mkRange start end)
+  (result, maybeRange) <- getLoc parser
+  case maybeRange of
+    Nothing -> error "NoLoc when getting srcloc info from a token"
+    Just range -> return (result, range)
 
-withLoc :: Parser (Loc -> a) -> Parser a
+withLoc :: Parser (Maybe Range -> a) -> Parser a
 withLoc parser = do
-  (result, loc) <- getLoc parser
-  return $ result loc
+  (result, maybeRange) <- getLoc parser
+  return $ result maybeRange
 
 withRange :: Parser (Range -> a) -> Parser a
 withRange parser = do
   (result, range) <- getRange parser
   return $ result range
+
+-- | Like getLoc but returns Maybe Range (Nothing for NoLoc)
+getMaybeRange :: Parser a -> Parser (a, Maybe Range)
+getMaybeRange = getLoc -- Now getLoc already returns Maybe Range
+
+-- | Like withLoc but uses Maybe Range
+withMaybeRange :: Parser (Maybe Range -> a) -> Parser a
+withMaybeRange = withLoc -- Now withLoc already uses Maybe Range
 
 --------------------------------------------------------------------------------
 -- ## Logging
@@ -180,12 +189,12 @@ plog msg = lift $ tell $ Endo ([msg] ++)
 -- 'symbol' and 'extract', of which all parsers are based upon, would check if the incoming
 -- token is indent to that requirement (through 'extractWithIndentCheck' function).
 
-insertIndentReq :: L Tok -> Parser ()
+insertIndentReq :: R Tok -> Parser ()
 insertIndentReq tok = do
   stack <- gets indentStack
   modify $ \st -> st {indentStack = tok : stack}
 
-popIndentReq :: Parser (Maybe (L Tok))
+popIndentReq :: Parser (Maybe (R Tok))
 popIndentReq = do
   stack <- gets indentStack
   case stack of
@@ -194,17 +203,17 @@ popIndentReq = do
       modify $ \st -> st {indentStack = ps}
       return (Just p)
 
-lastIndentReq :: Parser (Maybe (L Tok))
+lastIndentReq :: Parser (Maybe (R Tok))
 lastIndentReq = do
   stack <- gets indentStack
   case stack of
     [] -> return Nothing
     tok : _ -> return (Just tok)
 
-colOf :: L Tok -> Int
-colOf = posCol . (\(Loc s _) -> s) . locOf
+colOf :: R Tok -> Int
+colOf = posCol . rangeStart . rangeOf
 
-fitsIndentReq :: L Tok -> Maybe (L Tok) -> Bool
+fitsIndentReq :: R Tok -> Maybe (R Tok) -> Bool
 fitsIndentReq tokToCheck indentReq = case indentReq of
   Nothing -> True
   Just tokToAlign ->
@@ -215,7 +224,7 @@ fitsIndentReq tokToCheck indentReq = case indentReq of
       -- For example, in 'definition = choice [try funcDefnSig, typeDefn, funcDefnF]',
       -- the starts of both funcDefnSig and funcDefnF are identifiers, when funcDefnSig fails then goes to funcDefnF,
       -- the starting identifier would be checked again.
-      || ( unLoc tokToCheck
+      || ( unR tokToCheck
              `elem` [ TokFi, -- 'fi'
                       TokOd, -- 'od'
                       TokBlockClose, -- ']|'
@@ -230,7 +239,7 @@ fitsIndentReq tokToCheck indentReq = case indentReq of
     -- or if they're not aligned, will it cause any trouble?
     -- Array's ']', quant's '|>' are considered parts of an expression, therefore not on the list.
 
-    strictEq (L l1 t1) (L l2 t2) = l1 == l2 && t1 == t2
+    strictEq (R r1 t1) (R r2 t2) = r1 == r2 && t1 == t2
 
 -- an ideal method which doesn't work:
 
@@ -241,11 +250,11 @@ fitsIndentReq tokToCheck indentReq = case indentReq of
 -- * parse(Mega.token) with indentation check, if failed, see if the failure was caused by indentation error,
 
 --   if so, add the indentation error message.
-extractWithIndentCheck :: (L Tok -> Maybe (L Tok, a)) -> Parser a
+extractWithIndentCheck :: (R Tok -> Maybe (R Tok, a)) -> Parser a
 extractWithIndentCheck tokpred = do
   ir <- lastIndentReq
-  let f (lt, a) = do
-        guard $ lt `fitsIndentReq` ir
+  let f (rt, a) = do
+        guard $ rt `fitsIndentReq` ir
         return a
   pr <- observing $ lookAhead anySingle -- later indent check needs a token
   case pr of
@@ -253,7 +262,7 @@ extractWithIndentCheck tokpred = do
       -- safe to assume that indentation won't be involved since there's no next token
       (_, a) <- token tokpred Set.empty
       return a
-    Right ltok -> do
+    Right rtok -> do
       -- now do the real extraction we need
       r <- observing $ token (tokpred >=> f) Set.empty
       -- delay the failure so we can add error messages for indentation
@@ -261,24 +270,24 @@ extractWithIndentCheck tokpred = do
         Right a -> return a -- successfully extract a will-indented token
         Left pe -> case pe of -- the extraction failed
           TrivialError _ m_ei set -> do
-            if ltok `fitsIndentReq` ir
+            if rtok `fitsIndentReq` ir
               then -- the failure was not caused by indentation error
                 failure m_ei set
               else -- the failure was caused by indentation error, we need to proceed to adding error msg
                 case m_ei of -- trying to utilize the original unexpected token's loc information
                   Nothing -> failureWithoutLoc
                   Just ei -> case ei of
-                    Tokens ((L loc errtok) NEL.:| tos) ->
-                      failure (Just $ Tokens (newErrLTok loc errtok NEL.:| tos)) set
+                    Tokens ((R range errtok) NEL.:| tos) ->
+                      failure (Just $ Tokens (newErrRTok range errtok NEL.:| tos)) set
                     Label _ -> failureWithoutLoc -- might need to change in the future
                     EndOfInput -> failureWithoutLoc -- a case that might not going to happen, for we filtered out the case at 'observing $ lookAhead anySingle'
             where
               fromJust Nothing = error "An error that shouldn't happen here: fitsIndentReq==False implies that 'ir' is a Just."
               fromJust (Just x) = x
               irtok = fromJust ir
-              lineNum = posLine $ (\(Loc s _) -> s) $ locOf irtok
-              newMsg = NEL.fromList $ "token '" <> show ltok <> "' not indent to '" <> show irtok <> "' of line " <> show lineNum
-              newErrLTok loc errtok = L loc (ErrTokIndent errtok (unLoc irtok) lineNum)
+              lineNum = posLine $ rangeStart $ rangeOf irtok
+              newMsg = NEL.fromList $ "token '" <> show rtok <> "' not indent to '" <> show irtok <> "' of line " <> show lineNum
+              newErrRTok range errtok = R range (ErrTokIndent errtok (unR irtok) lineNum)
               failureWithoutLoc = failure (Just $ Label newMsg) set
           FancyError _ set -> fancyFailure set -- We're not handling fancy errors yet.
 
@@ -290,27 +299,27 @@ extractWithIndentCheck tokpred = do
 -- All parsers should be built upon these combinators.
 
 -- Create a parser of some symbol (while respecting source locations)
-symbol :: Tok -> Parser Loc
+symbol :: Tok -> Parser Range
 symbol t = do
   -- ir <- lastIndentReq
-  -- loctok@(L loc tok) <- satisfy (\lt@(L _ t') -> t == t' && lt `fitsIndentReq` ir)
-  (loc, tok) <- extractWithIndentCheck (\lt@(L l t') -> if t == t' then Just (lt, (l, t')) else Nothing)
+  -- loctok@(R range tok) <- satisfy (\rt@(R _ t') -> t == t' && rt `fitsIndentReq` ir)
+  (range, tok) <- extractWithIndentCheck (\rt@(R r t') -> if t == t' then Just (rt, (r, t')) else Nothing)
   lift $ do
-    updateLoc loc
+    updateRange range
     updateToken tok
-  return loc
+  return range
 
 -- Useful for extracting values from a Token
 extract :: (Tok -> Maybe a) -> Parser a
 extract f = do
   -- ir <- lastIndentReq
-  let p loctok@(L l tok') = do
-        -- guard $ loctok `fitsIndentReq` ir
-        (\result -> (loctok, (result, l, tok'))) <$> f tok'
-  -- (result, loctok@(L loc tok)) <- token p Set.empty
-  (result, loc, tok) <- extractWithIndentCheck p
+  let p rtok@(R r tok') = do
+        -- guard $ rtok `fitsIndentReq` ir
+        (\result -> (rtok, (result, r, tok'))) <$> f tok'
+  -- (result, rtok@(R range tok)) <- token p Set.empty
+  (result, range, tok) <- extractWithIndentCheck p
   lift $ do
-    updateLoc loc
+    updateRange range
     updateToken tok
   return result
 
@@ -318,14 +327,14 @@ extract f = do
 -- effectively excluding it from source location tracking
 ignore :: Tok -> Parser ()
 ignore t = do
-  L _ tok <- satisfy ((==) t . unLoc)
+  R _ tok <- satisfy ((==) t . unR)
   lift $ updateToken tok
   return ()
 
 -- The predicate version of `ignore`
 ignoreP :: (Tok -> Bool) -> Parser ()
 ignoreP p = do
-  L _ tok <- satisfy (p . unLoc)
+  R _ tok <- satisfy (p . unR)
   lift $ updateToken tok
   return ()
 
@@ -342,7 +351,7 @@ ignoreP p = do
 ----------------------------------------------------------------------------------------
 -- ### Combinators for current internal use: indentTo, alignmentCheck
 
-indentTo :: Parser a -> L Tok -> Parser a
+indentTo :: Parser a -> R Tok -> Parser a
 indentTo p tok = do
   insertIndentReq tok
   x <- observing p
@@ -357,14 +366,14 @@ indentTo p tok = do
             -- The message here is "expecting indented token", while in 'extractWithIndentCheck', it's "unexpected unindented token".
             -- Is this message really needed?
 
-            lineNum = posLine $ (\(Loc s _) -> s) $ locOf tok
+            lineNum = posLine $ rangeStart $ rangeOf tok
         FancyError _ set -> fancyFailure set
     Right r -> return r
 
-alignmentCheck :: L Tok -> L Tok -> Parser ()
-alignmentCheck ltok tokToAlign = do
-  let lineNum = posLine $ (\(Loc s _) -> s) $ locOf tokToAlign
-  if colOf ltok == colOf tokToAlign
+alignmentCheck :: R Tok -> R Tok -> Parser ()
+alignmentCheck rtok tokToAlign = do
+  let lineNum = posLine $ rangeStart $ rangeOf tokToAlign
+  if colOf rtok == colOf tokToAlign
     then return ()
     else failure Nothing (Set.fromList [Label (NEL.fromList $ "token align to '" <> show tokToAlign <> "' of line " <> show lineNum)])
 
@@ -422,7 +431,7 @@ sepByAlignmentOrSemiHelper :: Bool -> Bool -> Parser a -> Parser [a]
 sepByAlignmentOrSemiHelper useSemi atLeastOne' parser' = do
   toList <$> recursion Nothing atLeastOne' parser' emptyList'
   where
-    recursion :: Maybe (L Tok) -> Bool -> Parser a -> List' a -> Parser (List' a)
+    recursion :: Maybe (R Tok) -> Bool -> Parser a -> List' a -> Parser (List' a)
     recursion m_tokToAlign atLeastOne parser accResult = do
       a <- observing $ lookAhead anySingle
       -- see if there exists a next token to check alignment

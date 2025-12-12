@@ -3,7 +3,7 @@
 module GCL.Type2.Elaborate where
 
 import Control.Monad (foldM, unless, when)
-import Data.Loc (Loc)
+import Data.Loc.Range (Range)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Type (TypeError (..))
@@ -82,7 +82,7 @@ instance Elaborate A.Stmt T.Stmt where
   elaborate (A.Assign names exprs loc) = elaborateAssign names exprs loc
   elaborate _stmt = undefined
 
-elaborateAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
+elaborateAssign :: [Name] -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
 elaborateAssign names exprs loc
   | length names > length exprs = throwError $ RedundantNames (drop (length exprs) names)
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
@@ -115,15 +115,15 @@ instance Elaborate A.Expr T.Expr where
       toTypedExpr (A.Op op) ty = T.Op (ArithOp op) ty
       toTypedExpr (A.Chain chain) ty = undefined
       toTypedExpr (A.App e1 e2 loc) ty = undefined
-      toTypedExpr (A.Lam name expr loc) ty = undefined
+      toTypedExpr (A.Lam name expr' loc) ty = undefined
       toTypedExpr (A.Func name clauses loc) ty = undefined
       toTypedExpr (A.Tuple exprs) ty = undefined
       toTypedExpr (A.Quant _ _ _ _ _) ty = undefined
       toTypedExpr (A.RedexKernel _ _ _ _) ty = undefined
       toTypedExpr (A.RedexShell _ _) ty = undefined
       toTypedExpr (A.ArrIdx arr index loc) ty = undefined
-      toTypedExpr (A.ArrUpd arr index expr loc) ty = undefined
-      toTypedExpr (A.Case expr clauses loc) ty = undefined
+      toTypedExpr (A.ArrUpd arr index expr' loc) ty = undefined
+      toTypedExpr (A.Case expr' clauses loc) ty = undefined
 
 runElaboration :: (Elaborate a t) => a -> Env -> Either TypeError t
 runElaboration a env = evalRSE (elaborate a) env (Inference 0)

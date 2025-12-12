@@ -15,7 +15,6 @@ import Control.Monad.RWS
     withRWST,
   )
 import qualified Data.Hashable as Hashable
-import Data.Loc (Loc (..))
 import Data.Loc.Range (Range)
 import qualified Data.Map as Map
 import Data.Text (Text)
@@ -125,7 +124,7 @@ throwWarning warning = tell ([], [], [warning], mempty)
 withFreshVar :: Type -> (Expr -> WP a) -> WP a
 withFreshVar t f = do
   name <- freshName' "bnd"
-  let var = Var name t NoLoc
+  let var = Var name t Nothing
   withRWST
     ( \(decls, scopes) st ->
         ((Map.insert (nameToText name) Nothing decls, scopes), st)

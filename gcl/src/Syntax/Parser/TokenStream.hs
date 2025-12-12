@@ -14,15 +14,15 @@ import Data.List.NonEmpty
     nonEmpty,
   )
 import qualified Data.List.NonEmpty as NE
-import Data.Loc
+import Data.Loc.Range (R (..), Range (..), posCol, posLine)
 import Data.Proxy
 import Language.Lexer.Applicative
 import Text.Megaparsec hiding (Pos)
 
 -- | How to print tokens
 class PrettyToken tok where
-  prettyTokens :: NonEmpty (L tok) -> String
-  default prettyTokens :: (Show tok) => NonEmpty (L tok) -> String
+  prettyTokens :: NonEmpty (R tok) -> String
+  default prettyTokens :: (Show tok) => NonEmpty (R tok) -> String
   prettyTokens = init . unlines . map snd . showTokenLines
 
   -- convert it back to its original string representation (inverse of lexing)
@@ -31,12 +31,12 @@ class PrettyToken tok where
   default restoreToken :: (Show tok) => tok -> String
   restoreToken = show
 
-instance (Ord tok) => Ord (TokenStream (L tok)) where
+instance (Ord tok) => Ord (TokenStream (R tok)) where
   compare _ _ = EQ
 
-instance (Ord tok) => Stream (TokenStream (L tok)) where
-  type Token (TokenStream (L tok)) = L tok
-  type Tokens (TokenStream (L tok)) = [L tok]
+instance (Ord tok) => Stream (TokenStream (R tok)) where
+  type Token (TokenStream (R tok)) = R tok
+  type Tokens (TokenStream (R tok)) = [R tok]
   tokenToChunk Proxy tok = [tok]
   tokensToChunk Proxy = id
   chunkToTokens Proxy = id
@@ -46,38 +46,38 @@ instance (Ord tok) => Stream (TokenStream (L tok)) where
   takeN_ = takeN_'
   takeWhile_ = takeWhile_'
 
-instance (Ord tok, PrettyToken tok) => VisualStream (TokenStream (L tok)) where
+instance (Ord tok, PrettyToken tok) => VisualStream (TokenStream (R tok)) where
   showTokens Proxy = prettyTokens
 
-chunkLength' :: [L tok] -> Int
+chunkLength' :: [R tok] -> Int
 chunkLength' = length
 
-chunkEmpty' :: [L tok] -> Bool
+chunkEmpty' :: [R tok] -> Bool
 chunkEmpty' = (==) 0 . chunkLength'
 
-streamEmpty :: TokenStream (L tok) -> Bool
+streamEmpty :: TokenStream (R tok) -> Bool
 streamEmpty (TsToken _ _) = False
 streamEmpty TsEof = True
 streamEmpty (TsError _) = True
 
-take1_' :: TokenStream (L tok) -> Maybe (L tok, TokenStream (L tok))
+take1_' :: TokenStream (R tok) -> Maybe (R tok, TokenStream (R tok))
 take1_' (TsToken tok rest) = Just (tok, rest)
 take1_' _ = Nothing
 
-takeN_' :: Int -> TokenStream (L tok) -> Maybe ([L tok], TokenStream (L tok))
+takeN_' :: Int -> TokenStream (R tok) -> Maybe ([R tok], TokenStream (R tok))
 takeN_' n s
   | n <= 0 = Just ([], s)
   | streamEmpty s = Just ([], s)
   | otherwise = Just (jump n s)
   where
-    jump :: Int -> TokenStream (L tok) -> ([L tok], TokenStream (L tok))
+    jump :: Int -> TokenStream (R tok) -> ([R tok], TokenStream (R tok))
     jump _ TsEof = ([], TsEof)
     jump _ (TsError _) = ([], TsEof)
     jump 0 (TsToken x xs) = ([], TsToken x xs)
     jump m (TsToken x xs) = let (ys, zs) = jump (m - 1) xs in (x : ys, zs)
 
 takeWhile_' ::
-  (L tok -> Bool) -> TokenStream (L tok) -> ([L tok], TokenStream (L tok))
+  (R tok -> Bool) -> TokenStream (R tok) -> ([R tok], TokenStream (R tok))
 takeWhile_' p stream = case take1_' stream of
   Nothing -> ([], stream)
   Just (x, rest) ->
@@ -89,7 +89,7 @@ takeWhile_' p stream = case take1_' stream of
 -- Helpers
 
 -- returns lines + line numbers of the string representation of tokens
-showTokenLines :: (PrettyToken tok) => NonEmpty (L tok) -> [(Int, String)]
+showTokenLines :: (PrettyToken tok) => NonEmpty (R tok) -> [(Int, String)]
 showTokenLines (x :| xs) = zip lineNumbers (NE.toList body)
   where
     glued :: Chunk
@@ -110,15 +110,9 @@ data Chunk
       (Int, Int)
   deriving (Show)
 
-toChunk :: (PrettyToken tok) => L tok -> Chunk
-toChunk (L NoLoc tok) = Chunk start strings end
-  where
-    strings = case nonEmpty (lines (restoreToken tok)) of
-      Nothing -> "" :| []
-      Just xs -> xs
-    start = (0, 0)
-    end = (NE.length strings - 1, length (NE.last strings))
-toChunk (L (Loc from to) tok) = Chunk start strings end
+-- | R always has a Range (no NoLoc case needed)
+toChunk :: (PrettyToken tok) => R tok -> Chunk
+toChunk (R (Range from to) tok) = Chunk start strings end
   where
     strings = case nonEmpty (lines (restoreToken tok)) of
       Nothing -> "" :| []

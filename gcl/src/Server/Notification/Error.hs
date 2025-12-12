@@ -9,7 +9,7 @@ module Server.Notification.Error where
 import Data.Aeson (object, (.=))
 import qualified Data.Aeson as JSON
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Loc (Loc (..), Pos (..))
+import Data.Loc.Range (Pos (..), Range)
 import Data.Proxy (Proxy (Proxy))
 import qualified Data.Text as Text
 import Error (Error (..))
@@ -85,13 +85,13 @@ instance JSON.ToJSON ParseError where
         "message" .= JSON.toJSON message
       ]
     where
-      locatedSymbolsToJSON :: NonEmpty (Loc, String) -> JSON.Value
+      locatedSymbolsToJSON :: NonEmpty (Maybe Range, String) -> JSON.Value
       locatedSymbolsToJSON (x :| xs) =
         JSON.toJSON $
           map
-            ( \(loc, s) ->
+            ( \(range, s) ->
                 object
-                  [ "location" .= JSON.toJSON loc,
+                  [ "location" .= JSON.toJSON range,
                     "symbol" .= JSON.toJSON s
                   ]
             )

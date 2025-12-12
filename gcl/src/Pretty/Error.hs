@@ -4,7 +4,7 @@
 module Pretty.Error where
 
 import Data.Foldable (toList)
-import Data.Loc
+import Data.Loc.Range (MaybeRanged (..), displayPos)
 import Error
 import GCL.Type (TypeError (..))
 import GCL.WP.Types
@@ -22,18 +22,18 @@ import Prelude hiding (Ordering (..))
 instance Pretty Error where
   pretty (ParseError err) = "Parse Error" <+> line <> pretty err
   pretty (TypeError err) =
-    "Type Error" <+> pretty (locOf err) <> line <> pretty err
+    "Type Error" <+> pretty (maybeRangeOf err) <> line <> pretty err
   pretty (StructError err) =
-    "Struct Error" <+> pretty (locOf err) <> line <> pretty err
+    "Struct Error" <+> pretty (maybeRangeOf err) <> line <> pretty err
   pretty (CannotReadFile path) = "CannotReadFile" <+> pretty path
-  pretty (Others title msg loc) = "Others" <+> pretty title <+> pretty msg <+> pretty (displayLoc loc)
+  pretty (Others title msg range) = "Others" <+> pretty title <+> pretty msg <+> maybe mempty pretty range
 
 instance Pretty ParseError where
   pretty (LexicalError pos) = "Lexical Error" <+> pretty (displayPos pos)
   pretty (SyntacticError pairs _) =
     "Parse Error"
       <+> vsep
-        (map (\(loc, msg) -> pretty (displayLoc loc) <+> pretty msg) $ toList pairs)
+        (map (\(range, msg) -> maybe mempty pretty range <+> pretty msg) $ toList pairs)
 
 -- the second argument was parsing log, used for debugging
 

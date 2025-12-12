@@ -18,7 +18,8 @@ import Data.Char
   )
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
-import Data.Loc
+import qualified Data.Loc as IncLoc
+import Data.Loc.Range (R (..), Range, fromInclusiveLoc, unR)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -230,8 +231,6 @@ instance Show Tok where
     TokBoolType -> "Bool"
     TokCharType -> "Char"
     TokProof s _ _ -> "{- #" ++ s ++ " ...-}"
-
-type TokStream = TokenStream (L Tok)
 
 --------------------------------------------------------------------------------
 
@@ -481,28 +480,41 @@ lexer =
     ]
 
 --------------------------------------------------------------------------------
-type LexicalError = Pos
+type LexicalError = IncLoc.Pos
+
+-- | Type alias for end-exclusive token stream (after translation)
+type TokStream = TokenStream (R Tok)
+
+-- | Type alias for end-inclusive token stream (from lexer)
+type TokStreamInc = TokenStream (IncLoc.L Tok)
 
 scan :: FilePath -> Text -> TokStream
 scan filepath =
   translateLoc . runLexer lexer filepath . Text.unpack
   where
-    -- According to the document in Data.Loc.Range, the original meaning of Loc is
-    -- different from how we use it as Range (to simply put, Range extends 1 in col and charOffset).
-    -- The lexer records tokens' ranges in Loc, and we use translateLoc to make it Range.
-    translateLoc :: TokStream -> TokStream
-    translateLoc (TsToken (L loc x) rest) = TsToken (L (update loc) x) (translateLoc rest)
-      where
-        update NoLoc = NoLoc
-        update (Loc start (Pos path l c co)) = Loc start (Pos path l (c + 1) (co + 1))
+    -- The lexer (lexer-applicative) records tokens' ranges in end-INCLUSIVE Loc (Inc.Loc),
+    -- and we use translateLoc to convert it to end-EXCLUSIVE Range.
+    -- For example, for the string "AB":
+    --   - end-inclusive: end position is 2 (pointing to 'B')
+    --   - end-exclusive: end position is 3 (pointing past 'B')
+    -- Note: lexer-applicative never produces NoLoc, so fromInclusiveLoc always returns Just.
+    translateLoc :: TokStreamInc -> TokStream
+    translateLoc (TsToken (IncLoc.L loc x) rest) = TsToken (R (convertLoc loc) x) (translateLoc rest)
     translateLoc TsEof = TsEof
     translateLoc (TsError e) = TsError e
+
+    -- Convert end-inclusive Loc to end-exclusive Range
+    -- The lexer never produces NoLoc, so we use fromJust here.
+    convertLoc :: IncLoc.Loc -> Range
+    convertLoc loc = case fromInclusiveLoc loc of
+      Just range -> range
+      Nothing -> error "Lexer.translateLoc: unexpected NoLoc from lexer-applicative"
 
 -- | Instances of PrettyToken
 instance PrettyToken Tok where
   prettyTokens (x :| []) =
-    fromMaybe ("'" <> show (unLoc x) <> "'") (prettyToken' (unLoc x))
-  prettyTokens xs = "\"" <> concatMap (f . unLoc) (NE.toList xs) <> "\""
+    fromMaybe ("'" <> show (unR x) <> "'") (prettyToken' (unR x))
+  prettyTokens xs = "\"" <> concatMap (f . unR) (NE.toList xs) <> "\""
     where
       f tok = case prettyToken' tok of
         Nothing -> show tok

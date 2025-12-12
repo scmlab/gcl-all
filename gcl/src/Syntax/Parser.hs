@@ -7,7 +7,6 @@ import Control.Monad.Combinators.Expr
 import Control.Monad.Except
 import qualified Data.Either as Either
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc
 import Data.Loc.Range
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -50,7 +49,7 @@ scanAndParse parser filepath source =
         Left (errors, logMsg) -> throwError (SyntacticError errors logMsg)
         Right val -> return val
 
-parse :: Parser a -> FilePath -> TokStream -> Either (NonEmpty (Loc, String), String) a
+parse :: Parser a -> FilePath -> TokStream -> Either (NonEmpty (Maybe Range, String), String) a
 parse parser filepath tokenStream =
   case runM (runParserT (parser <* eof) filepath tokenStream) of
     (Left e, logMsg) -> Left (fromParseErrorBundle e, logMsg)
@@ -59,22 +58,23 @@ parse parser filepath tokenStream =
     fromParseErrorBundle ::
       (ShowErrorComponent e) =>
       ParseErrorBundle TokStream e ->
-      NonEmpty (Loc, String)
+      NonEmpty (Maybe Range, String)
     fromParseErrorBundle (ParseErrorBundle errors _) = fmap toError errors
       where
         toError ::
-          (ShowErrorComponent e) => Mega.ParseError TokStream e -> (Loc, String)
-        toError err = (getLoc' err, parseErrorTextPretty err)
-        -- get the Loc of all unexpected tokens
-        getLoc' :: (ShowErrorComponent e) => Mega.ParseError TokStream e -> Loc
-        getLoc' (TrivialError _ (Just (Tokens xs)) _) = foldMap locOf xs
-        getLoc' _ = mempty
+          (ShowErrorComponent e) => Mega.ParseError TokStream e -> (Maybe Range, String)
+        toError err = (getRange' err, parseErrorTextPretty err)
+        -- get the Range of all unexpected tokens
+        getRange' :: (ShowErrorComponent e) => Mega.ParseError TokStream e -> Maybe Range
+        getRange' (TrivialError _ (Just (Tokens xs)) _) = foldMap (Just . rangeOf) xs
+        getRange' _ = Nothing
 
 parseWithTokList ::
-  Parser a -> FilePath -> [L Tok] -> Either (NonEmpty (Loc, String), String) a
-parseWithTokList parser filepath = parse parser filepath . convert
+  Parser a -> FilePath -> [R Tok] -> Either (NonEmpty (Maybe Range, String), String) a
+parseWithTokList parser filepath toks =
+  parse parser filepath (convert toks)
   where
-    convert :: [L Tok] -> TokStream
+    convert :: [R Tok] -> TokStream
     convert (x : xs) = TsToken x (convert xs)
     convert [] = TsEof
 
@@ -108,10 +108,9 @@ sepByGuardBar = sepBy' tokenGuardBar
 -- for building parsers for tokens
 adapt :: Tok -> String -> Parser (Token a)
 adapt t errMsg = do
-  loc <- symbol t <?> errMsg
-  case loc of
-    NoLoc -> error "NoLoc when parsing token"
-    Loc l r -> return $ Token l r
+  range <- symbol t <?> errMsg
+  let Range l r = range
+  return $ Token l r
 
 tokenConst :: Parser (Token "con")
 tokenConst = adapt TokCon "reserved word \"con\""
@@ -374,8 +373,8 @@ spec =
     -- it is enclosed by parsers built with 'symbol'.
     <*> tokenSpecClose
   where
-    notTokSpecClose :: L Tok -> Bool
-    notTokSpecClose (L _ TokSpecClose) = False
+    notTokSpecClose :: R Tok -> Bool
+    notTokSpecClose (R _ TokSpecClose) = False
     notTokSpecClose _ = True
 
 proofBlock :: Parser Stmt
@@ -508,24 +507,26 @@ expression = do
         ]
       ]
       where
-        arithOp :: (Loc -> ArithOp) -> Tok -> Parser (Expr -> Expr -> Expr)
+        arithOp :: (Maybe Range -> ArithOp) -> Tok -> Parser (Expr -> Expr -> Expr)
         arithOp operator' tok = do
-          (op, loc) <- getLoc (operator' <$ symbol tok)
-          return $ \x y -> App (App (Expr.Op (op loc)) x) y
+          range <- symbol tok
+          let op = operator' (Just range)
+          return $ \x y -> App (App (Expr.Op op) x) y
 
-        chainOp :: (Loc -> ChainOp) -> Tok -> Parser (Expr -> Expr -> Expr)
+        chainOp :: (Maybe Range -> ChainOp) -> Tok -> Parser (Expr -> Expr -> Expr)
         chainOp operator' tok = do
-          (op, loc) <- getLoc (operator' <$ symbol tok)
-          return (`makeChain` op loc)
+          range <- symbol tok
+          let op = operator' (Just range)
+          return (`makeChain` op)
           where
             makeChain a op b = Chain $ More (asChain a) op b
             asChain (Chain c) = c
             asChain e = Pure e
 
-    unary :: (Loc -> ArithOp) -> Tok -> Parser (Expr -> Expr)
+    unary :: (Maybe Range -> ArithOp) -> Tok -> Parser (Expr -> Expr)
     unary operator' tok = do
-      loc <- symbol tok
-      return $ \result -> App (Expr.Op (operator' loc)) result
+      range <- symbol tok
+      return $ \result -> App (Expr.Op (operator' (Just range))) result
 
     parensExpr :: Parser Expr
     parensExpr = Paren <$> tokenParenOpen <*> expression <*> tokenParenClose
@@ -572,44 +573,44 @@ expression = do
     chainOp :: Parser ChainOp
     chainOp =
       choice
-        [ EQProp <$> symbol TokEQProp,
-          EQPropU <$> symbol TokEQPropU,
-          EQ <$> symbol TokEQ,
-          NEQ <$> symbol TokNEQ,
-          NEQU <$> symbol TokNEQU,
-          LTE <$> symbol TokLTE,
-          LTEU <$> symbol TokLTEU,
-          GTE <$> symbol TokGTE,
-          GTEU <$> symbol TokGTEU,
-          LT <$> symbol TokLT,
-          GT <$> symbol TokGT
+        [ EQProp . Just <$> symbol TokEQProp,
+          EQPropU . Just <$> symbol TokEQPropU,
+          EQ . Just <$> symbol TokEQ,
+          NEQ . Just <$> symbol TokNEQ,
+          NEQU . Just <$> symbol TokNEQU,
+          LTE . Just <$> symbol TokLTE,
+          LTEU . Just <$> symbol TokLTEU,
+          GTE . Just <$> symbol TokGTE,
+          GTEU . Just <$> symbol TokGTEU,
+          LT . Just <$> symbol TokLT,
+          GT . Just <$> symbol TokGT
         ]
         <?> "chain operator"
 
     arithOp :: Parser ArithOp
     arithOp =
       choice
-        [ Implies <$> symbol TokImpl,
-          ImpliesU <$> symbol TokImplU,
-          Conj <$> symbol TokConj,
-          ConjU <$> symbol TokConjU,
-          Disj <$> symbol TokDisj,
-          DisjU <$> symbol TokDisjU,
-          Neg <$> symbol TokNeg,
-          NegU <$> symbol TokNegU,
-          Add <$> symbol TokAdd,
-          Sub <$> symbol TokSub,
-          Mul <$> symbol TokMul,
-          Div <$> symbol TokDiv,
-          Mod <$> symbol TokMod,
-          Max <$> symbol TokMax,
-          Min <$> symbol TokMin,
-          Exp <$> symbol TokExp,
-          Add <$> symbol TokSum,
-          Mul <$> symbol TokProd,
-          Conj <$> symbol TokForall,
-          Disj <$> symbol TokExist,
-          Hash <$> symbol TokHash
+        [ Implies . Just <$> symbol TokImpl,
+          ImpliesU . Just <$> symbol TokImplU,
+          Conj . Just <$> symbol TokConj,
+          ConjU . Just <$> symbol TokConjU,
+          Disj . Just <$> symbol TokDisj,
+          DisjU . Just <$> symbol TokDisjU,
+          Neg . Just <$> symbol TokNeg,
+          NegU . Just <$> symbol TokNegU,
+          Add . Just <$> symbol TokAdd,
+          Sub . Just <$> symbol TokSub,
+          Mul . Just <$> symbol TokMul,
+          Div . Just <$> symbol TokDiv,
+          Mod . Just <$> symbol TokMod,
+          Max . Just <$> symbol TokMax,
+          Min . Just <$> symbol TokMin,
+          Exp . Just <$> symbol TokExp,
+          Add . Just <$> symbol TokSum,
+          Mul . Just <$> symbol TokProd,
+          Conj . Just <$> symbol TokForall,
+          Disj . Just <$> symbol TokExist,
+          Hash . Just <$> symbol TokHash
         ]
         <?> "arithmetic operator"
 
@@ -647,10 +648,11 @@ type' = do
     table :: [[Operator Parser Type]]
     table = [[InfixL (return TApp)], [InfixR $ typeOp Arrow TokArrow]]
 
-    typeOp :: (Loc -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
+    typeOp :: (Maybe Range -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
     typeOp operator' tok = do
-      (op, loc) <- getLoc (operator' <$ symbol tok)
-      return $ \x y -> TApp (TApp (TOp (op loc)) x) y
+      range <- symbol tok
+      let op = operator' (Just range)
+      return $ \x y -> TApp (TApp (TOp op) x) y
 
     term :: Parser Type
     term = primTy <|> parensType <|> array <|> typeVar <?> "type term"
@@ -704,7 +706,7 @@ upperName = extract p
 
 upper :: Parser Name
 upper =
-  withLoc (Name <$> upperName)
+  withMaybeRange (Name <$> upperName)
     <?> "identifier that starts with an uppercase letter"
 
 lowerName :: Parser Text
@@ -715,12 +717,12 @@ lowerName = extract p
 
 lower :: Parser Name
 lower =
-  withLoc (Name <$> lowerName)
+  withMaybeRange (Name <$> lowerName)
     <?> "identifier that starts with a lowercase letter"
 
 identifier :: Parser Name
 identifier =
-  withLoc (choice [Name <$> lowerName, Name <$> upperName]) <?> "identifier"
+  withMaybeRange (choice [Name <$> lowerName, Name <$> upperName]) <?> "identifier"
 
 integer :: Parser Int
 integer = extract p <?> "integer"

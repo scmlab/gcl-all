@@ -4,6 +4,51 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PatternSynonyms #-}
 
+-- |
+-- Module      : Data.Loc.Range
+-- Description : Position and range types for source locations
+--
+-- This module provides the primary API for working with source locations.
+--
+-- == Usage
+--
+-- All application code should import this module instead of 'Data.Loc':
+--
+-- @
+-- import Data.Loc.Range (Range, Pos, MaybeRanged(..), Ranged(..), ...)
+-- @
+--
+-- == Design
+--
+-- * 'Range' represents a span with start and end positions (end-exclusive)
+-- * 'Maybe Range' replaces the old 'Loc' type (where 'Nothing' = 'NoLoc')
+-- * 'Ranged' typeclass for values that always have a range
+-- * 'MaybeRanged' typeclass for values that may or may not have a range
+--
+-- == Range Representations
+--
+-- This project uses three different ways to represent ranges:
+--
+-- 1. 'Data.Loc.Loc' (1-based, end-inclusive)
+-- 2. 'Data.Loc.Range.Range' (1-based, end-exclusive)
+-- 3. 'Language.LSP.Protocol.Types.Range' (0-based, end-exclusive)
+--
+-- For example, to represent the first two characters \"AB\" at the beginning of a file:
+--
+-- 1. 'Loc': (1, 1) ~ (1, 2)
+-- 2. 'Range': (1, 1) ~ (1, 3)
+-- 3. LSP 'Range': (0, 0) ~ (0, 2)
+--
+-- == Internal Dependencies
+--
+-- This module re-exports 'Pos' from 'Data.Loc'.
+-- 'Data.Loc' should be considered an internal module and not imported directly
+-- by application code.
+--
+-- == Conversion from Inclusive Locations
+--
+-- The lexer produces end-inclusive locations ('Data.Loc').
+-- Use 'fromInclusiveLoc' to convert to end-exclusive 'Range'.
 module Data.Loc.Range
   ( Range (Range), -- only the type and the pattern, the constructor is hidden
     mkRange, -- forcing users to use this constructor
@@ -12,17 +57,25 @@ module Data.Loc.Range
     rangeStart,
     rangeEnd,
     rangeFile,
-    fromLoc,
-    toLoc,
-    fromLocs,
     mergeRangesUnsafe,
     mergeRanges,
     rangeSpan,
     within,
     Ranged (..),
+    MaybeRanged (..),
+    (<--->),
     unRange,
-    compareWithPosition,
-    withinRange,
+    unR,
+    rangeOfR,
+    -- Conversion from Data.Loc
+    fromInclusiveLoc,
+    -- Re-export from Data.Loc for Pos manipulation
+    Pos (..),
+    posLine,
+    posCol,
+    posFile,
+    posCoff,
+    displayPos,
   )
 where
 
@@ -37,12 +90,11 @@ import Data.Aeson
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-import Data.Loc hiding (fromLoc)
-import Data.Maybe (mapMaybe)
+import Data.Loc
+import qualified Data.Loc as IncLoc
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
--- TODO: write a short documentation about Range and its usage
 data Range = Range_ Pos Pos
   deriving (Eq, Generic)
 
@@ -106,21 +158,9 @@ rangeEnd (Range _ b) = b
 rangeFile :: Range -> FilePath
 rangeFile (Range a _) = posFile a
 
--- | Loc -> Maybe Range
-fromLoc :: Loc -> Maybe Range
-fromLoc NoLoc = Nothing
-fromLoc (Loc x y) = Just (mkRange x y)
-
--- | Range -> Loc
-toLoc :: Range -> Loc
-toLoc (Range x y) = Loc x y
-
--- | [Loc] -> [Range]
-fromLocs :: [Loc] -> [Range]
-fromLocs = mapMaybe fromLoc
-
 mergeRangesUnsafe :: [Range] -> Range
-mergeRangesUnsafe xs = foldl (<>) (head xs) xs
+mergeRangesUnsafe [] = error "mergeRangesUnsafe: empty list"
+mergeRangesUnsafe (x : xs) = foldl (<>) x xs
 
 mergeRanges :: NonEmpty Range -> Range
 mergeRanges xs = foldl (<>) (NE.head xs) xs
@@ -133,25 +173,13 @@ rangeSpan (Range a b) = posCol b - posCol a
 within :: Range -> Range -> Bool
 within (Range a b) (Range c d) = posCol c <= posCol a && posCol b <= posCol d
 
-instance Located Range where
-  locOf (Range x y) = Loc x y
-
 -- | Merge two ranges by filling their gap
 instance Semigroup Range where
-  Range a b <> Range c d = case (a `compare` c, b `compare` d) of
-    (LT, LT) -> mkRange a d
-    (LT, EQ) -> mkRange a d
-    (LT, GT) -> mkRange a b
-    (EQ, LT) -> mkRange a d
-    (EQ, EQ) -> mkRange a b
-    (EQ, GT) -> mkRange a b
-    (GT, LT) -> mkRange c d
-    (GT, EQ) -> mkRange c d
-    (GT, GT) -> mkRange c b
+  Range a b <> Range c d = mkRange (min a c) (max b d)
 
 --------------------------------------------------------------------------------
 
--- | Like "Located"
+-- | Typeclass for values that always have a range
 class Ranged a where
   rangeOf :: a -> Range
 
@@ -163,6 +191,35 @@ instance (Ranged a) => Ranged (NonEmpty a) where
 
 --------------------------------------------------------------------------------
 
+-- | Typeclass for values that may or may not have a location
+class MaybeRanged a where
+  maybeRangeOf :: a -> Maybe Range
+
+instance MaybeRanged Range where
+  maybeRangeOf = Just
+
+instance MaybeRanged (Maybe Range) where
+  maybeRangeOf = id
+
+instance (MaybeRanged a) => MaybeRanged [a] where
+  maybeRangeOf = foldr ((<--->) . maybeRangeOf) Nothing
+
+instance (MaybeRanged a) => MaybeRanged (NonEmpty a) where
+  maybeRangeOf xs = maybeRangeOf (NE.head xs) <---> maybeRangeOf (NE.last xs)
+
+-- | Merge two Maybe Ranges (like <--> for Loc, but for Maybe Range)
+-- Nothing <---> x       = x
+-- x       <---> Nothing = x
+-- Just a  <---> Just b  = Just (a <> b)
+(<--->) :: Maybe Range -> Maybe Range -> Maybe Range
+Nothing <---> x = x
+x <---> Nothing = x
+Just a <---> Just b = Just (a <> b)
+
+infixl 6 <--->
+
+--------------------------------------------------------------------------------
+
 -- | A value of type @R a@ is a value of type @a@ with an associated 'Range', but
 -- this location is ignored when performing comparisons.
 data R a = R Range a
@@ -170,6 +227,10 @@ data R a = R Range a
 
 unRange :: R a -> a
 unRange (R _ a) = a
+
+-- | Alias for unRange (to match unLoc naming convention)
+unR :: R a -> a
+unR = unRange
 
 instance (Eq x) => Eq (R x) where
   (R _ x) == (R _ y) = x == y
@@ -182,6 +243,13 @@ instance (Show x) => Show (R x) where
 
 instance Ranged (R a) where
   rangeOf (R range _) = range
+
+instance MaybeRanged (R a) where
+  maybeRangeOf (R range _) = Just range
+
+-- | Get the range of an R value (alias for rangeOf)
+rangeOfR :: R a -> Range
+rangeOfR (R range _) = range
 
 --------------------------------------------------------------------------------
 
@@ -219,29 +287,6 @@ instance ToJSON Range where
 
 --------------------------------------------------------------------------------
 
--- | Compare the cursor position with something
---  EQ: the cursor is placed within that thing
---  LT: the cursor is placed BEFORE (but not touching) that thing
---  GT: the cursor is placed AFTER (but not touching) that thing
-compareWithPosition :: (Located a) => Pos -> a -> Ordering
-compareWithPosition pos x = case locOf x of
-  NoLoc -> EQ
-  Loc start end ->
-    if posCoff pos < posCoff start
-      then LT
-      else if posCoff pos > posCoff end then GT else EQ
-
--- | See if something is within the selection
-withinRange :: (Located a) => Range -> a -> Bool
-withinRange (Range left right) x =
-  compareWithPosition left x
-    == EQ
-    || compareWithPosition right x
-      == EQ
-    || (compareWithPosition left x == LT && compareWithPosition right x == GT)
-
---------------------------------------------------------------------------------
-
 instance Pretty Range where
   pretty (Range start end) =
     if posLine start == posLine end
@@ -271,9 +316,6 @@ instance Pretty Range where
           <> pretty (posLine end)
           <> ":"
           <> pretty (posCol end)
-
-instance Pretty Loc where
-  pretty = pretty . displayLoc
 
 instance Pretty Pos where
   pretty = pretty . displayPos
@@ -321,3 +363,19 @@ instance Show ShortRange where
 
 instance Pretty ShortRange where
   pretty = pretty . show
+
+--------------------------------------------------------------------------------
+-- Conversion from Data.Loc
+--------------------------------------------------------------------------------
+
+-- | Convert an end-inclusive Loc (from Data.Loc) to Maybe Range
+-- This converts from end-inclusive to end-exclusive semantics:
+-- - end-inclusive: end position is the position of the last character
+-- - end-exclusive: end position is one past the last character
+-- For example, for the string "AB":
+--   - end-inclusive: end column is 2 (pointing to 'B')
+--   - end-exclusive: end column is 3 (pointing past 'B')
+fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
+fromInclusiveLoc IncLoc.NoLoc = Nothing
+fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos f1 l1 c1 co1) (IncLoc.Pos f2 l2 c2 co2)) =
+  Just $ mkRange (Pos f1 l1 c1 co1) (Pos f2 l2 (c2 + 1) (co2 + 1))

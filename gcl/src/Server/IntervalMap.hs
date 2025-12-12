@@ -28,12 +28,10 @@ import qualified Data.Foldable as Foldable
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc
-  ( Pos,
-    posCoff,
-  )
 import Data.Loc.Range
-  ( Range,
+  ( Pos,
+    Range,
+    posCoff,
     rangeEnd,
     rangeStart,
   )

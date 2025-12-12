@@ -6,7 +6,7 @@
 module Syntax.Typed.Instances.Substitution where
 
 import Control.Monad (forM)
-import Data.Loc
+import Data.Loc.Range (Range)
 import Data.Map hiding (map)
 import qualified Data.Map as Map
 import GCL.Common

@@ -1,125 +1,125 @@
 module Syntax.Concrete.Instances.Located where
 
-import Data.Loc
-  ( Located (locOf),
-    (<-->),
+import Data.Loc.Range
+  ( MaybeRanged (..),
+    (<--->),
   )
 import Syntax.Common ()
 import Syntax.Concrete.Types
 
 --------------------------------------------------------------------------------
 
-instance (Located a) => Located (SepBy sep a) where
-  locOf (Head a) = locOf a
-  locOf (Delim a _ as) = a <--> locOf as
+instance (MaybeRanged a) => MaybeRanged (SepBy sep a) where
+  maybeRangeOf (Head a) = maybeRangeOf a
+  maybeRangeOf (Delim a _ as) = maybeRangeOf a <---> maybeRangeOf as
 
-instance (Located a, Located c) => Located (a, b, c) where
-  locOf (a, _, c) = a <--> c
+instance (MaybeRanged a, MaybeRanged c) => MaybeRanged (a, b, c) where
+  maybeRangeOf (a, _, c) = maybeRangeOf a <---> maybeRangeOf c
 
 --------------------------------------------------------------------------------
 
-instance Located Program where
-  locOf (Program a b) = a <--> b
+instance MaybeRanged Program where
+  maybeRangeOf (Program a b) = maybeRangeOf a <---> maybeRangeOf b
 
-instance Located Declaration where
-  locOf (ConstDecl l r) = l <--> r
-  locOf (VarDecl l r) = l <--> r
+instance MaybeRanged Declaration where
+  maybeRangeOf (ConstDecl l r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (VarDecl l r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance Located TypeDefnCtor where
-  locOf (TypeDefnCtor l r) = l <--> r
+instance MaybeRanged TypeDefnCtor where
+  maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance Located DefinitionBlock where
-  locOf (DefinitionBlock l _ r) = l <--> r
+instance MaybeRanged DefinitionBlock where
+  maybeRangeOf (DefinitionBlock l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance Located DeclBase where
-  locOf (DeclBase l _ r) = l <--> r
+instance MaybeRanged DeclBase where
+  maybeRangeOf (DeclBase l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance Located DeclProp where
-  locOf (DeclProp l _ r) = l <--> r
+instance MaybeRanged DeclProp where
+  maybeRangeOf (DeclProp l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance Located DeclType where
-  locOf (DeclType l r) = l <--> r
+instance MaybeRanged DeclType where
+  maybeRangeOf (DeclType l r) = maybeRangeOf l <---> maybe Nothing maybeRangeOf r
 
 -------------------------------------------------------------------------------
 
-instance Located Stmt where
-  locOf (Skip l) = locOf l
-  locOf (Abort l) = locOf l
-  locOf (Assign l _ r) = l <--> r
-  locOf (AAssign l _ _ _ _ r) = l <--> r
-  locOf (Assert l _ r) = l <--> r
-  locOf (LoopInvariant l _ _ _ _ _ r) = l <--> r
-  locOf (Do l _ r) = l <--> r
-  locOf (If l _ r) = l <--> r
-  locOf (SpecQM l) = locOf l
-  locOf (Spec l _ r) = l <--> r
-  locOf (Proof _ _ _ r) = locOf r
-  locOf (Alloc l _ _ _ _ r) = l <--> r
-  locOf (HLookup l _ _ r) = l <--> r
-  locOf (HMutate l _ _ r) = l <--> r
-  locOf (Dispose l r) = l <--> r
-  locOf (Block l _ r) = l <--> r
+instance MaybeRanged Stmt where
+  maybeRangeOf (Skip l) = Just l
+  maybeRangeOf (Abort l) = Just l
+  maybeRangeOf (Assign l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (AAssign l _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Assert l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (LoopInvariant l _ _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Do l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (If l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (SpecQM l) = Just l
+  maybeRangeOf (Spec l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Proof _ _ _ r) = Just r
+  maybeRangeOf (Alloc l _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (HLookup l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (HMutate l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Dispose l r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Block l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 --------------------------------------------------------------------------------
 
-instance Located EndpointOpen where
-  locOf (IncludingOpening l e) = l <--> e
-  locOf (ExcludingOpening l e) = l <--> e
+instance MaybeRanged EndpointOpen where
+  maybeRangeOf (IncludingOpening l e) = maybeRangeOf l <---> maybeRangeOf e
+  maybeRangeOf (ExcludingOpening l e) = maybeRangeOf l <---> maybeRangeOf e
 
-instance Located EndpointClose where
-  locOf (IncludingClosing e l) = e <--> l
-  locOf (ExcludingClosing e l) = e <--> l
+instance MaybeRanged EndpointClose where
+  maybeRangeOf (IncludingClosing e l) = maybeRangeOf e <---> maybeRangeOf l
+  maybeRangeOf (ExcludingClosing e l) = maybeRangeOf e <---> maybeRangeOf l
 
-instance Located Interval where
-  locOf (Interval l _ r) = l <--> r
+instance MaybeRanged Interval where
+  maybeRangeOf (Interval l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance Located TBase where
-  locOf (TInt l) = locOf l
-  locOf (TBool l) = locOf l
-  locOf (TChar l) = locOf l
+instance MaybeRanged TBase where
+  maybeRangeOf (TInt l) = Just l
+  maybeRangeOf (TBool l) = Just l
+  maybeRangeOf (TChar l) = Just l
 
-instance Located Type where
-  locOf (TParen l _ r) = l <--> r
-  locOf (TBase a) = locOf a
-  locOf (TArray l _ _ r) = l <--> r
-  locOf (TOp op) = locOf op
-  locOf (TData _ l) = locOf l
-  locOf (TApp l r) = l <--> r
-  locOf (TMetaVar _ l) = locOf l
-
---------------------------------------------------------------------------------
-
-instance Located Expr where
-  locOf (Paren l _ r) = l <--> r
-  locOf (Lit x) = locOf x
-  locOf (Var x) = locOf x
-  locOf (Const x) = locOf x
-  locOf (Op x) = locOf x
-  locOf (Chain ch) = locOf ch
-  locOf (Arr l _ _ r) = l <--> r
-  locOf (App x y) = x <--> y
-  locOf (Quant l _ _ _ _ _ _ r) = l <--> r
-  locOf (Case l _ _ r) = l <--> r
-
-instance Located Chain where
-  locOf (Pure expr) = locOf expr
-  locOf (More ch _ expr) = ch <--> expr
-
-instance Located CaseClause where
-  locOf (CaseClause l _ r) = l <--> r
+instance MaybeRanged Type where
+  maybeRangeOf (TParen l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (TBase a) = maybeRangeOf a
+  maybeRangeOf (TArray l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (TOp op) = maybeRangeOf op
+  maybeRangeOf (TData _ l) = Just l
+  maybeRangeOf (TApp l r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (TMetaVar _ l) = Just l
 
 --------------------------------------------------------------------------------
 
-instance Located Pattern where
-  locOf (PattLit l) = locOf l
-  locOf (PattParen l _ r) = l <--> r
-  locOf (PattBinder l) = locOf l
-  locOf (PattWildcard l) = locOf l
-  locOf (PattConstructor l r) = l <--> r
+instance MaybeRanged Expr where
+  maybeRangeOf (Paren l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Lit x) = maybeRangeOf x
+  maybeRangeOf (Var x) = maybeRangeOf x
+  maybeRangeOf (Const x) = maybeRangeOf x
+  maybeRangeOf (Op x) = maybeRangeOf x
+  maybeRangeOf (Chain ch) = maybeRangeOf ch
+  maybeRangeOf (Arr l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (App x y) = maybeRangeOf x <---> maybeRangeOf y
+  maybeRangeOf (Quant l _ _ _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Case l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+
+instance MaybeRanged Chain where
+  maybeRangeOf (Pure expr) = maybeRangeOf expr
+  maybeRangeOf (More ch _ expr) = maybeRangeOf ch <---> maybeRangeOf expr
+
+instance MaybeRanged CaseClause where
+  maybeRangeOf (CaseClause l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 --------------------------------------------------------------------------------
 
-instance Located Lit where
-  locOf (LitInt _ l) = locOf l
-  locOf (LitBool _ l) = locOf l
-  locOf (LitChar _ l) = locOf l
+instance MaybeRanged Pattern where
+  maybeRangeOf (PattLit l) = maybeRangeOf l
+  maybeRangeOf (PattParen l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (PattBinder l) = maybeRangeOf l
+  maybeRangeOf (PattWildcard l) = maybeRangeOf l
+  maybeRangeOf (PattConstructor l r) = maybeRangeOf l <---> maybeRangeOf r
+
+--------------------------------------------------------------------------------
+
+instance MaybeRanged Lit where
+  maybeRangeOf (LitInt _ l) = Just l
+  maybeRangeOf (LitBool _ l) = Just l
+  maybeRangeOf (LitChar _ l) = Just l
