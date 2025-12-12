@@ -70,7 +70,8 @@ module Data.Loc.Range
     -- Conversion from Data.Loc
     fromInclusiveLoc,
     -- Re-export from Data.Loc for Pos manipulation
-    Pos (..),
+    Pos (Pos), -- only the type and the pattern, the constructor is hidden
+    mkPos, -- forcing users to use this constructor
     posLine,
     posCol,
     posFile,
@@ -90,10 +91,54 @@ import Data.Aeson
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-import Data.Loc
 import qualified Data.Loc as IncLoc
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
+
+--------------------------------------------------------------------------------
+-- Pos
+--------------------------------------------------------------------------------
+
+-- | Position in a source file. Wraps Data.Loc.Pos to hide its constructor.
+newtype Pos = Pos_ IncLoc.Pos
+  deriving (Eq, Ord)
+
+-- | Pattern synonym for Pos, use mkPos to construct
+pattern Pos :: String -> Int -> Int -> Int -> Pos
+pattern Pos file line col byte <- Pos_ (IncLoc.Pos file line col byte) -- "<-" single direction pattern: only for matching, not for constructing
+
+{-# COMPLETE Pos #-}
+
+-- | The only way to construct a Pos
+mkPos :: String -> Int -> Int -> Int -> Pos
+mkPos f l c b = Pos_ (IncLoc.Pos f l c b)
+
+-- | Get the line number (1-based)
+posLine :: Pos -> Int
+posLine (Pos_ p) = IncLoc.posLine p
+
+-- | Get the column number (1-based)
+posCol :: Pos -> Int
+posCol (Pos_ p) = IncLoc.posCol p
+
+-- | Get the file path
+posFile :: Pos -> FilePath
+posFile (Pos_ p) = IncLoc.posFile p
+
+-- | Get the character offset (0-based)
+posCoff :: Pos -> Int
+posCoff (Pos_ p) = IncLoc.posCoff p
+
+-- | Display position as a string
+displayPos :: Pos -> String
+displayPos (Pos_ p) = IncLoc.displayPos p
+
+instance Show Pos where
+  show = displayPos
+
+--------------------------------------------------------------------------------
+-- Range
+--------------------------------------------------------------------------------
 
 data Range = Range_ Pos Pos
   deriving (Eq, Generic)
@@ -265,7 +310,7 @@ instance ToJSON Pos where
 
 instance FromJSON Pos where
   parseJSON = withObject "Pos" $ \v ->
-    Pos
+    mkPos
       <$> v .: "file"
       <*> v .: "line"
       <*> v .: "column"
@@ -377,5 +422,5 @@ instance Pretty ShortRange where
 --   - end-exclusive: end column is 3 (pointing past 'B')
 fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
 fromInclusiveLoc IncLoc.NoLoc = Nothing
-fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos f1 l1 c1 co1) (IncLoc.Pos f2 l2 c2 co2)) =
-  Just $ mkRange (Pos f1 l1 c1 co1) (Pos f2 l2 (c2 + 1) (co2 + 1))
+fromInclusiveLoc (IncLoc.Loc p1 (IncLoc.Pos f2 l2 c2 co2)) =
+  Just $ mkRange (Pos_ p1) (mkPos f2 l2 (c2 + 1) (co2 + 1))

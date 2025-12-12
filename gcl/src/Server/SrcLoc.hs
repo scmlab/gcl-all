@@ -17,7 +17,7 @@ where
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Loc.Range (Pos (..), Range (..), mkRange)
+import Data.Loc.Range (Pos (..), Range (..), mkPos, mkRange)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Hack
@@ -37,10 +37,10 @@ fromLSPRange table filepath (J.Range start end) =
     (fromLSPPosition table filepath start)
     (fromLSPPosition table filepath end)
 
--- | LSP Position -> Data.Loc.Pos
+-- | LSP Position -> Data.Loc.Range.Pos
 fromLSPPosition :: ToOffset -> FilePath -> J.Position -> Pos
 fromLSPPosition table filepath (J.Position line col) =
-  Pos
+  mkPos
     filepath
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1
@@ -52,10 +52,10 @@ fromLSPRangeWithoutCharacterOffset filepath (J.Range start end) =
     (fromLSPPositionWithoutCharacterOffset filepath start)
     (fromLSPPositionWithoutCharacterOffset filepath end)
 
--- | LSP Position -> Data.Loc.Pos
+-- | LSP Position -> Data.Loc.Range.Pos
 fromLSPPositionWithoutCharacterOffset :: FilePath -> J.Position -> Pos
 fromLSPPositionWithoutCharacterOffset filepath (J.Position line col) =
-  Pos
+  mkPos
     filepath
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1

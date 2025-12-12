@@ -96,7 +96,7 @@ toDoc Empty = mempty
 
 prefixSpaces :: DocWithRange ann -> DocWithRange ann
 prefixSpaces (DocWithRange d x y) =
-  let start = Pos (posFile x) 1 1 0
+  let start = mkPos (posFile x) 1 1 0
    in DocWithRange (fillGap start x <> d) start y
 prefixSpaces Empty = mempty
 

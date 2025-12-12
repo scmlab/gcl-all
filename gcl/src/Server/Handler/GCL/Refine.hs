@@ -13,7 +13,7 @@ import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
-import Data.Loc.Range (Pos (..), R (..), Range (..), mkRange, rangeEnd, rangeStart)
+import Data.Loc.Range (Pos (..), R (..), Range (..), mkPos, mkRange, rangeEnd, rangeStart)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -50,7 +50,7 @@ instance JSON.ToJSON RefineParams
 handler :: RefineParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
 handler _params@RefineParams {filePath, line, character} onFinish _ = do
   -- convert from 0-based to 1-based, and we do not care about the offset here
-  let cursor = Pos filePath (line + 1) (character + 1) (-1)
+  let cursor = mkPos filePath (line + 1) (character + 1) (-1)
   logTextLn $ Text.pack $ "refine: cursor: " ++ show cursor
   maybeFileState <- loadFileState filePath
   case maybeFileState of
@@ -219,7 +219,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
 
     shrinkRange :: Int -> Range -> Range
     shrinkRange diff (Range (Pos f1 l1 c1 o1) (Pos f2 l2 c2 o2)) =
-      mkRange (Pos f1 l1 (c1 + diff) (o1 + diff)) (Pos f2 l2 (c2 - diff) (o2 - diff))
+      mkRange (mkPos f1 l1 (c1 + diff) (o1 + diff)) (mkPos f2 l2 (c2 - diff) (o2 - diff))
 
     isFirstLineBlank :: Text -> Bool
     isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
@@ -244,7 +244,7 @@ digImplHoles parseStart filePath implText =
     Left err -> Left err
     Right _ ->
       -- use `Pos filePath 1 1 0` for relative position of the hole reported
-      case parseFragment (Pos filePath 1 1 0) implText of
+      case parseFragment (mkPos filePath 1 1 0) implText of
         Left _ -> error "should not happen"
         Right concreteImpl ->
           case collectFragmentHoles concreteImpl of
@@ -288,7 +288,7 @@ parseFragment fragmentStart fragment = do
     translateRange
       _fragmentStart@(Pos _ lineStart colStart coStart)
       (Pos path lineOffset colOffset coOffset) =
-        Pos path line col co
+        mkPos path line col co
         where
           line = lineStart + lineOffset - 1
           col =
