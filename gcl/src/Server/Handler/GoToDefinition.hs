@@ -32,7 +32,7 @@ handler uri lspPosition responder = do
                 case IntervalMap.lookup oldPos definitionLinks of
                   Nothing -> responder []
                   Just locationLink ->
-                    responder $ translateLocationLinks positionDelta [locationLink { LSP._targetUri = uri }]
+                    responder $ translateLocationLinks positionDelta [locationLink {LSP._targetUri = uri}]
               _ -> responder []
 
 -- TODO: currently, we assume source and target are in the same file

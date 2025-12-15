@@ -17,7 +17,7 @@ import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
 import Pretty.Predicate ()
 import Pretty.Typed ()
-import Prettyprinter ( Pretty(pretty) )
+import Prettyprinter (Pretty (pretty))
 import Server.Monad (ServerM)
 import qualified Server.Monad as Server
 import Syntax.Parser.Error (ParseError (..))
