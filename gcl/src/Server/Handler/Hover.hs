@@ -27,7 +27,7 @@ handler uri lspPosition responder = do
         Just FileState {hoverInfos, positionDelta, toOffsetMap} -> do
           case fromDelta positionDelta lspPosition of
             PositionExact oldLspPosition -> do
-              let oldPos = SrcLoc.fromLSPPosition toOffsetMap filePath oldLspPosition
+              let oldPos = SrcLoc.fromLSPPosition toOffsetMap oldLspPosition
               case IntervalMap.lookup oldPos hoverInfos of
                 Nothing -> do
                   logText "hover: not exist - no information for this position\n"

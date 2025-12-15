@@ -53,10 +53,8 @@ module Data.Loc.Range
   ( Range (Range), -- only the type and the pattern, the constructor is hidden
     mkRange, -- forcing users to use this constructor
     R (..),
-    ShortRange (..),
     rangeStart,
     rangeEnd,
-    rangeFile,
     mergeRangesUnsafe,
     mergeRanges,
     rangeSpan,
@@ -74,7 +72,6 @@ module Data.Loc.Range
     mkPos, -- forcing users to use this constructor
     posLine,
     posCol,
-    posFile,
     posCoff,
     displayPos,
   )
@@ -88,7 +85,6 @@ import Data.Aeson
     (.:),
     (.=),
   )
-import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Loc as IncLoc
@@ -99,39 +95,42 @@ import Prettyprinter (Pretty (pretty))
 -- Pos
 --------------------------------------------------------------------------------
 
--- | Position in a source file. Wraps Data.Loc.Pos to hide its constructor.
-newtype Pos = Pos_ IncLoc.Pos
+-- | Position in a source file.
+data Pos = Pos_
+  { -- | 1-based line number
+    _posLine :: !Int,
+    -- | 1-based column number
+    _posCol :: !Int,
+    -- | 0-based byte offset
+    _posCoff :: !Int
+  }
   deriving (Eq, Ord)
 
 -- | Pattern synonym for Pos, use mkPos to construct
-pattern Pos :: String -> Int -> Int -> Int -> Pos
-pattern Pos file line col byte <- Pos_ (IncLoc.Pos file line col byte) -- "<-" single direction pattern: only for matching, not for constructing
+pattern Pos :: Int -> Int -> Int -> Pos
+pattern Pos line col byte <- Pos_ line col byte -- "<-" single direction pattern: only for matching, not for constructing
 
 {-# COMPLETE Pos #-}
 
 -- | The only way to construct a Pos
-mkPos :: String -> Int -> Int -> Int -> Pos
-mkPos f l c b = Pos_ (IncLoc.Pos f l c b)
+mkPos :: Int -> Int -> Int -> Pos
+mkPos = Pos_
 
 -- | Get the line number (1-based)
 posLine :: Pos -> Int
-posLine (Pos_ p) = IncLoc.posLine p
+posLine (Pos_ l _ _) = l
 
 -- | Get the column number (1-based)
 posCol :: Pos -> Int
-posCol (Pos_ p) = IncLoc.posCol p
-
--- | Get the file path
-posFile :: Pos -> FilePath
-posFile (Pos_ p) = IncLoc.posFile p
+posCol (Pos_ _ c _) = c
 
 -- | Get the character offset (0-based)
 posCoff :: Pos -> Int
-posCoff (Pos_ p) = IncLoc.posCoff p
+posCoff (Pos_ _ _ o) = o
 
 -- | Display position as a string
 displayPos :: Pos -> String
-displayPos (Pos_ p) = IncLoc.displayPos p
+displayPos (Pos l c _) = show l ++ ":" ++ show c
 
 instance Show Pos where
   show = displayPos
@@ -165,8 +164,7 @@ instance Show Range where
   show (Range start end) =
     if posLine start == posLine end
       then
-        posFile start
-          <> " ["
+        "["
           <> show (posCoff start)
           <> "-"
           <> show (posCoff end)
@@ -177,8 +175,7 @@ instance Show Range where
           <> "-"
           <> show (posCol end)
       else
-        posFile start
-          <> " ["
+        "["
           <> show (posCoff start)
           <> "-"
           <> show (posCoff end)
@@ -198,10 +195,6 @@ rangeStart (Range a _) = a
 -- | Ending position of the range
 rangeEnd :: Range -> Pos
 rangeEnd (Range _ b) = b
-
--- | Filepath of the range
-rangeFile :: Range -> FilePath
-rangeFile (Range a _) = posFile a
 
 mergeRangesUnsafe :: [Range] -> Range
 mergeRangesUnsafe [] = error "mergeRangesUnsafe: empty list"
@@ -300,10 +293,9 @@ rangeOfR (R range _) = range
 
 -- | Make Pos instances of FromJSON and ToJSON
 instance ToJSON Pos where
-  toJSON (Pos file line col byte) =
+  toJSON (Pos line col byte) =
     object
-      [ "file" .= file,
-        "line" .= line,
+      [ "line" .= line,
         "column" .= col,
         "byte" .= byte
       ]
@@ -311,8 +303,7 @@ instance ToJSON Pos where
 instance FromJSON Pos where
   parseJSON = withObject "Pos" $ \v ->
     mkPos
-      <$> v .: "file"
-      <*> v .: "line"
+      <$> v .: "line"
       <*> v .: "column"
       <*> v .: "byte"
 
@@ -336,8 +327,7 @@ instance Pretty Range where
   pretty (Range start end) =
     if posLine start == posLine end
       then
-        pretty (posFile start)
-          <> " ["
+        "["
           <> pretty (posCoff start)
           <> "-"
           <> pretty (posCoff end)
@@ -348,8 +338,7 @@ instance Pretty Range where
           <> "-"
           <> pretty (posCol end)
       else
-        pretty (posFile start)
-          <> " ["
+        "["
           <> pretty (posCoff start)
           <> "-"
           <> pretty (posCoff end)
@@ -366,50 +355,6 @@ instance Pretty Pos where
   pretty = pretty . displayPos
 
 --------------------------------------------------------------------------------
-
--- | Like Range but a special  Show &Pretty instance, won't display the full path
-newtype ShortRange = ShortRange {unShortRange :: Range}
-
-instance Show ShortRange where
-  show (ShortRange (Range start end)) =
-    let path = case split '/' (posFile start) of
-          [] -> []
-          xs -> last xs
-     in if posLine start == posLine end
-          then
-            path
-              <> " ["
-              <> show (posCoff start)
-              <> "-"
-              <> show (posCoff end)
-              <> "] "
-              <> show (posLine start)
-              <> ":"
-              <> show (posCol start)
-              <> "-"
-              <> show (posCol end)
-          else
-            path
-              <> " ["
-              <> show (posCoff start)
-              <> "-"
-              <> show (posCoff end)
-              <> "] "
-              <> show (posLine start)
-              <> ":"
-              <> show (posCol start)
-              <> "-"
-              <> show (posLine end)
-              <> ":"
-              <> show (posCol end)
-    where
-      split :: Char -> String -> [String]
-      split c = filter (/= [c]) . List.groupBy (\x y -> x /= c && y /= c)
-
-instance Pretty ShortRange where
-  pretty = pretty . show
-
---------------------------------------------------------------------------------
 -- Conversion from Data.Loc
 --------------------------------------------------------------------------------
 
@@ -422,5 +367,5 @@ instance Pretty ShortRange where
 --   - end-exclusive: end column is 3 (pointing past 'B')
 fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
 fromInclusiveLoc IncLoc.NoLoc = Nothing
-fromInclusiveLoc (IncLoc.Loc p1 (IncLoc.Pos f2 l2 c2 co2)) =
-  Just $ mkRange (Pos_ p1) (mkPos f2 l2 (c2 + 1) (co2 + 1))
+fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos _ l1 c1 co1) (IncLoc.Pos _ l2 c2 co2)) =
+  Just $ mkRange (mkPos l1 c1 co1) (mkPos l2 (c2 + 1) (co2 + 1))

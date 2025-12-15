@@ -375,7 +375,7 @@ parseError =
     [ testCase "variable keyword collision" $
         runDeclaration
           "var if : Int"
-          "Parse Error <test> [4-6] 1:5-7 unexpected 'if'\nexpecting identifier\n"
+          "Parse Error [4-6] 1:5-7 unexpected 'if'\nexpecting identifier\n"
           -- TODO: failing test - quant with parentheses
           -- testCase "quant with parentheses" $
           --   runExpr

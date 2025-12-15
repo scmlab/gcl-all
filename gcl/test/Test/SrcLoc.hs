@@ -56,7 +56,7 @@ compareWithPositionTests =
     ]
   where
     run :: Int -> Item -> Ordering
-    run offset item = compareWithPositionR (mkPos "" 1 1 offset) item
+    run offset item = compareWithPositionR (mkPos 1 1 offset) item
 
 --------------------------------------------------------------------------------
 
@@ -90,7 +90,7 @@ sortingOriginsTests =
     ]
   where
     mk :: Int -> Int -> Origin
-    mk a b = AtSkip (Just (mkRange (mkPos "" 1 (a + 1) a) (mkPos "" 1 (b + 1) b)))
+    mk a b = AtSkip (Just (mkRange (mkPos 1 (a + 1) a) (mkPos 1 (b + 1) b)))
 
 --------------------------------------------------------------------------------
 
@@ -111,7 +111,7 @@ withinRangeTests =
     ]
   where
     run :: (Int, Int) -> Item -> Bool
-    run (start, end) item = withinRangeR (mkRange (mkPos "" 1 1 start) (mkPos "" 1 1 end)) item
+    run (start, end) item = withinRangeR (mkRange (mkPos 1 1 start) (mkPos 1 1 end)) item
 
 -- | For testing selection related stuff
 newtype Item = Item {unItem :: Range}
@@ -122,7 +122,7 @@ instance Show Item where
     Range start end -> "Item " <> show (posCoff start) <> " " <> show (posCoff end)
 
 make :: Int -> Int -> Item
-make start end = Item (mkRange (mkPos "" 1 (start + 1) start) (mkPos "" 1 (end + 1) end))
+make start end = Item (mkRange (mkPos 1 (start + 1) start) (mkPos 1 (end + 1) end))
 
 instance Ranged Item where
   rangeOf = unItem

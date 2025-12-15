@@ -28,10 +28,11 @@ handler uri lspPosition responder = do
             } -> do
             case (fromDelta positionDelta) lspPosition of
               PositionExact oldLspPosition -> do
-                let oldPos = SrcLoc.fromLSPPosition toOffsetMap filePath oldLspPosition
+                let oldPos = SrcLoc.fromLSPPosition toOffsetMap oldLspPosition
                 case IntervalMap.lookup oldPos definitionLinks of
                   Nothing -> responder []
-                  Just locationLink -> responder $ translateLocationLinks positionDelta [locationLink]
+                  Just locationLink ->
+                    responder $ translateLocationLinks positionDelta [locationLink { LSP._targetUri = uri }]
               _ -> responder []
 
 -- TODO: currently, we assume source and target are in the same file

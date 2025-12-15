@@ -17,7 +17,7 @@ import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
 import Pretty.Predicate ()
 import Pretty.Typed ()
-import Prettyprinter
+import Prettyprinter ( Pretty(pretty) )
 import Server.Monad (ServerM)
 import qualified Server.Monad as Server
 import Syntax.Parser.Error (ParseError (..))
@@ -65,7 +65,7 @@ instance JSON.ToJSON Error where
       ]
 
 toLspPositionJSON :: Pos -> JSON.Value
-toLspPositionJSON (Pos filepath line column offset) =
+toLspPositionJSON (Pos line column _offset) =
   object
     [ "line" .= JSON.toJSON (line - 1),
       "character" .= JSON.toJSON (column - 1)
