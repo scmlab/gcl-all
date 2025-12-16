@@ -291,7 +291,10 @@ rangeOfR (R range _) = range
 
 --------------------------------------------------------------------------------
 
--- | Make Pos instances of FromJSON and ToJSON
+-- | ToJSON instances for Pos and Range
+-- NOTE: These use 1-based line/column as internal representation format.
+--       DO NOT use these directly for LSP communication!
+--       For LSP (0-based with "character" field), use Server.Notification.Error.toLspPositionJSON/toLspRangeJSON
 instance ToJSON Pos where
   toJSON (Pos line col byte) =
     object
@@ -299,20 +302,6 @@ instance ToJSON Pos where
         "column" .= col,
         "byte" .= byte
       ]
-
-instance FromJSON Pos where
-  parseJSON = withObject "Pos" $ \v ->
-    mkPos
-      <$> v .: "line"
-      <*> v .: "column"
-      <*> v .: "byte"
-
--- | Make Range instances  of FromJSON and ToJSON
-instance FromJSON Range where
-  parseJSON = withObject "Range" $ \v ->
-    mkRange
-      <$> v .: "start"
-      <*> v .: "end"
 
 instance ToJSON Range where
   toJSON (Range start end) =

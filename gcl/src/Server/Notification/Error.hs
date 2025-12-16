@@ -9,7 +9,7 @@ module Server.Notification.Error where
 import Data.Aeson (object, (.=))
 import qualified Data.Aeson as JSON
 import Data.List.NonEmpty (NonEmpty ((:|)))
-import Data.Loc.Range (Pos (..), Range)
+import Data.Loc.Range (Pos (..), Range (..))
 import Data.Proxy (Proxy (Proxy))
 import qualified Data.Text as Text
 import Error (Error (..))
@@ -20,6 +20,7 @@ import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Server.Monad (ServerM)
 import qualified Server.Monad as Server
+import Syntax.Common.Types (Name (..))
 import Syntax.Parser.Error (ParseError (..))
 
 sendErrorNotification :: FilePath -> [Error] -> ServerM ()
@@ -61,7 +62,7 @@ instance JSON.ToJSON Error where
       [ "tag" .= JSON.String "Others",
         "title" .= JSON.toJSON title,
         "message" .= JSON.toJSON message,
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLspRangeJSON loc
       ]
 
 toLspPositionJSON :: Pos -> JSON.Value
@@ -69,6 +70,22 @@ toLspPositionJSON (Pos line column _offset) =
   object
     [ "line" .= JSON.toJSON (line - 1),
       "character" .= JSON.toJSON (column - 1)
+    ]
+
+-- | Convert a Range to LSP format (0-based line/character)
+toLspRangeJSON :: Range -> JSON.Value
+toLspRangeJSON (Range start end) =
+  object
+    [ "start" .= toLspPositionJSON start,
+      "end" .= toLspPositionJSON end
+    ]
+
+-- | Convert a Name to LSP format JSON
+toLspNameJSON :: Name -> JSON.Value
+toLspNameJSON (Name text loc) =
+  object
+    [ "symbol" .= text,
+      "location" .= fmap toLspRangeJSON loc
     ]
 
 instance JSON.ToJSON ParseError where
@@ -91,7 +108,7 @@ instance JSON.ToJSON ParseError where
           map
             ( \(range, s) ->
                 object
-                  [ "location" .= JSON.toJSON range,
+                  [ "location" .= fmap toLspRangeJSON range,
                     "symbol" .= JSON.toJSON s
                   ]
             )
@@ -102,40 +119,40 @@ instance JSON.ToJSON TypeError where
   toJSON (NotInScope symbol) =
     object
       [ "tag" .= JSON.String "NotInScope",
-        "symbol" .= JSON.toJSON symbol
+        "symbol" .= toLspNameJSON symbol
       ]
   toJSON (UnifyFailed type1 type2 loc) =
     object
       [ "tag" .= JSON.String "UnifyFailed",
-        "location" .= JSON.toJSON loc,
+        "location" .= fmap toLspRangeJSON loc,
         "typeExpressions" .= JSON.toJSON (map (show . pretty) [type1, type2])
       ]
   toJSON (RecursiveType n t loc) =
     object
       [ "tag" .= JSON.String "RecursiveType",
-        "typeVariable" .= JSON.toJSON n,
+        "typeVariable" .= toLspNameJSON n,
         "typeExpression" .= t,
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLspRangeJSON loc
       ]
   toJSON (AssignToConst name) =
     object
       [ "tag" .= JSON.String "AssignToConst",
-        "constSymbol" .= JSON.toJSON name
+        "constSymbol" .= toLspNameJSON name
       ]
   toJSON (UndefinedType name) =
     object
       [ "tag" .= JSON.String "UndefinedType",
-        "typeVariable" .= JSON.toJSON name
+        "typeVariable" .= toLspNameJSON name
       ]
   toJSON (DuplicatedIdentifiers names) =
     object
       [ "tag" .= JSON.String "DuplicatedIdentifiers",
-        "identifiers" .= JSON.toJSON (map JSON.toJSON names)
+        "identifiers" .= JSON.toJSON (map toLspNameJSON names)
       ]
   toJSON (RedundantNames names) =
     object
       [ "tag" .= JSON.String "RedundantNames",
-        "names" .= JSON.toJSON (map JSON.toJSON names)
+        "names" .= JSON.toJSON (map toLspNameJSON names)
       ]
   toJSON (RedundantExprs expressions) =
     object
@@ -145,19 +162,19 @@ instance JSON.ToJSON TypeError where
   toJSON (MissingArguments names) =
     object
       [ "tag" .= JSON.String "MissingArguments",
-        "argumentNames" .= JSON.toJSON (map JSON.toJSON names)
+        "argumentNames" .= JSON.toJSON (map toLspNameJSON names)
       ]
   -- FIXME: Implement these.
   toJSON (KindUnifyFailed kind1 kind2 loc) =
     object
       [ "tag" .= JSON.String "KindUnifyFailed",
-        "location" .= JSON.toJSON loc,
+        "location" .= fmap toLspRangeJSON loc,
         "kindExpressions" .= JSON.toJSON (map (show . pretty) [kind1, kind2])
       ]
   toJSON (PatternArityMismatch expected actual loc) =
     object
       [ "tag" .= JSON.String "PatternArityMismatch",
-        "location" .= JSON.toJSON loc,
+        "location" .= fmap toLspRangeJSON loc,
         "expected" .= JSON.toJSON expected,
         "received" .= JSON.toJSON actual
       ]
@@ -167,20 +184,20 @@ instance JSON.ToJSON StructError where
   toJSON (MissingAssertion loc) =
     object
       [ "tag" .= JSON.String "MissingAssertion",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLspRangeJSON loc
       ]
   toJSON (MissingPostcondition loc) =
     object
       [ "tag" .= JSON.String "MissingPostcondition",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLspRangeJSON loc
       ]
   toJSON (MultiDimArrayAsgnNotImp loc) =
     object
       [ "tag" .= JSON.String "MultiDimArrayAsgnNotImp",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLspRangeJSON loc
       ]
   toJSON (LocalVarExceedScope loc) =
     object
       [ "tag" .= JSON.String "LocalVarExceedScope",
-        "location" .= JSON.toJSON loc
+        "location" .= fmap toLspRangeJSON loc
       ]
