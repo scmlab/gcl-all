@@ -291,34 +291,30 @@ rangeOfR (R range _) = range
 
 --------------------------------------------------------------------------------
 
--- | Make Pos instances of FromJSON and ToJSON
 instance ToJSON Pos where
-  toJSON (Pos line col byte) =
-    object
-      [ "line" .= line,
-        "column" .= col,
-        "byte" .= byte
-      ]
+  toJSON = error "ToJSON Pos is not supported. Use Range for serialization."
 
 instance FromJSON Pos where
-  parseJSON = withObject "Pos" $ \v ->
-    mkPos
-      <$> v .: "line"
-      <*> v .: "column"
-      <*> v .: "byte"
+  parseJSON = error "FromJSON Pos is not supported."
 
--- | Make Range instances  of FromJSON and ToJSON
 instance FromJSON Range where
-  parseJSON = withObject "Range" $ \v ->
-    mkRange
-      <$> v .: "start"
-      <*> v .: "end"
+  parseJSON = error "FromJSON Range is not supported."
 
+-- | Convert Range to LSP Range JSON representation
+-- TODO: This is actually a "toLSPRangeJSON", not a general ToJSON instance.
 instance ToJSON Range where
-  toJSON (Range start end) =
+  toJSON (Range (Pos line col _) (Pos line' col' _)) =
     object
-      [ "start" .= start,
-        "end" .= end
+      [ "start"
+          .= object
+            [ "line" .= (line - 1),
+              "character" .= (col - 1)
+            ],
+        "end"
+          .= object
+            [ "line" .= (line' - 1),
+              "character" .= (col' - 1)
+            ]
       ]
 
 --------------------------------------------------------------------------------
