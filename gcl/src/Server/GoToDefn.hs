@@ -12,11 +12,10 @@ import Data.Loc.Range
   ( MaybeRanged,
     Range,
     maybeRangeOf,
-    rangeFile,
   )
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Text (Text)
+import qualified Data.Text as Text
 import Language.LSP.Protocol.Types (LocationLink (..))
 import qualified Language.LSP.Protocol.Types as J
 import Server.IntervalMap
@@ -38,7 +37,7 @@ type LocationLinkToBe = Range -> LocationLink
 programToScopes :: Program -> [Scope LocationLinkToBe]
 programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a single scope for now
   where
-    topLevelScope :: Map Text LocationLinkToBe
+    topLevelScope :: Map Text.Text LocationLinkToBe
     topLevelScope = Map.mapKeys nameToText locationLinks
 
     locationLinks :: Map Name LocationLinkToBe
@@ -106,7 +105,8 @@ makeLocationLinks = Map.mapMaybeWithKey $ \name target -> do
               Just $
                 SrcLoc.toLSPRange originSelectionRange,
             -- The target resource identifier of this link.
-            J._targetUri = J.filePathToUri (rangeFile targetRange),
+            -- NOTE: Left empty here, will be filled in by the handler with the actual filePath
+            J._targetUri = J.Uri Text.empty,
             -- The full target range of this link. If the target for example is a
             -- symbol then target range is the range enclosing this symbol not including
             -- leading/trailing whitespace but everything else like comments. This
