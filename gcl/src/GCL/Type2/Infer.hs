@@ -23,7 +23,6 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), ChainOp (..), Name (Name), Op (..), TypeOp (..))
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)
-import Data.Aeson (Value(Bool))
 
 newtype Inference = Inference
   { _counter :: Int
@@ -62,13 +61,6 @@ checkDuplicateNames names =
 -- prevent infintite types by checking if the type occurs in itself
 checkOccurs :: Name -> A.Type -> Bool
 checkOccurs name ty = Set.member name (freeTypeVars ty)
-
--- should be the operation `_ : _ ↓ _`
-typecheck :: A.Expr -> A.Type -> RSE Env Inference (Subst, T.Expr)
-typecheck expr ty = do
-  (s1, exprTy, typedExpr) <- infer expr
-  s2 <- lift $ unify exprTy ty (locOf expr)
-  return (s2 <> s1, typedExpr)
 
 -- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
@@ -140,6 +132,19 @@ instantiate (Forall tvs ty) = do
   let subst = Map.fromList mappings
   return $ applySubst subst ty
 
+generalize :: A.Type -> RSE Env Inference Scheme
+generalize ty = do
+  env <- ask
+  let freeVars = freeTypeVars ty `Set.difference` freeTypeVarsEnv env
+  return $ Forall (Set.toAscList freeVars) ty
+
+-- the operation `_ : _ ↓ _`
+typeCheck :: A.Expr -> A.Type -> RSE Env Inference (Subst, T.Expr)
+typeCheck expr ty = do
+  (s1, exprTy, typedExpr) <- infer expr
+  s2 <- lift $ unify exprTy ty (locOf expr)
+  return (s2 <> s1, typedExpr)
+
 freeTypeVars :: A.Type -> Set TyVar
 freeTypeVars A.TBase {} = mempty
 freeTypeVars (A.TArray _ ty _) = freeTypeVars ty
@@ -159,12 +164,6 @@ freeTypeVarsScheme :: Scheme -> Set TyVar
 freeTypeVarsScheme (Forall tvs ty) =
   freeTypeVars ty `Set.difference` Set.fromList tvs -- remove quantified tyvars
 
-generalize :: A.Type -> RSE Env Inference Scheme
-generalize ty = do
-  env <- ask
-  let freeVars = freeTypeVars ty `Set.difference` freeTypeVarsEnv env
-  return $ Forall (Set.toAscList freeVars) ty
-
 unify :: A.Type -> A.Type -> Loc -> Result Subst
 unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
 unify (A.TArray _i1 t1 _) (A.TArray _i2 t2 _) l = unify t1 t2 l
@@ -179,11 +178,9 @@ unify (A.TApp a1 a2 _) (A.TApp b1 b2 _) l = do
   return $ s2 <> s1
 unify (A.TVar name _) ty l = unifyVar name ty l
 unify ty (A.TVar name _) l = unifyVar name ty l
-unify (A.TMetaVar name _) ty l = unifyVar name ty l
-unify ty (A.TMetaVar name _) l = unifyVar name ty l
 unify t1 t2 l =
   trace
-    (show (t1) <> "\n" <> show (t2))
+    (show (pretty t1) <> "\n" <> show (pretty t2))
     throwError
     $ UnifyFailed t1 t2 l
 
@@ -290,37 +287,36 @@ inferLam param body loc = do
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody loc)
 
 inferArrIdx :: A.Expr -> A.Expr -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferArrIdx arr index _loc = do
+inferArrIdx arr index loc = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
-  -- arrSubst <- lift $ unify arrTy (typeInt `typeToType` ftv) (locOf arr)
-  (sa, arrTy, typedArr) <- infer arr
-  let (_interval, ty, loc) =
-          case arrTy of
-            (A.TArray i t l) -> (i, t, l)
-            _ -> error ""
-  (si, typedIndex) <- local (applySubstEnv sa) (typecheck index typeInt)
+
+  -- TODO: check interval type is `Int`
+
+  ftv <- freshTVar
+  (sa, typedArr) <- typeCheck arr (typeInt `typeToType` ftv)
+  (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
 
   let resultSubst = si <> sa
-  return (resultSubst, applySubst si ty, T.ArrIdx typedArr typedIndex loc)
+  return (resultSubst, applySubst si ftv, T.ArrIdx typedArr typedIndex loc)
 
 -- TODO: verify this is correct
 inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferArrUpd arr index expr _loc = do
+inferArrUpd arr index expr loc = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
-  -- (sa, typedArr) <- check arr (typeInt `typeToType` ftv)
-  (sa, arrTy, typedArr) <- infer arr
-  let (interval, ty, loc) =
-          case arrTy of
-            (A.TArray i t l) -> (i, t, l)
-            _ -> error ""
 
-  (si, typedIndex) <- local (applySubstEnv sa) (typecheck index typeInt)
-  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typecheck expr (applySubst si ty))
+  ftv <- freshTVar
+  (sa, typedArr, interval) <- do
+    (s1, exprTy, typedExpr) <- infer arr
+    let interval' = case exprTy of A.TArray i _ _ -> i; _ -> error "impossible"
+    s2 <- lift $ unify exprTy (typeInt `typeToType` ftv) (locOf arr)
+    return (s2 <> s1, typedExpr, interval')
+  (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
+  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv))
 
   let resultSubst = se <> si <> sa
-  return (resultSubst, A.TArray interval (applySubst si ty) loc, T.ArrUpd typedArr typedIndex typedExpr loc)
+  return (resultSubst, A.TArray interval (applySubst si ftv) loc, T.ArrUpd typedArr typedIndex typedExpr loc)
 
 getArithOpType :: ArithOp -> RSE Env Inference A.Type
 getArithOpType Implies {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
@@ -368,6 +364,7 @@ inferTypeOp :: TypeOp -> RSE Env Inference (Subst, A.Type, Op)
 inferTypeOp op = undefined
 
 infixr 1 `typeToType`
+
 -- | construct a type of `a -> b`
 typeToType :: A.Type -> A.Type -> A.Type
 typeToType t1 t2 = A.TApp (A.TApp (A.TOp (Arrow NoLoc)) t1 NoLoc) t2 NoLoc

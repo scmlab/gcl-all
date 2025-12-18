@@ -6,7 +6,7 @@
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
-import Data.Loc (Loc)
+import Data.Loc (Loc, Located (locOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
@@ -72,12 +72,15 @@ instance ToTyped A.Program T.Program where
     typedDefns <-
       mapM
         ( \defn -> do
+            -- TODO: make declaration in order
+            -- TODO: check array interval type is int
             local (const declEnv) (toTyped defn)
         )
         defns
     typedDecls <-
       mapM
         ( \decl -> do
+            traceM $ show decl
             local (const declEnv) (toTyped decl)
         )
         decls
@@ -119,7 +122,16 @@ instance ToTyped A.Declaration T.Declaration where
         return $ T.VarDecl names ty Nothing loc
 
 instance ToTyped A.Stmt T.Stmt where
+  toTyped (A.Skip loc) = return (T.Skip loc)
+  toTyped (A.Abort loc) = return (T.Abort loc)
   toTyped (A.Assign names exprs loc) = toTypedAssign names exprs loc
+  toTyped (A.AAssign arr index expr loc) = toTypedAAssign arr index expr loc
+  toTyped (A.Assert expr loc) = toTypedAssert expr loc
+  toTyped (A.LoopInvariant e1 e2 loc) = toTypedLoopInvariant e1 e2 loc
+  toTyped (A.Do gds loc) = toTypedDo gds loc
+  toTyped (A.If gds loc) = toTypedIf gds loc
+  toTyped (A.Spec text range) = undefined
+  toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
   toTyped _stmt = trace (show _stmt) undefined
 
 toTypedAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
@@ -143,6 +155,61 @@ toTypedAssign names exprs loc
           assignments
       return $ T.Assign names typedExprs loc
 
+toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Loc -> RSE Env Inference T.Stmt
+toTypedAAssign arr index expr loc = do
+  ftv <- freshTVar
+  (sa, typedArr) <- typeCheck arr (typeInt `typeToType` ftv)
+  (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
+  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr ftv)
+
+  let resultSubst = se <> si <> sa
+  let resultStmt =
+        T.AAssign
+          (applySubstExpr resultSubst typedArr)
+          (applySubstExpr resultSubst typedIndex)
+          (applySubstExpr resultSubst typedExpr)
+          loc
+
+  return resultStmt
+
+toTypedAssert :: A.Expr -> Loc -> RSE Env Inference T.Stmt
+toTypedAssert expr loc = do
+  (s1, exprTy, typedExpr) <- infer expr
+  s2 <- lift $ unify (applySubst s1 exprTy) typeBool (locOf expr)
+  return (T.Assert (applySubstExpr (s2 <> s1) typedExpr) loc)
+
+toTypedLoopInvariant :: A.Expr -> A.Expr -> Loc -> RSE Env Inference T.Stmt
+toTypedLoopInvariant e1 e2 loc = do
+  (e1Subst, typedE1) <- typeCheck e1 typeBool
+  (e2Subst, typedE2) <- local (applySubstEnv e1Subst) (typeCheck e2 typeBool)
+
+  let resultSubst = e2Subst <> e1Subst
+  let resultStmt =
+        T.LoopInvariant
+          (applySubstExpr resultSubst typedE1)
+          (applySubstExpr resultSubst typedE2)
+          loc
+
+  return resultStmt
+
+toTypedDo :: [A.GdCmd] -> Loc -> RSE Env Inference T.Stmt
+toTypedDo gds loc = do
+  typedGds <- mapM toTyped gds
+  return (T.Do typedGds loc)
+
+toTypedIf :: [A.GdCmd] -> Loc -> RSE Env Inference T.Stmt
+toTypedIf gds loc = do
+  typedGds <- mapM toTyped gds
+  return (T.If typedGds loc)
+
+instance ToTyped A.GdCmd T.GdCmd where
+  toTyped (A.GdCmd expr stmts loc) = do
+    (exprSubst, typedExpr) <- typeCheck expr typeBool
+    -- XXX: i'm not sure if this is correct
+    typedStmts <- mapM toTyped stmts
+
+    return (T.GdCmd (applySubstExpr exprSubst typedExpr) typedStmts loc)
+
 instance ToTyped A.Expr T.Expr where
   toTyped expr = do
     (subst, ty, typed) <- infer expr
@@ -155,7 +222,7 @@ instance ToTyped A.Expr T.Expr where
     traceM $ show (pretty ty)
     traceM $ show subst
     -- traceM $ "\n" <> Hack.sshow typed <> "\n"
-    return typed
+    return typed'
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t
 runToTyped a env = evalRSE (toTyped a) env (Inference 0)
