@@ -1,4 +1,3 @@
-import { Location } from "vscode";
 import { Range } from "vscode-languageclient";
 import { Error } from "./Error"
 
@@ -25,9 +24,7 @@ export interface IProofObligation {
     proofLocation?: Range;
     origin: {
         tag: "Abort" | "Skip" | "Spec" | "Assignment" | "Assertion" | "Conditional" | "Loop invariant" | "Loop termination";
-        location?: {
-            filePath: string;
-        } & Range;
+        location?: Range;
         explanation?: string;
     }
 }
