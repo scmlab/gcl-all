@@ -18,6 +18,7 @@ where
 
 import Data.Aeson (object, (.=))
 import qualified Data.Aeson as JSON
+import Data.Loc.Range (MaybeRanged (..))
 import qualified Data.Text as Text
 import qualified GCL.Predicate as GCL
 import qualified GCL.WP.Types as GCL
@@ -25,6 +26,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import Pretty.Predicate ()
 import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
+import Render.Class (Render (..))
 import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPRange)
 
@@ -103,59 +105,12 @@ convertPO (GCL.PO {GCL.poPre, GCL.poPost, GCL.poAnchorHash, GCL.poAnchorRange, G
     }
 
 -- | Convert server-side Origin to client-side POOrigin
+-- Uses the Render instance to get the tag name and MaybeRanged to get location
 convertOrigin :: GCL.Origin -> POOrigin
-convertOrigin (GCL.AtAbort loc) =
+convertOrigin origin =
   POOrigin
-    { tag = "Abort",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtSkip loc) =
-  POOrigin
-    { tag = "Skip",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtSpec loc) =
-  POOrigin
-    { tag = "Spec",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtAssignment loc) =
-  POOrigin
-    { tag = "Assignment",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtAssertion loc) =
-  POOrigin
-    { tag = "Assertion",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtIf loc) =
-  POOrigin
-    { tag = "Conditional",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtLoop loc) =
-  POOrigin
-    { tag = "Loop invariant",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.AtTermination loc) =
-  POOrigin
-    { tag = "Loop termination",
-      location = fmap toLSPRange loc,
-      explanation = Nothing
-    }
-convertOrigin (GCL.Explain {GCL.originHeader, GCL.originRange}) =
-  POOrigin
-    { tag = originHeader,
-      location = fmap toLSPRange originRange,
+    { tag = Text.pack (show (render origin)),
+      location = fmap toLSPRange (maybeRangeOf origin),
       explanation = Nothing
     }
 
