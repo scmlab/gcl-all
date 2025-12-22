@@ -17,7 +17,7 @@ module Server.ToClient
   )
 where
 
-import Data.Aeson (defaultOptions, genericToJSON, object, (.=))
+import Data.Aeson (defaultOptions, genericToJSON)
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.Types as JSON (Options (..))
 import Data.Loc.Range (MaybeRanged (..))
@@ -40,7 +40,7 @@ data FileState = FileState
     pos :: [ProofObligation],
     warnings :: [StructWarning]
   }
-  deriving (Show)
+  deriving (Show, Generic)
 
 -- | Client-side Specification type (matches TypeScript ISpecification)
 data Specification = Specification
@@ -49,7 +49,7 @@ data Specification = Specification
     postCondition :: String,
     specRange :: LSP.Range
   }
-  deriving (Show)
+  deriving (Show, Generic)
 
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
@@ -59,7 +59,7 @@ data ProofObligation = ProofObligation
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
   }
-  deriving (Show)
+  deriving (Show, Generic)
 
 -- | Client-side POOrigin type (matches TypeScript origin type)
 data POOrigin = POOrigin
@@ -67,7 +67,7 @@ data POOrigin = POOrigin
     location :: Maybe LSP.Range,
     explanation :: Maybe String
   }
-  deriving (Show)
+  deriving (Show, Generic)
 
 -- | Client-side StructWarning type (matches TypeScript IStructWarning)
 data StructWarning
@@ -126,45 +126,19 @@ convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 
 instance JSON.ToJSON FileState where
   toJSON :: FileState -> JSON.Value
-  toJSON FileState {filePath, specs, pos, warnings} =
-    object
-      [ "filePath" .= JSON.toJSON filePath,
-        "specs" .= JSON.toJSON specs,
-        "pos" .= JSON.toJSON pos,
-        "warnings" .= JSON.toJSON warnings
-      ]
+  toJSON = genericToJSON defaultOptions
 
 instance JSON.ToJSON Specification where
   toJSON :: Specification -> JSON.Value
-  toJSON Specification {specID, preCondition, postCondition, specRange} =
-    object
-      [ "specID" .= JSON.toJSON specID,
-        "preCondition" .= JSON.toJSON preCondition,
-        "postCondition" .= JSON.toJSON postCondition,
-        "specRange" .= JSON.toJSON specRange
-      ]
+  toJSON = genericToJSON defaultOptions
 
 instance JSON.ToJSON ProofObligation where
   toJSON :: ProofObligation -> JSON.Value
-  toJSON ProofObligation {assumption, goal, hash, proofLocation, origin} =
-    object
-      [ "assumption" .= JSON.toJSON assumption,
-        "goal" .= JSON.toJSON goal,
-        "hash" .= JSON.toJSON hash,
-        "proofLocation" .= case proofLocation of
-          Nothing -> JSON.Null
-          Just range -> JSON.toJSON range,
-        "origin" .= JSON.toJSON origin
-      ]
+  toJSON = genericToJSON defaultOptions
 
 instance JSON.ToJSON POOrigin where
   toJSON :: POOrigin -> JSON.Value
-  toJSON POOrigin {tag, location, explanation} =
-    object
-      [ "tag" .= JSON.String tag,
-        "location" .= fmap JSON.toJSON location,
-        "explanation" .= fmap JSON.toJSON explanation
-      ]
+  toJSON = genericToJSON defaultOptions
 
 instance JSON.ToJSON StructWarning where
   toJSON :: StructWarning -> JSON.Value
