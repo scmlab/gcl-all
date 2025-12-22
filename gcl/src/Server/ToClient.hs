@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -16,9 +17,11 @@ module Server.ToClient
   )
 where
 
-import Data.Aeson (object, (.=))
+import Data.Aeson (defaultOptions, genericToJSON, object, (.=))
 import qualified Data.Aeson as JSON
+import qualified Data.Aeson.Types as JSON (Options (..))
 import Data.Loc.Range (MaybeRanged (..))
+import GHC.Generics (Generic)
 import qualified Data.Text as Text
 import qualified GCL.Predicate as GCL
 import qualified GCL.WP.Types as GCL
@@ -68,8 +71,8 @@ data POOrigin = POOrigin
 
 -- | Client-side StructWarning type (matches TypeScript IStructWarning)
 data StructWarning
-  = MissingBound LSP.Range
-  deriving (Show)
+  = MissingBound { range :: LSP.Range }
+  deriving (Show, Generic)
 
 -- | Convert server-side FileState to client-side FileState
 -- This function extracts only the fields needed by the client and
@@ -116,7 +119,7 @@ convertOrigin origin =
 
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
-convertWarning (GCL.MissingBound range) = MissingBound (toLSPRange range)
+convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 
 --------------------------------------------------------------------------------
 -- JSON instances for client types
@@ -165,8 +168,4 @@ instance JSON.ToJSON POOrigin where
 
 instance JSON.ToJSON StructWarning where
   toJSON :: StructWarning -> JSON.Value
-  toJSON (MissingBound range) =
-    object
-      [ "tag" .= JSON.String "MissingBound",
-        "range" .= JSON.toJSON range
-      ]
+  toJSON = genericToJSON defaultOptions {JSON.unwrapUnaryRecords = True}
