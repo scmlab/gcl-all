@@ -41,7 +41,7 @@ data FileState = FileState
 
 -- | Client-side Specification type (matches TypeScript ISpecification)
 data Specification = Specification
-  { specId :: String,
+  { specID :: String,
     preCondition :: String,
     postCondition :: String,
     specRange :: LSP.Range
@@ -87,7 +87,7 @@ convertFileState path serverFileState =
 convertSpec :: GCL.Spec -> Specification
 convertSpec (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specRange}) =
   Specification
-    { specId = show specID,
+    { specID = show specID,
       preCondition = show $ pretty specPreCond,
       postCondition = show $ pretty specPostCond,
       specRange = toLSPRange specRange
@@ -133,9 +133,9 @@ instance JSON.ToJSON FileState where
 
 instance JSON.ToJSON Specification where
   toJSON :: Specification -> JSON.Value
-  toJSON Specification {specId, preCondition, postCondition, specRange} =
+  toJSON Specification {specID, preCondition, postCondition, specRange} =
     object
-      [ "id" .= JSON.toJSON specId,
+      [ "specID" .= JSON.toJSON specID,
         "preCondition" .= JSON.toJSON preCondition,
         "postCondition" .= JSON.toJSON postCondition,
         "specRange" .= JSON.toJSON specRange

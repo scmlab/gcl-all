@@ -12,7 +12,7 @@ export interface FileState {
 }
 
 export interface ISpecification {
-	id: number;
+	specID: number;
 	preCondition: Predicate;
 	postCondition: Predicate;
 	specRange: Range;

@@ -36,6 +36,6 @@ export default function renderSpecification(specification: ISpecification) {
     "Specification",
     sectionBody,
     `at ${renderRange(specification.specRange)}`,
-    specification.id.toString()
+    specification.specID.toString()
   );
 }
