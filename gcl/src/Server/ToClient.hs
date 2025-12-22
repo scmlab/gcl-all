@@ -9,12 +9,8 @@
 -- The main purpose is to make the conversion from server to client explicit
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
-  ( FileState (..),
-    Specification (..),
-    ProofObligation (..),
-    StructWarning (..),
-    POOrigin (..),
-    convertFileState,
+  (
+    convertFileStateToJSON,
   )
 where
 
@@ -78,9 +74,15 @@ data StructWarning
   = MissingBound { range :: LSP.Range }
   deriving stock (Show, Generic)
 
+-- | Convert server-side FileState to JSON for client consumption
+-- This function extracts only the fields needed by the client,
+-- converts 1-based server ranges to 0-based LSP ranges,
+-- and serializes to JSON.
+convertFileStateToJSON :: FilePath -> Server.FileState -> JSON.Value
+convertFileStateToJSON path serverFileState =
+  JSON.toJSON (convertFileState path serverFileState)
+
 -- | Convert server-side FileState to client-side FileState
--- This function extracts only the fields needed by the client and
--- converts 1-based server ranges to 0-based LSP ranges.
 convertFileState :: FilePath -> Server.FileState -> FileState
 convertFileState path serverFileState =
   FileState

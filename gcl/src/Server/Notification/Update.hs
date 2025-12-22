@@ -3,7 +3,6 @@
 
 module Server.Notification.Update where
 
-import qualified Data.Aeson as JSON
 import Data.Proxy (Proxy (Proxy))
 import Server.Monad (ServerM, loadFileState)
 import qualified Server.Monad as Server
@@ -15,6 +14,5 @@ sendUpdateNotification filePath = do
   case maybeFileState of
     Nothing -> return ()
     Just fileState -> do
-      let clientFileState = ToClient.convertFileState filePath fileState
-      let json = JSON.toJSON clientFileState
+      let json = ToClient.convertFileStateToJSON filePath fileState
       Server.sendCustomNotification (Proxy @"gcl/update") json
