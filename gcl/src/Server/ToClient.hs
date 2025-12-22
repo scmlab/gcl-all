@@ -1,7 +1,8 @@
+{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 -- | This module defines types that match the client-side TypeScript types
 -- and provides conversion functions from server-side types to client types.
@@ -19,7 +20,6 @@ where
 
 import Data.Aeson (defaultOptions, genericToJSON)
 import qualified Data.Aeson as JSON
-import qualified Data.Aeson.Types as JSON (Options (..))
 import Data.Loc.Range (MaybeRanged (..))
 import GHC.Generics (Generic)
 import qualified Data.Text as Text
@@ -40,7 +40,8 @@ data FileState = FileState
     pos :: [ProofObligation],
     warnings :: [StructWarning]
   }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
 
 -- | Client-side Specification type (matches TypeScript ISpecification)
 data Specification = Specification
@@ -49,7 +50,8 @@ data Specification = Specification
     postCondition :: String,
     specRange :: LSP.Range
   }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
 
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
@@ -59,7 +61,8 @@ data ProofObligation = ProofObligation
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
   }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
 
 -- | Client-side POOrigin type (matches TypeScript origin type)
 data POOrigin = POOrigin
@@ -67,12 +70,13 @@ data POOrigin = POOrigin
     location :: Maybe LSP.Range,
     explanation :: Maybe String
   }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
 
 -- | Client-side StructWarning type (matches TypeScript IStructWarning)
 data StructWarning
   = MissingBound { range :: LSP.Range }
-  deriving (Show, Generic)
+  deriving stock (Show, Generic)
 
 -- | Convert server-side FileState to client-side FileState
 -- This function extracts only the fields needed by the client and
@@ -124,21 +128,9 @@ convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 --------------------------------------------------------------------------------
 -- JSON instances for client types
 
-instance JSON.ToJSON FileState where
-  toJSON :: FileState -> JSON.Value
-  toJSON = genericToJSON defaultOptions
-
-instance JSON.ToJSON Specification where
-  toJSON :: Specification -> JSON.Value
-  toJSON = genericToJSON defaultOptions
-
-instance JSON.ToJSON ProofObligation where
-  toJSON :: ProofObligation -> JSON.Value
-  toJSON = genericToJSON defaultOptions
-
-instance JSON.ToJSON POOrigin where
-  toJSON :: POOrigin -> JSON.Value
-  toJSON = genericToJSON defaultOptions
+-- Note: FileState, Specification, ProofObligation, and POOrigin use
+-- automatic ToJSON deriving with defaultOptions via 'deriving anyclass'.
+-- StructWarning requires a custom instance due to unwrapUnaryRecords = True.
 
 instance JSON.ToJSON StructWarning where
   toJSON :: StructWarning -> JSON.Value
