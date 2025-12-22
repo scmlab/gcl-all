@@ -4,12 +4,20 @@ import { Error } from "./Error"
 type Predicate = string;
 
 export interface FileState {
-    filePath: string;
 	specs: ISpecification[];
 	pos: IProofObligation[];
 	warnings: IStructWarning[];
+}
+
+export interface Errors {
     errors: Error[];
 }
+
+export type FileStateNotification = { filePath: string } & FileState;
+
+export type ErrorNotification = { filePath: string } & Errors;
+
+export type ClientState = FileState & Errors;
 
 export interface ISpecification {
 	specID: number;

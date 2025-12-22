@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { retrieveMainEditor } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
 import { GclPanel } from './gclPanel';
-import { FileState, ISpecification } from './data/FileState';
+import { ClientState, ISpecification } from './data/FileState';
 import path from 'path';
 
 
@@ -20,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		{
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
-				const fileState: FileState | undefined = context.workspaceState.get(filePath);
+				const fileState: ClientState | undefined = context.workspaceState.get(filePath);
 				const specs: ISpecification[] = fileState? fileState.specs : [];
 
 				const inlayHints = specs.flatMap((spec: ISpecification) => {
@@ -54,7 +54,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
 		if (isFileTab) {
 			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
-			let fileState: FileState | undefined = context.workspaceState.get(filePath);
+			let fileState: ClientState | undefined = context.workspaceState.get(filePath);
 			if (fileState) gclPanel.rerender(fileState);
 		}
 	});
@@ -115,16 +115,16 @@ export async function activate(context: vscode.ExtensionContext) {
 		warnings
 	}) => {
 		vscode.window.showErrorMessage(JSON.stringify({specs}))
-		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
-		let newFileState: FileState =
+		const oldFileState: ClientState | undefined = context.workspaceState.get(filePath);
+		let newFileState: ClientState =
 			oldFileState
-			? {...oldFileState, specs, pos, warnings}
-			: {filePath, specs, pos, warnings, errors: []};
+			? {specs, pos, warnings, errors: oldFileState.errors}
+			: {specs, pos, warnings, errors: []};
 		await context.workspaceState.update(filePath, newFileState);
 		gclPanel.rerender(newFileState);
 		await updateInlayHints(newFileState);
 
-		async function updateInlayHints(newFileState: FileState) {
+		async function updateInlayHints(newFileState: ClientState) {
 			// TODO: find a way to tell vscode to update inlay hints
 		}
 	});
@@ -136,11 +136,11 @@ export async function activate(context: vscode.ExtensionContext) {
 		filePath,
 		errors
 	}) => {
-		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
-		const newFileState: FileState =
+		const oldFileState: ClientState | undefined = context.workspaceState.get(filePath);
+		const newFileState: ClientState =
 			oldFileState
-			? {...oldFileState, errors}
-			: {filePath, specs: [], pos: [], warnings: [], errors};
+			? {errors, specs: oldFileState.specs, pos: oldFileState.pos, warnings: oldFileState.warnings}
+			: {errors, specs: [], pos: [], warnings: []};
 		await context.workspaceState.update(filePath, newFileState);
 		gclPanel.rerender(newFileState);
 	});

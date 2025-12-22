@@ -1,4 +1,7 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,6 +18,7 @@ import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
+import GHC.Generics (Generic)
 import Pretty.Predicate ()
 import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
@@ -22,17 +26,19 @@ import Server.Monad (ServerM)
 import qualified Server.Monad as Server
 import Syntax.Parser.Error (ParseError (..))
 
+-- | Client-side ErrorNotification type (matches TypeScript ErrorNotification)
+-- Sent via gcl/error notification
+data ErrorNotification = ErrorNotification
+  { filePath :: FilePath,
+    errors :: [Error]
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
+
 sendErrorNotification :: FilePath -> [Error] -> ServerM ()
 sendErrorNotification filePath errors = do
-  let json :: JSON.Value = makeErrorNotificationJson filePath errors
-  Server.sendCustomNotification (Proxy @"gcl/error") json
-
-makeErrorNotificationJson :: FilePath -> [Error] -> JSON.Value
-makeErrorNotificationJson filePath errors =
-  JSON.object
-    [ "filePath" .= JSON.toJSON filePath,
-      "errors" .= JSON.toJSON errors
-    ]
+  let notification = ErrorNotification {filePath = filePath, errors = errors}
+  Server.sendCustomNotification (Proxy @"gcl/error") (JSON.toJSON notification)
 
 instance JSON.ToJSON Error where
   toJSON :: Error -> JSON.Value

@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
@@ -9,8 +10,8 @@
 -- The main purpose is to make the conversion from server to client explicit
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
-  (
-    convertFileStateToJSON,
+  ( convertFileStateToJSON,
+    FileStateNotification (..),
   )
 where
 
@@ -29,8 +30,9 @@ import Render.Class (Render (..))
 import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPRange)
 
--- | Client-side FileState type (matches TypeScript interface)
-data FileState = FileState
+-- | Client-side FileStateNotification type (matches TypeScript FileStateNotification)
+-- Sent via gcl/update notification
+data FileStateNotification = FileStateNotification
   { filePath :: FilePath,
     specs :: [Specification],
     pos :: [ProofObligation],
@@ -80,12 +82,12 @@ data StructWarning
 -- and serializes to JSON.
 convertFileStateToJSON :: FilePath -> Server.FileState -> JSON.Value
 convertFileStateToJSON path serverFileState =
-  JSON.toJSON (convertFileState path serverFileState)
+  JSON.toJSON (convertFileStateNotification path serverFileState)
 
--- | Convert server-side FileState to client-side FileState
-convertFileState :: FilePath -> Server.FileState -> FileState
-convertFileState path serverFileState =
-  FileState
+-- | Convert server-side FileState to client-side FileStateNotification
+convertFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
+convertFileStateNotification path serverFileState =
+  FileStateNotification
     { filePath = path,
       specs = map (convertSpec . Server.unversioned) (Server.specifications serverFileState),
       pos = map (convertPO . Server.unversioned) (Server.proofObligations serverFileState),
@@ -130,8 +132,8 @@ convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 --------------------------------------------------------------------------------
 -- JSON instances for client types
 
--- Note: FileState, Specification, ProofObligation, and POOrigin use
--- automatic ToJSON deriving with defaultOptions via 'deriving anyclass'.
+-- Note: FileStateNotification, Specification, ProofObligation,
+-- and POOrigin use automatic ToJSON deriving with defaultOptions via 'deriving anyclass'.
 -- StructWarning requires a custom instance due to unwrapUnaryRecords = True.
 
 instance JSON.ToJSON StructWarning where
