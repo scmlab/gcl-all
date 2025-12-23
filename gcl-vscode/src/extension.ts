@@ -20,8 +20,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		{
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
-				const fileState: ClientState | undefined = context.workspaceState.get(filePath);
-				const specs: ISpecification[] = fileState? fileState.specs : [];
+				const clientState: ClientState | undefined = context.workspaceState.get(filePath);
+				const specs: ISpecification[] = clientState? clientState.specs : [];
 
 				const inlayHints = specs.flatMap((spec: ISpecification) => {
 					let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
@@ -54,8 +54,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
 		if (isFileTab) {
 			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
-			let fileState: ClientState | undefined = context.workspaceState.get(filePath);
-			if (fileState) gclPanel.rerender(fileState);
+			let clientState: ClientState | undefined = context.workspaceState.get(filePath);
+			if (clientState) gclPanel.rerender(clientState);
 		}
 	});
 	context.subscriptions.push(changeTabDisposable);
@@ -107,7 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(debugDisposable);
 
 	// notification gcl/update
-	// 更新 fileState 裡的 specs, pos, warnings
+	// 更新 clientState 裡的 specs, pos, warnings
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
 		filePath,
 		specs,
@@ -115,34 +115,34 @@ export async function activate(context: vscode.ExtensionContext) {
 		warnings
 	}) => {
 		vscode.window.showErrorMessage(JSON.stringify({specs}))
-		const oldFileState: ClientState | undefined = context.workspaceState.get(filePath);
-		let newFileState: ClientState =
-			oldFileState
-			? {specs, pos, warnings, errors: oldFileState.errors}
+		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
+		let newClientState: ClientState =
+			oldClientState
+			? {specs, pos, warnings, errors: oldClientState.errors}
 			: {specs, pos, warnings, errors: []};
-		await context.workspaceState.update(filePath, newFileState);
-		gclPanel.rerender(newFileState);
-		await updateInlayHints(newFileState);
+		await context.workspaceState.update(filePath, newClientState);
+		gclPanel.rerender(newClientState);
+		await updateInlayHints(newClientState);
 
-		async function updateInlayHints(newFileState: ClientState) {
+		async function updateInlayHints(newClientState: ClientState) {
 			// TODO: find a way to tell vscode to update inlay hints
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
 
 	// notification gcl/error
-	// 更新 fileState 裡的 errors
+	// 更新 clientState 裡的 errors
 	const errorNotificationHandlerDisposable = onErrorNotification(async ({
 		filePath,
 		errors
 	}) => {
-		const oldFileState: ClientState | undefined = context.workspaceState.get(filePath);
-		const newFileState: ClientState =
-			oldFileState
-			? {errors, specs: oldFileState.specs, pos: oldFileState.pos, warnings: oldFileState.warnings}
+		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
+		const newClientState: ClientState =
+			oldClientState
+			? {errors, specs: oldClientState.specs, pos: oldClientState.pos, warnings: oldClientState.warnings}
 			: {errors, specs: [], pos: [], warnings: []};
-		await context.workspaceState.update(filePath, newFileState);
-		gclPanel.rerender(newFileState);
+		await context.workspaceState.update(filePath, newClientState);
+		gclPanel.rerender(newClientState);
 	});
 	context.subscriptions.push(errorNotificationHandlerDisposable);
 }

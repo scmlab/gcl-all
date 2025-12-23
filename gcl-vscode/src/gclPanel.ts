@@ -24,8 +24,8 @@ export class GclPanel {
 	show(html: string): void {
 		this.panel.webview.html = html
 	}
-	rerender(fileState: ClientState): void {
-		this.panel.webview.html = renderFileState(fileState);
+	rerender(clientState: ClientState): void {
+		this.panel.webview.html = renderClientState(clientState);
 	}
 	// Show either the welcome page or sections (likely from the LSP server).
 	showLoading(extPath: string): void {
@@ -53,7 +53,7 @@ function renderLoading(extPath: string): string {
 	`
 }
 
-function renderFileState(fileState: ClientState): string {
+function renderClientState(clientState: ClientState): string {
 	return /* html */`
     	<!DOCTYPE html>
         <html lang="en">
@@ -63,10 +63,10 @@ function renderFileState(fileState: ClientState): string {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
             </head>
             <body>
-				${fileState.errors.map(renderError).join('')}
-				${fileState.warnings.map(renderWarning).join('')}
-				${fileState.specs.map(renderSpecification).join('')}
-				${fileState.pos.map(renderProofObligation).join('')}
+				${clientState.errors.map(renderError).join('')}
+				${clientState.warnings.map(renderWarning).join('')}
+				${clientState.specs.map(renderSpecification).join('')}
+				${clientState.pos.map(renderProofObligation).join('')}
             </body>
         </html>
     `
