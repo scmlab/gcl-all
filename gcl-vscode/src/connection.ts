@@ -6,7 +6,7 @@ import { LanguageClient,
 	ProtocolNotificationType,
 	ServerOptions,
 	TransportKind } from "vscode-languageclient/node";
-import { FileStateNotification, ErrorNotification } from "./data/FileState";
+import { FileStateNotification, ErrorNotification } from "./data/ClientState";
 
 let client: LanguageClient | undefined;
 

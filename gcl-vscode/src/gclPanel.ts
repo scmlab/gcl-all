@@ -1,6 +1,6 @@
 
 import * as vscode from 'vscode';
-import { ClientState } from './data/FileState';
+import { ClientState } from './data/ClientState';
 import renderError from './components/FileState/ErrorSection';
 import renderProofObligation from './components/FileState/ProofObligation';
 import renderWarning from './components/FileState/WarningSection';

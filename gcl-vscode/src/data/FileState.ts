@@ -1,5 +1,4 @@
 import { Range } from "vscode-languageclient";
-import { Error } from "./Error"
 
 type Predicate = string;
 
@@ -8,16 +7,6 @@ export interface FileState {
 	pos: IProofObligation[];
 	warnings: IStructWarning[];
 }
-
-export interface Errors {
-    errors: Error[];
-}
-
-export type FileStateNotification = { filePath: string } & FileState;
-
-export type ErrorNotification = { filePath: string } & Errors;
-
-export type ClientState = FileState & Errors;
 
 export interface ISpecification {
 	specID: number;

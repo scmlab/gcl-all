@@ -4,7 +4,8 @@ import * as vscode from 'vscode';
 import { retrieveMainEditor } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
 import { GclPanel } from './gclPanel';
-import { ClientState, ISpecification } from './data/FileState';
+import { ISpecification } from './data/FileState';
+import { ClientState } from './data/ClientState';
 import path from 'path';
 
 
