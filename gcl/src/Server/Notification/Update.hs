@@ -14,5 +14,5 @@ sendUpdateNotification filePath = do
   case maybeFileState of
     Nothing -> return ()
     Just fileState -> do
-      let json = ToClient.convertFileStateToJSON filePath fileState
+      let json = ToClient.toFileStateNotificationJSON filePath fileState
       Server.sendCustomNotification (Proxy @"gcl/update") json
