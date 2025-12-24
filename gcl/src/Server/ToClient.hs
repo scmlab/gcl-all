@@ -22,13 +22,13 @@ import Data.Aeson (defaultOptions, genericToJSON, object, (.=))
 import qualified Data.Aeson as JSON
 import Data.List.NonEmpty (toList)
 import Data.Loc.Range (MaybeRanged (..), Range)
-import GHC.Generics (Generic)
 import qualified Data.Text as Text
 import qualified Error
 import qualified GCL.Predicate as GCL
 import qualified GCL.Type as Type
 import qualified GCL.WP.Types as GCL
 import qualified GCL.WP.Types as WP
+import GHC.Generics (Generic)
 import qualified Language.LSP.Protocol.Types as LSP
 import Pretty.Predicate ()
 import Pretty.Typed ()
@@ -82,7 +82,7 @@ data POOrigin = POOrigin
 
 -- | Client-side StructWarning type (matches TypeScript IStructWarning)
 data StructWarning
-  = MissingBound { range :: LSP.Range }
+  = MissingBound {range :: LSP.Range}
   deriving stock (Show, Generic)
 
 -- | Convert server-side FileState to JSON for client consumption
@@ -265,7 +265,7 @@ convertTypeError (Type.UnifyFailed t1 t2 l) =
 convertTypeError (Type.RecursiveType n t l) =
   RecursiveType
     { typeVariable = convertName n,
-      typeExpression = JSON.toJSON t,  -- Preserve old behavior: serialize Type to JSON
+      typeExpression = JSON.toJSON t, -- Preserve old behavior: serialize Type to JSON
       location = fmap toLSPRange l
     }
 convertTypeError (Type.AssignToConst n) =
