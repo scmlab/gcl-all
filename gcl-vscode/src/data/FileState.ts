@@ -9,7 +9,7 @@ export interface FileState {
 }
 
 export interface ISpecification {
-	specID: number;
+	specID: string;
 	preCondition: Predicate;
 	postCondition: Predicate;
 	specRange: Range;
