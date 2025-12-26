@@ -81,6 +81,7 @@ library
       Server.Notification.Update
       Server.PositionMapping
       Server.SrcLoc
+      Server.ToClient
       Syntax.Abstract
       Syntax.Abstract.Instances.Json
       Syntax.Abstract.Instances.Located

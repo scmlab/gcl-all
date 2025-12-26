@@ -1,10 +1,10 @@
-import { Loc } from "../Loc";
+import { Range } from "vscode-languageclient";
 
 type TypeExpression = string;
 
 interface Name {
     symbol: string;
-    location?: Loc;
+    location?: Range;
 }
 
 export type TypeError
@@ -27,7 +27,7 @@ interface NotInScope {
 
 interface UnifyFailed {
     tag: "UnifyFailed";
-    location?: Loc;
+    location?: Range;
     typeExpressions: [TypeExpression, TypeExpression];
 }
 
@@ -35,7 +35,7 @@ interface RecursiveType {
     tag: "RecursiveType";
     typeVariable: Name;
     typeExpression: TypeExpression;
-    location?: Loc;
+    location?: Range;
 }
 
 interface AssignToConst {
@@ -71,13 +71,13 @@ interface MissingArguments {
 type KindExpression = string;
 interface KindUnifyFailed {
     tag: "KindUnifyFailed";
-    location?: Loc;
+    location?: Range;
     kindExpressions: [KindExpression, KindExpression];
 }
 
 interface PatternArityMismatch {
     tag: "PatternArityMismatch";
-    location?: Loc;
+    location?: Range;
     expected: number;
     received: number;
 }
