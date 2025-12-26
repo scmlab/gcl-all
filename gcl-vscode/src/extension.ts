@@ -107,6 +107,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(debugDisposable);
 
+	const outputChannel = vscode.window.createOutputChannel("GCL");
+	context.subscriptions.push(outputChannel);
+
 	// notification gcl/update
 	// 更新 clientState 裡的 specs, pos, warnings
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
@@ -115,7 +118,9 @@ export async function activate(context: vscode.ExtensionContext) {
 		pos,
 		warnings
 	}) => {
-		vscode.window.showErrorMessage(JSON.stringify({specs}))
+		const timestamp = new Date().toLocaleString();
+		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
+		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
 		let newClientState: ClientState =
 			oldClientState
