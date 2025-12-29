@@ -74,6 +74,7 @@ module Data.Loc.Range
     posCol,
     posCoff,
     displayPos,
+    extractText,
   )
 where
 
@@ -88,6 +89,8 @@ import Data.Aeson
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Loc as IncLoc
+import Data.Text (Text)
+import qualified Data.Text as Text
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
@@ -349,3 +352,25 @@ fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
 fromInclusiveLoc IncLoc.NoLoc = Nothing
 fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos _ l1 c1 _co1) (IncLoc.Pos _ l2 c2 _co2)) =
   Just $ mkRange (mkPos l1 c1) (mkPos l2 (c2 + 1))
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+-- | Extract text covered by a Range from the source text
+-- Handles multi-line ranges correctly.
+extractText :: Range -> Text -> Text
+extractText (Range (Pos l1 c1) (Pos l2 c2)) text = result
+  where
+    -- l1, l2, c1, c2 are 1-based
+    -- l1 / l2 / c1 are inclusive, but c2 is exclusive
+    rangeLines = drop (l1 - 1) $ take l2 $ Text.lines text
+    resultLines = modifyFirst (Text.drop (c1 - 1)) $ modifyLast (Text.take (c2 - 1)) rangeLines
+    result = Text.intercalate "\n" resultLines
+
+    modifyFirst _ [] = []
+    modifyFirst f (x : xs) = f x : xs
+
+    modifyLast _ [] = []
+    modifyLast f [x] = [f x]
+    modifyLast f (x : xs) = x : modifyLast f xs

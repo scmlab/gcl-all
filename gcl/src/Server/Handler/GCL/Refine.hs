@@ -13,7 +13,7 @@ import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
-import Data.Loc.Range (Pos (..), R (..), Range (..), mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
+import Data.Loc.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -81,7 +81,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
                 Just source -> do
                   logTextLn $ Text.pack "source: " <> source
                   -- implText
-                  let implText = getRangeText implRange source
+                  let implText = extractText implRange source
                   logText "==== implText ====####"
                   logText implText
                   logTextLn "####===="
@@ -193,26 +193,6 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
       where
         isInRange pos (Range p1 p2) = p1 `posLE` pos && pos `posLE` p2
         posLE (Pos l1 c1) (Pos l2 c2) = (l1, c1) <= (l2, c2) -- ignore offsets (unlike "compareWithPosition")
-
-    -- l1 l2 c1 c2 are all 1-based
-    -- l1 / l2 / c1 are inclusive, but c2 is exclusive
-    -- TODO: performance / rangeLinesFromVfs
-    getRangeText :: Range -> Text -> Text
-    getRangeText (Range (Pos l1 c1) (Pos l2 c2)) text = result
-      where
-        rangeLines = drop (l1 - 1) $ take l2 $ Text.lines text -- split by '\n', but may contain '\r'
-        resultLines = modifyFirst (Text.drop $ c1 - 1) $ modifyLast (Text.take $ c2 - 1) rangeLines
-        result = Text.intercalate "\n" resultLines
-
-        -- or use Lens
-        modifyFirst :: (a -> a) -> [a] -> [a]
-        modifyFirst f (x : xs) = f x : xs
-        modifyFirst f [] = error "modifyFirst: empty list"
-
-        modifyLast :: (a -> a) -> [a] -> [a]
-        modifyLast f (x : []) = [f x]
-        modifyLast f (x : xs) = x : modifyLast f xs
-        modifyLast f [] = error "modifyLast: empty list"
 
     isSingleLine :: Range -> Bool
     isSingleLine (Range (Pos l1 _c1) (Pos l2 _c2)) = l1 == l2
