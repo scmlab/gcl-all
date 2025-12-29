@@ -31,16 +31,16 @@ posCoffMonotonicityTests =
   testGroup
     "posCoff monotonicity"
     [ testCase "same line, different cols" $ do
-        let p1 = mkPos 1 10 0
-            p2 = mkPos 1 20 0
+        let p1 = mkPos 1 10
+            p2 = mkPos 1 20
         assertBool "col 10 < col 20" (posCoff p1 < posCoff p2),
       testCase "different lines" $ do
-        let p1 = mkPos 1 100 0
-            p2 = mkPos 2 1 0
+        let p1 = mkPos 1 100
+            p2 = mkPos 2 1
         assertBool "line 1 col 100 < line 2 col 1" (posCoff p1 < posCoff p2),
       testCase "line difference dominates" $ do
-        let p1 = mkPos 1 9999 0
-            p2 = mkPos 2 1 0
+        let p1 = mkPos 1 9999
+            p2 = mkPos 2 1
         assertBool "line 1 col 9999 < line 2 col 1" (posCoff p1 < posCoff p2)
     ]
 
@@ -53,28 +53,28 @@ posCoffRangeTests =
   testGroup
     "posCoff range comparison (end-exclusive)"
     [ testCase "position before range" $ do
-        let pos = mkPos 1 5 0
-            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        let pos = mkPos 1 5
+            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
         assertBool "pos before range" (posBeforeRange pos rng),
       testCase "position at range start (inclusive)" $ do
-        let pos = mkPos 1 10 0
-            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        let pos = mkPos 1 10
+            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
         assertBool "pos in range" (posInRange pos rng),
       testCase "position in range middle" $ do
-        let pos = mkPos 1 15 0
-            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        let pos = mkPos 1 15
+            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
         assertBool "pos in range" (posInRange pos rng),
       testCase "position just before range end" $ do
-        let pos = mkPos 1 19 0
-            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        let pos = mkPos 1 19
+            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
         assertBool "pos in range" (posInRange pos rng),
       testCase "position at range end (exclusive)" $ do
-        let pos = mkPos 1 20 0
-            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        let pos = mkPos 1 20
+            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
         assertBool "pos NOT in range (end-exclusive)" (not $ posInRange pos rng),
       testCase "position after range" $ do
-        let pos = mkPos 1 25 0
-            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        let pos = mkPos 1 25
+            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
         assertBool "pos after range" (posAfterRange pos rng)
     ]
   where
@@ -98,28 +98,28 @@ withinTests =
   testGroup
     "within"
     [ testCase "identical ranges" $
-        mkRange (mkPos 1 10 0) (mkPos 1 20 0)
-          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+        mkRange (mkPos 1 10) (mkPos 1 20)
+          `within` mkRange (mkPos 1 10) (mkPos 1 20)
           @?= True,
       testCase "smaller range inside larger" $
-        mkRange (mkPos 1 15 0) (mkPos 1 18 0)
-          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+        mkRange (mkPos 1 15) (mkPos 1 18)
+          `within` mkRange (mkPos 1 10) (mkPos 1 20)
           @?= True,
       testCase "left boundary exceeds" $
-        mkRange (mkPos 1 9 0) (mkPos 1 15 0)
-          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+        mkRange (mkPos 1 9) (mkPos 1 15)
+          `within` mkRange (mkPos 1 10) (mkPos 1 20)
           @?= False,
       testCase "right boundary exceeds" $
-        mkRange (mkPos 1 15 0) (mkPos 1 21 0)
-          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+        mkRange (mkPos 1 15) (mkPos 1 21)
+          `within` mkRange (mkPos 1 10) (mkPos 1 20)
           @?= False,
       testCase "completely outside (before)" $
-        mkRange (mkPos 1 1 0) (mkPos 1 5 0)
-          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+        mkRange (mkPos 1 1) (mkPos 1 5)
+          `within` mkRange (mkPos 1 10) (mkPos 1 20)
           @?= False,
       testCase "completely outside (after)" $
-        mkRange (mkPos 1 25 0) (mkPos 1 30 0)
-          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+        mkRange (mkPos 1 25) (mkPos 1 30)
+          `within` mkRange (mkPos 1 10) (mkPos 1 20)
           @?= False
     ]
 
@@ -143,4 +143,4 @@ sortingOriginsTests =
     ]
   where
     mk :: Int -> Int -> Origin
-    mk startCol endCol = AtSkip (Just (mkRange (mkPos 1 startCol 0) (mkPos 1 endCol 0)))
+    mk startCol endCol = AtSkip (Just (mkRange (mkPos 1 startCol) (mkPos 1 endCol)))

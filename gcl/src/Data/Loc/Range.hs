@@ -100,36 +100,33 @@ data Pos = Pos_
   { -- | 1-based line number
     _posLine :: !Int,
     -- | 1-based column number
-    _posCol :: !Int,
-    -- | 0-based byte offset
-    _posCoff :: !Int
+    _posCol :: !Int
   }
   deriving (Eq, Ord)
 
 -- | Pattern synonym for Pos, use mkPos to construct
--- | NOTE: Only exposes line and col. Use posCoff function to get offset.
 pattern Pos :: Int -> Int -> Pos
-pattern Pos line col <- Pos_ line col _ -- "<-" single direction pattern: only for matching, not for constructing
+pattern Pos line col <- Pos_ line col -- "<-" single direction pattern: only for matching, not for constructing
 
 {-# COMPLETE Pos #-}
 
 -- | The only way to construct a Pos
-mkPos :: Int -> Int -> Int -> Pos
+mkPos :: Int -> Int -> Pos
 mkPos = Pos_
 
 -- | Get the line number (1-based)
 posLine :: Pos -> Int
-posLine (Pos_ l _ _) = l
+posLine (Pos_ l _) = l
 
 -- | Get the column number (1-based)
 posCol :: Pos -> Int
-posCol (Pos_ _ c _) = c
+posCol (Pos_ _ c) = c
 
 -- | Get a synthetic ordering key (not a real byte offset)
 -- | Used by IntervalMap for efficient range queries
 -- | Formula: line * 10000000 + col (supports up to 10M chars per line)
 posCoff :: Pos -> Int
-posCoff (Pos_ line col _) = line * 10000000 + col
+posCoff (Pos_ line col) = line * 10000000 + col
 
 -- | Display position as a string
 displayPos :: Pos -> String
@@ -350,5 +347,5 @@ instance Pretty Pos where
 --   - end-exclusive: end column is 3 (pointing past 'B')
 fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
 fromInclusiveLoc IncLoc.NoLoc = Nothing
-fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos _ l1 c1 co1) (IncLoc.Pos _ l2 c2 co2)) =
-  Just $ mkRange (mkPos l1 c1 co1) (mkPos l2 (c2 + 1) (co2 + 1))
+fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos _ l1 c1 _co1) (IncLoc.Pos _ l2 c2 _co2)) =
+  Just $ mkRange (mkPos l1 c1) (mkPos l2 (c2 + 1))

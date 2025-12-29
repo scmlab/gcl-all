@@ -43,7 +43,6 @@ fromLSPPosition table (J.Position line col) =
   mkPos
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1
-    (fromIntegral (toOffset table (line, col))) -- starts at 0
 
 fromLSPRangeWithoutCharacterOffset :: J.Range -> Range
 fromLSPRangeWithoutCharacterOffset (J.Range start end) =
@@ -57,7 +56,6 @@ fromLSPPositionWithoutCharacterOffset (J.Position line col) =
   mkPos
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1
-    (-1) -- discard this field
 
 toLSPRange :: Range -> J.Range
 toLSPRange (Range start end) = J.Range (toLSPPosition start) (toLSPPosition end)

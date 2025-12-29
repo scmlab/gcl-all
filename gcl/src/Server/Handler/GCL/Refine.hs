@@ -49,8 +49,8 @@ instance JSON.ToJSON RefineParams
 
 handler :: RefineParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
 handler _params@RefineParams {filePath, line, character} onFinish _ = do
-  -- convert from 0-based to 1-based, and we do not care about the offset here
-  let cursor = mkPos (line + 1) (character + 1) (-1)
+  -- convert from 0-based to 1-based
+  let cursor = mkPos (line + 1) (character + 1)
   logTextLn $ Text.pack $ "refine: cursor: " ++ show cursor
   maybeFileState <- loadFileState filePath
   case maybeFileState of
@@ -219,7 +219,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
 
     shrinkRange :: Int -> Range -> Range
     shrinkRange diff (Range (Pos l1 c1) (Pos l2 c2)) =
-      mkRange (mkPos l1 (c1 + diff) 0) (mkPos l2 (c2 - diff) 0)
+      mkRange (mkPos l1 (c1 + diff)) (mkPos l2 (c2 - diff))
 
     isFirstLineBlank :: Text -> Bool
     isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
@@ -243,8 +243,8 @@ digImplHoles parseStart filePath implText =
   case parseFragment filePath parseStart implText of
     Left err -> Left err
     Right _ ->
-      -- use `mkPos 1 1 0` for relative position of the hole reported
-      case parseFragment filePath (mkPos 1 1 0) implText of
+      -- use `mkPos 1 1` for relative position of the hole reported
+      case parseFragment filePath (mkPos 1 1) implText of
         Left _ -> error "should not happen"
         Right concreteImpl ->
           case collectFragmentHoles concreteImpl of
@@ -287,7 +287,7 @@ parseFragment filePath fragmentStart fragment = do
     translateRange
       _fragmentStart@(Pos lineStart colStart)
       (Pos lineOffset colOffset) =
-        mkPos line col 0
+        mkPos line col
         where
           line = lineStart + lineOffset - 1
           col =
