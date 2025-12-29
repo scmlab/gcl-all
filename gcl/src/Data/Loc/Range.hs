@@ -125,9 +125,11 @@ posLine (Pos_ l _ _) = l
 posCol :: Pos -> Int
 posCol (Pos_ _ c _) = c
 
--- | Get the character offset (0-based)
+-- | Get a synthetic ordering key (not a real byte offset)
+-- | Used by IntervalMap for efficient range queries
+-- | Formula: line * 10000000 + col (supports up to 10M chars per line)
 posCoff :: Pos -> Int
-posCoff (Pos_ _ _ o) = o
+posCoff (Pos_ line col _) = line * 10000000 + col
 
 -- | Display position as a string
 displayPos :: Pos -> String
@@ -165,23 +167,15 @@ instance Show Range where
   show (Range start end) =
     if posLine start == posLine end
       then
-        "["
-          <> show (posCoff start)
-          <> "-"
-          <> show (posCoff end)
-          <> "] "
-          <> show (posLine start)
+        -- Same line: "1:5-7"
+        show (posLine start)
           <> ":"
           <> show (posCol start)
           <> "-"
           <> show (posCol end)
       else
-        "["
-          <> show (posCoff start)
-          <> "-"
-          <> show (posCoff end)
-          <> "] "
-          <> show (posLine start)
+        -- Different lines: "1:5-2:10"
+        show (posLine start)
           <> ":"
           <> show (posCol start)
           <> "-"
@@ -324,23 +318,15 @@ instance Pretty Range where
   pretty (Range start end) =
     if posLine start == posLine end
       then
-        "["
-          <> pretty (posCoff start)
-          <> "-"
-          <> pretty (posCoff end)
-          <> "] "
-          <> pretty (posLine start)
+        -- Same line: "1:5-7"
+        pretty (posLine start)
           <> ":"
           <> pretty (posCol start)
           <> "-"
           <> pretty (posCol end)
       else
-        "["
-          <> pretty (posCoff start)
-          <> "-"
-          <> pretty (posCoff end)
-          <> "] "
-          <> pretty (posLine start)
+        -- Different lines: "1:5-2:10"
+        pretty (posLine start)
           <> ":"
           <> pretty (posCol start)
           <> "-"

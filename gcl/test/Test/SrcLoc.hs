@@ -9,123 +9,138 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 --------------------------------------------------------------------------------
--- Helper functions for testing
---------------------------------------------------------------------------------
-
--- | Compare the cursor position with something (MaybeRanged version)
---  EQ: the cursor is placed within that thing
---  LT: the cursor is placed BEFORE (but not touching) that thing
---  GT: the cursor is placed AFTER (but not touching) that thing
-compareWithPositionR :: (MaybeRanged a) => Pos -> a -> Ordering
-compareWithPositionR pos x = case maybeRangeOf x of
-  Nothing -> EQ
-  Just (Range start end) ->
-    if posCoff pos < posCoff start
-      then LT
-      else if posCoff pos > posCoff end then GT else EQ
-
--- | See if something is within the selection (MaybeRanged version)
-withinRangeR :: (MaybeRanged a) => Range -> a -> Bool
-withinRangeR (Range left right) x =
-  compareWithPositionR left x
-    == EQ
-    || compareWithPositionR right x
-      == EQ
-    || (compareWithPositionR left x == LT && compareWithPositionR right x == GT)
-
+-- Test Suite
 --------------------------------------------------------------------------------
 
 tests :: TestTree
-tests = testGroup "Source Location" [compareWithPositionTests, withinTests, withinRangeTests, sortingOriginsTests]
+tests =
+  testGroup
+    "Source Location"
+    [ posCoffMonotonicityTests,
+      posCoffRangeTests,
+      withinTests,
+      sortingOriginsTests
+    ]
 
 --------------------------------------------------------------------------------
+-- Test 1: posCoff maintains monotonicity (for IntervalMap)
+--------------------------------------------------------------------------------
 
-compareWithPositionTests :: TestTree
-compareWithPositionTests =
+posCoffMonotonicityTests :: TestTree
+posCoffMonotonicityTests =
   testGroup
-    "compareWithPosition"
-    [ testCase "1" $ run 0 (make 10 20) @?= LT,
-      testCase "2" $ run 9 (make 10 20) @?= LT,
-      testCase "3" $ run 10 (make 10 20) @?= EQ,
-      testCase "4" $ run 11 (make 10 20) @?= EQ,
-      testCase "5" $ run 15 (make 10 20) @?= EQ,
-      testCase "6" $ run 19 (make 10 20) @?= EQ,
-      testCase "7" $ run 20 (make 10 20) @?= EQ,
-      testCase "8" $ run 21 (make 10 20) @?= GT,
-      testCase "9" $ run 22 (make 10 20) @?= GT
+    "posCoff monotonicity"
+    [ testCase "same line, different cols" $ do
+        let p1 = mkPos 1 10 0
+            p2 = mkPos 1 20 0
+        assertBool "col 10 < col 20" (posCoff p1 < posCoff p2),
+      testCase "different lines" $ do
+        let p1 = mkPos 1 100 0
+            p2 = mkPos 2 1 0
+        assertBool "line 1 col 100 < line 2 col 1" (posCoff p1 < posCoff p2),
+      testCase "line difference dominates" $ do
+        let p1 = mkPos 1 9999 0
+            p2 = mkPos 2 1 0
+        assertBool "line 1 col 9999 < line 2 col 1" (posCoff p1 < posCoff p2)
+    ]
+
+--------------------------------------------------------------------------------
+-- Test 2: posCoff-based range comparisons (simulates IntervalMap lookup)
+--------------------------------------------------------------------------------
+
+posCoffRangeTests :: TestTree
+posCoffRangeTests =
+  testGroup
+    "posCoff range comparison (end-exclusive)"
+    [ testCase "position before range" $ do
+        let pos = mkPos 1 5 0
+            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        assertBool "pos before range" (posBeforeRange pos rng),
+      testCase "position at range start (inclusive)" $ do
+        let pos = mkPos 1 10 0
+            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        assertBool "pos in range" (posInRange pos rng),
+      testCase "position in range middle" $ do
+        let pos = mkPos 1 15 0
+            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        assertBool "pos in range" (posInRange pos rng),
+      testCase "position just before range end" $ do
+        let pos = mkPos 1 19 0
+            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        assertBool "pos in range" (posInRange pos rng),
+      testCase "position at range end (exclusive)" $ do
+        let pos = mkPos 1 20 0
+            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        assertBool "pos NOT in range (end-exclusive)" (not $ posInRange pos rng),
+      testCase "position after range" $ do
+        let pos = mkPos 1 25 0
+            rng = mkRange (mkPos 1 10 0) (mkPos 1 20 0)  -- [10, 20)
+        assertBool "pos after range" (posAfterRange pos rng)
     ]
   where
-    run :: Int -> Item -> Ordering
-    run offset item = compareWithPositionR (mkPos 1 1 offset) item
+    -- Correct semantics for end-exclusive Range
+    posInRange :: Pos -> Range -> Bool
+    posInRange pos (Range start end) =
+      posCoff start <= posCoff pos && posCoff pos < posCoff end  -- Note: < not <=
 
+    posBeforeRange :: Pos -> Range -> Bool
+    posBeforeRange pos (Range start _) = posCoff pos < posCoff start
+
+    posAfterRange :: Pos -> Range -> Bool
+    posAfterRange pos (Range _ end) = posCoff pos >= posCoff end  -- >= because end is exclusive
+
+--------------------------------------------------------------------------------
+-- Test 3: within function (from Data.Loc.Range)
 --------------------------------------------------------------------------------
 
 withinTests :: TestTree
 withinTests =
   testGroup
     "within"
-    [ testCase "1" $ run (make 9 20) (make 10 20) @?= False,
-      testCase "2" $ run (make 10 21) (make 10 20) @?= False,
-      testCase "3" $ run (make 10 20) (make 10 20) @?= True,
-      testCase "4" $ run (make 10 20) (make 9 20) @?= True,
-      testCase "5" $ run (make 10 20) (make 10 21) @?= True,
-      testCase "6" $ run (make 0 1) (make 10 20) @?= False,
-      testCase "7" $ run (make 0 15) (make 10 20) @?= False,
-      testCase "8" $ run (make 30 40) (make 10 20) @?= False,
-      testCase "9" $ run (make 15 40) (make 10 20) @?= False
+    [ testCase "identical ranges" $
+        mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          @?= True,
+      testCase "smaller range inside larger" $
+        mkRange (mkPos 1 15 0) (mkPos 1 18 0)
+          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          @?= True,
+      testCase "left boundary exceeds" $
+        mkRange (mkPos 1 9 0) (mkPos 1 15 0)
+          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          @?= False,
+      testCase "right boundary exceeds" $
+        mkRange (mkPos 1 15 0) (mkPos 1 21 0)
+          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          @?= False,
+      testCase "completely outside (before)" $
+        mkRange (mkPos 1 1 0) (mkPos 1 5 0)
+          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          @?= False,
+      testCase "completely outside (after)" $
+        mkRange (mkPos 1 25 0) (mkPos 1 30 0)
+          `within` mkRange (mkPos 1 10 0) (mkPos 1 20 0)
+          @?= False
     ]
-  where
-    run :: Item -> Item -> Bool
-    run x y = rangeOf x `within` rangeOf y
 
+--------------------------------------------------------------------------------
+-- Test 4: sorting Origins (GCL-specific)
 --------------------------------------------------------------------------------
 
 sortingOriginsTests :: TestTree
 sortingOriginsTests =
   testGroup
     "sorting Origins"
-    [ testCase "1" $ sort [mk 10 20, mk 20 30, mk 11 19, mk 21 29] @?= [mk 11 19, mk 10 20, mk 21 29, mk 20 30],
-      testCase "2" $ sort [mk 80 184, mk 80 184, mk 92 102, mk 92 102] @?= [mk 92 102, mk 92 102, mk 80 184, mk 80 184],
-      testCase "overlapped 1" $ sort [mk 10 20, mk 15 25, mk 20 30] @?= [mk 10 20, mk 15 25, mk 20 30]
+    [ testCase "basic sorting" $
+        sort [mk 10 20, mk 20 30, mk 11 19, mk 21 29]
+          @?= [mk 11 19, mk 10 20, mk 21 29, mk 20 30],
+      testCase "identical ranges" $
+        sort [mk 80 184, mk 80 184, mk 92 102, mk 92 102]
+          @?= [mk 92 102, mk 92 102, mk 80 184, mk 80 184],
+      testCase "overlapping ranges" $
+        sort [mk 10 20, mk 15 25, mk 20 30]
+          @?= [mk 10 20, mk 15 25, mk 20 30]
     ]
   where
     mk :: Int -> Int -> Origin
-    mk a b = AtSkip (Just (mkRange (mkPos 1 (a + 1) a) (mkPos 1 (b + 1) b)))
-
---------------------------------------------------------------------------------
-
-withinRangeTests :: TestTree
-withinRangeTests =
-  testGroup
-    "withinRange"
-    [ testCase "1" $ run (0, 0) (make 10 20) @?= False,
-      testCase "2" $ run (0, 8) (make 10 20) @?= False,
-      testCase "3" $ run (0, 9) (make 10 20) @?= False,
-      testCase "4" $ run (0, 10) (make 10 20) @?= True,
-      testCase "5" $ run (0, 11) (make 10 20) @?= True,
-      testCase "6" $ run (11, 16) (make 10 20) @?= True,
-      testCase "7" $ run (19, 30) (make 10 20) @?= True,
-      testCase "8" $ run (20, 30) (make 10 20) @?= True,
-      testCase "9" $ run (21, 30) (make 10 20) @?= False,
-      testCase "10" $ run (22, 30) (make 10 20) @?= False
-    ]
-  where
-    run :: (Int, Int) -> Item -> Bool
-    run (start, end) item = withinRangeR (mkRange (mkPos 1 1 start) (mkPos 1 1 end)) item
-
--- | For testing selection related stuff
-newtype Item = Item {unItem :: Range}
-  deriving (Eq)
-
-instance Show Item where
-  show item = case rangeOf item of
-    Range start end -> "Item " <> show (posCoff start) <> " " <> show (posCoff end)
-
-make :: Int -> Int -> Item
-make start end = Item (mkRange (mkPos 1 (start + 1) start) (mkPos 1 (end + 1) end))
-
-instance Ranged Item where
-  rangeOf = unItem
-
-instance MaybeRanged Item where
-  maybeRangeOf = Just . unItem
+    mk startCol endCol = AtSkip (Just (mkRange (mkPos 1 startCol 0) (mkPos 1 endCol 0)))
