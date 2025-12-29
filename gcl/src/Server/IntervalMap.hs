@@ -109,7 +109,7 @@ lookup' pos (IntervalMap m) =
    in case IntMap.lookupLE offset m of
         Nothing -> Nothing
         Just (start, (end, x)) ->
-          if offset <= end then Just ((start, end), x) else Nothing
+          if offset < end then Just ((start, end), x) else Nothing
 
 -- Given a Pos, returns the paylod if the Pos is within its Range
 lookup :: Pos -> IntervalMap token -> Maybe token
