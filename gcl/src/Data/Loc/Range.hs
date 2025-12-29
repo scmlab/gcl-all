@@ -107,8 +107,9 @@ data Pos = Pos_
   deriving (Eq, Ord)
 
 -- | Pattern synonym for Pos, use mkPos to construct
-pattern Pos :: Int -> Int -> Int -> Pos
-pattern Pos line col byte <- Pos_ line col byte -- "<-" single direction pattern: only for matching, not for constructing
+-- | NOTE: Only exposes line and col. Use posCoff function to get offset.
+pattern Pos :: Int -> Int -> Pos
+pattern Pos line col <- Pos_ line col _ -- "<-" single direction pattern: only for matching, not for constructing
 
 {-# COMPLETE Pos #-}
 
@@ -130,7 +131,7 @@ posCoff (Pos_ _ _ o) = o
 
 -- | Display position as a string
 displayPos :: Pos -> String
-displayPos (Pos l c _) = show l ++ ":" ++ show c
+displayPos (Pos l c) = show l ++ ":" ++ show c
 
 instance Show Pos where
   show = displayPos
@@ -303,7 +304,7 @@ instance FromJSON Range where
 -- | Convert Range to LSP Range JSON representation
 -- TODO: This is actually a "toLSPRangeJSON", not a general ToJSON instance.
 instance ToJSON Range where
-  toJSON (Range (Pos line col _) (Pos line' col' _)) =
+  toJSON (Range (Pos line col) (Pos line' col')) =
     object
       [ "start"
           .= object
