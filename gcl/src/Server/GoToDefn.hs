@@ -4,6 +4,8 @@
 
 module Server.GoToDefn
   ( collectLocationLinks,
+    TargetRanges (..),
+    OriginTargetRanges (..),
   )
 where
 
@@ -16,40 +18,59 @@ import Data.Loc.Range
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Text as Text
-import Language.LSP.Protocol.Types (LocationLink (..))
-import qualified Language.LSP.Protocol.Types as J
+import Prettyprinter
 import Server.IntervalMap
 import qualified Server.IntervalMap as IntervalMap
-import qualified Server.SrcLoc as SrcLoc
 import Syntax.Abstract
 import Syntax.Common
 
-collectLocationLinks :: Program -> IntervalMap LocationLink
+collectLocationLinks :: Program -> IntervalMap OriginTargetRanges
 collectLocationLinks program = runM (programToScopes program) (collect program)
 
 --------------------------------------------------------------------------------
 
-type LocationLinkToBe = Range -> LocationLink
+-- | Stage 1: Only target information (where the definition is)
+data TargetRanges = TargetRanges
+  { targetRange :: Range
+  , targetSelectionRange :: Range
+  }
+  deriving (Show, Eq)
+
+instance Pretty TargetRanges where
+  pretty (TargetRanges tgt tgtSel) =
+    pretty "TargetRanges" <+> braces (pretty tgt <> pretty ", " <> pretty tgtSel)
+
+-- | Stage 2: Both origin and target information, but no URI yet
+data OriginTargetRanges = OriginTargetRanges
+  { originSelectionRange :: Range
+  , otTargetRange :: Range
+  , otTargetSelectionRange :: Range
+  }
+  deriving (Show, Eq)
+
+instance Pretty OriginTargetRanges where
+  pretty (OriginTargetRanges orig tgt tgtSel) =
+    pretty "OriginTargetRanges" <+> braces (pretty orig <+> pretty "->" <+> pretty tgt <> pretty ", " <> pretty tgtSel)
 
 -- | Extracts Scopes from a Program
--- | The LocationLinkToBe here contains only the "target" info, i.e. the definition / declaration parts.
--- | It will become a full LocationLink when we have the "origin" info.
-programToScopes :: Program -> [Scope LocationLinkToBe]
+-- | The TargetRanges here contains only the "target" info, i.e. the definition / declaration parts.
+-- | It will become OriginTargetRanges when we have the "origin" info during collection.
+programToScopes :: Program -> [Scope TargetRanges]
 programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a single scope for now
   where
-    topLevelScope :: Map Text.Text LocationLinkToBe
-    topLevelScope = Map.mapKeys nameToText locationLinks
+    topLevelScope :: Map Text.Text TargetRanges
+    topLevelScope = Map.mapKeys nameToText targetRanges
 
-    locationLinks :: Map Name LocationLinkToBe
-    locationLinks = locationLinksFromDecls <> locationLinksFromDefns
+    targetRanges :: Map Name TargetRanges
+    targetRanges = targetRangesFromDecls <> targetRangesFromDefns
 
-    locationLinksFromDecls :: Map Name LocationLinkToBe
-    locationLinksFromDecls =
-      makeLocationLinks $ Map.fromList $ concatMap splitDecl decls
+    targetRangesFromDecls :: Map Name TargetRanges
+    targetRangesFromDecls =
+      makeTargetRanges $ Map.fromList $ concatMap splitDecl decls
 
-    locationLinksFromDefns :: Map Name LocationLinkToBe
-    locationLinksFromDefns =
-      makeLocationLinks $ Map.fromList $ concatMap splitDefn defns
+    targetRangesFromDefns :: Map Name TargetRanges
+    targetRangesFromDefns =
+      makeTargetRanges $ Map.fromList $ concatMap splitDefn defns
 
     -- locationLinksFromFuncDefns :: Map Name LocationLinkToBe
     -- locationLinksFromFuncDefns = makeLocationLinks funcDefns
@@ -72,8 +93,7 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a 
 
 --  Helper function for converting
 --      a Map of "names" and "targets"
---   to a Map of "names" and functions
---        (which will become LocationLinks when supplied with the range of "origin")
+--   to a Map of "names" and "TargetRanges"
 --
 --  For example:
 --
@@ -92,54 +112,41 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a 
 --    ║                                ║
 --    ╚════════════════════════════════╝
 
-makeLocationLinks :: (MaybeRanged a) => Map Name a -> Map Name LocationLinkToBe
-makeLocationLinks = Map.mapMaybeWithKey $ \name target -> do
-  targetRange <- maybeRangeOf target
-  targetSelectionRange <- maybeRangeOf name
-  let toLocationLink originSelectionRange =
-        LocationLink
-          { -- Span of the origin of this link.
-            -- Used as the underlined span for mouse interaction. Defaults to the word
-            -- range at the mouse position.
-            J._originSelectionRange =
-              Just $
-                SrcLoc.toLSPRange originSelectionRange,
-            -- The target resource identifier of this link.
-            -- NOTE: Left empty here, will be filled in by the handler with the actual filePath
-            J._targetUri = J.Uri Text.empty,
-            -- The full target range of this link. If the target for example is a
-            -- symbol then target range is the range enclosing this symbol not including
-            -- leading/trailing whitespace but everything else like comments. This
-            -- information is typically used to highlight the range in the editor.
-            J._targetRange = SrcLoc.toLSPRange targetRange,
-            -- The range that should be selected and revealed when this link is being
-            -- followed, e.g the name of a function. Must be contained by the the
-            -- '_targetRange'
-            J._targetSelectionRange = SrcLoc.toLSPRange targetSelectionRange
-          }
-  return toLocationLink
+makeTargetRanges :: (MaybeRanged a) => Map Name a -> Map Name TargetRanges
+makeTargetRanges = Map.mapMaybeWithKey $ \name target -> do
+  tgtRange <- maybeRangeOf target
+  tgtSelectionRange <- maybeRangeOf name
+  return $ TargetRanges
+    { targetRange = tgtRange
+    , targetSelectionRange = tgtSelectionRange
+    }
 
-scopeFromLocalBinders :: [Name] -> Scope LocationLinkToBe
+scopeFromLocalBinders :: [Name] -> Scope TargetRanges
 scopeFromLocalBinders names =
-  Map.mapKeys nameToText $ makeLocationLinks $ Map.fromList $ zip names names
+  Map.mapKeys nameToText $ makeTargetRanges $ Map.fromList $ zip names names
 
 --------------------------------------------------------------------------------
 -- Names
 
-instance Collect LocationLinkToBe LocationLink Name where
+instance Collect TargetRanges OriginTargetRanges Name where
   collect name = do
     result <- lookupScopes (nameToText name)
     case result of
       Nothing -> return ()
-      Just locationLinkToBe -> case maybeRangeOf name of
+      Just targetRanges -> case maybeRangeOf name of
         Nothing -> return ()
-        Just range ->
-          tell $ IntervalMap.singleton range (locationLinkToBe range)
+        Just originRange ->
+          let originTargetRanges = OriginTargetRanges
+                { originSelectionRange = originRange
+                , otTargetRange = targetRange targetRanges
+                , otTargetSelectionRange = targetSelectionRange targetRanges
+                }
+          in tell $ IntervalMap.singleton originRange originTargetRanges
 
 --------------------------------------------------------------------------------
 -- Program
 
-instance Collect LocationLinkToBe LocationLink Program where
+instance Collect TargetRanges OriginTargetRanges Program where
   collect (Program defns decls _ stmts _) = do
     collect defns
     collect decls
@@ -147,7 +154,7 @@ instance Collect LocationLinkToBe LocationLink Program where
 
 --------------------------------------------------------------------------------
 -- Definition
-instance Collect LocationLinkToBe LocationLink Definition where
+instance Collect TargetRanges OriginTargetRanges Definition where
   collect TypeDefn {} = return ()
   collect (FuncDefnSig n t prop _) = do
     collect n
@@ -160,7 +167,7 @@ instance Collect LocationLinkToBe LocationLink Definition where
 --------------------------------------------------------------------------------
 -- Declaration
 
-instance Collect LocationLinkToBe LocationLink Declaration where
+instance Collect TargetRanges OriginTargetRanges Declaration where
   collect = \case
     ConstDecl a _ c _ -> do
       collect a
@@ -172,7 +179,7 @@ instance Collect LocationLinkToBe LocationLink Declaration where
 --------------------------------------------------------------------------------
 -- Stmt
 
-instance Collect LocationLinkToBe LocationLink Stmt where
+instance Collect TargetRanges OriginTargetRanges Stmt where
   collect = \case
     Assign a b _ -> do
       collect a
@@ -185,14 +192,14 @@ instance Collect LocationLinkToBe LocationLink Stmt where
     If a _ -> collect a
     _ -> return ()
 
-instance Collect LocationLinkToBe LocationLink GdCmd where
+instance Collect TargetRanges OriginTargetRanges GdCmd where
   collect (GdCmd gd stmts _) = do
     collect gd
     collect stmts
 
 --------------------------------------------------------------------------------
 
-instance Collect LocationLinkToBe LocationLink Expr where
+instance Collect TargetRanges OriginTargetRanges Expr where
   collect = \case
     Lit _ _ -> return ()
     Var a _ -> collect a
@@ -230,27 +237,27 @@ instance Collect LocationLinkToBe LocationLink Expr where
 --     localScope args $ do
 --       collect body
 
-instance Collect LocationLinkToBe LocationLink ArithOp where
+instance Collect TargetRanges OriginTargetRanges ArithOp where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink ChainOp where
+instance Collect TargetRanges OriginTargetRanges ChainOp where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink Chain where
+instance Collect TargetRanges OriginTargetRanges Chain where
   collect (Pure expr _) = collect expr
   collect (More ch' op expr _) = collect ch' >> collect op >> collect expr
 
-instance Collect LocationLinkToBe LocationLink FuncClause where
+instance Collect TargetRanges OriginTargetRanges FuncClause where
   collect _ = return ()
 
-instance Collect LocationLinkToBe LocationLink QuantOp' where
+instance Collect TargetRanges OriginTargetRanges QuantOp' where
   collect (Left op) = collect op
   collect (Right expr) = collect expr
 
 --------------------------------------------------------------------------------
 
 -- | Types
-instance Collect LocationLinkToBe LocationLink Type where
+instance Collect TargetRanges OriginTargetRanges Type where
   collect = \case
     TBase _ _ -> return ()
     TArray i x _ -> collect i >> collect x
@@ -262,10 +269,10 @@ instance Collect LocationLinkToBe LocationLink Type where
     TVar _ _ -> return ()
     TMetaVar _ _ -> return ()
 
-instance Collect LocationLinkToBe LocationLink Interval where
+instance Collect TargetRanges OriginTargetRanges Interval where
   collect (Interval x y _) = collect x >> collect y
 
-instance Collect LocationLinkToBe LocationLink Endpoint where
+instance Collect TargetRanges OriginTargetRanges Endpoint where
   collect = \case
     Including x -> collect x
     Excluding x -> collect x

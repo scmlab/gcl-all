@@ -37,6 +37,7 @@ import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
+import Server.GoToDefn (OriginTargetRanges)
 import Server.IntervalMap (IntervalMap)
 import Server.PositionMapping (PositionDelta)
 import qualified Server.SrcLoc as SrcLoc
@@ -72,7 +73,7 @@ data FileState = FileState
     semanticTokens :: [LSP.SemanticTokenAbsolute],
     abstract :: Abstract.Program,
     idCount :: Int,
-    definitionLinks :: IntervalMap LSP.LocationLink,
+    definitionLinks :: IntervalMap OriginTargetRanges,
     hoverInfos :: IntervalMap LSP.Hover,
     elaborated :: Typed.Program,
     positionDelta :: PositionDelta, -- loadedVersion ~> editedVersion
