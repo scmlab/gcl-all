@@ -192,7 +192,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
     findEnclosingSpec pos specs = find (\spec -> isInRange pos $ shrinkRange 1 $ specRange spec) specs
       where
         isInRange pos (Range p1 p2) = p1 `posLE` pos && pos `posLE` p2
-        posLE (Pos l1 c1) (Pos l2 c2) = (l1, c1) <= (l2, c2) -- ignore offsets (unlike "compareWithPosition")
+        posLE (Pos l1 c1) (Pos l2 c2) = (l1, c1) <= (l2, c2)
 
     isSingleLine :: Range -> Bool
     isSingleLine (Range (Pos l1 _c1) (Pos l2 _c2)) = l1 == l2

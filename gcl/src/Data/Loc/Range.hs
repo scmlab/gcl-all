@@ -72,7 +72,7 @@ module Data.Loc.Range
     mkPos, -- forcing users to use this constructor
     posLine,
     posCol,
-    posCoff,
+    posOrd,
     displayPos,
     extractText,
   )
@@ -125,11 +125,11 @@ posLine (Pos_ l _) = l
 posCol :: Pos -> Int
 posCol (Pos_ _ c) = c
 
--- | Get a synthetic ordering key (not a real byte offset)
+-- | Get ordering key for position comparison
 -- | Used by IntervalMap for efficient range queries
 -- | Formula: line * 10000000 + col (supports up to 10M chars per line)
-posCoff :: Pos -> Int
-posCoff (Pos_ line col) = line * 10000000 + col
+posOrd :: Pos -> Int
+posOrd (Pos_ line col) = line * 10000000 + col
 
 -- | Display position as a string
 displayPos :: Pos -> String

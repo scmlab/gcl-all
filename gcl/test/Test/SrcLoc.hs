@@ -16,42 +16,42 @@ tests :: TestTree
 tests =
   testGroup
     "Source Location"
-    [ posCoffMonotonicityTests,
-      posCoffRangeTests,
+    [ posOrdMonotonicityTests,
+      posOrdRangeTests,
       withinTests,
       sortingOriginsTests
     ]
 
 --------------------------------------------------------------------------------
--- Test 1: posCoff maintains monotonicity (for IntervalMap)
+-- Test 1: posOrd maintains monotonicity (for IntervalMap)
 --------------------------------------------------------------------------------
 
-posCoffMonotonicityTests :: TestTree
-posCoffMonotonicityTests =
+posOrdMonotonicityTests :: TestTree
+posOrdMonotonicityTests =
   testGroup
-    "posCoff monotonicity"
+    "posOrd monotonicity"
     [ testCase "same line, different cols" $ do
         let p1 = mkPos 1 10
             p2 = mkPos 1 20
-        assertBool "col 10 < col 20" (posCoff p1 < posCoff p2),
+        assertBool "col 10 < col 20" (posOrd p1 < posOrd p2),
       testCase "different lines" $ do
         let p1 = mkPos 1 100
             p2 = mkPos 2 1
-        assertBool "line 1 col 100 < line 2 col 1" (posCoff p1 < posCoff p2),
+        assertBool "line 1 col 100 < line 2 col 1" (posOrd p1 < posOrd p2),
       testCase "line difference dominates" $ do
         let p1 = mkPos 1 9999
             p2 = mkPos 2 1
-        assertBool "line 1 col 9999 < line 2 col 1" (posCoff p1 < posCoff p2)
+        assertBool "line 1 col 9999 < line 2 col 1" (posOrd p1 < posOrd p2)
     ]
 
 --------------------------------------------------------------------------------
--- Test 2: posCoff-based range comparisons (simulates IntervalMap lookup)
+-- Test 2: posOrd-based range comparisons (simulates IntervalMap lookup)
 --------------------------------------------------------------------------------
 
-posCoffRangeTests :: TestTree
-posCoffRangeTests =
+posOrdRangeTests :: TestTree
+posOrdRangeTests =
   testGroup
-    "posCoff range comparison (end-exclusive)"
+    "posOrd range comparison (end-exclusive)"
     [ testCase "position before range" $ do
         let pos = mkPos 1 5
             rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
@@ -81,13 +81,13 @@ posCoffRangeTests =
     -- Correct semantics for end-exclusive Range
     posInRange :: Pos -> Range -> Bool
     posInRange pos (Range start end) =
-      posCoff start <= posCoff pos && posCoff pos < posCoff end  -- Note: < not <=
+      posOrd start <= posOrd pos && posOrd pos < posOrd end  -- Note: < not <=
 
     posBeforeRange :: Pos -> Range -> Bool
-    posBeforeRange pos (Range start _) = posCoff pos < posCoff start
+    posBeforeRange pos (Range start _) = posOrd pos < posOrd start
 
     posAfterRange :: Pos -> Range -> Bool
-    posAfterRange pos (Range _ end) = posCoff pos >= posCoff end  -- >= because end is exclusive
+    posAfterRange pos (Range _ end) = posOrd pos >= posOrd end  -- >= because end is exclusive
 
 --------------------------------------------------------------------------------
 -- Test 3: within function (from Data.Loc.Range)
