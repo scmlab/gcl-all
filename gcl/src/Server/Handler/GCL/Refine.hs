@@ -13,7 +13,7 @@ import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
-import Data.Loc.Range (Pos (..), R (..), Range (..), mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
+import Data.Loc.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -49,8 +49,8 @@ instance JSON.ToJSON RefineParams
 
 handler :: RefineParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
 handler _params@RefineParams {filePath, line, character} onFinish _ = do
-  -- convert from 0-based to 1-based, and we do not care about the offset here
-  let cursor = mkPos (line + 1) (character + 1) (-1)
+  -- convert from 0-based to 1-based
+  let cursor = mkPos (line + 1) (character + 1)
   logTextLn $ Text.pack $ "refine: cursor: " ++ show cursor
   maybeFileState <- loadFileState filePath
   case maybeFileState of
@@ -81,7 +81,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
                 Just source -> do
                   logTextLn $ Text.pack "source: " <> source
                   -- implText
-                  let implText = getRangeText implRange source
+                  let implText = extractText implRange source
                   logText "==== implText ====####"
                   logText implText
                   logTextLn "####===="
@@ -192,34 +192,14 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
     findEnclosingSpec pos specs = find (\spec -> isInRange pos $ shrinkRange 1 $ specRange spec) specs
       where
         isInRange pos (Range p1 p2) = p1 `posLE` pos && pos `posLE` p2
-        posLE (Pos l1 c1 _) (Pos l2 c2 _) = (l1, c1) <= (l2, c2) -- ignore offsets (unlike "compareWithPosition")
-
-    -- l1 l2 c1 c2 are all 1-based
-    -- l1 / l2 / c1 are inclusive, but c2 is exclusive
-    -- TODO: performance / rangeLinesFromVfs
-    getRangeText :: Range -> Text -> Text
-    getRangeText (Range (Pos l1 c1 _o1) (Pos l2 c2 _o2)) text = result
-      where
-        rangeLines = drop (l1 - 1) $ take l2 $ Text.lines text -- split by '\n', but may contain '\r'
-        resultLines = modifyFirst (Text.drop $ c1 - 1) $ modifyLast (Text.take $ c2 - 1) rangeLines
-        result = Text.intercalate "\n" resultLines
-
-        -- or use Lens
-        modifyFirst :: (a -> a) -> [a] -> [a]
-        modifyFirst f (x : xs) = f x : xs
-        modifyFirst f [] = error "modifyFirst: empty list"
-
-        modifyLast :: (a -> a) -> [a] -> [a]
-        modifyLast f (x : []) = [f x]
-        modifyLast f (x : xs) = x : modifyLast f xs
-        modifyLast f [] = error "modifyLast: empty list"
+        posLE (Pos l1 c1) (Pos l2 c2) = (l1, c1) <= (l2, c2)
 
     isSingleLine :: Range -> Bool
-    isSingleLine (Range (Pos l1 _c1 _o1) (Pos l2 _c2 _o2)) = l1 == l2
+    isSingleLine (Range (Pos l1 _c1) (Pos l2 _c2)) = l1 == l2
 
     shrinkRange :: Int -> Range -> Range
-    shrinkRange diff (Range (Pos l1 c1 o1) (Pos l2 c2 o2)) =
-      mkRange (mkPos l1 (c1 + diff) (o1 + diff)) (mkPos l2 (c2 - diff) (o2 - diff))
+    shrinkRange diff (Range (Pos l1 c1) (Pos l2 c2)) =
+      mkRange (mkPos l1 (c1 + diff)) (mkPos l2 (c2 - diff))
 
     isFirstLineBlank :: Text -> Bool
     isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
@@ -243,8 +223,8 @@ digImplHoles parseStart filePath implText =
   case parseFragment filePath parseStart implText of
     Left err -> Left err
     Right _ ->
-      -- use `mkPos 1 1 0` for relative position of the hole reported
-      case parseFragment filePath (mkPos 1 1 0) implText of
+      -- use `mkPos 1 1` for relative position of the hole reported
+      case parseFragment filePath (mkPos 1 1) implText of
         Left _ -> error "should not happen"
         Right concreteImpl ->
           case collectFragmentHoles concreteImpl of
@@ -252,7 +232,7 @@ digImplHoles parseStart filePath implText =
             Range start _ : _ -> digImplHoles parseStart filePath $ digFragementHole start implText
   where
     digFragementHole :: Pos -> Text -> Text
-    digFragementHole (Pos lineNumber col _charOff) fullText =
+    digFragementHole (Pos lineNumber col) fullText =
       Text.intercalate "\n" linesEdited
       where
         allLines :: [Text]
@@ -285,16 +265,15 @@ parseFragment filePath fragmentStart fragment = do
   where
     translateRange :: Pos -> Pos -> Pos
     translateRange
-      _fragmentStart@(Pos lineStart colStart coStart)
-      (Pos lineOffset colOffset coOffset) =
-        mkPos line col co
+      _fragmentStart@(Pos lineStart colStart)
+      (Pos lineOffset colOffset) =
+        mkPos line col
         where
           line = lineStart + lineOffset - 1
           col =
             if lineOffset == 1
               then colStart + colOffset - 1
               else colOffset
-          co = coStart + coOffset
 
     translateTokenRange :: Pos -> Range -> Range
     translateTokenRange fragmentStart (Range left right) =

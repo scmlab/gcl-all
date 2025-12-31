@@ -72,8 +72,9 @@ module Data.Loc.Range
     mkPos, -- forcing users to use this constructor
     posLine,
     posCol,
-    posCoff,
+    posOrd,
     displayPos,
+    extractText,
   )
 where
 
@@ -88,6 +89,8 @@ import Data.Aeson
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Loc as IncLoc
+import Data.Text (Text)
+import qualified Data.Text as Text
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (pretty))
 
@@ -100,37 +103,37 @@ data Pos = Pos_
   { -- | 1-based line number
     _posLine :: !Int,
     -- | 1-based column number
-    _posCol :: !Int,
-    -- | 0-based byte offset
-    _posCoff :: !Int
+    _posCol :: !Int
   }
   deriving (Eq, Ord)
 
 -- | Pattern synonym for Pos, use mkPos to construct
-pattern Pos :: Int -> Int -> Int -> Pos
-pattern Pos line col byte <- Pos_ line col byte -- "<-" single direction pattern: only for matching, not for constructing
+pattern Pos :: Int -> Int -> Pos
+pattern Pos line col <- Pos_ line col -- "<-" single direction pattern: only for matching, not for constructing
 
 {-# COMPLETE Pos #-}
 
 -- | The only way to construct a Pos
-mkPos :: Int -> Int -> Int -> Pos
+mkPos :: Int -> Int -> Pos
 mkPos = Pos_
 
 -- | Get the line number (1-based)
 posLine :: Pos -> Int
-posLine (Pos_ l _ _) = l
+posLine (Pos_ l _) = l
 
 -- | Get the column number (1-based)
 posCol :: Pos -> Int
-posCol (Pos_ _ c _) = c
+posCol (Pos_ _ c) = c
 
--- | Get the character offset (0-based)
-posCoff :: Pos -> Int
-posCoff (Pos_ _ _ o) = o
+-- | Get ordering key for position comparison
+-- | Used by IntervalMap for efficient range queries
+-- | Formula: line * 10000000 + col (supports up to 10M chars per line)
+posOrd :: Pos -> Int
+posOrd (Pos_ line col) = line * 10000000 + col
 
 -- | Display position as a string
 displayPos :: Pos -> String
-displayPos (Pos l c _) = show l ++ ":" ++ show c
+displayPos (Pos l c) = show l ++ ":" ++ show c
 
 instance Show Pos where
   show = displayPos
@@ -164,23 +167,15 @@ instance Show Range where
   show (Range start end) =
     if posLine start == posLine end
       then
-        "["
-          <> show (posCoff start)
-          <> "-"
-          <> show (posCoff end)
-          <> "] "
-          <> show (posLine start)
+        -- Same line: "1:5-7"
+        show (posLine start)
           <> ":"
           <> show (posCol start)
           <> "-"
           <> show (posCol end)
       else
-        "["
-          <> show (posCoff start)
-          <> "-"
-          <> show (posCoff end)
-          <> "] "
-          <> show (posLine start)
+        -- Different lines: "1:5-2:10"
+        show (posLine start)
           <> ":"
           <> show (posCol start)
           <> "-"
@@ -303,7 +298,7 @@ instance FromJSON Range where
 -- | Convert Range to LSP Range JSON representation
 -- TODO: This is actually a "toLSPRangeJSON", not a general ToJSON instance.
 instance ToJSON Range where
-  toJSON (Range (Pos line col _) (Pos line' col' _)) =
+  toJSON (Range (Pos line col) (Pos line' col')) =
     object
       [ "start"
           .= object
@@ -323,23 +318,15 @@ instance Pretty Range where
   pretty (Range start end) =
     if posLine start == posLine end
       then
-        "["
-          <> pretty (posCoff start)
-          <> "-"
-          <> pretty (posCoff end)
-          <> "] "
-          <> pretty (posLine start)
+        -- Same line: "1:5-7"
+        pretty (posLine start)
           <> ":"
           <> pretty (posCol start)
           <> "-"
           <> pretty (posCol end)
       else
-        "["
-          <> pretty (posCoff start)
-          <> "-"
-          <> pretty (posCoff end)
-          <> "] "
-          <> pretty (posLine start)
+        -- Different lines: "1:5-2:10"
+        pretty (posLine start)
           <> ":"
           <> pretty (posCol start)
           <> "-"
@@ -363,5 +350,27 @@ instance Pretty Pos where
 --   - end-exclusive: end column is 3 (pointing past 'B')
 fromInclusiveLoc :: IncLoc.Loc -> Maybe Range
 fromInclusiveLoc IncLoc.NoLoc = Nothing
-fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos _ l1 c1 co1) (IncLoc.Pos _ l2 c2 co2)) =
-  Just $ mkRange (mkPos l1 c1 co1) (mkPos l2 (c2 + 1) (co2 + 1))
+fromInclusiveLoc (IncLoc.Loc (IncLoc.Pos _ l1 c1 _co1) (IncLoc.Pos _ l2 c2 _co2)) =
+  Just $ mkRange (mkPos l1 c1) (mkPos l2 (c2 + 1))
+
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+-- | Extract text covered by a Range from the source text
+-- Handles multi-line ranges correctly.
+extractText :: Range -> Text -> Text
+extractText (Range (Pos l1 c1) (Pos l2 c2)) text = result
+  where
+    -- l1, l2, c1, c2 are 1-based
+    -- l1 / l2 / c1 are inclusive, but c2 is exclusive
+    rangeLines = drop (l1 - 1) $ take l2 $ Text.lines text
+    resultLines = modifyFirst (Text.drop (c1 - 1)) $ modifyLast (Text.take (c2 - 1)) rangeLines
+    result = Text.intercalate "\n" resultLines
+
+    modifyFirst _ [] = []
+    modifyFirst f (x : xs) = f x : xs
+
+    modifyLast _ [] = []
+    modifyLast f [x] = [f x]
+    modifyLast f (x : xs) = x : modifyLast f xs
