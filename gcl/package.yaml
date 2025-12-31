@@ -34,7 +34,6 @@ dependencies:
   - lens
   - multiset
   - transformers
-  - template-haskell
   - multistate
   - deepseq
   - Diff
