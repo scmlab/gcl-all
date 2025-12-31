@@ -11,7 +11,7 @@ where
 
 import Control.Monad.RWS
 import Data.Foldable (toList)
-import Data.Loc.Range
+import GCL.Range
   ( MaybeRanged (maybeRangeOf),
     posCol,
     posLine,

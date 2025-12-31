@@ -17,7 +17,7 @@ where
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Loc.Range (Pos (..), Range (..), mkPos, mkRange)
+import GCL.Range (Pos (..), Range (..), mkPos, mkRange)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Hack
@@ -37,7 +37,7 @@ fromLSPRange table (J.Range start end) =
     (fromLSPPosition table start)
     (fromLSPPosition table end)
 
--- | LSP Position -> Data.Loc.Range.Pos
+-- | LSP Position -> GCL.Range.Pos
 fromLSPPosition :: ToOffset -> J.Position -> Pos
 fromLSPPosition table (J.Position line col) =
   mkPos
@@ -50,7 +50,7 @@ fromLSPRangeWithoutCharacterOffset (J.Range start end) =
     (fromLSPPositionWithoutCharacterOffset start)
     (fromLSPPositionWithoutCharacterOffset end)
 
--- | LSP Position -> Data.Loc.Range.Pos
+-- | LSP Position -> GCL.Range.Pos
 fromLSPPositionWithoutCharacterOffset :: J.Position -> Pos
 fromLSPPositionWithoutCharacterOffset (J.Position line col) =
   mkPos

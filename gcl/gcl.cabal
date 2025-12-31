@@ -19,7 +19,6 @@ extra-source-files:
 
 library
   exposed-modules:
-      Data.Loc.Range
       Error
       GCL.Common
       GCL.Exec
@@ -28,6 +27,7 @@ library
       GCL.Exec.ExRand
       GCL.Predicate
       GCL.Predicate.Util
+      GCL.Range
       GCL.Substitution
       GCL.Type
       GCL.Type2.Elaborate

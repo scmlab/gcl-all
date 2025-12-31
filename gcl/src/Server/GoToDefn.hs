@@ -10,7 +10,7 @@ module Server.GoToDefn
 where
 
 import Control.Monad.RWS
-import Data.Loc.Range
+import GCL.Range
   ( MaybeRanged,
     Range,
     maybeRangeOf,

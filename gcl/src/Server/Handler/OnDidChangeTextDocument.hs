@@ -4,7 +4,7 @@
 
 module Server.Handler.OnDidChangeTextDocument where
 
-import Data.Loc.Range (MaybeRanged (..), Range (..))
+import GCL.Range (MaybeRanged (..), Range (..))
 import GCL.Predicate (Origin (..), PO (..), Spec (..))
 import GCL.WP.Types (StructWarning (MissingBound))
 import qualified Language.LSP.Protocol.Types as LSP

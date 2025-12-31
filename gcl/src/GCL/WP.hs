@@ -12,7 +12,7 @@ import Control.Monad.Except
 import Control.Monad.RWS (RWST (runRWST))
 import Data.IntMap (IntMap)
 import qualified Data.List as List
-import Data.Loc.Range (MaybeRanged (..))
+import GCL.Range (MaybeRanged (..))
 import qualified Data.Map as Map
 import Data.Text (Text)
 import GCL.Predicate

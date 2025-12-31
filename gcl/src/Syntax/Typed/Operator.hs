@@ -1,6 +1,6 @@
 module Syntax.Typed.Operator where
 
-import Data.Loc.Range (MaybeRanged (..), (<--->))
+import GCL.Range (MaybeRanged (..), (<--->))
 import Data.Text (Text)
 import Syntax.Abstract.Operator (tBool, tFunc, tInt)
 import Syntax.Abstract.Types (Lit (..), Type (..))

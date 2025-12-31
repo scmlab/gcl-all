@@ -3,7 +3,7 @@
 module Test.SrcLoc where
 
 import Data.List (sort)
-import Data.Loc.Range
+import GCL.Range
 import GCL.Predicate (Origin (AtSkip))
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -90,7 +90,7 @@ posOrdRangeTests =
     posAfterRange pos (Range _ end) = posOrd pos >= posOrd end  -- >= because end is exclusive
 
 --------------------------------------------------------------------------------
--- Test 3: within function (from Data.Loc.Range)
+-- Test 3: within function (from GCL.Range)
 --------------------------------------------------------------------------------
 
 withinTests :: TestTree

@@ -5,7 +5,7 @@ module Syntax.Common.Types where
 
 import Control.Arrow (Arrow (second))
 import Data.Function (on)
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)

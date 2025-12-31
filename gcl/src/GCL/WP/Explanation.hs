@@ -2,7 +2,7 @@
 
 module GCL.WP.Explanation where
 
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import Data.Text (Text)
 import GCL.Predicate
 import Render

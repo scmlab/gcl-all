@@ -29,7 +29,7 @@ where
 
 import Data.Aeson (ToJSON (toJSON))
 import Data.Foldable (toList)
-import Data.Loc.Range
+import GCL.Range
 import Data.Sequence (Seq (..))
 import qualified Data.Sequence as Seq
 import Data.String (IsString (..))

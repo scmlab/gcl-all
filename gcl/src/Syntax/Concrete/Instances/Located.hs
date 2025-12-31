@@ -1,6 +1,6 @@
 module Syntax.Concrete.Instances.Located where
 
-import Data.Loc.Range
+import GCL.Range
   ( MaybeRanged (..),
     (<--->),
   )

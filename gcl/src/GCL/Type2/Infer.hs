@@ -8,7 +8,7 @@ module GCL.Type2.Infer where
 
 import Data.List (foldl')
 import qualified Data.List.NonEmpty as NE
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)

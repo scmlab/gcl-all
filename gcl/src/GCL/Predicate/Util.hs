@@ -1,7 +1,7 @@
 module GCL.Predicate.Util where
 
 import qualified Data.Char as Char
-import Data.Loc.Range (Range (Range), extractText, posLine)
+import GCL.Range (Range (Range), extractText, posLine)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate

@@ -34,7 +34,7 @@ import Control.Monad.State
 import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.List (intercalate)
 import qualified Data.List.NonEmpty as NEL
-import Data.Loc.Range
+import GCL.Range
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (..))

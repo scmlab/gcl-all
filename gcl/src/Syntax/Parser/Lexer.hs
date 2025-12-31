@@ -19,7 +19,7 @@ import Data.Char
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Loc as IncLoc
-import Data.Loc.Range (R (..), Range, fromInclusiveLoc, unR)
+import GCL.Range (R (..), Range, fromInclusiveLoc, unR)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text

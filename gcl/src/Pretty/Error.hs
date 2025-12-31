@@ -4,7 +4,7 @@
 module Pretty.Error where
 
 import Data.Foldable (toList)
-import Data.Loc.Range (MaybeRanged (..), displayPos)
+import GCL.Range (MaybeRanged (..), displayPos)
 import Error
 import GCL.Type (TypeError (..))
 import GCL.WP.Types

@@ -10,7 +10,7 @@ module Server.Load where
 
 import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))

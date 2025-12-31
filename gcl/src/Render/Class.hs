@@ -10,7 +10,7 @@ module Render.Class
   )
 where
 
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Prettyprinter (Doc)

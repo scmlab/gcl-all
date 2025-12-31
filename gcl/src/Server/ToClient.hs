@@ -21,7 +21,7 @@ where
 import Data.Aeson (defaultOptions, genericToJSON, object, (.=))
 import qualified Data.Aeson as JSON
 import Data.List.NonEmpty (toList)
-import Data.Loc.Range (MaybeRanged (..), Range)
+import GCL.Range (MaybeRanged (..), Range)
 import qualified Data.Text as Text
 import qualified Error
 import qualified GCL.Predicate as GCL

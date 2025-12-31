@@ -15,7 +15,7 @@ import Control.Monad.RWS
     withRWST,
   )
 import qualified Data.Hashable as Hashable
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text

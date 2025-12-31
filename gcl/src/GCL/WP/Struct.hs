@@ -4,7 +4,7 @@ module GCL.WP.Struct where
 
 import Control.Arrow (first, second)
 import Control.Monad (forM_)
-import Data.Loc.Range (MaybeRanged (..))
+import GCL.Range (MaybeRanged (..))
 import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common (freshName)

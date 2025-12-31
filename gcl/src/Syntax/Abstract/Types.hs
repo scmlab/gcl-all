@@ -3,7 +3,7 @@
 module Syntax.Abstract.Types where
 
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc.Range (Range)
+import GCL.Range (Range)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)

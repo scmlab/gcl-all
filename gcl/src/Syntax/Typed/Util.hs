@@ -3,7 +3,7 @@
 module Syntax.Typed.Util where
 
 import Control.Arrow (second)
-import Data.Loc.Range (MaybeRanged (..), (<--->))
+import GCL.Range (MaybeRanged (..), (<--->))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
