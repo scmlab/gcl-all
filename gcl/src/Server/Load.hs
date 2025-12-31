@@ -115,7 +115,7 @@ load filePath = do
     onError :: Error -> ServerM ()
     onError err = do
       logText "load: error\n\t"
-      logText $ Text.pack (show $ JSON.encode err)
+      logText $ Text.pack (show err)
       logText "\n"
       sendErrorNotification filePath [err]
       logText "load: update notification sent\n"

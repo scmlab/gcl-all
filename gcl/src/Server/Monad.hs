@@ -52,6 +52,10 @@ data GlobalState = GlobalState
 
 type Versioned a = (LSP.Int32, a)
 
+-- | Extract the value from a Versioned tuple, discarding the version number
+unversioned :: Versioned a -> a
+unversioned = snd
+
 data FileState = FileState
   -- main states for Reload and Refine
   { refinedVersion :: LSP.Int32, -- the version number of the last refine
