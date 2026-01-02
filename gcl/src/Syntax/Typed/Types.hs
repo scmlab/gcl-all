@@ -1,8 +1,8 @@
 module Syntax.Typed.Types where
 
-import Data.Loc.Range (Range)
 import Data.Text (Text)
 import GCL.Common (Index, TypeInfo)
+import GCL.Range (Range)
 import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
 import Syntax.Common.Types (Name, Op, TypeOp)
 

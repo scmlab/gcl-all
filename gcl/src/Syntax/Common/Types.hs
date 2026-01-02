@@ -5,11 +5,11 @@ module Syntax.Common.Types where
 
 import Control.Arrow (Arrow (second))
 import Data.Function (on)
-import Data.Loc.Range (Range)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import GCL.Range (Range)
 import GHC.Generics (Generic)
 import Prelude hiding (Ordering (..))
 

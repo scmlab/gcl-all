@@ -3,11 +3,11 @@
 module Syntax.Typed.Util where
 
 import Control.Arrow (second)
-import Data.Loc.Range (MaybeRanged (..), (<--->))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Text (Text)
+import GCL.Range (MaybeRanged (..), (<--->))
 import Syntax.Abstract.Types (TBase (TBool), Type (..))
 import Syntax.Common (Name (..), nameToText)
 import Syntax.Typed

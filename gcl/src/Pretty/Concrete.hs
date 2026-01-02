@@ -5,8 +5,8 @@
 
 module Pretty.Concrete where
 
-import Data.Loc.Range ()
 import Data.Text (unpack)
+import GCL.Range ()
 import Pretty.Common ()
 import Pretty.Util
 import Pretty.Variadic

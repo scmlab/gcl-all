@@ -18,10 +18,10 @@ import qualified Server.SrcLoc as SrcLoc
 originTargetRangesToLocationLink :: GoToDefn.OriginTargetRanges -> LSP.Uri -> LSP.LocationLink
 originTargetRangesToLocationLink (GoToDefn.OriginTargetRanges originRange tgtRange tgtSelRange) uri =
   LSP.LocationLink
-    { LSP._originSelectionRange = Just $ SrcLoc.toLSPRange originRange
-    , LSP._targetUri = uri
-    , LSP._targetRange = SrcLoc.toLSPRange tgtRange
-    , LSP._targetSelectionRange = SrcLoc.toLSPRange tgtSelRange
+    { LSP._originSelectionRange = Just $ SrcLoc.toLSPRange originRange,
+      LSP._targetUri = uri,
+      LSP._targetRange = SrcLoc.toLSPRange tgtRange,
+      LSP._targetSelectionRange = SrcLoc.toLSPRange tgtSelRange
     }
 
 handler :: LSP.Uri -> LSP.Position -> ([LSP.LocationLink] -> ServerM ()) -> ServerM ()
@@ -45,7 +45,7 @@ handler uri lspPosition responder = do
                   Nothing -> responder []
                   Just originTargetRanges ->
                     let locationLink = originTargetRangesToLocationLink originTargetRanges uri
-                    in responder $ translateLocationLinks positionDelta [locationLink]
+                     in responder $ translateLocationLinks positionDelta [locationLink]
               _ -> responder []
 
 -- TODO: currently, we assume source and target are in the same file

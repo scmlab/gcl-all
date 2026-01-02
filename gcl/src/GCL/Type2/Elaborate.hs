@@ -3,9 +3,9 @@
 module GCL.Type2.Elaborate where
 
 import Control.Monad (foldM, unless, when)
-import Data.Loc.Range (Range)
 import qualified Data.Map as Map
 import Debug.Trace
+import GCL.Range (Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE

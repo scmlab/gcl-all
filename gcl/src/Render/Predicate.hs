@@ -2,9 +2,9 @@
 
 module Render.Predicate where
 
-import Data.Loc.Range (MaybeRanged (..))
 import qualified Data.Text as Text
 import GCL.Predicate
+import GCL.Range (MaybeRanged (..))
 import GCL.WP.Types
 import Render.Class
 import Render.Element

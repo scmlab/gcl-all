@@ -7,10 +7,10 @@ import Control.Monad.Combinators.Expr
 import Control.Monad.Except
 import qualified Data.Either as Either
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc.Range
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Void
+import GCL.Range
 import Language.Lexer.Applicative (TokenStream (TsEof, TsToken))
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)

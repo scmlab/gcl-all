@@ -5,7 +5,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 
 -- |
--- Module      : Data.Loc.Range
+-- Module      : GCL.Range
 -- Description : Position and range types for source locations
 --
 -- This module provides the primary API for working with source locations.
@@ -15,7 +15,7 @@
 -- All application code should import this module instead of 'Data.Loc':
 --
 -- @
--- import Data.Loc.Range (Range, Pos, MaybeRanged(..), Ranged(..), ...)
+-- import GCL.Range (Range, Pos, MaybeRanged(..), Ranged(..), ...)
 -- @
 --
 -- == Design
@@ -30,7 +30,7 @@
 -- This project uses three different ways to represent ranges:
 --
 -- 1. 'Data.Loc.Loc' (1-based, end-inclusive)
--- 2. 'Data.Loc.Range.Range' (1-based, end-exclusive)
+-- 2. 'GCL.Range.Range' (1-based, end-exclusive)
 -- 3. 'Language.LSP.Protocol.Types.Range' (0-based, end-exclusive)
 --
 -- For example, to represent the first two characters \"AB\" at the beginning of a file:
@@ -49,7 +49,7 @@
 --
 -- The lexer produces end-inclusive locations ('Data.Loc').
 -- Use 'fromInclusiveLoc' to convert to end-exclusive 'Range'.
-module Data.Loc.Range
+module GCL.Range
   ( Range (Range), -- only the type and the pattern, the constructor is hidden
     mkRange, -- forcing users to use this constructor
     R (..),

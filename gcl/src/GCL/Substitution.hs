@@ -6,7 +6,6 @@
 
 module GCL.Substitution where
 
-import Data.Loc.Range (MaybeRanged (maybeRangeOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -20,6 +19,7 @@ import GCL.Common
     --  , FreshState
     freshPre,
   )
+import GCL.Range (MaybeRanged (maybeRangeOf))
 -- import           GCL.Predicate                  ( PO(PO)
 --                                                 , Pred(..)
 --                                                 )

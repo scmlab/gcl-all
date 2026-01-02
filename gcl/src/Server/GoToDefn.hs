@@ -10,14 +10,14 @@ module Server.GoToDefn
 where
 
 import Control.Monad.RWS
-import Data.Loc.Range
+import Data.Map (Map)
+import qualified Data.Map as Map
+import qualified Data.Text as Text
+import GCL.Range
   ( MaybeRanged,
     Range,
     maybeRangeOf,
   )
-import Data.Map (Map)
-import qualified Data.Map as Map
-import qualified Data.Text as Text
 import Prettyprinter
 import Server.IntervalMap
 import qualified Server.IntervalMap as IntervalMap
@@ -31,8 +31,8 @@ collectLocationLinks program = runM (programToScopes program) (collect program)
 
 -- | Stage 1: Only target information (where the definition is)
 data TargetRanges = TargetRanges
-  { targetRange :: Range
-  , targetSelectionRange :: Range
+  { targetRange :: Range,
+    targetSelectionRange :: Range
   }
   deriving (Show, Eq)
 
@@ -42,9 +42,9 @@ instance Pretty TargetRanges where
 
 -- | Stage 2: Both origin and target information, but no URI yet
 data OriginTargetRanges = OriginTargetRanges
-  { originSelectionRange :: Range
-  , otTargetRange :: Range
-  , otTargetSelectionRange :: Range
+  { originSelectionRange :: Range,
+    otTargetRange :: Range,
+    otTargetSelectionRange :: Range
   }
   deriving (Show, Eq)
 
@@ -116,10 +116,11 @@ makeTargetRanges :: (MaybeRanged a) => Map Name a -> Map Name TargetRanges
 makeTargetRanges = Map.mapMaybeWithKey $ \name target -> do
   tgtRange <- maybeRangeOf target
   tgtSelectionRange <- maybeRangeOf name
-  return $ TargetRanges
-    { targetRange = tgtRange
-    , targetSelectionRange = tgtSelectionRange
-    }
+  return $
+    TargetRanges
+      { targetRange = tgtRange,
+        targetSelectionRange = tgtSelectionRange
+      }
 
 scopeFromLocalBinders :: [Name] -> Scope TargetRanges
 scopeFromLocalBinders names =
@@ -136,12 +137,13 @@ instance Collect TargetRanges OriginTargetRanges Name where
       Just targetRanges -> case maybeRangeOf name of
         Nothing -> return ()
         Just originRange ->
-          let originTargetRanges = OriginTargetRanges
-                { originSelectionRange = originRange
-                , otTargetRange = targetRange targetRanges
-                , otTargetSelectionRange = targetSelectionRange targetRanges
-                }
-          in tell $ IntervalMap.singleton originRange originTargetRanges
+          let originTargetRanges =
+                OriginTargetRanges
+                  { originSelectionRange = originRange,
+                    otTargetRange = targetRange targetRanges,
+                    otTargetSelectionRange = targetSelectionRange targetRanges
+                  }
+           in tell $ IntervalMap.singleton originRange originTargetRanges
 
 --------------------------------------------------------------------------------
 -- Program

@@ -28,16 +28,16 @@ import qualified Data.Foldable as Foldable
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc.Range
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Text (Text)
+import GCL.Range
   ( Pos,
     Range,
     posOrd,
     rangeEnd,
     rangeStart,
   )
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Text (Text)
 import Prettyprinter
 import Syntax.Concrete (SepBy)
 import Prelude hiding (lookup)

@@ -3,8 +3,8 @@
 module Test.SrcLoc where
 
 import Data.List (sort)
-import Data.Loc.Range
 import GCL.Predicate (Origin (AtSkip))
+import GCL.Range
 import Test.Tasty
 import Test.Tasty.HUnit
 
@@ -54,43 +54,42 @@ posOrdRangeTests =
     "posOrd range comparison (end-exclusive)"
     [ testCase "position before range" $ do
         let pos = mkPos 1 5
-            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
+            rng = mkRange (mkPos 1 10) (mkPos 1 20) -- [10, 20)
         assertBool "pos before range" (posBeforeRange pos rng),
       testCase "position at range start (inclusive)" $ do
         let pos = mkPos 1 10
-            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
+            rng = mkRange (mkPos 1 10) (mkPos 1 20) -- [10, 20)
         assertBool "pos in range" (posInRange pos rng),
       testCase "position in range middle" $ do
         let pos = mkPos 1 15
-            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
+            rng = mkRange (mkPos 1 10) (mkPos 1 20) -- [10, 20)
         assertBool "pos in range" (posInRange pos rng),
       testCase "position just before range end" $ do
         let pos = mkPos 1 19
-            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
+            rng = mkRange (mkPos 1 10) (mkPos 1 20) -- [10, 20)
         assertBool "pos in range" (posInRange pos rng),
       testCase "position at range end (exclusive)" $ do
         let pos = mkPos 1 20
-            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
+            rng = mkRange (mkPos 1 10) (mkPos 1 20) -- [10, 20)
         assertBool "pos NOT in range (end-exclusive)" (not $ posInRange pos rng),
       testCase "position after range" $ do
         let pos = mkPos 1 25
-            rng = mkRange (mkPos 1 10) (mkPos 1 20)  -- [10, 20)
+            rng = mkRange (mkPos 1 10) (mkPos 1 20) -- [10, 20)
         assertBool "pos after range" (posAfterRange pos rng)
     ]
   where
     -- Correct semantics for end-exclusive Range
     posInRange :: Pos -> Range -> Bool
     posInRange pos (Range start end) =
-      posOrd start <= posOrd pos && posOrd pos < posOrd end  -- Note: < not <=
-
+      posOrd start <= posOrd pos && posOrd pos < posOrd end -- Note: < not <=
     posBeforeRange :: Pos -> Range -> Bool
     posBeforeRange pos (Range start _) = posOrd pos < posOrd start
 
     posAfterRange :: Pos -> Range -> Bool
-    posAfterRange pos (Range _ end) = posOrd pos >= posOrd end  -- >= because end is exclusive
+    posAfterRange pos (Range _ end) = posOrd pos >= posOrd end -- >= because end is exclusive
 
 --------------------------------------------------------------------------------
--- Test 3: within function (from Data.Loc.Range)
+-- Test 3: within function (from GCL.Range)
 --------------------------------------------------------------------------------
 
 withinTests :: TestTree

@@ -15,7 +15,6 @@ import Control.Monad.RWS
     withRWST,
   )
 import qualified Data.Hashable as Hashable
-import Data.Loc.Range (Range)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -33,6 +32,7 @@ import GCL.Predicate
     Pred,
     Spec (Specification),
   )
+import GCL.Range (Range)
 import GCL.WP.Types
 import Numeric (showHex)
 import Pretty (toString)

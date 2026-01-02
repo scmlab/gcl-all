@@ -4,7 +4,6 @@ module GCL.WP.Struct where
 
 import Control.Arrow (first, second)
 import Control.Monad (forM_)
-import Data.Loc.Range (MaybeRanged (..))
 import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common (freshName)
@@ -13,6 +12,7 @@ import GCL.Predicate
     Origin (..),
     Pred,
   )
+import GCL.Range (MaybeRanged (..))
 import GCL.WP.Explanation
 import GCL.WP.Types
 import GCL.WP.Util

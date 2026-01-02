@@ -34,13 +34,13 @@ import Control.Monad.State
 import Control.Monad.Writer (Writer, runWriter, tell)
 import Data.List (intercalate)
 import qualified Data.List.NonEmpty as NEL
-import Data.Loc.Range
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (..))
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Void
+import GCL.Range
 import Syntax.Parser.Lexer
   ( Tok (..),
     TokStream,
