@@ -23,13 +23,13 @@ import Data.IORef
     newIORef,
     readIORef,
   )
-import Data.Loc.Range (Range, posCol, rangeStart)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Proxy
 import Data.Text
 import qualified Data.Text as Text
 import GCL.Predicate (PO, Spec (Specification, specID))
+import GCL.Range (Range, posCol, rangeStart)
 import GCL.WP.Types (StructWarning)
 import GHC.TypeLits (KnownSymbol)
 import qualified Language.LSP.Diagnostics as LSP

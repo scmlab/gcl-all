@@ -3,8 +3,8 @@
 module Render.Error where
 
 import Data.Foldable (toList)
-import Data.Loc.Range (MaybeRanged (..), mkRange)
 import Error
+import GCL.Range (MaybeRanged (..), mkRange)
 import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
 import Render.Class

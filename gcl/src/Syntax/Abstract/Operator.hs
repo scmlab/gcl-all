@@ -1,7 +1,7 @@
 module Syntax.Abstract.Operator where
 
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), (<--->))
 import Data.Text (Text)
+import GCL.Range (MaybeRanged (maybeRangeOf), (<--->))
 import Syntax.Abstract
   ( Chain (..),
     Expr (..),

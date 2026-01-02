@@ -2,9 +2,9 @@
 
 module GCL.WP.Explanation where
 
-import Data.Loc.Range (Range)
 import Data.Text (Text)
 import GCL.Predicate
+import GCL.Range (Range)
 import Render
 import Syntax.Abstract.Operator (tInt)
 import qualified Syntax.Abstract.Types as A

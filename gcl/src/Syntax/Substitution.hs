@@ -7,12 +7,12 @@
 module Syntax.Substitution where
 
 import Control.Monad (forM)
-import Data.Loc.Range (Range)
 import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import GCL.Common hiding (Substitutable (subst))
+import GCL.Range (Range)
 import Syntax.Abstract.Types
 import Syntax.Abstract.Util (declaredNames)
 import Syntax.Common

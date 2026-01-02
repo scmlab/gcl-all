@@ -8,13 +8,13 @@ module GCL.Type2.Infer where
 
 import Data.List (foldl')
 import qualified Data.List.NonEmpty as NE
-import Data.Loc.Range (Range)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Debug.Trace
+import GCL.Range (Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.MiniAst
 import GCL.Type2.RSE

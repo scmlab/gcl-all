@@ -19,10 +19,10 @@ import Data.Char
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Loc as IncLoc
-import Data.Loc.Range (R (..), Range, fromInclusiveLoc, unR)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import GCL.Range (R (..), Range, fromInclusiveLoc, unR)
 import Language.Lexer.Applicative (Lexer, TokenStream (..), longest, longestShortest, runLexer, token, whitespace)
 import Syntax.Parser.TokenStream (PrettyToken (..))
 import Text.Regex.Applicative (Alternative (many, some, (<|>)), RE, anySym, psym, string)

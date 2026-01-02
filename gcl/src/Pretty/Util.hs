@@ -25,10 +25,10 @@ where
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BSL
-import Data.Loc.Range
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import GCL.Range
 import Prettyprinter
 import qualified Prettyprinter.Render.Text as Text
 import Render.Class

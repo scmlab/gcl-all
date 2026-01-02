@@ -7,7 +7,7 @@ module Server.Hover
   )
 where
 
-import Data.Loc.Range
+import GCL.Range
   ( MaybeRanged,
     maybeRangeOf,
   )

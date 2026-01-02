@@ -11,7 +11,6 @@ import Control.Monad.Except
 import Control.Monad.RWS (MonadState (get, put), RWST (..))
 import Control.Monad.State (StateT (..))
 import Data.Aeson (ToJSON)
-import Data.Loc.Range (MaybeRanged (..), Range, mkRange)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set
@@ -21,6 +20,7 @@ import Data.Set
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
+import GCL.Range (MaybeRanged (..), Range, mkRange)
 import GHC.Generics
 import Syntax.Abstract
 import Syntax.Common.Types

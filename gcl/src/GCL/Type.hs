@@ -19,12 +19,12 @@ import Control.Monad.State.Lazy
 import Data.Bifunctor
 import Data.Foldable (foldlM)
 import Data.List
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), Range, (<--->))
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Ord as Ord
 import qualified Data.Set as Set
 import GCL.Common
+import GCL.Range (MaybeRanged (maybeRangeOf), Range, (<--->))
 import GHC.Generics
 import Syntax.Abstract
 import Syntax.Abstract.Util (wrapTFunc)

@@ -5,7 +5,6 @@ module GCL.WP.WP where
 import Control.Arrow (first, second)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
-import Data.Loc.Range (MaybeRanged (..))
 import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common
@@ -14,6 +13,7 @@ import GCL.Common
     freshName',
   )
 import GCL.Predicate (Pred)
+import GCL.Range (MaybeRanged (..))
 import GCL.Substitution (syntaxSubst)
 import GCL.WP.Types
 import GCL.WP.Util

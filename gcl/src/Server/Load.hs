@@ -10,11 +10,11 @@ module Server.Load where
 
 import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
-import Data.Loc.Range (Range)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Predicate (PO, Spec)
+import GCL.Range (Range)
 import qualified GCL.Type as TypeChecking
 import qualified GCL.WP as WP
 import GCL.WP.Types (StructError, StructWarning)

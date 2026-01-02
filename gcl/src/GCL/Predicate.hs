@@ -4,15 +4,15 @@ module GCL.Predicate where
 
 import Data.Aeson (ToJSON)
 import qualified Data.Aeson as JSON
-import Data.Loc.Range
+import qualified Data.Set as Set
+import Data.Text (Text)
+import GCL.Common
+import GCL.Range
   ( MaybeRanged (..),
     Range,
     Ranged (rangeOf),
     within,
   )
-import qualified Data.Set as Set
-import Data.Text (Text)
-import GCL.Common
 import GHC.Generics (Generic)
 import Render.Element
 import Syntax.Common (Name)

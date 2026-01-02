@@ -7,8 +7,8 @@
 
 module Syntax.Concrete.Types where
 
-import Data.Loc.Range (MaybeRanged (..), Pos, R, Range, Ranged (..), mkRange)
 import Data.Text (Text)
+import GCL.Range (MaybeRanged (..), Pos, R, Range, Ranged (..), mkRange)
 import GHC.Base (Symbol)
 import GHC.Generics (Generic)
 import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)

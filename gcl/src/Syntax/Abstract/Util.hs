@@ -4,11 +4,11 @@ module Syntax.Abstract.Util where
 
 import Data.Bifunctor (second)
 import qualified Data.List as List
-import Data.Loc.Range (MaybeRanged (maybeRangeOf), (<--->))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
 import Data.Text (Text)
+import GCL.Range (MaybeRanged (maybeRangeOf), (<--->))
 import Syntax.Abstract
 import Syntax.Common
   ( Name (..),

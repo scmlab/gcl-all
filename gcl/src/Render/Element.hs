@@ -29,12 +29,12 @@ where
 
 import Data.Aeson (ToJSON (toJSON))
 import Data.Foldable (toList)
-import Data.Loc.Range
 import Data.Sequence (Seq (..))
 import qualified Data.Sequence as Seq
 import Data.String (IsString (..))
 import Data.Text (Text)
 import qualified Data.Text as Text
+import GCL.Range
 import GHC.Generics (Generic)
 import Prettyprinter (Pretty (..))
 import qualified Prettyprinter as Pretty
