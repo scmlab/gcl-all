@@ -26,7 +26,7 @@ import Data.IORef
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Proxy
-import Data.Text
+import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate (PO, Spec (Specification, specID))
 import GCL.Range (Range, posCol, rangeStart)
