@@ -1,8 +1,24 @@
 #
-# Install ghc and compile dependencies in ~/.stack
+# Install Node.js on top of the base image
+#
+FROM ghcr.io/lcamel/haskell-devcontainer:stackage-lts-24.11 AS base-with-nodejs
+USER vscode
+
+# Install NVM (Node Version Manager) and Node.js 24
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
+    export NVM_DIR="$HOME/.nvm" && \
+    . "$NVM_DIR/nvm.sh" && \
+    echo "nvm version: $(nvm --version)" && \
+    nvm install 24 && \
+    nvm use 24 && \
+    echo '. $NVM_DIR/nvm.sh' >> $HOME/.bashrc
+
+
+#
+# Pre-compile project dependencies to ~/.stack for caching
 # This stage seldom changes
 #
-FROM ghcr.io/scmlab/gcl-all-builder-base:latest AS builder-deps
+FROM base-with-nodejs AS builder-deps
 USER vscode
 WORKDIR /tmp/cache-build-deps
 COPY gcl/stack.yaml gcl/stack.yaml.lock gcl/package.yaml ./
