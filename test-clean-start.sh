@@ -11,7 +11,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
-IMG="ghcr.io/scmlab/gcl-all-builder-deps-bin"
+IMG="ghcr.io/scmlab/gcl-dev"
 docker ps -a --filter "ancestor=$IMG:latest" -q | xargs -r docker rm -f
 docker tag "$IMG:latest" "$IMG:backup"
 docker rmi "$IMG:latest"
