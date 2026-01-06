@@ -53,27 +53,55 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Build GCL
       - uses: docker/build-push-action@v6
+        id: build-gcl
         with:
           context: .
           target: gcl
-          push: true
           platforms: ${{ matrix.platform }}
           cache-from: type=gha,scope=build-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=build-${{ matrix.suffix }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}-${{ matrix.suffix }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
 
+      - name: Export digest for gcl
+        run: |
+          mkdir -p /tmp/digests/gcl
+          digest="${{ steps.build-gcl.outputs.digest }}"
+          touch "/tmp/digests/gcl/${digest#sha256:}"
+
+      # Build GCL-DEV
       - uses: docker/build-push-action@v6
+        id: build-gcl-dev
         with:
           context: .
           target: gcl-dev
-          push: true
           platforms: ${{ matrix.platform }}
           cache-from: type=gha,scope=build-${{ matrix.suffix }}
           cache-to: type=gha,mode=max,scope=build-${{ matrix.suffix }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:sha-${{ github.sha }}-${{ matrix.suffix }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest for gcl-dev
+        run: |
+          mkdir -p /tmp/digests/gcl-dev
+          digest="${{ steps.build-gcl-dev.outputs.digest }}"
+          touch "/tmp/digests/gcl-dev/${digest#sha256:}"
+
+      - name: Upload digest (gcl)
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-gcl-${{ matrix.suffix }}
+          path: /tmp/digests/gcl/*
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Upload digest (gcl-dev)
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-gcl-dev-${{ matrix.suffix }}
+          path: /tmp/digests/gcl-dev/*
+          if-no-files-found: error
+          retention-days: 1
 
   merge-manifests:
     needs: [check, build-images]
@@ -83,22 +111,37 @@ jobs:
       contents: read
     if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
     steps:
+      - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create and push manifest for gcl
-        run: |
-          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-            --amend ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}-amd64 \
-            --amend ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}-arm64
-          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+      # Merge GCL
+      - name: Download digests (gcl)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-gcl-*
+          path: /tmp/digests/gcl
+          merge-multiple: true
 
-      - name: Create and push manifest for gcl-dev
+      - name: Create manifest list and push (gcl)
+        working-directory: /tmp/digests/gcl
         run: |
-          docker manifest create ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:latest \
-            --amend ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:sha-${{ github.sha }}-amd64 \
-            --amend ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:sha-${{ github.sha }}-arm64
-          docker manifest push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:latest
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
+
+      # Merge GCL-DEV
+      - name: Download digests (gcl-dev)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: digests-gcl-dev-*
+          path: /tmp/digests/gcl-dev
+          merge-multiple: true
+
+      - name: Create manifest list and push (gcl-dev)
+        working-directory: /tmp/digests/gcl-dev
+        run: |
+          docker buildx imagetools create -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev:latest \
+            $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-dev@sha256:%s ' *)
