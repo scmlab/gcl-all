@@ -1,55 +1,44 @@
-// On non-x86 computers (like M-series MacBooks), the first startup will fail if
-// the image doesn't exist locally. Therefore, we add a pull command.
-// However, this would cause remote connections every time we start the container,
-// so we add a check: only pull if the image doesn't exist (even if it's older).
-// If you want to use the newest image, you can just pull it everytime.
 {
-    "name": "GCL Language Server Development",
-    "image": "ghcr.io/scmlab/gcl-dev:latest",
-    "runArgs": ["--platform=linux/amd64"],
+  "image": "ghcr.io/scmlab/gcl-dev:latest",
 
-    // pull the latest Docker image only if it does not exist locally (to avoid pulling from remote on every startup)
-    "initializeCommand": "time bash -c 'docker image inspect ghcr.io/scmlab/gcl-dev:latest >/dev/null 2>&1 || docker pull ghcr.io/scmlab/gcl-dev:latest --platform=linux/amd64'",
-    // always pull the newest image
-    //"initializeCommand": "time bash -c 'docker pull ghcr.io/scmlab/gcl-dev:latest --platform=linux/amd64'",
+  // if you want to always pull the latest image
+  "initializeCommand": "docker pull ghcr.io/scmlab/gcl-dev:latest",
 
-    // "containerEnv": {
-    //     "LANG": "en_US.UTF-8",
-    //     "LC_ALL": "en_US.UTF-8",
-    //     "LC_CTYPE": "en_US.UTF-8",
-    //     "LANGUAGE": "en_US:en"
-    // },
-    "remoteUser": "vscode",
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "haskell.haskell"
-            ],
-            "settings": {
-                "git.openRepositoryInParentFolders": "always",
-                //
-                // Since GHCup may not always determine the correct tool versions,
-                // we want to install the specified versions ourselves first
-                // and then have the Haskell extension use them.
-                // This should be the behavior of "haskell.manageHLS" = "PATH".
-                //
-                // However, due to the Haskell Extension's logic, a misleading dialog
-                // will initially appear, and users might make the wrong choice.
-                //
-                // So we change the setting to "haskell.manageHLS" = "GHCup"
-                // and tell GHCup not to install any tools automatically,
-                // which reverts back to the original behavior of using
-                // pre-installed tools from PATH.
-                //
-                "haskell.manageHLS": "GHCup",
-                "haskell.upgradeGHCup": false,
-                "haskell.toolchain": {
-                    "ghc": null,
-                    "hls": null,
-                    "stack": null,
-                    "cabal": null
-                }
-            }
-        }
+  // stop container when VS Code closes (instead of leaving it running)
+  "shutdownAction": "stopContainer",
+
+  // uncomment if git does not work correctly
+  // "postStartCommand": "git config --global --add safe.directory '*'",
+
+  "customizations": {
+    "vscode": {
+      // extensions to install in the container
+      "extensions": [
+        "haskell.haskell"
+      ],
+      // WARNING: If you change the settings, remember to rebuild the container.
+      //          A mere restart might not take effect!
+      "settings": {
+        // to prevent VS Code from asking to open the parent folder when opening a subfolder of a git repo
+        "git.openRepositoryInParentFolders": "always",
+
+        // "haskell.manageHLS" should be set to "PATH".
+        // The following configuration is a workaround for the issue:
+        // https://github.com/haskell/vscode-haskell/issues/1332
+        "haskell.manageHLS": "GHCup",
+        "haskell.toolchain": {
+          "ghc": null,
+          "hls": null,
+          "stack": null,
+          "cabal": null
+        },
+        // disable automatic GHCup upgrade.
+        "haskell.upgradeGHCup": false
+      }
     }
+  },
+  // Some Haskell code requires locale settings to process non-ASCII characters.
+  //"containerEnv": {
+  //  "LC_ALL": "en_US.UTF-8"
+  //}
 }
