@@ -52,4 +52,15 @@ if [ -z "$URI" ]; then
     exit 1
 fi
 echo "Generated URI: $URI"
-code --user-data-dir "$TEMP_DIR/u" --extensions-dir "$TEMP_DIR/e" --folder-uri="$URI"
+#code --user-data-dir "$TEMP_DIR/u" --extensions-dir "$TEMP_DIR/e" --folder-uri="$URI"
+
+# Determine if we should open a workspace file or the folder
+WORKSPACE_FILE=$(ls *.code-workspace 2>/dev/null | head -n 1)
+FLAG="--folder-uri"
+if [ -n "$WORKSPACE_FILE" ]; then
+    URI="${URI}/${WORKSPACE_FILE}"
+    FLAG="--file-uri"
+fi
+
+echo "Opening $FLAG: $URI"
+code --user-data-dir "$TEMP_DIR/u" --extensions-dir "$TEMP_DIR/e" "$FLAG" "$URI"
