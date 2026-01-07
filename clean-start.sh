@@ -11,6 +11,22 @@ fi
 
 echo "This script helps you start a clean VS Code instance."
 
+# Cleanup existing Dev Containers for this project to ensure a truly clean start
+if command -v docker &> /dev/null; then
+    echo "Cleaning up existing Dev Containers for this project..."
+    CURRENT_DIR="$(pwd)"
+    # Filter by 'devcontainer.local_folder' which is the current label for Dev Containers
+    CONTAINER_IDS=$(docker ps -aq --filter "label=devcontainer.local_folder=$CURRENT_DIR")
+
+    if [ -n "$CONTAINER_IDS" ]; then
+        echo "Found existing containers, removing: $CONTAINER_IDS"
+        docker rm -f $CONTAINER_IDS
+    else
+        echo "No existing containers found for this project."
+    fi
+    echo
+fi
+
 echo "Creating temporary VS Code user data and extensions dirs..."
 TEMP_DIR=$(mktemp -d)
 echo "Temporary directory created at: $TEMP_DIR"
