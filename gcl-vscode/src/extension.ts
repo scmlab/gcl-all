@@ -49,7 +49,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 
 
-	// 切換 tab 到 .gcl 檔的時候，將該檔案對應的狀態顯示在 gclPanel
+	// When switching tabs to a .gcl file, display the corresponding state in gclPanel
 	const changeTabDisposable = vscode.window.tabGroups.onDidChangeTabs((event: vscode.TabChangeEvent) => {
 		const changedTab: vscode.Tab = event.changed[0]
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
@@ -111,7 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(outputChannel);
 
 	// notification gcl/update
-	// 更新 clientState 裡的 specs, pos, warnings
+	// Update specs, pos, warnings in clientState, and clear errors
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
 		filePath,
 		specs,
@@ -121,11 +121,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		const timestamp = new Date().toLocaleString();
 		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
-		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
-		let newClientState: ClientState =
-			oldClientState
-			? {specs, pos, warnings, errors: oldClientState.errors}
-			: {specs, pos, warnings, errors: []};
+
+		// Clear errors when receiving a successful update
+		let newClientState: ClientState = { specs, pos, warnings, errors: [] };
+
 		await context.workspaceState.update(filePath, newClientState);
 		gclPanel.rerender(newClientState);
 		await updateInlayHints(newClientState);
@@ -137,7 +136,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(updateNotificationHandlerDisposable);
 
 	// notification gcl/error
-	// 更新 clientState 裡的 errors
+	// Update errors in clientState
 	const errorNotificationHandlerDisposable = onErrorNotification(async ({
 		filePath,
 		errors

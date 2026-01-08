@@ -49,6 +49,9 @@ load filePath = do
       onError (CannotReadFile filePath)
     Just source -> do
       logText "  source read \n"
+      logText "  ---------- SOURCE START ----------\n"
+      logText source
+      logText "\n  ----------- SOURCE END -----------\n"
       -- parse source into concrete syntax
       case parse filePath source of
         Left err -> do
@@ -109,8 +112,6 @@ load filePath = do
     onSuccess = do
       logText "load: success\n"
       sendUpdateNotification filePath
-      -- clear errors
-      sendErrorNotification filePath []
       logText "load: update notification sent\n"
     onError :: Error -> ServerM ()
     onError err = do

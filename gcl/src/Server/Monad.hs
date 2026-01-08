@@ -139,7 +139,7 @@ loadFileState filePath = do
 saveFileState :: FilePath -> FileState -> ServerM ()
 saveFileState filePath fileState = do
   logTextLn ">>>> saveFileState: fileState"
-  logTextLn . Text.pack . show $ fileState
+  -- logTextLn . Text.pack . show $ fileState
   logTextLn "<<<< saveFileState: fileState"
   fileStateRef <- lift $ asks filesState
   liftIO $ modifyIORef fileStateRef (Map.insert filePath fileState)
