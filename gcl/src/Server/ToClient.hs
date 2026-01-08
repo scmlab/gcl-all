@@ -18,7 +18,7 @@ module Server.ToClient
   )
 where
 
-import Data.Aeson (defaultOptions, genericToJSON, object, (.=))
+import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingleConstructors, (.=))
 import qualified Data.Aeson as JSON
 import Data.List.NonEmpty (toList)
 import qualified Data.Text as Text
@@ -147,7 +147,7 @@ convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 
 instance JSON.ToJSON StructWarning where
   toJSON :: StructWarning -> JSON.Value
-  toJSON = genericToJSON defaultOptions {JSON.unwrapUnaryRecords = True}
+  toJSON = genericToJSON defaultOptions {sumEncoding = JSON.TaggedObject "tag" "contents", tagSingleConstructors = True}
 
 --------------------------------------------------------------------------------
 -- Error Notification Types
