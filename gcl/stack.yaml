@@ -93,3 +93,12 @@ system-ghc: true
 #
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
+
+# The following configuration ensures that test cases are compiled during 'stack build'.
+# This avoids redundant recompilation when later running 'stack test'.
+# If you wish to build without running tests, use: 'stack build --no-run-tests'
+build:
+  test: true
+  run-tests: false
+
+
