@@ -69,13 +69,10 @@ data FileState = FileState
     -- to support other LSP methods in a light-weighted manner
     loadedVersion :: LSP.Int32, -- the version number of the last reload
     toOffsetMap :: SrcLoc.ToOffset,
-    concrete :: Concrete.Program,
     semanticTokens :: [LSP.SemanticTokenAbsolute],
-    abstract :: Abstract.Program,
     idCount :: Int,
     definitionLinks :: IntervalMap OriginTargetRanges,
     hoverInfos :: IntervalMap LSP.Hover,
-    elaborated :: Typed.Program,
     positionDelta :: PositionDelta, -- loadedVersion ~> editedVersion
     editedVersion :: LSP.Int32 -- the version number of the last change
   }
