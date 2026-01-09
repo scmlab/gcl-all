@@ -92,12 +92,9 @@ load filePath = do
                                 -- to support other LSP methods in a light-weighted manner
                                 loadedVersion = currentVersion,
                                 toOffsetMap = SrcLoc.makeToOffset source,
-                                concrete = concrete,
                                 semanticTokens = collectHighlighting concrete,
-                                abstract = abstract,
                                 idCount = idCount,
                                 definitionLinks = collectLocationLinks abstract,
-                                elaborated = elaborated,
                                 hoverInfos = collectHoverInfo elaborated,
                                 positionDelta = idDelta,
                                 editedVersion = currentVersion
