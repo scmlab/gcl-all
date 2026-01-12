@@ -46,7 +46,10 @@ export async function start() {
 		}
 	};
 
-	client = new LanguageClient ("GCL", "GCL LSP Server", serverOptions, clientOptions);
+	// Use "gcl-vscode" as the client ID (matches extension ID for consistency, though not required).
+	// This enables automatic trace configuration: vscode-languageclient will automatically read
+	// the "gcl-vscode.trace.server" setting without requiring manual setTrace() calls.
+	client = new LanguageClient ("gcl-vscode", "GCL LSP Server", serverOptions, clientOptions);
 	await client.start();
 }
 

@@ -75,6 +75,16 @@
             "type": "string",
             "default": "gcl",
             "description": "Location of the `gcl` LSP executable"
+          },
+          "gcl-vscode.trace.server": {
+            "type": "string",
+            "enum": [
+              "off",
+              "messages",
+              "verbose"
+            ],
+            "default": "verbose",
+            "description": "Traces the communication between VS Code and the GCL language server. The 'gcl-vscode' prefix matches the Language Client ID (which happens to be the same as the extension ID), enabling vscode-languageclient to automatically apply this setting without requiring manual code."
           }
         }
       }
