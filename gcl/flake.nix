@@ -21,18 +21,18 @@
       ];
 
       stack-wrapped = pkgs.symlinkJoin {
-          name = "stack"; # will be available as the usual `stack` in terminal
-          paths = [ pkgs.stack ];
-          buildInputs = [ pkgs.makeWrapper ];
-          postBuild = ''
-            wrapProgram $out/bin/stack \
-              --add-flags "\
-                --no-nix \
-                --system-ghc \
-                --no-install-ghc \
-              "
-          '';
-        };
+        name = "stack"; # will be available as the usual `stack` in terminal
+        paths = [ pkgs.stack ];
+        buildInputs = [ pkgs.makeWrapper ];
+        postBuild = ''
+          wrapProgram $out/bin/stack \
+            --add-flags "\
+              --no-nix \
+              --system-ghc \
+              --no-install-ghc \
+            "
+        '';
+      };
     in
     {
       devShell = pkgs.mkShell {
