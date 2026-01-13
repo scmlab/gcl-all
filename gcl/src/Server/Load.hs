@@ -8,7 +8,6 @@
 
 module Server.Load where
 
-import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -127,9 +126,7 @@ parse filepath source =
 reportHolesOrToAbstract :: C.Program -> Either [Range] A.Program
 reportHolesOrToAbstract concrete =
   case collectHoles concrete of
-    [] -> case runExcept $ C.toAbstract concrete of
-      Left _ -> error "should dig all holes before calling Concrete.toAbstract"
-      Right abstract -> Right abstract
+    [] -> Right (C.toAbstract concrete)
     holes -> Left holes
 
 collectHoles :: C.Program -> [Range]

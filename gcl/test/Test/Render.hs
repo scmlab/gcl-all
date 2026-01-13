@@ -2,7 +2,6 @@
 
 module Test.Render where
 
-import Control.Monad.Except (runExcept)
 import Data.Text (Text)
 import Pretty
   ( docToText,
@@ -82,7 +81,7 @@ ce :: Text -> C.Expr
 ce = unsafeFromRight . Parser.scanAndParse Parser.expression ""
 
 ae :: C.Expr -> A.Expr
-ae = unsafeFromRight . runExcept . C.toAbstract
+ae = C.toAbstract
 
 unsafeFromRight :: Either a b -> b
 unsafeFromRight (Right x) = x

@@ -9,7 +9,6 @@
 
 module Server.Handler.GCL.Refine where
 
-import Control.Monad.Except (runExcept)
 import qualified Data.Aeson as JSON
 import Data.Bifunctor (bimap)
 import Data.List (find)
@@ -19,7 +18,7 @@ import qualified Data.Text as Text
 import Error (Error (Others, ParseError, StructError, TypeError))
 import GCL.Common (Index, TypeInfo)
 import GCL.Predicate (InfMode (..), PO (..), Spec (..))
-import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
+import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type (Elab (..), TypeError, Typed, runElaboration)
 import GCL.WP
 import GCL.WP.Types (StructError, StructWarning (..))
@@ -111,69 +110,66 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
                             Right concreteImpl -> do
                               -- concrete to abstract
                               logText "  text parsed\n"
-                              case toAbstractFragment concreteImpl of
-                                Nothing -> do
-                                  error "Holes still found after digging all holes. Should not happen\n"
-                                Just abstractImpl -> do
-                                  logText "  abstracted\n"
-                                  -- elaborate
-                                  let typeEnv = specTypeEnv spec
-                                  logText " type env:\n"
-                                  logText (Text.pack $ show typeEnv)
-                                  logText "\n"
-                                  -- TODO:
-                                  -- 1. Load: 在 elaborate program 的時候，要把 specTypeEnv 加到 spec 裡 (Andy) ok
-                                  -- 2. Load: 在 sweep 的時候，改成輸入 elaborated program，把 elaborated program 裡面的 spec 的 typeEnv 加到輸出的 [Spec] 裡 (SCM)
-                                  -- 3. Refine: elaborateFragment 裡面要正確使用 typeEnv (Andy) ok
-                                  case elaborateFragment typeEnv abstractImpl of
-                                    Left err -> do
-                                      logText "  type error\n"
-                                      onError (TypeError err)
-                                    Right typedImpl -> do
-                                      -- get POs and specs
-                                      logText "  type checked\n"
-                                      let FileState {idCount} = fileState
-                                      case sweepFragment idCount spec typedImpl of
-                                        Left err -> onError (StructError err)
-                                        Right (innerPos, innerSpecs, innerWarnings, idCount') -> do
-                                          logText "  swept\n"
-                                          logTextLn . Text.pack $ "==== refine: innerSpecs:" ++ show innerSpecs
-                                          logTextLn "\n===="
-                                          --
-                                          -- Now we have all the data.
-                                          -- We are going to modify the state and the source code.
-                                          --
-                                          deleteSpec filePath spec -- delete outer spec (by id)
-                                          logText "  outer spec deleted (refine)\n"
-                                          let FileState {editedVersion} = fileState
-                                          updateIdCounter filePath idCount'
-                                          logText "  counter updated (refine)\n"
-                                          --
-                                          -- During parsing we assigned positions to the innerXXX items.
-                                          -- Afterwards we modify the source (we remove the outer markers "[!" and "!]").
-                                          -- Do we need to adjust the positions of those innerXXX entries?
-                                          --
-                                          -- Currently no.
-                                          --
-                                          -- Because we only remove the outer markers "[!" and "!]" and
-                                          -- there should be nothing after either "[!" or "!]" on the same line,
-                                          -- the previously assigned positions remain valid and do not need adjustment.
-                                          --
-                                          pushSpecs (editedVersion + 1) filePath innerSpecs
-                                          pushPos (editedVersion + 1) filePath innerPos
-                                          pushWarnings (editedVersion + 1) filePath innerWarnings
-                                          logText "  new specs and POs added (refine)\n"
+                              let abstractImpl = C.toAbstract concreteImpl
+                              logText "  abstracted\n"
+                              -- elaborate
+                              let typeEnv = specTypeEnv spec
+                              logText " type env:\n"
+                              logText (Text.pack $ show typeEnv)
+                              logText "\n"
+                              -- TODO:
+                              -- 1. Load: 在 elaborate program 的時候，要把 specTypeEnv 加到 spec 裡 (Andy) ok
+                              -- 2. Load: 在 sweep 的時候，改成輸入 elaborated program，把 elaborated program 裡面的 spec 的 typeEnv 加到輸出的 [Spec] 裡 (SCM)
+                              -- 3. Refine: elaborateFragment 裡面要正確使用 typeEnv (Andy) ok
+                              case elaborateFragment typeEnv abstractImpl of
+                                Left err -> do
+                                  logText "  type error\n"
+                                  onError (TypeError err)
+                                Right typedImpl -> do
+                                  -- get POs and specs
+                                  logText "  type checked\n"
+                                  let FileState {idCount} = fileState
+                                  case sweepFragment idCount spec typedImpl of
+                                    Left err -> onError (StructError err)
+                                    Right (innerPos, innerSpecs, innerWarnings, idCount') -> do
+                                      logText "  swept\n"
+                                      logTextLn . Text.pack $ "==== refine: innerSpecs:" ++ show innerSpecs
+                                      logTextLn "\n===="
+                                      --
+                                      -- Now we have all the data.
+                                      -- We are going to modify the state and the source code.
+                                      --
+                                      deleteSpec filePath spec -- delete outer spec (by id)
+                                      logText "  outer spec deleted (refine)\n"
+                                      let FileState {editedVersion} = fileState
+                                      updateIdCounter filePath idCount'
+                                      logText "  counter updated (refine)\n"
+                                      --
+                                      -- During parsing we assigned positions to the innerXXX items.
+                                      -- Afterwards we modify the source (we remove the outer markers "[!" and "!]").
+                                      -- Do we need to adjust the positions of those innerXXX entries?
+                                      --
+                                      -- Currently no.
+                                      --
+                                      -- Because we only remove the outer markers "[!" and "!]" and
+                                      -- there should be nothing after either "[!" or "!]" on the same line,
+                                      -- the previously assigned positions remain valid and do not need adjustment.
+                                      --
+                                      pushSpecs (editedVersion + 1) filePath innerSpecs
+                                      pushPos (editedVersion + 1) filePath innerPos
+                                      pushWarnings (editedVersion + 1) filePath innerWarnings
+                                      logText "  new specs and POs added (refine)\n"
 
-                                          -- send notification to update Specs and POs
-                                          logText "refine: success\n"
-                                          sendUpdateNotification filePath
-                                          -- clear errors
-                                          sendErrorNotification filePath []
-                                          logText "refine: update notification sent\n"
-                                          -- edit source (dig holes + remove outer brackets)
-                                          editTexts filePath [(specRange spec, holelessImplText)] do
-                                            logText "  text edited (refine)\n"
-                                            onFinish ()
+                                      -- send notification to update Specs and POs
+                                      logText "refine: success\n"
+                                      sendUpdateNotification filePath
+                                      -- clear errors
+                                      sendErrorNotification filePath []
+                                      logText "refine: update notification sent\n"
+                                      -- edit source (dig holes + remove outer brackets)
+                                      editTexts filePath [(specRange spec, holelessImplText)] do
+                                        logText "  text edited (refine)\n"
+                                        onFinish ()
   where
     onError :: Error -> ServerM ()
     onError err = do
@@ -284,12 +280,6 @@ parseFragment filePath fragmentStart fragment = do
       TsToken (R (translateTokenRange fragmentStart range) x) (translateTokStream fragmentStart rest)
     translateTokStream _ TsEof = TsEof
     translateTokStream _ (TsError e) = TsError e
-
-toAbstractFragment :: [C.Stmt] -> Maybe [A.Stmt]
-toAbstractFragment concreteFragment =
-  case runExcept $ C.toAbstract concreteFragment of
-    Left _ -> Nothing
-    Right abstractFragment -> Just abstractFragment
 
 elaborateFragment :: (Elab a) => [(Index, TypeInfo)] -> a -> Either TypeError (Typed a)
 elaborateFragment typeEnv abstractFragment = do

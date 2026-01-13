@@ -2,10 +2,8 @@ module GCL.Type2.Test where
 
 import Control.Monad.Except
   ( ExceptT (ExceptT),
-    runExcept,
     runExceptT,
   )
-import Control.Monad.Trans (lift)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
@@ -44,9 +42,8 @@ simpleLoad filepath source = runExceptT $ do
 
     toAbstract :: C.Program -> IO (Either Error A.Program)
     toAbstract concrete = do
-      case runExcept $ C.toAbstract concrete of
-        Left _ -> error "should not happen (?)"
-        Right abstract -> return $ Right abstract
+      let abstract = C.toAbstract concrete
+      return $ Right abstract
 
     typecheck :: A.Program -> IO (Either Error T.Program)
     typecheck abstract = do
