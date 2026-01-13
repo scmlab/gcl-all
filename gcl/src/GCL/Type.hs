@@ -378,6 +378,7 @@ inferKind env (TMetaVar name _) =
   case find (isKindAnno name) env of
     Just (KindAnno _name kind) -> return (kind, env)
     _ -> throwError $ UndefinedType name
+inferKind _env TType = undefined
 
 -- This is "Application Kinding" mentioned in 53:10 in the paper "Kind Inference for Datatypes".
 inferKApp :: KindEnv -> Kind -> Kind -> ElaboratorM (Kind, KindEnv)
@@ -554,6 +555,7 @@ toKinded env ty = do
       case lookup (Index name) env of
         Just k -> return (k, T.TMetaVar name k loc)
         _ -> error "Shouldn't happen."
+    TType -> undefined
 
 -- Note that we pass the collected ids into each sections of the program.
 -- After `collectIds`, we don't need to change the state.
@@ -677,7 +679,7 @@ instance Elab Stmt where
               ( \(name, expr) -> do
                   ty <- checkAssign env name
                   (ty', typedExpr, _) <- elaborate expr env
-                  _ <- unifyType ty (fromJust ty') $ locOf expr
+                  _ <- unifyType ty (fromJust ty') $ locOf expr -- maybe assertion, could be wrong
                   return typedExpr
               )
               ass
@@ -1125,6 +1127,7 @@ instance Substitutable (Subs Type) Type where
   subst _ t@TData {} = t
   subst s t@(TVar n _) = Map.findWithDefault t n s
   subst s t@(TMetaVar n _) = Map.findWithDefault t n s
+  subst _ TType = TType
 
 instance Substitutable (Subs Type) T.Expr where
   subst s (T.Lit lit ty loc) = T.Lit lit (subst s ty) loc

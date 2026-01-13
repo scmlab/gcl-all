@@ -211,6 +211,7 @@ instance ToAbstract Type A.Type where
         A.TApp a' b' _ -> pure $ A.TApp a' b' (locOf t)
         A.TVar a' _ -> pure $ A.TVar a' (locOf t)
         A.TMetaVar a' _ -> pure $ A.TMetaVar a' (locOf t)
+        A.TType -> pure A.TType
 
 --------------------------------------------------------------------------------
 

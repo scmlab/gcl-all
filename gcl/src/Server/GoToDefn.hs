@@ -260,6 +260,7 @@ instance Collect LocationLinkToBe LocationLink Type where
     TApp x y _ -> collect x >> collect y
     TVar _ _ -> return ()
     TMetaVar _ _ -> return ()
+    TType -> return ()
 
 instance Collect LocationLinkToBe LocationLink Interval where
   collect (Interval x y _) = collect x >> collect y

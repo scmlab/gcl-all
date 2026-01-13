@@ -73,7 +73,10 @@ data ArithOp
   deriving (Eq, Show, Generic, Ord)
 
 newtype TypeOp = Arrow Loc
-  deriving (Eq, Show, Generic, Ord)
+  deriving (Show, Generic, Ord)
+
+instance Eq TypeOp where
+  Arrow _ == Arrow _ = True
 
 -- | Operators
 data Op

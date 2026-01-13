@@ -23,7 +23,7 @@ instance Render Expr where
 
 handleExpr :: PrecContext -> Expr -> Inlines
 handleExpr _ (Lit x _ l) = tempHandleLoc l $ render x
-handleExpr _ (Var x _ l) = tempHandleLoc l $ render x
+handleExpr _ (Var x ty l) = tempHandleLoc l $ "(" <> render x <+> ":" <+> render ty <> ")"
 handleExpr _ (Const x _ l) = tempHandleLoc l $ render x
 handleExpr _ (Op _ _) = error "erroneous syntax given to render"
 handleExpr _ (Chain ch) = render ch

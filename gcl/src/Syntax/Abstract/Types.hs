@@ -125,6 +125,7 @@ data Type
   | TApp Type Type Loc
   | TVar Name Loc
   | TMetaVar Name Loc
+  | TType -- * 
   deriving (Show, Generic)
 
 instance Eq Type where

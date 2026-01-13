@@ -57,6 +57,7 @@ instance Located Type where
   locOf (TApp _ _ l) = locOf l
   locOf (TVar _ l) = l
   locOf (TMetaVar _ l) = l
+  locOf TType = NoLoc
 
 instance Located Kind where
   locOf (KStar loc) = loc
