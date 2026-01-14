@@ -2,11 +2,9 @@
 
 module Test.Render where
 
-import Control.Monad.Except (runExcept)
 import Data.Text (Text)
 import Pretty
   ( docToText,
-    toByteString,
     toText,
   )
 import Prettyprinter (Pretty, pretty)
@@ -25,7 +23,6 @@ import Test.Tasty.HUnit
   )
 import Test.Util
   ( removeTrailingWhitespace,
-    runGoldenTest,
   )
 
 tests :: TestTree
@@ -82,7 +79,7 @@ ce :: Text -> C.Expr
 ce = unsafeFromRight . Parser.scanAndParse Parser.expression ""
 
 ae :: C.Expr -> A.Expr
-ae = unsafeFromRight . runExcept . C.toAbstract
+ae = C.toAbstract
 
 unsafeFromRight :: Either a b -> b
 unsafeFromRight (Right x) = x
