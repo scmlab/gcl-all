@@ -49,15 +49,15 @@ instance ToAbstract Program A.Program where
         (globProps, assertions) = ConstExpr.pickGlobals decls
         pre = [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
         stmts = toAbstract stmts'
-    in A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
+     in A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
 
 instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.Definition]) where
   toAbstract (Left d) =
     let decls = toAbstract d
-    in ([decls], [])
+     in ([decls], [])
   toAbstract (Right defnBlock) =
     let defns = toAbstract defnBlock
-    in ([], defns)
+     in ([], defns)
 
 --------------------------------------------------------------------------------
 
@@ -70,15 +70,15 @@ instance ToAbstract Definition [A.Definition] where
     [A.TypeDefn name binders (toAbstract cons) (maybeRangeOf tok <---> maybeRangeOf cons)]
   toAbstract (FuncDefnSig decl prop) =
     let (names, typ) = toAbstract decl
-    in map (\n -> A.FuncDefnSig n typ (toAbstract prop) (maybeRangeOf decl <---> maybe Nothing maybeRangeOf prop)) names
+     in map (\n -> A.FuncDefnSig n typ (toAbstract prop) (maybeRangeOf decl <---> maybe Nothing maybeRangeOf prop)) names
   toAbstract (FuncDefn name args _ body) =
     let body' = toAbstract body
-    in [A.FuncDefn name (wrapLam args body')]
+     in [A.FuncDefn name (wrapLam args body')]
 
 instance ToAbstract TypeDefnCtor A.TypeDefnCtor where
   toAbstract (TypeDefnCtor c tys) =
     let tys' = map toAbstract tys
-    in A.TypeDefnCtor c tys'
+     in A.TypeDefnCtor c tys'
 
 --------------------------------------------------------------------------------
 
@@ -87,10 +87,10 @@ instance ToAbstract Declaration A.Declaration where
   toAbstract d = case d of
     ConstDecl _ decl ->
       let (name, body, prop) = toAbstract decl
-      in A.ConstDecl name body prop (maybeRangeOf d)
+       in A.ConstDecl name body prop (maybeRangeOf d)
     VarDecl _ decl ->
       let (name, body, prop) = toAbstract decl
-      in A.VarDecl name body prop (maybeRangeOf d)
+       in A.VarDecl name body prop (maybeRangeOf d)
 
 --------------------------------------------------------------------------------
 
@@ -110,7 +110,7 @@ instance ToAbstract Stmt A.Stmt where
     SpecQM _ -> error "SpecQM should be digged before calling toAbstract"
     Spec l xs r ->
       let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
-      in A.Spec text (rangeOf l <> rangeOf r)
+       in A.Spec text (rangeOf l <> rangeOf r)
     Proof anchor contents _ r -> A.Proof anchor contents r
     Alloc p _ _ _ es _ -> A.Alloc p (toAbstract es) (maybeRangeOf stmt)
     HLookup x _ _ e -> A.HLookup x (toAbstract e) (maybeRangeOf stmt)
@@ -135,7 +135,7 @@ instance ToAbstract DeclType ([Name], A.Type, Maybe A.Expr) where
   toAbstract (DeclType decl prop) =
     let (ns, t) = toAbstract decl
         e = toAbstract prop
-    in (ns, t, e)
+     in (ns, t, e)
 
 --------------------------------------------------------------------------------
 
@@ -172,16 +172,16 @@ instance ToAbstract Type A.Type where
     (TMetaVar a _) -> A.TMetaVar a (maybeRangeOf t)
     (TParen _ a _) ->
       let t' = toAbstract a
-      in case t' of
-        A.TBase a' _ -> A.TBase a' (maybeRangeOf t)
-        A.TArray a' b' _ -> A.TArray a' b' (maybeRangeOf t)
-        A.TTuple as' -> A.TTuple as'
-        A.TFunc a' b' _ -> A.TFunc a' b' (maybeRangeOf t)
-        A.TOp op -> A.TOp op
-        A.TData name _ -> A.TData name (maybeRangeOf t)
-        A.TApp a' b' _ -> A.TApp a' b' (maybeRangeOf t)
-        A.TVar a' _ -> A.TVar a' (maybeRangeOf t)
-        A.TMetaVar a' _ -> A.TMetaVar a' (maybeRangeOf t)
+       in case t' of
+            A.TBase a' _ -> A.TBase a' (maybeRangeOf t)
+            A.TArray a' b' _ -> A.TArray a' b' (maybeRangeOf t)
+            A.TTuple as' -> A.TTuple as'
+            A.TFunc a' b' _ -> A.TFunc a' b' (maybeRangeOf t)
+            A.TOp op -> A.TOp op
+            A.TData name _ -> A.TData name (maybeRangeOf t)
+            A.TApp a' b' _ -> A.TApp a' b' (maybeRangeOf t)
+            A.TVar a' _ -> A.TVar a' (maybeRangeOf t)
+            A.TMetaVar a' _ -> A.TMetaVar a' (maybeRangeOf t)
 
 --------------------------------------------------------------------------------
 
@@ -219,7 +219,7 @@ instance ToAbstract Pattern A.Pattern where
   toAbstract (PattWildcard x) = A.PattWildcard (rangeOf x)
   toAbstract (PattConstructor ctor pats) =
     let pats' = map toAbstract pats
-    in A.PattConstructor ctor pats'
+     in A.PattConstructor ctor pats'
 
 -- | Literals (Integer / Boolean / Character)
 instance ToAbstract Lit A.Lit where
