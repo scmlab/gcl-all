@@ -8,18 +8,14 @@
 
 module Server.Load where
 
-import Control.Monad.Except (ExceptT (ExceptT), runExcept, runExceptT)
+import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.Trans (lift)
-import qualified Data.Aeson as JSON
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Predicate (PO, Spec)
 import GCL.Range (Range)
 import qualified GCL.Type as TypeChecking
 import qualified GCL.WP as WP
-import GCL.WP.Types (StructError, StructWarning)
-import Pretty (Pretty (..))
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -111,14 +107,11 @@ load filePath = do
     reportHolesOrToAbstract :: C.Program -> FilePath -> ServerM (Either () A.Program)
     reportHolesOrToAbstract concrete filePath =
       case collectHoles concrete of
-        [] -> case runExcept $ C.toAbstract concrete of
-          Left _ -> do
-            logText . Text.pack $ show concrete
-            error "should dig all holes before calling Concrete.toAbstract"
-          Right abstract -> do
-            logText "  all holes digged\n"
-            logText "  abstract program generated\n"
-            return $ Right abstract
+        [] -> do
+          let abstract = C.toAbstract concrete
+          logText "  all holes digged\n"
+          logText "  abstract program generated\n"
+          return $ Right abstract
         holes -> do
           logText "  should dig holes\n"
           digHoles filePath holes do
