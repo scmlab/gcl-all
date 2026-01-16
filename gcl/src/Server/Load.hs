@@ -48,40 +48,44 @@ load filePath = do
     Nothing -> do
       logText "  read error"
       onError (CannotReadFile filePath)
-    Just source -> undefined runExceptT $ do
-      lift $ logText "  source read \n"
-      -- parse source into concrete syntax
-      concrete <- ExceptT $ parse filePath source
-      abstract <- ExceptT $ reportHolesOrToAbstract concrete filePath
-      elaborated <- ExceptT $ elaborate abstract
-      ExceptT $ case WP.sweep elaborated of
-        Left err -> do
-          logText "  sweep error\n"
-          onError (StructError err)
-          return $ Left ()
-        Right (pos, specs, warnings, redexes, idCount) -> do
-          let fileState =
-                FileState
-                  { refinedVersion = currentVersion,
-                    specifications = map (\spec -> (currentVersion, spec)) specs,
-                    proofObligations = map (\po -> (currentVersion, po)) pos,
-                    warnings = map (\warning -> (currentVersion, warning)) warnings,
-                    didChangeShouldReload = 0,
-                    -- to support other LSP methods in a light-weighted manner
-                    loadedVersion = currentVersion,
-                    toOffsetMap = SrcLoc.makeToOffset source,
-                    semanticTokens = collectHighlighting concrete,
-                    idCount = idCount,
-                    definitionLinks = collectLocationLinks abstract,
-                    hoverInfos = collectHoverInfo elaborated,
-                    positionDelta = idDelta,
-                    editedVersion = currentVersion
-                  }
-          logText "  fileState created\n"
-          saveFileState filePath fileState
-          logText "  fileState updated\n"
-          onSuccess
-          return $ Right ()
+    Just source -> do
+      -- TODO: we should probably properly separate success and error route
+      -- right this returns `Either () ()`
+      _ <- runExceptT $ do
+        lift $ logText "  source read \n"
+        -- parse source into concrete syntax
+        concrete <- ExceptT $ parse filePath source
+        abstract <- ExceptT $ reportHolesOrToAbstract concrete filePath
+        elaborated <- ExceptT $ elaborate abstract
+        ExceptT $ case WP.sweep elaborated of
+          Left err -> do
+            logText "  sweep error\n"
+            onError (StructError err)
+            return $ Left ()
+          Right (pos, specs, warnings, redexes, idCount) -> do
+            let fileState =
+                  FileState
+                    { refinedVersion = currentVersion,
+                      specifications = map (\spec -> (currentVersion, spec)) specs,
+                      proofObligations = map (\po -> (currentVersion, po)) pos,
+                      warnings = map (\warning -> (currentVersion, warning)) warnings,
+                      didChangeShouldReload = 0,
+                      -- to support other LSP methods in a light-weighted manner
+                      loadedVersion = currentVersion,
+                      toOffsetMap = SrcLoc.makeToOffset source,
+                      semanticTokens = collectHighlighting concrete,
+                      idCount = idCount,
+                      definitionLinks = collectLocationLinks abstract,
+                      hoverInfos = collectHoverInfo elaborated,
+                      positionDelta = idDelta,
+                      editedVersion = currentVersion
+                    }
+            logText "  fileState created\n"
+            saveFileState filePath fileState
+            logText "  fileState updated\n"
+            onSuccess
+            return $ Right ()
+      return ()
   logText "load: end\n"
   where
     onSuccess :: ServerM ()
