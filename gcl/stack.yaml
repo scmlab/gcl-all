@@ -17,7 +17,14 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver: lts-24.11
+
+# lts-23.28 -> ghc-9.8.4
+# lts-24.11 -> ghc-9.10.2
+# lts-24.28 -> ghc-9.10.3
+# ghc-9.10.x does not support hlint !
+#   https://haskell-language-server.readthedocs.io/en/latest/support/plugin-support.html#current-plugin-support-tiers
+#   https://github.com/haskell/haskell-language-server/issues/4674#issuecomment-3528928620
+resolver: lts-23.28
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -99,6 +106,5 @@ system-ghc: true
 # If you wish to build without running tests, use: 'stack build --no-run-tests'
 build:
   test: true
-  run-tests: false
 
 

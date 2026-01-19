@@ -104,7 +104,7 @@ packages:
     hackage: constraints-0.14.2@sha256:381a53e9d5aad937644d13b5c2c4fcc3698aeba2f83945a42100c6324e0ea8e7,2384
 snapshots:
 - completed:
-    sha256: 468e1afa06cd069e57554f10e84fdf1ac5e8893e3eefc503ef837e2449f7e60c
-    size: 726310
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/24/11.yaml
-  original: lts-24.11
+    sha256: 7e724f347d5969cb5e8dde9f9aae30996e3231c29d1dafd45f21f1700d4c4fcb
+    size: 684460
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/23/28.yaml
+  original: lts-23.28
