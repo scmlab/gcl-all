@@ -22,7 +22,7 @@ import Network.Simple.TCP
   )
 import Network.Socket (socketToHandle)
 import Server.Handler (handlers)
-import Server.Monad (GlobalState, initGlobalEnv, logChannel, runServerM)
+import Server.Monad (GlobalState, initGlobalEnv, logChannel, runServerMLogError)
 import System.IO (hFlush, hSetEncoding, openFile, utf8)
 
 --------------------------------------------------------------------------------
@@ -55,8 +55,7 @@ runOnStdio maybeLogFile = do
   case maybeLogFile of
     Nothing -> return ()
     Just logFile -> do
-      writeFile logFile "=== Log file Start ===\n"
-      writeFile logFile logFile
+      appendFile logFile "\n========== runOnStdio: log file start ==========\n"
       _threadId <- forkIO (writeLog env logFile)
       return ()
   runServer (serverDefn env)
@@ -79,7 +78,7 @@ serverDefn env =
       onConfigChange = const $ pure (),
       doInitialize = \ctxEnv _req -> pure $ Right ctxEnv,
       staticHandlers = \_caps -> handlers,
-      interpretHandler = \ctxEnv -> Iso (runServerM env ctxEnv) liftIO,
+      interpretHandler = \ctxEnv -> Iso (runServerMLogError env ctxEnv) liftIO,
       options = lspOptions
     }
 

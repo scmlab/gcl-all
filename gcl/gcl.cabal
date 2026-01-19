@@ -19,8 +19,6 @@ extra-source-files:
 
 library
   exposed-modules:
-      Data.Loc.Range
-      Data.Loc.Util
       Error
       GCL.Common
       GCL.Exec
@@ -28,8 +26,8 @@ library
       GCL.Exec.ExNondet
       GCL.Exec.ExRand
       GCL.Predicate
-      GCL.Predicate.Located
       GCL.Predicate.Util
+      GCL.Range
       GCL.Substitution
       GCL.Type
       GCL.Type2.Infer
@@ -83,6 +81,7 @@ library
       Server.Notification.Update
       Server.PositionMapping
       Server.SrcLoc
+      Server.ToClient
       Syntax.Abstract
       Syntax.Abstract.Instances.Json
       Syntax.Abstract.Instances.Located
@@ -117,21 +116,17 @@ library
       src
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
-      Diff
-    , aeson
+      aeson
     , base >=4.7 && <5
     , bytestring
     , containers
     , deepseq
-    , free
     , hashable
     , lens
     , lexer-applicative
     , lsp
     , megaparsec >=9.2
     , mtl
-    , multiset
-    , multistate
     , network
     , network-simple
     , parser-combinators
@@ -139,10 +134,8 @@ library
     , random
     , regex-applicative
     , srcloc
-    , template-haskell
     , text
     , transformers
-    , vector
   default-language: Haskell2010
 
 executable gcl
@@ -153,13 +146,11 @@ executable gcl
       app
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
-      Diff
-    , aeson
+      aeson
     , base >=4.7 && <5
     , bytestring
     , containers
     , deepseq
-    , free
     , gcl
     , hashable
     , lens
@@ -167,8 +158,6 @@ executable gcl
     , lsp
     , megaparsec >=9.2
     , mtl
-    , multiset
-    , multistate
     , network
     , network-simple
     , parser-combinators
@@ -176,10 +165,8 @@ executable gcl
     , random
     , regex-applicative
     , srcloc
-    , template-haskell
     , text
     , transformers
-    , vector
   default-language: Haskell2010
 
 test-suite gcl-test
@@ -188,128 +175,27 @@ test-suite gcl-test
   other-modules:
       Test.Parser
       Test.Render
-      Test.Server
-      Test.Server.Interpreter
       Test.SrcLoc
-      Test.Substitution
-      Test.TypeChecking
       Test.Util
-      Test.WP
-      Data.Loc.Range
-      Data.Loc.Util
-      Error
-      GCL.Common
-      GCL.Exec
-      GCL.Exec.ExecMonad
-      GCL.Exec.ExNondet
-      GCL.Exec.ExRand
-      GCL.Predicate
-      GCL.Predicate.Located
-      GCL.Predicate.Util
-      GCL.Substitution
-      GCL.Type
-      GCL.Type2.Infer
-      GCL.Type2.MiniAst
-      GCL.Type2.RSE
-      GCL.Type2.Test
-      GCL.Type2.ToTyped
-      GCL.WP
-      GCL.WP.Explanation
-      GCL.WP.SP
-      GCL.WP.Struct
-      GCL.WP.Types
-      GCL.WP.Util
-      GCL.WP.WP
-      Hack
-      Pretty
-      Pretty.Abstract
-      Pretty.Common
-      Pretty.Concrete
-      Pretty.Error
-      Pretty.Predicate
-      Pretty.Typed
-      Pretty.Util
-      Pretty.Variadic
-      Render
-      Render.Class
-      Render.Element
-      Render.Error
-      Render.Predicate
-      Render.Syntax.Abstract
-      Render.Syntax.Common
-      Render.Syntax.Typed
-      Server
-      Server.GoToDefn
-      Server.Handler
-      Server.Handler.AutoCompletion
-      Server.Handler.GCL.Debug
-      Server.Handler.GCL.Refine
-      Server.Handler.GCL.Reload
-      Server.Handler.GoToDefinition
-      Server.Handler.Hover
-      Server.Handler.Initialized
-      Server.Handler.OnDidChangeTextDocument
-      Server.Handler.SemanticTokens
-      Server.Highlighting
-      Server.Hover
-      Server.IntervalMap
-      Server.Load
-      Server.Monad
-      Server.Notification.Error
-      Server.Notification.Update
-      Server.PositionMapping
-      Server.SrcLoc
-      Syntax.Abstract
-      Syntax.Abstract.Instances.Json
-      Syntax.Abstract.Instances.Located
-      Syntax.Abstract.Operator
-      Syntax.Abstract.Types
-      Syntax.Abstract.Util
-      Syntax.Common
-      Syntax.Common.Instances.Json
-      Syntax.Common.Instances.Located
-      Syntax.Common.Types
-      Syntax.Concrete
-      Syntax.Concrete.Instances.Located
-      Syntax.Concrete.Instances.ToAbstract
-      Syntax.Concrete.Types
-      Syntax.ConstExpr
-      Syntax.Parser
-      Syntax.Parser.Error
-      Syntax.Parser.Lexer
-      Syntax.Parser.TokenStream
-      Syntax.Parser.Util
-      Syntax.Substitution
-      Syntax.Typed
-      Syntax.Typed.Instances.Free
-      Syntax.Typed.Instances.Located
-      Syntax.Typed.Instances.Substitution
-      Syntax.Typed.Operator
-      Syntax.Typed.Types
-      Syntax.Typed.Util
       Paths_gcl
   hs-source-dirs:
       test
-      src
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
-      Diff
-    , aeson
+      aeson
     , base >=4.7 && <5
     , bytestring
     , containers
     , deepseq
     , directory
     , filepath
-    , free
+    , gcl
     , hashable
     , lens
     , lexer-applicative
     , lsp
     , megaparsec >=9.2
     , mtl
-    , multiset
-    , multistate
     , network
     , network-simple
     , parser-combinators
@@ -322,8 +208,6 @@ test-suite gcl-test
     , tasty-golden
     , tasty-hunit
     , tasty-quickcheck
-    , template-haskell
     , text
     , transformers
-    , vector
   default-language: Haskell2010

@@ -8,7 +8,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Aeson
-import Data.Loc
+import GCL.Range (MaybeRanged (..), Range)
 import GHC.Generics
 import Syntax.Abstract.Types (GdCmd, Var)
 
@@ -23,26 +23,26 @@ data Val
   | Undef
 
 data ExecError
-  = Aborted Loc
-  | AllFailedInIf Loc
-  | DivByZero Loc
-  | ArrayOutOfBound Int Int Loc
+  = Aborted (Maybe Range)
+  | AllFailedInIf (Maybe Range)
+  | DivByZero (Maybe Range)
+  | ArrayOutOfBound Int Int (Maybe Range)
   deriving (Show, Eq, Generic)
 
 instance ToJSON ExecError
 
-instance Located ExecError where
-  locOf (Aborted l) = l
-  locOf (AllFailedInIf l) = l
-  locOf (DivByZero l) = l
-  locOf (ArrayOutOfBound _ _ l) = l
+instance MaybeRanged ExecError where
+  maybeRangeOf (Aborted l) = l
+  maybeRangeOf (AllFailedInIf l) = l
+  maybeRangeOf (DivByZero l) = l
+  maybeRangeOf (ArrayOutOfBound _ _ l) = l
 
 class
   (MonadPlus m, MonadError ExecError m, MonadState Store m) =>
   ExecMonad m
   where
-  lookupStore :: Loc -> Var -> m Val
-  updateStore :: Loc -> Var -> Val -> m ()
+  lookupStore :: Maybe Range -> Var -> m Val
+  updateStore :: Maybe Range -> Var -> Val -> m ()
   shuffle :: [GdCmd] -> m [GdCmd]
 
   lookupStore l x =
@@ -57,7 +57,7 @@ class
 
   shuffle = return
 
-arrToFun :: Loc -> Int -> [a] -> Val -> Either ExecError a
+arrToFun :: Maybe Range -> Int -> [a] -> Val -> Either ExecError a
 arrToFun l n xs (VNum i)
   | i < n = Right (xs !! i)
   | otherwise = Left (ArrayOutOfBound i n l)

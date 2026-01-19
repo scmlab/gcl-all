@@ -12,7 +12,6 @@ import Control.Monad.Except
 import Control.Monad.RWS (RWST (runRWST))
 import Data.IntMap (IntMap)
 import qualified Data.List as List
-import Data.Loc (Located (..))
 import qualified Data.Map as Map
 import Data.Text (Text)
 import GCL.Predicate
@@ -21,6 +20,7 @@ import GCL.Predicate
     Pred,
     Spec (..),
   )
+import GCL.Range (MaybeRanged (..))
 import GCL.WP.SP
 import GCL.WP.Struct
 import GCL.WP.Types
@@ -59,7 +59,7 @@ sweep program@(Program _ decs _props stmts _) = do
   let table = Map.fromList proofAnchors
   let updatePO po = case Map.lookup (poAnchorHash po) table of
         Nothing -> po
-        Just range -> po {poAnchorLoc = Just range}
+        Just range -> po {poAnchorRange = Just range}
 
   let pos' = map updatePO pos
 
@@ -97,9 +97,9 @@ structProgram stmts = do
     ProgViewMissingPrecondition stmts' post ->
       structStmts Primary (true, Nothing) stmts' post
     ProgViewMissingPostcondition _ stmts' ->
-      throwError . MissingPostcondition . locOf . last $ stmts'
+      throwError . MissingPostcondition . maybeRangeOf . last $ stmts'
     ProgViewMissingBoth stmts' ->
-      throwError . MissingPostcondition . locOf . last $ stmts'
+      throwError . MissingPostcondition . maybeRangeOf . last $ stmts'
   where
     -- ignore Proofs after the Postcondition
     removeLastProofs :: [Stmt] -> [Stmt]

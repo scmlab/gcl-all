@@ -6,7 +6,6 @@
 
 module GCL.Substitution where
 
-import Data.Loc (locOf)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified Data.Maybe as Maybe
@@ -20,6 +19,7 @@ import GCL.Common
     --  , FreshState
     freshPre,
   )
+import GCL.Range (MaybeRanged (maybeRangeOf))
 -- import           GCL.Predicate                  ( PO(PO)
 --                                                 , Pred(..)
 --                                                 )
@@ -66,7 +66,7 @@ produceBinderRenamings capturableNames binders = mconcat <$> mapM go binders
             Name
               <$> freshPre (nameToText binder)
               <*> pure
-                (locOf binder)
+                (maybeRangeOf binder)
           return $ Map.singleton binder binder'
         else
           -- not captured, returns the original binder
@@ -81,7 +81,7 @@ renameBinder renamings binder =
 renamingToMapping :: Map Name Name -> Mapping
 renamingToMapping =
   Map.fromList
-    . map (\(old, new) -> (nameToText old, A.Var new (locOf old)))
+    . map (\(old, new) -> (nameToText old, A.Var new (maybeRangeOf old)))
     . Map.toList
 
 ------------------------------------------------------------------

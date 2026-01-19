@@ -5,7 +5,6 @@ module GCL.WP.WP where
 import Control.Arrow (first, second)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
-import Data.Loc (Loc (..), locOf)
 import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common
@@ -14,6 +13,7 @@ import GCL.Common
     freshName',
   )
 import GCL.Predicate (Pred)
+import GCL.Range (MaybeRanged (..))
 import GCL.Substitution (syntaxSubst)
 import GCL.WP.Types
 import GCL.WP.Util
@@ -94,7 +94,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
     wp (Skip _) post = return post
     wp (Assign xs es _) post = return $ syntaxSubst xs es post
     wp (AAssign (Var x t _) i e _) post =
-      return $ syntaxSubst [x] [ArrUpd (nameVar x t) i e NoLoc] post
+      return $ syntaxSubst [x] [ArrUpd (nameVar x t) i e Nothing] post
     wp (AAssign _ _ _ l) _ = throwError (MultiDimArrayAsgnNotImp l)
     wp (Do _ l) _ = throwError $ MissingAssertion l -- shouldn't happen
     wp (If gcmds _) post = do
@@ -154,13 +154,13 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
         -- if any (`member` (fv pre)) (declaredNames decls)
         --   then throwError (LocalVarExceedScope l)
         --   else return pre
-        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (locOf n')))
+        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
 
 calcLocalRenaming :: [Text] -> [(Name, Type)] -> WP ([Text], [(Text, (Name, Type))])
 calcLocalRenaming _ [] = return ([], [])
 calcLocalRenaming scope ((x, t) : xs)
   | tx `elem` scope = do
-      x' <- freshName tx (locOf x)
+      x' <- freshName tx x
       second ((tx, (x', t)) :) <$> calcLocalRenaming scope xs
   | otherwise =
       first (tx :) <$> calcLocalRenaming scope xs

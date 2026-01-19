@@ -1,56 +1,56 @@
 module Syntax.Common.Instances.Located where
 
-import Data.Loc
+import GCL.Range (MaybeRanged (..))
 import Syntax.Common.Types
 import Prelude hiding (Ordering (..))
 
-instance (Located a, Located b) => Located (Either a b) where
-  locOf (Left a) = locOf a
-  locOf (Right b) = locOf b
+instance (MaybeRanged a, MaybeRanged b) => MaybeRanged (Either a b) where
+  maybeRangeOf (Left a) = maybeRangeOf a
+  maybeRangeOf (Right b) = maybeRangeOf b
 
-instance Located Name where
-  locOf (Name _ l) = l
+instance MaybeRanged Name where
+  maybeRangeOf (Name _ l) = l
 
-instance Located ChainOp where
-  locOf (EQProp l) = l
-  locOf (EQPropU l) = l
-  locOf (EQ l) = l
-  locOf (NEQ l) = l
-  locOf (NEQU l) = l
-  locOf (LTE l) = l
-  locOf (LTEU l) = l
-  locOf (GTE l) = l
-  locOf (GTEU l) = l
-  locOf (LT l) = l
-  locOf (GT l) = l
+instance MaybeRanged ChainOp where
+  maybeRangeOf (EQProp l) = l
+  maybeRangeOf (EQPropU l) = l
+  maybeRangeOf (EQ l) = l
+  maybeRangeOf (NEQ l) = l
+  maybeRangeOf (NEQU l) = l
+  maybeRangeOf (LTE l) = l
+  maybeRangeOf (LTEU l) = l
+  maybeRangeOf (GTE l) = l
+  maybeRangeOf (GTEU l) = l
+  maybeRangeOf (LT l) = l
+  maybeRangeOf (GT l) = l
 
-instance Located ArithOp where
-  locOf (Implies l) = l
-  locOf (ImpliesU l) = l
-  locOf (Disj l) = l
-  locOf (DisjU l) = l
-  locOf (Conj l) = l
-  locOf (ConjU l) = l
-  locOf (Neg l) = l
-  locOf (NegU l) = l
-  locOf (NegNum l) = l
-  locOf (Add l) = l
-  locOf (Sub l) = l
-  locOf (Mul l) = l
-  locOf (Div l) = l
-  locOf (Mod l) = l
-  locOf (Max l) = l
-  locOf (Min l) = l
-  locOf (Exp l) = l
-  locOf (Hash l) = l
-  locOf (PointsTo l) = l
-  locOf (SConj l) = l
-  locOf (SImp l) = l
+instance MaybeRanged ArithOp where
+  maybeRangeOf (Implies l) = l
+  maybeRangeOf (ImpliesU l) = l
+  maybeRangeOf (Disj l) = l
+  maybeRangeOf (DisjU l) = l
+  maybeRangeOf (Conj l) = l
+  maybeRangeOf (ConjU l) = l
+  maybeRangeOf (Neg l) = l
+  maybeRangeOf (NegU l) = l
+  maybeRangeOf (NegNum l) = l
+  maybeRangeOf (Add l) = l
+  maybeRangeOf (Sub l) = l
+  maybeRangeOf (Mul l) = l
+  maybeRangeOf (Div l) = l
+  maybeRangeOf (Mod l) = l
+  maybeRangeOf (Max l) = l
+  maybeRangeOf (Min l) = l
+  maybeRangeOf (Exp l) = l
+  maybeRangeOf (Hash l) = l
+  maybeRangeOf (PointsTo l) = l
+  maybeRangeOf (SConj l) = l
+  maybeRangeOf (SImp l) = l
 
-instance Located TypeOp where
-  locOf (Arrow l) = l
+instance MaybeRanged TypeOp where
+  maybeRangeOf (Arrow l) = l
 
-instance Located Op where
-  locOf (ChainOp op) = locOf op
-  locOf (ArithOp op) = locOf op
-  locOf (TypeOp op) = locOf op
+instance MaybeRanged Op where
+  maybeRangeOf (ChainOp op) = maybeRangeOf op
+  maybeRangeOf (ArithOp op) = maybeRangeOf op
+  maybeRangeOf (TypeOp op) = maybeRangeOf op

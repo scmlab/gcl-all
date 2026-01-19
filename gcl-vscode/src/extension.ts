@@ -1,11 +1,11 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { retrieveMainEditor, genSelectionRangeWithOffset } from './utils'
+import { retrieveMainEditor } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
-import { getSpecLinesRange, getImplText, getSpecText, getImplLinesRange } from "./refine";
 import { GclPanel } from './gclPanel';
-import { FileState, ISpecification } from './data/FileState';
+import { ISpecification } from './data/FileState';
+import { ClientState } from './data/ClientState';
 import path from 'path';
 
 
@@ -21,8 +21,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		{
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
-				const fileState: FileState | undefined = context.workspaceState.get(filePath);
-				const specs: ISpecification[] = fileState? fileState.specs : [];
+				const clientState: ClientState | undefined = context.workspaceState.get(filePath);
+				const specs: ISpecification[] = clientState? clientState.specs : [];
 
 				const inlayHints = specs.flatMap((spec: ISpecification) => {
 					let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
@@ -49,14 +49,14 @@ export async function activate(context: vscode.ExtensionContext) {
 	vscode.commands.executeCommand('workbench.action.focusFirstEditorGroup');
 
 
-	// 切換 tab 到 .gcl 檔的時候，將該檔案對應的狀態顯示在 gclPanel
+	// When switching tabs to a .gcl file, display the corresponding state in gclPanel
 	const changeTabDisposable = vscode.window.tabGroups.onDidChangeTabs((event: vscode.TabChangeEvent) => {
 		const changedTab: vscode.Tab = event.changed[0]
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
 		if (isFileTab) {
 			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
-			let fileState: FileState | undefined = context.workspaceState.get(filePath);
-			if (fileState) gclPanel.rerender(fileState);
+			let clientState: ClientState | undefined = context.workspaceState.get(filePath);
+			if (clientState) gclPanel.rerender(clientState);
 		}
 	});
 	context.subscriptions.push(changeTabDisposable);
@@ -76,23 +76,12 @@ export async function activate(context: vscode.ExtensionContext) {
 	const refineDisposable = vscode.commands.registerCommand('gcl.refine', async () => {
 		const editor = retrieveMainEditor();
 		const filePath = editor.document.uri.fsPath;
-		const selectionRange = genSelectionRangeWithOffset(editor);
-		let specLines = getSpecLinesRange(editor, selectionRange);
-		
-		if (specLines) {
-			const implText = getImplText(editor, specLines);
-			const specText = getSpecText(editor, specLines);
-			const implLines = getImplLinesRange(editor, specLines);
-			const _response = await sendRequest("gcl/refine", {
-				filePath: filePath,
-				implStart: implLines.toJson().start,
-				specText,
-				specLines: specLines.toJson(),
-			})
-			// ignore the response and get results or errors from notifications
-		} else {
-			vscode.window.showWarningMessage("Please place the cursor inside the specification to refine.");
-		}
+		const _response = await sendRequest("gcl/refine", {
+			filePath: filePath,
+			line: editor.selection.start.line, // 0-based
+			character: editor.selection.start.character, // 0-based
+		})
+		// ignore the response and get results or errors from notifications
 	});
 	context.subscriptions.push(refineDisposable);
 
@@ -118,43 +107,47 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(debugDisposable);
 
+	const outputChannel = vscode.window.createOutputChannel("GCL");
+	context.subscriptions.push(outputChannel);
+
 	// notification gcl/update
-	// 更新 fileState 裡的 specs, pos, warnings
+	// Update specs, pos, warnings in clientState, and clear errors
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
 		filePath,
 		specs,
 		pos,
 		warnings
 	}) => {
-		vscode.window.showErrorMessage(JSON.stringify({specs}))
-		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
-		let newFileState: FileState =
-			oldFileState
-			? {...oldFileState, specs, pos, warnings}
-			: {filePath, specs, pos, warnings, errors: []};
-		await context.workspaceState.update(filePath, newFileState);
-		gclPanel.rerender(newFileState);
-		await updateInlayHints(newFileState);
+		const timestamp = new Date().toLocaleString();
+		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
+		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
-		async function updateInlayHints(newFileState: FileState) {
+		// Clear errors when receiving a successful update
+		let newClientState: ClientState = { specs, pos, warnings, errors: [] };
+
+		await context.workspaceState.update(filePath, newClientState);
+		gclPanel.rerender(newClientState);
+		await updateInlayHints(newClientState);
+
+		async function updateInlayHints(newClientState: ClientState) {
 			// TODO: find a way to tell vscode to update inlay hints
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
 
 	// notification gcl/error
-	// 更新 fileState 裡的 errors
+	// Update errors in clientState
 	const errorNotificationHandlerDisposable = onErrorNotification(async ({
 		filePath,
 		errors
 	}) => {
-		const oldFileState: FileState | undefined = context.workspaceState.get(filePath);
-		const newFileState: FileState =
-			oldFileState
-			? {...oldFileState, errors}
-			: {filePath, specs: [], pos: [], warnings: [], errors};
-		await context.workspaceState.update(filePath, newFileState);
-		gclPanel.rerender(newFileState);
+		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
+		const newClientState: ClientState =
+			oldClientState
+			? {errors, specs: oldClientState.specs, pos: oldClientState.pos, warnings: oldClientState.warnings}
+			: {errors, specs: [], pos: [], warnings: []};
+		await context.workspaceState.update(filePath, newClientState);
+		gclPanel.rerender(newClientState);
 	});
 	context.subscriptions.push(errorNotificationHandlerDisposable);
 }

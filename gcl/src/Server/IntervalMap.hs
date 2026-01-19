@@ -28,26 +28,24 @@ import qualified Data.Foldable as Foldable
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc
-  ( Pos,
-    posCoff,
-  )
-import Data.Loc.Range
-  ( Range,
-    rangeEnd,
-    rangeStart,
-  )
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
+import GCL.Range
+  ( Pos,
+    Range,
+    posOrd,
+    rangeEnd,
+    rangeStart,
+  )
 import Prettyprinter
 import Syntax.Concrete (SepBy)
 import Prelude hiding (lookup)
 
 --------------------------------------------------------------------------------
 -- Uses IntMap internally for speeding up lookups
--- with the key of IntMap acting as the starting offset,
--- and the element's Int acting as the ending offset
+-- with the key of IntMap acting as the starting posOrd (ordering key),
+-- and the element's Int acting as the ending posOrd
 newtype IntervalMap token = IntervalMap (IntMap (Int, token)) deriving (Eq, Monoid, Semigroup)
 
 instance Functor IntervalMap where
@@ -77,8 +75,8 @@ singleton :: Range -> token -> IntervalMap token
 singleton range token =
   IntervalMap $
     IntMap.singleton
-      (posCoff (rangeStart range))
-      (posCoff (rangeEnd range), token)
+      (posOrd (rangeStart range))
+      (posOrd (rangeEnd range), token)
 
 toList :: IntervalMap token -> [((Int, Int), token)]
 toList (IntervalMap m) = map (\(a, (b, c)) -> ((a, b), c)) (IntMap.toList m)
@@ -93,13 +91,13 @@ insert :: Range -> token -> IntervalMap token -> IntervalMap token
 insert range token (IntervalMap m) =
   IntervalMap $
     IntMap.insert
-      (posCoff (rangeStart range))
-      (posCoff (rangeEnd range), token)
+      (posOrd (rangeStart range))
+      (posOrd (rangeEnd range), token)
       m
 
 split :: Range -> IntervalMap token -> (IntervalMap token, IntervalMap token)
 split rng (IntervalMap m) =
-  bimap IntervalMap IntervalMap (IntMap.split (posCoff (rangeStart rng)) m)
+  bimap IntervalMap IntervalMap (IntMap.split (posOrd (rangeStart rng)) m)
 
 --------------------------------------------------------------------------------
 -- Query
@@ -107,11 +105,11 @@ split rng (IntervalMap m) =
 -- Given a Pos, returns the paylod and its Range if the Pos is within its Range
 lookup' :: Pos -> IntervalMap token -> Maybe ((Int, Int), token)
 lookup' pos (IntervalMap m) =
-  let offset = posCoff pos
-   in case IntMap.lookupLE offset m of
+  let ord = posOrd pos
+   in case IntMap.lookupLE ord m of
         Nothing -> Nothing
         Just (start, (end, x)) ->
-          if offset <= end then Just ((start, end), x) else Nothing
+          if ord < end then Just ((start, end), x) else Nothing
 
 -- Given a Pos, returns the paylod if the Pos is within its Range
 lookup :: Pos -> IntervalMap token -> Maybe token

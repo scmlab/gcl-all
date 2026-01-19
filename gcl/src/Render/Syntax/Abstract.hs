@@ -7,7 +7,6 @@ import Data.Foldable (toList)
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 
-import Data.Loc (Loc (NoLoc))
 import qualified Data.Map as Map
 import Render.Class
 import Render.Element
@@ -40,9 +39,9 @@ instance Render Expr where
   renderPrec prec expr = handleExpr prec expr
 
 handleExpr :: PrecContext -> Expr -> Inlines
-handleExpr _ (Var x l) = tempHandleLoc l $ render x
-handleExpr _ (Const x l) = tempHandleLoc l $ render x
-handleExpr _ (Lit x l) = tempHandleLoc l $ render x
+handleExpr _ (Var x l) = tempHandleMaybeRange l $ render x
+handleExpr _ (Const x l) = tempHandleMaybeRange l $ render x
+handleExpr _ (Lit x l) = tempHandleMaybeRange l $ render x
 handleExpr _ (Op _) = error "erroneous syntax given to render"
 handleExpr _ (Chain ch) = render ch
 handleExpr n (App (App (Op op) left _) right _) =
@@ -140,10 +139,10 @@ instance Render Type where
   renderPrec _ (TOp op) = render op
   -- TODO: Add support for more than one type operators.
   renderPrec n (TApp (TApp (TOp (Arrow _)) left _) right _) =
-    parensIf n (Just . TypeOp $ Arrow NoLoc) $
-      renderPrec (HOLEOp (TypeOp (Arrow NoLoc))) left
-        <+> render (Arrow NoLoc)
-        <+> renderPrec (OpHOLE (TypeOp (Arrow NoLoc))) right
+    parensIf n (Just . TypeOp $ Arrow Nothing) $
+      renderPrec (HOLEOp (TypeOp (Arrow Nothing))) left
+        <+> render (Arrow Nothing)
+        <+> renderPrec (OpHOLE (TypeOp (Arrow Nothing))) right
   renderPrec n (TApp l r _) = parensIf n Nothing $ renderPrec HOLEApp l <+> renderPrec AppHOLE r
   renderPrec _ (TData n _) = render n
   renderPrec _ (TVar i _) = render i
@@ -167,10 +166,10 @@ instance Render Interval where
 instance Render Kind where
   renderPrec _ (KStar _) = "*"
   renderPrec n (KFunc a b _) =
-    parensIf n (Just . TypeOp $ Arrow NoLoc) $
-      renderPrec (HOLEOp . TypeOp $ Arrow NoLoc) a
+    parensIf n (Just . TypeOp $ Arrow Nothing) $
+      renderPrec (HOLEOp . TypeOp $ Arrow Nothing) a
         <+> "→"
-        <+> renderPrec (OpHOLE . TypeOp $ Arrow NoLoc) b
+        <+> renderPrec (OpHOLE . TypeOp $ Arrow Nothing) b
   renderPrec _ (KMetaVar i) = render i
 
 --------------------------------------------------------------------------------

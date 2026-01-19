@@ -3,9 +3,8 @@
 module Render.Error where
 
 import Data.Foldable (toList)
-import Data.Loc (locOf)
-import Data.Loc.Range
 import Error
+import GCL.Range (MaybeRanged (..), mkRange)
 import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
 import Render.Class
@@ -29,14 +28,14 @@ instance RenderSection Error where
 
 instance RenderSection ParseError where
   renderSection (LexicalError pos) =
-    Section Red [Header "Lex Error" (Just $ Range pos pos)]
+    Section Red [Header "Lex Error" (Just $ mkRange pos pos)]
   renderSection (SyntacticError pairs _) =
     -- the logMsg (the second arg) was used for debugging
     Section Red
       $ mconcat
       $ map
         ( \(loc, msg) ->
-            [Header "Parse Error" (fromLoc loc), Paragraph $ render msg]
+            [Header "Parse Error" loc, Paragraph $ render msg]
         )
       $ toList pairs
 
@@ -44,37 +43,37 @@ instance RenderSection TypeError where
   renderSection (NotInScope name) =
     Section
       Red
-      [ Header "Not In Scope" (fromLoc (locOf name)),
+      [ Header "Not In Scope" (maybeRangeOf name),
         Paragraph $ render name <+> "is not in scope"
       ]
   renderSection (UnifyFailed s t loc) =
     Section
       Red
-      [ Header "Cannot unify types" (fromLoc loc),
+      [ Header "Cannot unify types" loc,
         Paragraph $ "Cannot unify: " <> render s <> "\nwith        :" <+> render t
       ]
   renderSection (KindUnifyFailed s t loc) =
     Section
       Red
-      [ Header "Cannot unify kinds" (fromLoc loc),
+      [ Header "Cannot unify kinds" loc,
         Paragraph $ "Cannot unify: " <> render s <> "\nwith        :" <+> render t
       ]
   renderSection (RecursiveType name t loc) =
     Section
       Red
-      [ Header "Recursive type variable" (fromLoc loc),
+      [ Header "Recursive type variable" loc,
         Paragraph $ render name <+> "is recursive in" <+> render t
       ]
   renderSection (AssignToConst n) =
     Section
       Red
-      [ Header "Assigned to const declaration" (fromLoc (locOf n)),
+      [ Header "Assigned to const declaration" (maybeRangeOf n),
         Paragraph $ "Identifier" <+> render n <+> "cannot be assigned"
       ]
   renderSection (UndefinedType n) =
     Section
       Red
-      [ Header "Undefined Type" (fromLoc (locOf n)),
+      [ Header "Undefined Type" (maybeRangeOf n),
         Paragraph $ "Type" <+> render n <+> "is undefined"
       ]
   renderSection (DuplicatedIdentifiers ids) =
@@ -82,7 +81,7 @@ instance RenderSection TypeError where
       Red
       ( concatMap
           ( \n ->
-              [ Header "Duplicated Identifiers" (fromLoc (locOf n)),
+              [ Header "Duplicated Identifiers" (maybeRangeOf n),
                 Paragraph $ "Duplicated identifier" <+> render n
               ]
           )
@@ -91,25 +90,25 @@ instance RenderSection TypeError where
   renderSection (RedundantNames ns) =
     Section
       Red
-      [ Header "Redundant Names" (fromLoc (locOf ns)),
+      [ Header "Redundant Names" (maybeRangeOf ns),
         Paragraph $ "Redundant names" <+> renderManySepByComma ns
       ]
   renderSection (RedundantExprs exprs) =
     Section
       Red
-      [ Header "Redundant Exprs" (fromLoc (locOf exprs)),
+      [ Header "Redundant Exprs" (maybeRangeOf exprs),
         Paragraph $ "Redundant exprs" <+> renderManySepByComma exprs
       ]
   renderSection (MissingArguments ns) =
     Section
       Red
-      [ Header "Missing arguments" (fromLoc (locOf ns)),
+      [ Header "Missing arguments" (maybeRangeOf ns),
         Paragraph $ "Missing arguments" <+> renderManySepByComma ns
       ]
   renderSection (PatternArityMismatch expected actual loc) =
     Section
       Red
-      [ Header "Pattern arity mismatch" (fromLoc loc),
+      [ Header "Pattern arity mismatch" loc,
         Paragraph $ "Expect" <+> render expected <+> "arguments but found" <+> render actual
       ]
 
@@ -117,24 +116,24 @@ instance RenderSection StructError where
   renderSection (MissingAssertion loc) =
     Section
       Red
-      [ Header "Missing Loop Invariant" (fromLoc loc),
+      [ Header "Missing Loop Invariant" loc,
         Paragraph "There should be a loop invariant before the DO construct"
       ]
   renderSection (MissingPostcondition loc) =
     Section
       Red
-      [ Header "Missing Postcondition" (fromLoc loc),
+      [ Header "Missing Postcondition" loc,
         Paragraph "The last statement of the program should be an assertion"
       ]
   renderSection (MultiDimArrayAsgnNotImp loc) =
     Section
       Red
-      [ Header "Assignment to Multi-Dimensional Array" (fromLoc loc),
+      [ Header "Assignment to Multi-Dimensional Array" loc,
         Paragraph "Not implemented yet"
       ]
   renderSection (LocalVarExceedScope loc) =
     Section
       Red
-      [ Header "Local variable(s) exceeded scope" (fromLoc loc),
+      [ Header "Local variable(s) exceeded scope" loc,
         Paragraph "Variables defined in a block must not remain in preconditions out of the block"
       ]

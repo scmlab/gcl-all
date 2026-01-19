@@ -9,7 +9,6 @@ module Server.SrcLoc
     fromOffset,
     fromLSPRange,
     fromLSPPosition,
-    toLSPLocation,
     toLSPRange,
     toLSPPosition,
     fromLSPRangeWithoutCharacterOffset,
@@ -18,10 +17,9 @@ where
 
 import Data.IntMap (IntMap)
 import qualified Data.IntMap as IntMap
-import Data.Loc
-import Data.Loc.Range
 import Data.Text (Text)
 import qualified Data.Text as Text
+import GCL.Range (Pos (..), Range (..), mkPos, mkRange)
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as J
 
@@ -33,45 +31,37 @@ import qualified Language.LSP.Protocol.Types as J
 -- | LSP source locations => Data.Loc/Data.Range source locations
 
 -- | LSP Range -> Data.Range.Range
-fromLSPRange :: ToOffset -> FilePath -> J.Range -> Range
-fromLSPRange table filepath (J.Range start end) =
-  Range
-    (fromLSPPosition table filepath start)
-    (fromLSPPosition table filepath end)
+fromLSPRange :: ToOffset -> J.Range -> Range
+fromLSPRange table (J.Range start end) =
+  mkRange
+    (fromLSPPosition table start)
+    (fromLSPPosition table end)
 
--- | LSP Position -> Data.Loc.Pos
-fromLSPPosition :: ToOffset -> FilePath -> J.Position -> Pos
-fromLSPPosition table filepath (J.Position line col) =
-  Pos
-    filepath
+-- | LSP Position -> GCL.Range.Pos
+fromLSPPosition :: ToOffset -> J.Position -> Pos
+fromLSPPosition table (J.Position line col) =
+  mkPos
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1
-    (fromIntegral (toOffset table (line, col))) -- starts at 0
 
-fromLSPRangeWithoutCharacterOffset :: FilePath -> J.Range -> Range
-fromLSPRangeWithoutCharacterOffset filepath (J.Range start end) =
-  Range
-    (fromLSPPositionWithoutCharacterOffset filepath start)
-    (fromLSPPositionWithoutCharacterOffset filepath end)
+fromLSPRangeWithoutCharacterOffset :: J.Range -> Range
+fromLSPRangeWithoutCharacterOffset (J.Range start end) =
+  mkRange
+    (fromLSPPositionWithoutCharacterOffset start)
+    (fromLSPPositionWithoutCharacterOffset end)
 
--- | LSP Position -> Data.Loc.Pos
-fromLSPPositionWithoutCharacterOffset :: FilePath -> J.Position -> Pos
-fromLSPPositionWithoutCharacterOffset filepath (J.Position line col) =
-  Pos
-    filepath
+-- | LSP Position -> GCL.Range.Pos
+fromLSPPositionWithoutCharacterOffset :: J.Position -> Pos
+fromLSPPositionWithoutCharacterOffset (J.Position line col) =
+  mkPos
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1
-    (-1) -- discard this field
-
-toLSPLocation :: Range -> J.Location
-toLSPLocation (Range start end) =
-  J.Location (J.Uri $ Text.pack $ posFile start) (toLSPRange (Range start end))
 
 toLSPRange :: Range -> J.Range
 toLSPRange (Range start end) = J.Range (toLSPPosition start) (toLSPPosition end)
 
 toLSPPosition :: Pos -> J.Position
-toLSPPosition (Pos _path ln col _offset) = J.Position ((Hack.intToUInt (ln - 1)) `max` 0) ((Hack.intToUInt (col - 1)) `max` 0)
+toLSPPosition (Pos ln col) = J.Position ((Hack.intToUInt (ln - 1)) `max` 0) ((Hack.intToUInt (col - 1)) `max` 0)
 
 --------------------------------------------------------------------------------
 

@@ -1,9 +1,9 @@
 
 
+import { Range } from "vscode-languageclient";
 import { ParseError } from "./Error/ParseError";
 import { StructError } from "./Error/StructError";
 import { TypeError } from "./Error/TypeError";
-import { Loc } from "./Loc";
 
 export type Error = {
     tag: "CannotReadFile";
@@ -21,5 +21,5 @@ export type Error = {
     tag: "Others";
     title: string;
     message: string;
-    location?: Loc;
+    location?: Range;
 } 

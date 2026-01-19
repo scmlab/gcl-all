@@ -67,6 +67,14 @@ handlers =
           Nothing -> return ()
           Just filePath -> OnDidChangeTextDocument.handler filePath changes
         logText "SMethod_TextDocumentDidChange end\n",
+      -- "textDocument/didSave" - after save
+      notificationHandler LSP.SMethod_TextDocumentDidSave $ \ntf -> do
+        logText "SMethod_TextDocumentDidSave start\n"
+        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+        case LSP.uriToFilePath uri of
+          Nothing -> return ()
+          Just filePath -> load filePath
+        logText "SMethod_TextDocumentDidSave end\n",
       -- "textDocument/didClose" - after close
       notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
         logText "SMethod_TextDocumentDidClose start\n"

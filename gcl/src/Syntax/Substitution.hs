@@ -7,12 +7,12 @@
 module Syntax.Substitution where
 
 import Control.Monad (forM)
-import Data.Loc (Loc)
 import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import GCL.Common hiding (Substitutable (subst))
+import GCL.Range (Range)
 import Syntax.Abstract.Types
 import Syntax.Abstract.Util (declaredNames)
 import Syntax.Common
@@ -26,7 +26,7 @@ class Substitutable m a b where
 -- types that has a concept of a "variable"
 class Variableous e t | e -> t where -- t denotes the type of the variable
   isVar :: e -> Maybe (Name, t)
-  mkVar :: Name -> t -> Loc -> e
+  mkVar :: Name -> t -> Maybe Range -> e
 
 instance Variableous Expr () where
   isVar (Var x _) = Just (x, ())

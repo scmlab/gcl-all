@@ -11,24 +11,24 @@ module Pretty.Util
     toString,
     prefixSpaces,
     PrettyPrec (..),
-    PrettyWithLoc (..),
-    DocWithLoc (..),
+    PrettyWithRange (..),
+    DocWithRange (..),
     toDoc,
     fromDoc,
     fromRender,
     fromRenderPrec,
     fromRenderSection,
-    fromRenderAndLocated,
+    fromRenderAndRanged,
     VList (..),
   )
 where
 
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BSL
-import Data.Loc
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
+import GCL.Range
 import Prettyprinter
 import qualified Prettyprinter.Render.Text as Text
 import Render.Class
@@ -61,43 +61,43 @@ toString = Text.unpack . toText
 --------------------------------------------------------------------------------
 
 -- | Prettifier that respects Locs
-data DocWithLoc ann
+data DocWithRange ann
   = -- | A piece of Doc with starting and ending Position
-    DocWithLoc (Doc ann) Pos Pos
+    DocWithRange (Doc ann) Pos Pos
   | -- | As `mempty`
     Empty
   deriving (Show)
 
--- | Appends two DocWithLoc in a srcloc-respecting way
-append :: DocWithLoc ann -> DocWithLoc ann -> DocWithLoc ann
+-- | Appends two DocWithRange in a srcloc-respecting way
+append :: DocWithRange ann -> DocWithRange ann -> DocWithRange ann
 append Empty Empty = Empty
-append Empty (DocWithLoc y c d) = DocWithLoc y c d
-append (DocWithLoc x a b) Empty = DocWithLoc x a b
-append (DocWithLoc x a b) (DocWithLoc y c d) =
+append Empty (DocWithRange y c d) = DocWithRange y c d
+append (DocWithRange x a b) Empty = DocWithRange x a b
+append (DocWithRange x a b) (DocWithRange y c d) =
   if c >= b
-    then DocWithLoc (x <> fillGap b c <> y) a d
-    else DocWithLoc (y <> fillGap c b <> x) c b
+    then DocWithRange (x <> fillGap b c <> y) a d
+    else DocWithRange (y <> fillGap c b <> x) c b
 
-instance Semigroup (DocWithLoc ann) where
+instance Semigroup (DocWithRange ann) where
   (<>) = append
 
-instance Monoid (DocWithLoc ann) where
+instance Monoid (DocWithRange ann) where
   mappend = (<>)
   mempty = Empty
 
-fromDoc :: Loc -> Doc ann -> DocWithLoc ann
-fromDoc NoLoc _ = Empty
-fromDoc (Loc a b) x = DocWithLoc x a b
+fromDoc :: Maybe Range -> Doc ann -> DocWithRange ann
+fromDoc Nothing _ = Empty
+fromDoc (Just (Range a b)) x = DocWithRange x a b
 
 -- prefixing spaces are ignored before converting to `Doc`
-toDoc :: DocWithLoc ann -> Doc ann
-toDoc (DocWithLoc d _ _) = d
+toDoc :: DocWithRange ann -> Doc ann
+toDoc (DocWithRange d _ _) = d
 toDoc Empty = mempty
 
-prefixSpaces :: DocWithLoc ann -> DocWithLoc ann
-prefixSpaces (DocWithLoc d x y) =
-  let start = Pos (posFile x) 1 1 0
-   in DocWithLoc (fillGap start x <> d) start y
+prefixSpaces :: DocWithRange ann -> DocWithRange ann
+prefixSpaces (DocWithRange d x y) =
+  let start = mkPos 1 1
+   in DocWithRange (fillGap start x <> d) start y
 prefixSpaces Empty = mempty
 
 -- | If something can be rendered, then make it a Doc
@@ -108,11 +108,11 @@ fromRender x = pretty (render x)
 fromRenderPrec :: (Render a) => PrecContext -> a -> Doc ann
 fromRenderPrec n x = pretty (renderPrec n x)
 
--- | If something can be rendered and located, then make it a DocWithLoc
-fromRenderAndLocated :: (Located a, Render a) => a -> DocWithLoc ann
-fromRenderAndLocated x = case locOf x of
-  NoLoc -> mempty
-  Loc a b -> DocWithLoc (pretty (render x)) a b
+-- | If something can be rendered and located, then make it a DocWithRange
+fromRenderAndRanged :: (MaybeRanged a, Render a) => a -> DocWithRange ann
+fromRenderAndRanged x = case maybeRangeOf x of
+  Nothing -> mempty
+  Just (Range a b) -> DocWithRange (pretty (render x)) a b
 
 -- | If something can be rendered, then make it a Doc
 fromRenderSection :: (RenderSection a) => a -> Doc ann
@@ -136,12 +136,12 @@ fillGap this next =
 class PrettyPrec a where
   prettyPrec :: PrecContext -> a -> Doc ann
 
-class PrettyWithLoc a where
-  prettyWithLoc :: a -> DocWithLoc ann
+class PrettyWithRange a where
+  prettyWithRange :: a -> DocWithRange ann
 
-instance (PrettyWithLoc a, PrettyWithLoc b) => PrettyWithLoc (Either a b) where
-  prettyWithLoc (Left x) = prettyWithLoc x
-  prettyWithLoc (Right x) = prettyWithLoc x
+instance (PrettyWithRange a, PrettyWithRange b) => PrettyWithRange (Either a b) where
+  prettyWithRange (Left x) = prettyWithRange x
+  prettyWithRange (Right x) = prettyWithRange x
 
 instance (PrettyPrec a, PrettyPrec b) => PrettyPrec (Either a b) where
   prettyPrec i (Left x) = prettyPrec i x
@@ -151,11 +151,11 @@ instance (Pretty a, Pretty b) => Pretty (Either a b) where
   pretty (Left x) = pretty x
   pretty (Right x) = pretty x
 
-instance (PrettyWithLoc a) => PrettyWithLoc [a] where
-  prettyWithLoc = mconcat . map prettyWithLoc
+instance (PrettyWithRange a) => PrettyWithRange [a] where
+  prettyWithRange = mconcat . map prettyWithRange
 
-instance (Pretty a) => PrettyWithLoc (L a) where
-  prettyWithLoc (L loc x) = fromDoc loc (pretty x)
+instance (Pretty a) => PrettyWithRange (R a) where
+  prettyWithRange (R range x) = fromDoc (Just range) (pretty x)
 
 --------------------------------------------------------------------------------
 

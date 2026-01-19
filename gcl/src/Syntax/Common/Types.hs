@@ -5,19 +5,18 @@ module Syntax.Common.Types where
 
 import Control.Arrow (Arrow (second))
 import Data.Function (on)
-import Data.Loc
-import Data.Loc.Range ()
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Text (Text)
+import GCL.Range (Range)
 import GHC.Generics (Generic)
 import Prelude hiding (Ordering (..))
 
 --------------------------------------------------------------------------------
 
 -- | Variables and stuff
-data Name = Name Text Loc
+data Name = Name Text (Maybe Range)
   deriving (Show, Generic)
 
 -- | Compare regardless of their locations
@@ -32,51 +31,48 @@ nameToText (Name x _) = x
 
 --------------------------------------------------------------------------------
 data ChainOp
-  = EQProp Loc
-  | EQPropU Loc
-  | EQ Loc
-  | NEQ Loc
-  | NEQU Loc
-  | LTE Loc
-  | LTEU Loc
-  | GTE Loc
-  | GTEU Loc
-  | LT Loc
-  | GT Loc
+  = EQProp (Maybe Range)
+  | EQPropU (Maybe Range)
+  | EQ (Maybe Range)
+  | NEQ (Maybe Range)
+  | NEQU (Maybe Range)
+  | LTE (Maybe Range)
+  | LTEU (Maybe Range)
+  | GTE (Maybe Range)
+  | GTEU (Maybe Range)
+  | LT (Maybe Range)
+  | GT (Maybe Range)
   deriving (Eq, Show, Generic, Ord)
 
 data ArithOp
   = -- logic
-    Implies Loc
-  | ImpliesU Loc
-  | Conj Loc
-  | ConjU Loc
-  | Disj Loc
-  | DisjU Loc
-  | Neg Loc
-  | NegU Loc
+    Implies (Maybe Range)
+  | ImpliesU (Maybe Range)
+  | Conj (Maybe Range)
+  | ConjU (Maybe Range)
+  | Disj (Maybe Range)
+  | DisjU (Maybe Range)
+  | Neg (Maybe Range)
+  | NegU (Maybe Range)
   | -- arithmetics
-    NegNum Loc
-  | Add Loc
-  | Sub Loc
-  | Mul Loc
-  | Div Loc
-  | Mod Loc
-  | Max Loc
-  | Min Loc
-  | Exp Loc
-  | Hash Loc
+    NegNum (Maybe Range)
+  | Add (Maybe Range)
+  | Sub (Maybe Range)
+  | Mul (Maybe Range)
+  | Div (Maybe Range)
+  | Mod (Maybe Range)
+  | Max (Maybe Range)
+  | Min (Maybe Range)
+  | Exp (Maybe Range)
+  | Hash (Maybe Range)
   | -- pointers and sep. logic
-    PointsTo Loc -- a |-> v
-  | SConj Loc
-  | SImp Loc
+    PointsTo (Maybe Range) -- a |-> v
+  | SConj (Maybe Range)
+  | SImp (Maybe Range)
   deriving (Eq, Show, Generic, Ord)
 
-newtype TypeOp = Arrow Loc
-  deriving (Show, Generic, Ord)
-
-instance Eq TypeOp where
-  Arrow _ == Arrow _ = True
+newtype TypeOp = Arrow (Maybe Range)
+  deriving (Eq, Show, Generic, Ord)
 
 -- | Operators
 data Op
@@ -93,53 +89,53 @@ data Op
 precedenceOrder :: [[(Op, Fixity)]]
 precedenceOrder =
   [ -- application is supposed to be here
-    [ (ArithOp (Hash NoLoc), Prefix),
-      (ArithOp (Neg NoLoc), Prefix),
-      (ArithOp (NegU NoLoc), Prefix),
-      (ArithOp (NegNum NoLoc), Prefix)
+    [ (ArithOp (Hash Nothing), Prefix),
+      (ArithOp (Neg Nothing), Prefix),
+      (ArithOp (NegU Nothing), Prefix),
+      (ArithOp (NegNum Nothing), Prefix)
     ],
-    [ (ArithOp (Exp NoLoc), InfixL)
+    [ (ArithOp (Exp Nothing), InfixL)
     ],
-    [ (ArithOp (Mul NoLoc), InfixL),
-      (ArithOp (Div NoLoc), InfixL),
-      (ArithOp (Mod NoLoc), InfixL)
+    [ (ArithOp (Mul Nothing), InfixL),
+      (ArithOp (Div Nothing), InfixL),
+      (ArithOp (Mod Nothing), InfixL)
     ],
-    [ (ArithOp (Add NoLoc), InfixL),
-      (ArithOp (Sub NoLoc), InfixL)
+    [ (ArithOp (Add Nothing), InfixL),
+      (ArithOp (Sub Nothing), InfixL)
     ],
-    [ (ArithOp (Max NoLoc), InfixL),
-      (ArithOp (Min NoLoc), InfixL)
+    [ (ArithOp (Max Nothing), InfixL),
+      (ArithOp (Min Nothing), InfixL)
     ],
-    [ (ArithOp (PointsTo NoLoc), Infix)
+    [ (ArithOp (PointsTo Nothing), Infix)
     ],
-    [ (ArithOp (SConj NoLoc), InfixL)
+    [ (ArithOp (SConj Nothing), InfixL)
     ],
-    [ (ArithOp (SImp NoLoc), InfixR)
+    [ (ArithOp (SImp Nothing), InfixR)
     ],
-    [ (ChainOp (EQ NoLoc), InfixL),
-      (ChainOp (NEQ NoLoc), InfixL),
-      (ChainOp (NEQU NoLoc), InfixL),
-      (ChainOp (LTE NoLoc), InfixL),
-      (ChainOp (LTEU NoLoc), InfixL),
-      (ChainOp (GTE NoLoc), InfixL),
-      (ChainOp (GTEU NoLoc), InfixL),
-      (ChainOp (LT NoLoc), InfixL),
-      (ChainOp (GT NoLoc), InfixL)
+    [ (ChainOp (EQ Nothing), InfixL),
+      (ChainOp (NEQ Nothing), InfixL),
+      (ChainOp (NEQU Nothing), InfixL),
+      (ChainOp (LTE Nothing), InfixL),
+      (ChainOp (LTEU Nothing), InfixL),
+      (ChainOp (GTE Nothing), InfixL),
+      (ChainOp (GTEU Nothing), InfixL),
+      (ChainOp (LT Nothing), InfixL),
+      (ChainOp (GT Nothing), InfixL)
     ],
-    [ (ArithOp (Disj NoLoc), InfixL),
-      (ArithOp (DisjU NoLoc), InfixL),
-      (ArithOp (Conj NoLoc), InfixL),
-      (ArithOp (ConjU NoLoc), InfixL)
+    [ (ArithOp (Disj Nothing), InfixL),
+      (ArithOp (DisjU Nothing), InfixL),
+      (ArithOp (Conj Nothing), InfixL),
+      (ArithOp (ConjU Nothing), InfixL)
     ],
-    [ (ArithOp (Implies NoLoc), InfixR),
-      (ArithOp (ImpliesU NoLoc), InfixR)
+    [ (ArithOp (Implies Nothing), InfixR),
+      (ArithOp (ImpliesU Nothing), InfixR)
     ],
-    [ (ChainOp (EQProp NoLoc), InfixL),
-      (ChainOp (EQPropU NoLoc), InfixL)
+    [ (ChainOp (EQProp Nothing), InfixL),
+      (ChainOp (EQPropU Nothing), InfixL)
     ],
     -- Below is a type operator and is naturally very different from other operators.
     -- It is put here because we need a way to know its fixity.
-    [(TypeOp (Arrow NoLoc), InfixR)]
+    [(TypeOp (Arrow Nothing), InfixR)]
   ]
 
 initOrderIndex :: Int
@@ -210,44 +206,44 @@ wipeLoc op = case op of
   ChainOp co ->
     ChainOp
       ( case co of
-          EQProp _ -> EQProp NoLoc
-          EQPropU _ -> EQPropU NoLoc
-          EQ _ -> EQ NoLoc
-          NEQ _ -> NEQ NoLoc
-          NEQU _ -> NEQU NoLoc
-          LTE _ -> LTE NoLoc
-          LTEU _ -> LTEU NoLoc
-          GTE _ -> GTE NoLoc
-          GTEU _ -> GTEU NoLoc
-          LT _ -> LT NoLoc
-          GT _ -> GT NoLoc
+          EQProp _ -> EQProp Nothing
+          EQPropU _ -> EQPropU Nothing
+          EQ _ -> EQ Nothing
+          NEQ _ -> NEQ Nothing
+          NEQU _ -> NEQU Nothing
+          LTE _ -> LTE Nothing
+          LTEU _ -> LTEU Nothing
+          GTE _ -> GTE Nothing
+          GTEU _ -> GTEU Nothing
+          LT _ -> LT Nothing
+          GT _ -> GT Nothing
       )
   ArithOp ao ->
     ArithOp
       ( case ao of
-          Implies _ -> Implies NoLoc
-          ImpliesU _ -> ImpliesU NoLoc
-          Conj _ -> Conj NoLoc
-          ConjU _ -> ConjU NoLoc
-          Disj _ -> Disj NoLoc
-          DisjU _ -> DisjU NoLoc
-          Neg _ -> Neg NoLoc
-          NegU _ -> NegU NoLoc
-          NegNum _ -> NegNum NoLoc
-          Add _ -> Add NoLoc
-          Sub _ -> Sub NoLoc
-          Mul _ -> Mul NoLoc
-          Div _ -> Div NoLoc
-          Mod _ -> Mod NoLoc
-          Max _ -> Max NoLoc
-          Min _ -> Min NoLoc
-          Exp _ -> Exp NoLoc
-          Hash _ -> Hash NoLoc
-          PointsTo _ -> PointsTo NoLoc
-          SConj _ -> SConj NoLoc
-          SImp _ -> SImp NoLoc
+          Implies _ -> Implies Nothing
+          ImpliesU _ -> ImpliesU Nothing
+          Conj _ -> Conj Nothing
+          ConjU _ -> ConjU Nothing
+          Disj _ -> Disj Nothing
+          DisjU _ -> DisjU Nothing
+          Neg _ -> Neg Nothing
+          NegU _ -> NegU Nothing
+          NegNum _ -> NegNum Nothing
+          Add _ -> Add Nothing
+          Sub _ -> Sub Nothing
+          Mul _ -> Mul Nothing
+          Div _ -> Div Nothing
+          Mod _ -> Mod Nothing
+          Max _ -> Max Nothing
+          Min _ -> Min Nothing
+          Exp _ -> Exp Nothing
+          Hash _ -> Hash Nothing
+          PointsTo _ -> PointsTo Nothing
+          SConj _ -> SConj Nothing
+          SImp _ -> SImp Nothing
       )
-  TypeOp (Arrow _) -> TypeOp $ Arrow NoLoc
+  TypeOp (Arrow _) -> TypeOp $ Arrow Nothing
 
 -- associative operators
 -- notice that =>,-> are not associative, a->(b->c) can be shown as a->b->c, but not the case of (a->b)->c

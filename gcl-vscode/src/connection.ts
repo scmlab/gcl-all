@@ -6,7 +6,7 @@ import { LanguageClient,
 	ProtocolNotificationType,
 	ServerOptions,
 	TransportKind } from "vscode-languageclient/node";
-import { FileState } from "./data/FileState";
+import { FileStateNotification, ErrorNotification } from "./data/ClientState";
 
 let client: LanguageClient | undefined;
 
@@ -46,16 +46,19 @@ export async function start() {
 		}
 	};
 
-	client = new LanguageClient ("GCL", "GCL LSP Server", serverOptions, clientOptions);
+	// Use "gcl-vscode" as the client ID (matches extension ID for consistency, though not required).
+	// This enables automatic trace configuration: vscode-languageclient will automatically read
+	// the "gcl-vscode.trace.server" setting without requiring manual setTrace() calls.
+	client = new LanguageClient ("gcl-vscode", "GCL LSP Server", serverOptions, clientOptions);
 	await client.start();
 }
 
-export function onUpdateNotification(handler: (fileState: FileState) => void) {
+export function onUpdateNotification(handler: (fileStateNotification: FileStateNotification) => void) {
 	if (!client) throw new Error('Language client is not running');
-	return client.onNotification(new ProtocolNotificationType<FileState, any>("gcl/update"), handler)
+	return client.onNotification(new ProtocolNotificationType<FileStateNotification, any>("gcl/update"), handler)
 }
 
-export function onErrorNotification(handler: (fileState: FileState) => void) {
+export function onErrorNotification(handler: (errorNotification: ErrorNotification) => void) {
 	if (!client) throw new Error('Language client is not running');
-	return client.onNotification(new ProtocolNotificationType<FileState, any>("gcl/error"), handler)
+	return client.onNotification(new ProtocolNotificationType<ErrorNotification, any>("gcl/error"), handler)
 }

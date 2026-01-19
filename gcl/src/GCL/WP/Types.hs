@@ -11,8 +11,6 @@ import Control.Monad.RWS
   )
 import Data.Aeson (ToJSON)
 import Data.IntMap (IntMap)
-import Data.Loc (Loc (..), Located (..))
-import Data.Loc.Range (Range)
 import Data.Map (Map)
 import Data.Text (Text)
 import GCL.Common
@@ -22,6 +20,7 @@ import GCL.Predicate
     Pred,
     Spec (..),
   )
+import GCL.Range (MaybeRanged (..), Range)
 import GHC.Generics (Generic)
 import Syntax.Typed
 
@@ -78,23 +77,23 @@ data StructWarning
   = MissingBound Range
   deriving (Eq, Show, Generic)
 
-instance Located StructWarning where
-  locOf (MissingBound rng) = locOf rng
+instance MaybeRanged StructWarning where
+  maybeRangeOf (MissingBound rng) = Just rng
 
 data StructError
-  = MissingAssertion Loc
-  | MissingPostcondition Loc
-  | MultiDimArrayAsgnNotImp Loc
+  = MissingAssertion (Maybe Range)
+  | MissingPostcondition (Maybe Range)
+  | MultiDimArrayAsgnNotImp (Maybe Range)
   | -- Assignment to multi-dimensional array not implemented.
     -- SCM: will remove this when we figure out how.
-    LocalVarExceedScope Loc
+    LocalVarExceedScope (Maybe Range)
   deriving (Eq, Show, Generic)
 
-instance Located StructError where
-  locOf (MissingAssertion l) = l
-  locOf (MissingPostcondition l) = l
-  locOf (MultiDimArrayAsgnNotImp l) = l
-  locOf (LocalVarExceedScope l) = l
+instance MaybeRanged StructError where
+  maybeRangeOf (MissingAssertion l) = l
+  maybeRangeOf (MissingPostcondition l) = l
+  maybeRangeOf (MultiDimArrayAsgnNotImp l) = l
+  maybeRangeOf (LocalVarExceedScope l) = l
 
 -- freshPreInScope prefix scope
 --   generates a fresh name, with prefix, that does not appear in scope

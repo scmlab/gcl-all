@@ -17,7 +17,6 @@ dependencies:
   - bytestring
   - containers
   - megaparsec >= 9.2
-  - free
   - hashable
   - parser-combinators
   - prettyprinter
@@ -29,15 +28,10 @@ dependencies:
   - lexer-applicative
   - regex-applicative
   - random
-  - vector
   - lsp
   - lens
-  - multiset
   - transformers
-  - template-haskell
-  - multistate
   - deepseq
-  - Diff
 
 library:
   source-dirs: src
@@ -67,8 +61,8 @@ tests:
     main: Test.hs
     source-dirs:
       - test
-      - src
     dependencies:
+      - gcl
       - tasty
       - tasty-hunit
       - tasty-golden

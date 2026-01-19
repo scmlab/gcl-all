@@ -1,9 +1,8 @@
 module Syntax.Typed.Types where
 
-import Data.Loc (Loc)
-import Data.Loc.Range (Range)
 import Data.Text (Text)
 import GCL.Common (Index, TypeInfo)
+import GCL.Range (Range)
 import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
 import Syntax.Common.Types (Name, Op, TypeOp)
 
@@ -13,12 +12,12 @@ data Program
       [Declaration] -- constant and variable declarations
       [Expr] -- global properties
       [Stmt] -- main program
-      Loc
+      (Maybe Range)
   deriving (Eq, Show)
 
 data Definition
-  = TypeDefn Name [Name] [TypeDefnCtor] Loc
-  | FuncDefnSig Name KindedType (Maybe Expr) Loc
+  = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
+  | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
   | FuncDefn Name Expr
   deriving (Eq, Show)
 
@@ -26,43 +25,43 @@ data TypeDefnCtor = TypeDefnCtor Name [Type]
   deriving (Eq, Show)
 
 data Declaration
-  = ConstDecl [Name] Type (Maybe Expr) Loc
-  | VarDecl [Name] Type (Maybe Expr) Loc
+  = ConstDecl [Name] Type (Maybe Expr) (Maybe Range)
+  | VarDecl [Name] Type (Maybe Expr) (Maybe Range)
   deriving (Eq, Show)
 
 data Stmt
-  = Skip Loc
-  | Abort Loc
-  | Assign [Name] [Expr] Loc
-  | AAssign Expr Expr Expr Loc
-  | Assert Expr Loc
-  | LoopInvariant Expr Expr Loc
-  | Do [GdCmd] Loc
-  | If [GdCmd] Loc
+  = Skip (Maybe Range)
+  | Abort (Maybe Range)
+  | Assign [Name] [Expr] (Maybe Range)
+  | AAssign Expr Expr Expr (Maybe Range)
+  | Assert Expr (Maybe Range)
+  | LoopInvariant Expr Expr (Maybe Range)
+  | Do [GdCmd] (Maybe Range)
+  | If [GdCmd] (Maybe Range)
   | Spec Text Range [(Index, TypeInfo)]
   | Proof Text Text Range
-  | Alloc Name [Expr] Loc --  p := new (e1,e2,..,en)
-  | HLookup Name Expr Loc --  x := *e
-  | HMutate Expr Expr Loc --  *e1 := e2
-  | Dispose Expr Loc --  dispose e
-  | Block Program Loc
+  | Alloc Name [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
+  | HLookup Name Expr (Maybe Range) --  x := *e
+  | HMutate Expr Expr (Maybe Range) --  *e1 := e2
+  | Dispose Expr (Maybe Range) --  dispose e
+  | Block Program (Maybe Range)
   deriving (Eq, Show)
 
-data GdCmd = GdCmd Expr [Stmt] Loc
+data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
   deriving (Eq, Show)
 
 data Expr
-  = Lit Lit Type Loc
-  | Var Name Type Loc
-  | Const Name Type Loc
+  = Lit Lit Type (Maybe Range)
+  | Var Name Type (Maybe Range)
+  | Const Name Type (Maybe Range)
   | Op Op Type
   | Chain Chain
-  | App Expr Expr Loc
-  | Lam Name Type Expr Loc
-  | Quant Expr [Name] Expr Expr Loc
-  | ArrIdx Expr Expr Loc
-  | ArrUpd Expr Expr Expr Loc
-  | Case Expr [CaseClause] Loc
+  | App Expr Expr (Maybe Range)
+  | Lam Name Type Expr (Maybe Range)
+  | Quant Expr [Name] Expr Expr (Maybe Range)
+  | ArrIdx Expr Expr (Maybe Range)
+  | ArrUpd Expr Expr Expr (Maybe Range)
+  | Case Expr [CaseClause] (Maybe Range)
   | Subst Expr [(Name, Expr)]
   deriving (Eq, Show)
 
@@ -75,13 +74,13 @@ data Chain
   deriving (Eq, Show)
 
 data KindedType
-  = TBase TBase Kind Loc
-  | TArray Interval KindedType Loc
+  = TBase TBase Kind (Maybe Range)
+  | TArray Interval KindedType (Maybe Range)
   | TTuple Int Kind
-  | TFunc KindedType KindedType Loc
+  | TFunc KindedType KindedType (Maybe Range)
   | TOp TypeOp Kind
-  | TData Name Kind Loc
-  | TApp KindedType KindedType Loc
-  | TVar Name Kind Loc
-  | TMetaVar Name Kind Loc
+  | TData Name Kind (Maybe Range)
+  | TApp KindedType KindedType (Maybe Range)
+  | TVar Name Kind (Maybe Range)
+  | TMetaVar Name Kind (Maybe Range)
   deriving (Show, Eq)

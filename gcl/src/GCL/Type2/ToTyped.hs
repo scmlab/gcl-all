@@ -1,6 +1,5 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE OverloadedStrings #-}
-
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use tuple-section" #-}
@@ -9,10 +8,10 @@ module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
 import Data.List (nub)
-import Data.Loc (Loc (NoLoc), Located (locOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
+import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE
@@ -35,34 +34,35 @@ type DefnMap = Map A.Definition Scheme
 -- XXX: is checking duplicate definition required here?
 collectDefnToEnv :: A.Definition -> RSE Env Inference Env
 collectDefnToEnv (A.TypeDefn name args ctors loc) = do
-  let nameTy = A.TData name (locOf name)
+  let nameTy = A.TData name (maybeRangeOf name)
 
   let kind = foldr (\_ acc -> A.TType `typeToType` acc) A.TType args
   let kindEnv = Map.singleton name (Forall [] kind)
 
   traceM $ show (pretty kind)
-  -- * -> *
+  -- \* -> *
 
   -- Left -> forall l r. l -> Either l r
   -- Either -> * -> * -> *
 
-  ctorEnv <- Map.fromList
-    <$> mapM
-      ( \(A.TypeDefnCtor ctorName ctorArgs) -> do
-          let vars = map extractMetaVar ctorArgs
-          let diff = filter (`notElem` args) (nub vars)
+  ctorEnv <-
+    Map.fromList
+      <$> mapM
+        ( \(A.TypeDefnCtor ctorName ctorArgs) -> do
+            let vars = map extractMetaVar ctorArgs
+            let diff = filter (`notElem` args) (nub vars)
 
-          case diff of
-            [] -> return (ctorName, Forall args (foldr (typeToType . toTVar) nameTy vars))
-            (x : _) -> throwError $ NotInScope x
-      )
-      ctors
+            case diff of
+              [] -> return (ctorName, Forall args (foldr (typeToType . toTVar) nameTy vars))
+              (x : _) -> throwError $ NotInScope x
+        )
+        ctors
   return $ kindEnv <> ctorEnv
   where
     extractMetaVar (A.TMetaVar name' _loc') = name'
     extractMetaVar _ = error "impossible"
 
-    toTVar v = A.TVar v (locOf v)
+    toTVar v = A.TVar v (maybeRangeOf v)
 collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
   env <- ask
   case Map.lookup name env of
@@ -175,7 +175,7 @@ instance ToTyped A.Stmt T.Stmt where
   -- the rest exprs are all ints
   toTyped _stmt = trace (show _stmt) undefined
 
-toTypedAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
+toTypedAssign :: [Name] -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedAssign names exprs loc
   | length names > length exprs = throwError $ RedundantNames (drop (length exprs) names)
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
@@ -196,7 +196,7 @@ toTypedAssign names exprs loc
           assignments
       return $ T.Assign names typedExprs loc
 
-toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Loc -> RSE Env Inference T.Stmt
+toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedAAssign arr index expr loc = do
   ftv <- freshTVar
   (sa, typedArr) <- typeCheck arr (typeInt `typeToType` ftv)
@@ -213,13 +213,13 @@ toTypedAAssign arr index expr loc = do
 
   return resultStmt
 
-toTypedAssert :: A.Expr -> Loc -> RSE Env Inference T.Stmt
+toTypedAssert :: A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedAssert expr loc = do
   (s1, exprTy, typedExpr) <- infer expr
-  s2 <- lift $ unify exprTy typeBool (locOf expr)
+  s2 <- lift $ unify exprTy typeBool (maybeRangeOf expr)
   return (T.Assert (applySubstExpr (s2 <> s1) typedExpr) loc)
 
-toTypedLoopInvariant :: A.Expr -> A.Expr -> Loc -> RSE Env Inference T.Stmt
+toTypedLoopInvariant :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedLoopInvariant e1 e2 loc = do
   (e1Subst, typedE1) <- typeCheck e1 typeBool
   (e2Subst, typedE2) <- local (applySubstEnv e1Subst) (typeCheck e2 typeInt)
@@ -232,12 +232,12 @@ toTypedLoopInvariant e1 e2 loc = do
 
   return resultStmt
 
-toTypedDo :: [A.GdCmd] -> Loc -> RSE Env Inference T.Stmt
+toTypedDo :: [A.GdCmd] -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedDo gds loc = do
   typedGds <- mapM toTyped gds
   return (T.Do typedGds loc)
 
-toTypedIf :: [A.GdCmd] -> Loc -> RSE Env Inference T.Stmt
+toTypedIf :: [A.GdCmd] -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedIf gds loc = do
   typedGds <- mapM toTyped gds
   return (T.If typedGds loc)

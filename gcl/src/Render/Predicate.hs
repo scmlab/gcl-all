@@ -2,10 +2,9 @@
 
 module Render.Predicate where
 
-import Data.Loc (Loc (NoLoc), locOf)
-import Data.Loc.Range (fromLoc)
 import qualified Data.Text as Text
 import GCL.Predicate
+import GCL.Range (MaybeRanged (..))
 import GCL.WP.Types
 import Render.Class
 import Render.Element
@@ -82,7 +81,7 @@ instance RenderSection PO where
     Section Plain $
       [ HeaderWithButtons
           (Text.pack $ show $ render origin)
-          (fromLoc (locOf origin))
+          (maybeRangeOf origin)
           anchorHash
           anchorLoc
       ]

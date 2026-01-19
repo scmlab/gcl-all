@@ -2,26 +2,26 @@
 
 module GCL.WP.Explanation where
 
-import Data.Loc
 import Data.Text (Text)
 import GCL.Predicate
+import GCL.Range (Range)
 import Render
 import Syntax.Abstract.Operator (tInt)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common (Name (..))
 import Syntax.Typed
 
-emptyExplain :: Text -> Loc -> Origin
+emptyExplain :: Text -> Maybe Range -> Origin
 emptyExplain title l =
   Explain
     { originHeader = title,
       originExplanation = mempty,
       originInfMode = Secondary,
       originHighlightPartial = False,
-      originLoc = l
+      originRange = l
     }
 
-explainAssignment :: Pred -> Pred -> [Name] -> [Expr] -> Loc -> Origin
+explainAssignment :: Pred -> Pred -> [Name] -> [Expr] -> Maybe Range -> Origin
 explainAssignment pre post vars exprs l =
   Explain
     { originHeader = "Assignment",
@@ -36,10 +36,10 @@ explainAssignment pre post vars exprs l =
           <> sepByCommaE (map (codeE . render) exprs),
       originInfMode = Primary,
       originHighlightPartial = False,
-      originLoc = l
+      originRange = l
     }
 
-explainAfterLoop :: Pred -> [Expr] -> Loc -> Origin
+explainAfterLoop :: Pred -> [Expr] -> Maybe Range -> Origin
 explainAfterLoop inv guards l =
   Explain
     { originHeader = "InvBase",
@@ -51,10 +51,10 @@ explainAfterLoop inv guards l =
           <> "become false after executing the loop",
       originInfMode = Primary,
       originHighlightPartial = True,
-      originLoc = l
+      originRange = l
     }
 
-explainTermination :: Pred -> [Expr] -> Expr -> Loc -> Origin
+explainTermination :: Pred -> [Expr] -> Expr -> Maybe Range -> Origin
 explainTermination inv guards bnd l =
   Explain
     { originHeader = "TermBase",
@@ -66,8 +66,8 @@ explainTermination inv guards bnd l =
           <> "remain true (that is, whilst looping), the bound"
           <> (codeE . render) bnd
           <> "should be greater then"
-          <> (codeE . render) (Lit (A.Num 0) tInt NoLoc),
+          <> (codeE . render) (Lit (A.Num 0) tInt Nothing),
       originInfMode = Primary,
       originHighlightPartial = True,
-      originLoc = l
+      originRange = l
     }

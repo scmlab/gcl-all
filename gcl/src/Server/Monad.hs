@@ -11,8 +11,10 @@ module Server.Monad where
 import Control.Concurrent
   ( Chan,
     newChan,
+    threadDelay,
     writeChan,
   )
+import Control.Exception (SomeException, catch, displayException, throwIO)
 import Control.Monad.Reader
 import qualified Data.Aeson as JSON
 import Data.IORef
@@ -21,14 +23,13 @@ import Data.IORef
     newIORef,
     readIORef,
   )
-import Data.Loc (posCol)
-import Data.Loc.Range (Range, rangeStart)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Proxy
-import Data.Text
+import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate (PO, Spec (Specification, specID))
+import GCL.Range (Range, posCol, rangeStart)
 import GCL.WP.Types (StructWarning)
 import GHC.TypeLits (KnownSymbol)
 import qualified Language.LSP.Diagnostics as LSP
@@ -36,6 +37,7 @@ import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
+import Server.GoToDefn (OriginTargetRanges)
 import Server.IntervalMap (IntervalMap)
 import Server.PositionMapping (PositionDelta)
 import qualified Server.SrcLoc as SrcLoc
@@ -51,6 +53,10 @@ data GlobalState = GlobalState
 
 type Versioned a = (LSP.Int32, a)
 
+-- | Extract the value from a Versioned tuple, discarding the version number
+unversioned :: Versioned a -> a
+unversioned = snd
+
 data FileState = FileState
   -- main states for Reload and Refine
   { refinedVersion :: LSP.Int32, -- the version number of the last refine
@@ -63,13 +69,10 @@ data FileState = FileState
     -- to support other LSP methods in a light-weighted manner
     loadedVersion :: LSP.Int32, -- the version number of the last reload
     toOffsetMap :: SrcLoc.ToOffset,
-    concrete :: Concrete.Program,
     semanticTokens :: [LSP.SemanticTokenAbsolute],
-    abstract :: Abstract.Program,
     idCount :: Int,
-    definitionLinks :: IntervalMap LSP.LocationLink,
+    definitionLinks :: IntervalMap OriginTargetRanges,
     hoverInfos :: IntervalMap LSP.Hover,
-    elaborated :: Typed.Program,
     positionDelta :: PositionDelta, -- loadedVersion ~> editedVersion
     editedVersion :: LSP.Int32 -- the version number of the last change
   }
@@ -88,6 +91,19 @@ type ServerM = LSP.LspT () (ReaderT GlobalState IO)
 
 runServerM :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
 runServerM globalState ctxEnv program = runReaderT (LSP.runLspT ctxEnv program) globalState
+
+-- Wrap runServerM with error logging
+runServerMLogError :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
+runServerMLogError globalState ctxEnv program =
+  catch (runServerM globalState ctxEnv program) (handleException globalState)
+  where
+    handleException :: GlobalState -> SomeException -> IO a
+    handleException gs e = do
+      let errorMsg = "\n========== FATAL ERROR in handler ==========\n" ++ displayException e ++ "\n"
+      appendFile "gcl_crash.log" errorMsg
+      writeChan (logChannel gs) (Text.pack errorMsg)
+      threadDelay 500000 -- sleep 0.5 sec (best effort)
+      throwIO e
 
 --------------------------------------------------------------------------------
 
@@ -120,7 +136,7 @@ loadFileState filePath = do
 saveFileState :: FilePath -> FileState -> ServerM ()
 saveFileState filePath fileState = do
   logTextLn ">>>> saveFileState: fileState"
-  logTextLn . Text.pack . show $ fileState
+  -- logTextLn . Text.pack . show $ fileState
   logTextLn "<<<< saveFileState: fileState"
   fileStateRef <- lift $ asks filesState
   liftIO $ modifyIORef fileStateRef (Map.insert filePath fileState)

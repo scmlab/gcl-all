@@ -3,11 +3,10 @@
 module Syntax.Abstract.Types where
 
 import Data.List.NonEmpty (NonEmpty)
-import Data.Loc (Loc)
-import Data.Loc.Range (Range)
 import Data.Map (Map)
 import Data.Set (Set)
 import Data.Text (Text)
+import GCL.Range (Range)
 import GHC.Generics (Generic)
 import Syntax.Common
   ( ArithOp,
@@ -34,15 +33,15 @@ data Program
       [Declaration] -- constant and variable declarations
       [Expr] -- global properties
       [Stmt] -- main program
-      Loc
+      (Maybe Range)
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 -- | Definition (the functional language part)
 data Definition
-  = TypeDefn Name [Name] [TypeDefnCtor] Loc
-  | FuncDefnSig Name Type (Maybe Expr) Loc
+  = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
+  | FuncDefnSig Name Type (Maybe Expr) (Maybe Range)
   | FuncDefn Name Expr
   deriving (Eq, Show)
 
@@ -54,32 +53,32 @@ data TypeDefnCtor = TypeDefnCtor Name [Type]
 
 -- | Declaration
 data Declaration
-  = ConstDecl [Name] Type (Maybe Expr) Loc
-  | VarDecl [Name] Type (Maybe Expr) Loc
+  = ConstDecl [Name] Type (Maybe Expr) (Maybe Range)
+  | VarDecl [Name] Type (Maybe Expr) (Maybe Range)
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
 data Stmt
-  = Skip Loc
-  | Abort Loc
-  | Assign [Name] [Expr] Loc
-  | AAssign Expr Expr Expr Loc
-  | Assert Expr Loc
-  | LoopInvariant Expr Expr Loc
-  | Do [GdCmd] Loc
-  | If [GdCmd] Loc
+  = Skip (Maybe Range)
+  | Abort (Maybe Range)
+  | Assign [Name] [Expr] (Maybe Range)
+  | AAssign Expr Expr Expr (Maybe Range)
+  | Assert Expr (Maybe Range)
+  | LoopInvariant Expr Expr (Maybe Range)
+  | Do [GdCmd] (Maybe Range)
+  | If [GdCmd] (Maybe Range)
   | Spec Text Range
   | Proof Text Text Range
   | -- pointer operations
-    Alloc Name [Expr] Loc --  p := new (e1,e2,..,en)
-  | HLookup Name Expr Loc --  x := *e
-  | HMutate Expr Expr Loc --  *e1 := e2
-  | Dispose Expr Loc --  dispose e
-  | Block Program Loc
+    Alloc Name [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
+  | HLookup Name Expr (Maybe Range) --  x := *e
+  | HMutate Expr Expr (Maybe Range) --  *e1 := e2
+  | Dispose Expr (Maybe Range) --  dispose e
+  | Block Program (Maybe Range)
   deriving (Eq, Show)
 
-data GdCmd = GdCmd Expr [Stmt] Loc
+data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
   deriving (Eq, Show)
 
 -- data ProofAnchor = ProofAnchor Text Range
@@ -89,8 +88,8 @@ data GdCmd = GdCmd Expr [Stmt] Loc
 
 -- | Kinds
 data Kind
-  = KStar Loc
-  | KFunc Kind Kind Loc
+  = KStar (Maybe Range)
+  | KFunc Kind Kind (Maybe Range)
   | KMetaVar Name
   deriving (Show, Generic)
 
@@ -106,7 +105,7 @@ instance Eq Kind where
 data Endpoint = Including Expr | Excluding Expr deriving (Eq, Show, Generic)
 
 -- | Interval
-data Interval = Interval Endpoint Endpoint Loc
+data Interval = Interval Endpoint Endpoint (Maybe Range)
   deriving (Eq, Show, Generic)
 
 -- | Base Types
@@ -115,17 +114,17 @@ data TBase = TInt | TBool | TChar
 
 -- | Types
 data Type
-  = TBase TBase Loc
-  | TArray Interval Type Loc -- TODO: Make this a higher-kinded type.
+  = TBase TBase (Maybe Range)
+  | TArray Interval Type (Maybe Range) -- TODO: Make this a higher-kinded type.
   -- TTuple has no srcloc info because it has no conrete syntax at the moment
   | TTuple Int -- `Int` represents the arity of the tuple.
-  | TFunc Type Type Loc
+  | TFunc Type Type (Maybe Range)
   | TOp TypeOp
-  | TData Name Loc
-  | TApp Type Type Loc
-  | TVar Name Loc
-  | TMetaVar Name Loc
-  | TType -- * 
+  | TData Name (Maybe Range)
+  | TApp Type Type (Maybe Range)
+  | TVar Name (Maybe Range)
+  | TMetaVar Name (Maybe Range)
+  | TType -- "*"
   deriving (Show, Generic)
 
 instance Eq Type where
@@ -143,17 +142,17 @@ instance Eq Type where
 
 -- | Expressions
 data Expr
-  = Lit Lit Loc
-  | Var Name Loc
-  | Const Name Loc
+  = Lit Lit (Maybe Range)
+  | Var Name (Maybe Range)
+  | Const Name (Maybe Range)
   | Op ArithOp
   | Chain Chain
-  | App Expr Expr Loc
-  | Lam Name Expr Loc
-  | Func Name (NonEmpty FuncClause) Loc
+  | App Expr Expr (Maybe Range)
+  | Lam Name Expr (Maybe Range)
+  | Func Name (NonEmpty FuncClause) (Maybe Range)
   | -- Tuple has no srcloc info because it has no conrete syntax at the moment
     Tuple [Expr]
-  | Quant Expr [Name] Expr Expr Loc
+  | Quant Expr [Name] Expr Expr (Maybe Range)
   | -- The innermost part of a Redex
     -- should look something like `P [ x \ a ] [ y \ b ]`
     RedexKernel
@@ -169,12 +168,12 @@ data Expr
     RedexShell
       Int -- for identifying Redexes in frontend-backend interactions
       Expr -- should either be `RedexKernel` or `App (App (App ... RedexKernel arg0) ... argn`
-  | ArrIdx Expr Expr Loc
-  | ArrUpd Expr Expr Expr Loc
-  | Case Expr [CaseClause] Loc
+  | ArrIdx Expr Expr (Maybe Range)
+  | ArrUpd Expr Expr Expr (Maybe Range)
+  | Case Expr [CaseClause] (Maybe Range)
   deriving (Eq, Show, Generic)
 
-data Chain = Pure Expr Loc | More Chain ChainOp Expr Loc
+data Chain = Pure Expr (Maybe Range) | More Chain ChainOp Expr (Maybe Range)
   deriving (Eq, Show, Generic)
 
 -- QuantOp' seems not being used at current version of abstract?
