@@ -1,7 +1,7 @@
 #
 # Installs NVM and Node.js on top of the base Haskell image.
 #
-FROM ghcr.io/lcamel/haskell-devcontainer:stackage-lts-24.11 AS haskell-and-nodejs
+FROM ghcr.io/lcamel/haskell-devcontainer:stackage-lts-23.28 AS haskell-and-nodejs
 USER vscode
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
     export NVM_DIR="$HOME/.nvm" && \
