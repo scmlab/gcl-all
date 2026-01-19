@@ -38,6 +38,15 @@ data Scheme
 
 type Env = Map TmVar Scheme
 
+instance {-# OVERLAPPING #-} Show Env where
+  show e = intercalate "\n" $ map (\(var, scheme) -> s var <> " :: " <> showScheme scheme) (Map.toList e)
+    where
+      s :: (Pretty a) => a -> String
+      s = show . pretty
+
+      showScheme (Forall [] ty) = s ty
+      showScheme (Forall tyParams ty) = "forall " <> unwords (map s tyParams) <> ". " <> s ty
+
 type Subst = Map TyVar A.Type
 
 composeSubst :: Subst -> Subst -> Subst
@@ -47,7 +56,7 @@ instance {-# OVERLAPPING #-} Semigroup Subst where
   (<>) = composeSubst
 
 instance {-# OVERLAPPING #-} Show Subst where
-  show s = intercalate "\n" $ map (\(tv, ty) -> show tv <> " -> " <> show ty) (Map.toList s)
+  show s = intercalate "\n" $ map (\(tv, ty) -> show tv <> ": " <> show ty) (Map.toList s)
 
 checkDuplicateNames :: [Name] -> Result ()
 checkDuplicateNames names =
@@ -78,6 +87,7 @@ applySubst subst ty@(A.TVar name _) =
   Map.findWithDefault ty name subst
 applySubst subst ty@(A.TMetaVar name _) =
   Map.findWithDefault ty name subst
+applySubst _ A.TType = A.TType -- XXX: is this correct or this should error
 
 applySubstScheme :: Subst -> Scheme -> Scheme
 applySubstScheme subst (Forall vars ty) =
@@ -155,6 +165,7 @@ freeTypeVars A.TOp {} = mempty
 freeTypeVars (A.TApp t1 t2 _) = freeTypeVars t1 <> freeTypeVars t2
 freeTypeVars (A.TVar name _) = Set.singleton name
 freeTypeVars (A.TMetaVar name _) = Set.singleton name
+freeTypeVars A.TType = mempty
 
 freeTypeVarsEnv :: Env -> Set TyVar
 freeTypeVarsEnv env =
@@ -172,15 +183,17 @@ unify (A.TArray _i t1 _) (A.TApp (A.TApp (A.TOp (Arrow _)) i _) t2 _) l = do
   s2 <- unify t1 t2 l
   return (s2 <> s1)
 unify (A.TOp op1) (A.TOp op2) _ | op1 == op2 = return mempty
+unify (A.TData n1 l1) (A.TData n2 l2) _ = undefined
 unify (A.TApp a1 a2 _) (A.TApp b1 b2 _) l = do
   s1 <- unify a1 b1 l
   s2 <- unify (applySubst s1 a2) (applySubst s1 b2) l
   return $ s2 <> s1
 unify (A.TVar name _) ty l = unifyVar name ty l
 unify ty (A.TVar name _) l = unifyVar name ty l
+unify A.TType A.TType _ = return mempty
 unify t1 t2 l =
   trace
-    (show (pretty t1) <> "\n" <> show (pretty t2))
+    (show (pretty t1) <> " != " <> show (pretty t2))
     throwError
     $ UnifyFailed t1 t2 l
 
@@ -191,6 +204,46 @@ unifyVar name ty loc
   | otherwise =
       let subst = Map.singleton name ty
        in return subst
+
+-- (-->) :: a -> b -> (a --> b)
+--
+-- * -> *
+
+typeToKind :: A.Type -> RSE Env Inference A.Type
+typeToKind A.TBase {} = return A.TType
+typeToKind A.TArray {} = return $ A.TType `typeToType` A.TType
+typeToKind A.TTuple {} = undefined
+typeToKind A.TFunc {} = undefined
+typeToKind (A.TOp (Arrow _)) = return $ A.TType `typeToType` A.TType `typeToType` A.TType
+typeToKind (A.TData name _) = do
+  env <- ask
+  case Map.lookup name env of
+    Just (Forall _ k) -> return k
+    Nothing -> throwError $ NotInScope name
+typeToKind (A.TVar name _) = do
+  env <- ask
+  case Map.lookup name env of
+    Just (Forall tyParams _) -> return $ foldr (\_ acc -> A.TType `typeToType` acc) A.TType tyParams -- XXX: is this correct?
+    Nothing -> throwError $ NotInScope name
+typeToKind A.TMetaVar {} = undefined
+typeToKind A.TType = return A.TType
+typeToKind (A.TApp t1 t2 _) = do
+  t1Kind <- typeToKind t1
+  case t1Kind of
+    (A.TApp (A.TApp (A.TOp (Arrow _)) k1 _) k2 _) -> do
+      _ <- lift $ unify t2 k1 (locOf t2)
+      return k2
+    (A.TApp A.TType _ loc) -> throwError $ PatternArityMismatch 2 1 loc
+    ty' -> do
+      traceM $ show ty'
+      error "unknown kind"
+
+-- typeToKind (TApp f x) = do
+--  (k1 -> k2) <- typeToKind f
+--  typeToKind x == k1
+--  return k2
+
+-- (* -> * -> *) (* -> *)
 
 -- we keep `T.Expr` to prevent repeating calculate the same expression
 infer :: A.Expr -> RSE Env Inference (Subst, A.Type, T.Expr)
@@ -208,12 +261,12 @@ infer (A.App e1 e2 loc) = inferApp e1 e2 loc
 infer (A.Lam param body loc) = inferLam param body loc
 infer (A.Func name clauses loc) = undefined
 infer (A.Tuple exprs) = undefined
-infer (A.Quant _ _ _ _ _) = undefined
+infer expr@(A.Quant _ _ _ _ _) = trace (show expr) undefined
 infer (A.RedexKernel _ _ _ _) = undefined
 infer (A.RedexShell _ _) = undefined
 infer (A.ArrIdx arr index loc) = inferArrIdx arr index loc
 infer (A.ArrUpd arr index expr loc) = inferArrUpd arr index expr loc
-infer (A.Case expr clauses loc) = undefined
+infer (A.Case expr clauses loc) = inferCase expr clauses loc
 
 inferLit :: A.Lit -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferLit lit loc =
@@ -317,6 +370,25 @@ inferArrUpd arr index expr loc = do
 
   let resultSubst = se <> si <> sa
   return (resultSubst, A.TArray interval (applySubst si ftv) loc, T.ArrUpd typedArr typedIndex typedExpr loc)
+
+inferCase :: A.Expr -> [A.CaseClause] -> Loc -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferCase expr clauses loc = do
+  undefined
+
+pat :: A.Pattern -> A.Type -> RSE Env Inference (Env, Subst)
+pat (A.PattLit lit) ty = do
+  sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (locOf lit)) ty (locOf ty)
+  return (mempty, sub)
+pat (A.PattBinder name) ty = do
+  let env = Map.singleton name (Forall [] ty)
+  return (env, mempty)
+pat (A.PattWildcard _) _ = return (mempty, mempty)
+pat (A.PattConstructor p ps) ty = do
+  env <- ask
+  _ <- case Map.lookup p env of
+    Nothing -> throwError $ NotInScope p
+    Just _ -> undefined
+  undefined
 
 getArithOpType :: ArithOp -> RSE Env Inference A.Type
 getArithOpType Implies {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)

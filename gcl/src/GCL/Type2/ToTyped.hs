@@ -1,4 +1,6 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use tuple-section" #-}
@@ -6,7 +8,8 @@
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
-import Data.Loc (Loc, Located (locOf))
+import Data.List (nub)
+import Data.Loc (Loc (NoLoc), Located (locOf))
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
@@ -16,7 +19,7 @@ import GCL.Type2.RSE
 import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name)
+import Syntax.Common.Types (Name (Name))
 import qualified Syntax.Typed.Types as T
 
 collectDeclToEnv :: A.Declaration -> Result Env
@@ -29,8 +32,37 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
 
 type DefnMap = Map A.Definition Scheme
 
+-- XXX: is checking duplicate definition required here?
 collectDefnToEnv :: A.Definition -> RSE Env Inference Env
-collectDefnToEnv (A.TypeDefn _ _ _ _) = undefined
+collectDefnToEnv (A.TypeDefn name args ctors loc) = do
+  let nameTy = A.TData name (locOf name)
+
+  let kind = foldr (\_ acc -> A.TType `typeToType` acc) A.TType args
+  let kindEnv = Map.singleton name (Forall [] kind)
+
+  traceM $ show (pretty kind)
+  -- * -> *
+
+  -- Left -> forall l r. l -> Either l r
+  -- Either -> * -> * -> *
+
+  ctorEnv <- Map.fromList
+    <$> mapM
+      ( \(A.TypeDefnCtor ctorName ctorArgs) -> do
+          let vars = map extractMetaVar ctorArgs
+          let diff = filter (`notElem` args) (nub vars)
+
+          case diff of
+            [] -> return (ctorName, Forall args (foldr (typeToType . toTVar) nameTy vars))
+            (x : _) -> throwError $ NotInScope x
+      )
+      ctors
+  return $ kindEnv <> ctorEnv
+  where
+    extractMetaVar (A.TMetaVar name' _loc') = name'
+    extractMetaVar _ = error "impossible"
+
+    toTVar v = A.TVar v (locOf v)
 collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
   env <- ask
   case Map.lookup name env of
@@ -62,46 +94,54 @@ instance ToTyped A.Program T.Program where
         )
         env
         decls
-    -- defnEnv <-
-    --   foldM
-    --     ( \env' defn -> do
-    --         _
-    --     )
-    --     declEnv
-    --     defns
+    defnEnv <-
+      foldM
+        ( \env' defn -> do
+            -- traceM $ Hack.sshow defn
+            defnEnv <- collectDefnToEnv defn
+            traceM $ show defnEnv
+            return env'
+        )
+        declEnv
+        defns
+
+    let newEnv = defnEnv <> declEnv
     typedDefns <-
       mapM
         ( \defn -> do
             -- TODO: make declaration in order
             -- TODO: check array interval type is int
-            local (const declEnv) (toTyped defn)
+            local (const newEnv) (toTyped defn)
         )
         defns
     typedDecls <-
       mapM
         ( \decl -> do
-            traceM $ show decl
-            local (const declEnv) (toTyped decl)
+            -- traceM $ show decl
+            local (const newEnv) (toTyped decl)
         )
         decls
     typedExprs <-
       mapM
         ( \expr -> do
-            local (const declEnv) (toTyped expr)
+            local (const newEnv) (toTyped expr)
         )
         exprs
     typedStmts <-
       mapM
         ( \stmt -> do
-            local (const declEnv) (toTyped stmt)
+            local (const newEnv) (toTyped stmt)
         )
         stmts
     return $ T.Program typedDefns typedDecls typedExprs typedStmts loc
 
 instance ToTyped A.Definition T.Definition where
-  toTyped (A.TypeDefn _ _ _ _) = undefined
+  toTyped (A.TypeDefn name args ctors loc) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) loc
   toTyped (A.FuncDefnSig name ty prop loc) = undefined
   toTyped (A.FuncDefn name body) = T.FuncDefn name <$> toTyped body
+
+toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
+toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop loc) = do
@@ -132,6 +172,7 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.If gds loc) = toTypedIf gds loc
   toTyped (A.Spec text range) = undefined
   toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
+  -- the rest exprs are all ints
   toTyped _stmt = trace (show _stmt) undefined
 
 toTypedAssign :: [Name] -> [A.Expr] -> Loc -> RSE Env Inference T.Stmt
@@ -175,14 +216,13 @@ toTypedAAssign arr index expr loc = do
 toTypedAssert :: A.Expr -> Loc -> RSE Env Inference T.Stmt
 toTypedAssert expr loc = do
   (s1, exprTy, typedExpr) <- infer expr
-  s2 <- lift $ unify (applySubst s1 exprTy) typeBool (locOf expr)
+  s2 <- lift $ unify exprTy typeBool (locOf expr)
   return (T.Assert (applySubstExpr (s2 <> s1) typedExpr) loc)
 
 toTypedLoopInvariant :: A.Expr -> A.Expr -> Loc -> RSE Env Inference T.Stmt
 toTypedLoopInvariant e1 e2 loc = do
   (e1Subst, typedE1) <- typeCheck e1 typeBool
-  (e2Subst, typedE2) <- local (applySubstEnv e1Subst) (typeCheck e2 typeBool)
-
+  (e2Subst, typedE2) <- local (applySubstEnv e1Subst) (typeCheck e2 typeInt)
   let resultSubst = e2Subst <> e1Subst
   let resultStmt =
         T.LoopInvariant
@@ -205,7 +245,6 @@ toTypedIf gds loc = do
 instance ToTyped A.GdCmd T.GdCmd where
   toTyped (A.GdCmd expr stmts loc) = do
     (exprSubst, typedExpr) <- typeCheck expr typeBool
-    -- XXX: i'm not sure if this is correct
     typedStmts <- mapM toTyped stmts
 
     return (T.GdCmd (applySubstExpr exprSubst typedExpr) typedStmts loc)
@@ -218,9 +257,9 @@ instance ToTyped A.Expr T.Expr where
     -- so it is probably really inefficient to do so when
     -- there is likely a few tyvars needed to be substituted
     let typed' = applySubstExpr subst typed
-    traceM $ show (pretty typed')
-    traceM $ show (pretty ty)
-    traceM $ show subst
+    -- traceM $ show (pretty typed')
+    -- traceM $ show (pretty ty)
+    -- traceM $ show subst
     -- traceM $ "\n" <> Hack.sshow typed <> "\n"
     return typed'
 
