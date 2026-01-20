@@ -18,9 +18,6 @@ import Error (Error (..))
 import GCL.Range (Range, posCol, rangeStart)
 import qualified GCL.Type as TypeChecking
 import qualified GCL.WP as WP
-import qualified Language.LSP.Protocol.Types as LSP
-import qualified Language.LSP.Server as LSP
-import qualified Language.LSP.VFS as VFS
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -47,70 +44,61 @@ diggedText range =
   let indent = Text.replicate (posCol (rangeStart range) - 1) " "
    in "[!\n" <> indent <> "\n" <> indent <> "!]"
 
-load :: FilePath -> ServerM LoadResponse
-load filePath = do
+load :: FilePath -> Text -> ServerM LoadResponse
+load filePath source = do
   logText "load: start\n"
   maybeFileState <- loadFileState filePath
   let currentVersion = case maybeFileState of
         Nothing -> 0
         Just FileState {editedVersion} -> editedVersion
 
-  maybeVirtualFile <- LSP.getVirtualFile $ LSP.toNormalizedUri $ LSP.filePathToUri filePath
-  let maybeSource = fmap VFS.virtualFileText maybeVirtualFile
-  case maybeSource of
-    Nothing -> do
-      logText "  read error"
-      onError (CannotReadFile filePath)
-      logText "load: end\n"
-      return LoadDone -- Return done even on error (error is sent via notification)
-    Just source -> do
-      result <- runExceptT $ do
-        lift $ logText "  source read \n"
-        -- parse source into concrete syntax
-        concrete <- ExceptT $ parse filePath source
-        -- check for holes
-        case collectHoles concrete of
-          [] -> do
-            lift $ logText "  all holes digged\n"
-            let abstract = C.toAbstract concrete
-            lift $ logText "  abstract program generated\n"
-            elaborated <- ExceptT $ elaborate abstract
-            ExceptT $ case WP.sweep elaborated of
-              Left err -> do
-                logText "  sweep error\n"
-                onError (StructError err)
-                return $ Left LoadDone
-              Right (pos, specs, warnings, _redexes, idCount) -> do
-                let fileState =
-                      FileState
-                        { refinedVersion = currentVersion,
-                          specifications = map (\spec -> (currentVersion, spec)) specs,
-                          proofObligations = map (\po -> (currentVersion, po)) pos,
-                          warnings = map (\warning -> (currentVersion, warning)) warnings,
-                          -- to support other LSP methods in a light-weighted manner
-                          loadedVersion = currentVersion,
-                          toOffsetMap = SrcLoc.makeToOffset source,
-                          semanticTokens = collectHighlighting concrete,
-                          idCount = idCount,
-                          definitionLinks = collectLocationLinks abstract,
-                          hoverInfos = collectHoverInfo elaborated,
-                          positionDelta = idDelta,
-                          editedVersion = currentVersion
-                        }
-                logText "  fileState created\n"
-                saveFileState filePath fileState
-                logText "  fileState updated\n"
-                onSuccess
-                return $ Right LoadDone
-          holes -> do
-            lift $ logText "  should dig holes\n"
-            let holeEdits = map (\r -> (r, diggedText r)) holes
-            lift $ logText "  returning needsEdit response\n"
-            return $ LoadNeedsEdit holeEdits
-      logText "load: end\n"
-      case result of
-        Left response -> return response
-        Right response -> return response
+  result <- runExceptT $ do
+    lift $ logText "  source read \n"
+    -- parse source into concrete syntax
+    concrete <- ExceptT $ parse filePath source
+    -- check for holes
+    case collectHoles concrete of
+      [] -> do
+        lift $ logText "  all holes digged\n"
+        let abstract = C.toAbstract concrete
+        lift $ logText "  abstract program generated\n"
+        elaborated <- ExceptT $ elaborate abstract
+        ExceptT $ case WP.sweep elaborated of
+          Left err -> do
+            logText "  sweep error\n"
+            onError (StructError err)
+            return $ Left LoadDone
+          Right (pos, specs, warnings, _redexes, idCount) -> do
+            let fileState =
+                  FileState
+                    { refinedVersion = currentVersion,
+                      specifications = map (\spec -> (currentVersion, spec)) specs,
+                      proofObligations = map (\po -> (currentVersion, po)) pos,
+                      warnings = map (\warning -> (currentVersion, warning)) warnings,
+                      -- to support other LSP methods in a light-weighted manner
+                      loadedVersion = currentVersion,
+                      toOffsetMap = SrcLoc.makeToOffset source,
+                      semanticTokens = collectHighlighting concrete,
+                      idCount = idCount,
+                      definitionLinks = collectLocationLinks abstract,
+                      hoverInfos = collectHoverInfo elaborated,
+                      positionDelta = idDelta,
+                      editedVersion = currentVersion
+                    }
+            logText "  fileState created\n"
+            saveFileState filePath fileState
+            logText "  fileState updated\n"
+            onSuccess
+            return $ Right LoadDone
+      holes -> do
+        lift $ logText "  should dig holes\n"
+        let holeEdits = map (\r -> (r, diggedText r)) holes
+        lift $ logText "  returning needsEdit response\n"
+        return $ LoadNeedsEdit holeEdits
+  logText "load: end\n"
+  case result of
+    Left response -> return response
+    Right response -> return response
   where
     onSuccess :: ServerM ()
     onSuccess = do
