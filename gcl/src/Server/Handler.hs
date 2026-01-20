@@ -39,7 +39,7 @@ import qualified Server.Handler.Hover as Hover
 import qualified Server.Handler.Initialized as Initialized
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Server.Handler.SemanticTokens as SemanticTokens
-import Server.Load (load)
+-- Note: load is now only called via gcl/reload request, not from notifications
 import Server.Monad (ServerM, logText)
 
 -- handlers of the LSP server
@@ -51,12 +51,12 @@ handlers =
         logText "SMethod_Initialized is called.\n"
         Initialized.handler,
       -- "textDocument/didOpen" - after open
+      -- Note: VFS is updated automatically by lsp library, we don't call load here
+      -- Client should explicitly call gcl/reload after open
       notificationHandler LSP.SMethod_TextDocumentDidOpen $ \ntf -> do
         logText "SMethod_TextDocumentDidOpen start\n"
-        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-        case LSP.uriToFilePath uri of
-          Nothing -> return ()
-          Just filePath -> load filePath
+        let _uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+        -- load is now triggered by client via gcl/reload request
         logText "SMethod_TextDocumentDidOpen end\n",
       -- "textDocument/didChange" - after every edition
       notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do
@@ -68,12 +68,12 @@ handlers =
           Just filePath -> OnDidChangeTextDocument.handler filePath changes
         logText "SMethod_TextDocumentDidChange end\n",
       -- "textDocument/didSave" - after save
+      -- Note: VFS is updated automatically by lsp library, we don't call load here
+      -- Client should explicitly call gcl/reload after save
       notificationHandler LSP.SMethod_TextDocumentDidSave $ \ntf -> do
         logText "SMethod_TextDocumentDidSave start\n"
-        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-        case LSP.uriToFilePath uri of
-          Nothing -> return ()
-          Just filePath -> load filePath
+        let _uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+        -- load is now triggered by client via gcl/reload request
         logText "SMethod_TextDocumentDidSave end\n",
       -- "textDocument/didClose" - after close
       notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do

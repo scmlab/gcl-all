@@ -29,7 +29,7 @@ import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Predicate (PO, Spec (Specification, specID))
-import GCL.Range (Range, posCol, rangeStart)
+import GCL.Range (Range)
 import GCL.WP.Types (StructWarning)
 import GHC.TypeLits (KnownSymbol)
 import qualified Language.LSP.Diagnostics as LSP
@@ -41,9 +41,6 @@ import Server.GoToDefn (OriginTargetRanges)
 import Server.IntervalMap (IntervalMap)
 import Server.PositionMapping (PositionDelta)
 import qualified Server.SrcLoc as SrcLoc
-import qualified Syntax.Abstract as Abstract
-import qualified Syntax.Concrete as Concrete
-import qualified Syntax.Typed as Typed
 
 -- | State shared by all clients and requests
 data GlobalState = GlobalState
@@ -63,9 +60,6 @@ data FileState = FileState
     specifications :: [Versioned Spec], -- editedVersion or (editedVersion + 1)
     proofObligations :: [Versioned PO], -- editedVersion
     warnings :: [Versioned StructWarning],
-    didChangeShouldReload :: Int, -- trigger a reload after the server sends an edit
-    -- SEE: increaseDidChangeShouldReload
-
     -- to support other LSP methods in a light-weighted manner
     loadedVersion :: LSP.Int32, -- the version number of the last reload
     toOffsetMap :: SrcLoc.ToOffset,
@@ -217,25 +211,6 @@ deleteSpec filePath Specification {specID = targetSpecId} = do
         filesState {specifications = Prelude.filter (\(_, Specification {specID}) -> specID /= targetSpecId) specifications}
     )
 
--- Sometimes the server needs to edit the source (e.g., digHoles),
--- but the callback after the edit cannot read the latest source from the virtual file system.
--- The updated source only becomes available in the didChange event right after the callback finishes.
--- Therefore, we set a flag here so that didChange can determine whether to trigger load.
-increaseDidChangeShouldReload :: FilePath -> ServerM ()
-increaseDidChangeShouldReload filePath =
-  modifyFileState filePath (\filesState@FileState {didChangeShouldReload} -> filesState {didChangeShouldReload = didChangeShouldReload + 1})
-
-runIfDecreaseDidChangeShouldReload :: FilePath -> (FilePath -> ServerM ()) -> ServerM ()
-runIfDecreaseDidChangeShouldReload filePath action = do
-  maybeFileState <- loadFileState filePath
-  case maybeFileState of
-    Just fileState | didChangeShouldReload fileState > 0 -> do
-      let orig = didChangeShouldReload fileState
-      logTextLn $ "didChangeShouldReload: orig: " <> Text.pack (Prelude.show orig)
-      modifyFileState filePath (\fileState' -> fileState' {didChangeShouldReload = orig - 1})
-      action filePath
-    _ -> return ()
-
 readSource :: FilePath -> ServerM (Maybe Text)
 readSource filepath = do
   maybeVirtualFile <- LSP.getVirtualFile $ LSP.toNormalizedUri $ LSP.filePathToUri filepath
@@ -293,13 +268,6 @@ sendDiagnostics filePath diagnostics = do
     (LSP.toNormalizedUri (LSP.filePathToUri filePath))
     maybeVersion
     (LSP.partitionBySource diagnostics)
-
-digHoles :: FilePath -> [Range] -> ServerM () -> ServerM ()
-digHoles filePath ranges onFinish = do
-  logTextLn $ "    < DigHoles " <> Text.pack (Prelude.show ranges)
-  let indent range = Text.replicate (posCol (rangeStart range) - 1) " "
-  let diggedText range = "[!\n" <> indent range <> "\n" <> indent range <> "!]"
-  editTexts filePath (Prelude.map (\range -> (range, diggedText range)) ranges) onFinish
 
 sendDebugMessage :: Text -> ServerM ()
 sendDebugMessage message' = do

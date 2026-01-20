@@ -8,12 +8,10 @@
 
 module Server.Handler.GCL.Reload where
 
-import qualified Data.Aeson.Types as JSON
-import Error (Error)
-import GCL.Predicate (PO, Spec)
+import qualified Data.Aeson as JSON
 import GHC.Generics (Generic)
-import Server.Load (load)
-import Server.Monad (FileState (..), ServerM, Versioned, sendDebugMessage)
+import Server.Load (LoadResponse (..), load)
+import Server.Monad (ServerM)
 
 data ReloadParams = ReloadParams {filePath :: FilePath}
   deriving (Eq, Show, Generic)
@@ -22,7 +20,7 @@ instance JSON.FromJSON ReloadParams
 
 instance JSON.ToJSON ReloadParams
 
-handler :: ReloadParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
+handler :: ReloadParams -> (LoadResponse -> ServerM ()) -> (LoadResponse -> ServerM ()) -> ServerM ()
 handler ReloadParams {filePath} onResult _ = do
-  load filePath
-  onResult ()
+  response <- load filePath
+  onResult response

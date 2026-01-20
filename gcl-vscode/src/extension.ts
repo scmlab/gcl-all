@@ -1,12 +1,58 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { retrieveMainEditor } from './utils'
+import { TextDocumentEdit } from 'vscode-languageclient';
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
 import { GclPanel } from './gclPanel';
 import { ISpecification } from './data/FileState';
 import { ClientState } from './data/ClientState';
-import path from 'path';
+
+// Load response type - uses LSP's TextDocumentEdit
+type LoadResponse =
+	| { status: "done" }
+	| { status: "needsEdit"; textDocumentEdit: TextDocumentEdit };
+
+// Load function that handles needsEdit response recursively
+async function load(filePath: string): Promise<void> {
+	const response = await sendRequest<LoadResponse>("gcl/reload", { filePath });
+
+	if (response.status === "done") {
+		return;
+	}
+
+	if (response.status === "needsEdit") {
+		const { textDocumentEdit } = response;
+		const uri = vscode.Uri.parse(textDocumentEdit.textDocument.uri);
+
+		// Version check before applying edit
+		const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === uri.toString());
+		if (doc && doc.version !== textDocumentEdit.textDocument.version) {
+			vscode.window.showInformationMessage(`Version mismatch (doc=${doc.version}, edit=${textDocumentEdit.textDocument.version}), retrying...`);
+			await load(filePath);
+			return;
+		}
+
+		// Convert to vscode WorkspaceEdit
+		const workspaceEdit = new vscode.WorkspaceEdit();
+		for (const edit of textDocumentEdit.edits) {
+			const range = new vscode.Range(
+				new vscode.Position(edit.range.start.line, edit.range.start.character),
+				new vscode.Position(edit.range.end.line, edit.range.end.character)
+			);
+			workspaceEdit.replace(uri, range, edit.newText);
+		}
+
+		const success = await vscode.workspace.applyEdit(workspaceEdit);
+		if (!success) {
+			vscode.window.showInformationMessage("Apply edit failed, retrying...");
+			await load(filePath);
+			return;
+		}
+
+		// Apply succeeded, recursively call load to process the updated source
+		await load(filePath);
+	}
+}
 
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -61,51 +107,30 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(changeTabDisposable);
 
-	// request gcl/reload
+	// request gcl/reload - uses the new load function that handles needsEdit
 	const reloadDisposable = vscode.commands.registerCommand('gcl.reload', async () => {
-		const editor = retrieveMainEditor();
-		// Get the path for the current text file.
-		const filePath = editor?.document.uri.fsPath;
-		// Send the request asynchronously.
-		const _response =  await sendRequest("gcl/reload", {filePath: filePath})
-		// ignore the response and get results or errors from notifications
+		const document = vscode.window.activeTextEditor?.document;
+		if (document?.uri.scheme === 'file' && document.languageId === 'gcl') {
+			await load(document.uri.fsPath);
+		}
 	});
 	context.subscriptions.push(reloadDisposable);
 
 	// refine gcl/refine
 	const refineDisposable = vscode.commands.registerCommand('gcl.refine', async () => {
-		const editor = retrieveMainEditor();
-		const filePath = editor.document.uri.fsPath;
-		const _response = await sendRequest("gcl/refine", {
-			filePath: filePath,
-			line: editor.selection.start.line, // 0-based
-			character: editor.selection.start.character, // 0-based
-		})
-		// ignore the response and get results or errors from notifications
+		const editor = vscode.window.activeTextEditor;
+		const document = editor?.document;
+		if (editor && document?.uri.scheme === 'file' && document.languageId === 'gcl') {
+			await sendRequest("gcl/refine", {
+				filePath: document.uri.fsPath,
+				line: editor.selection.start.line, // 0-based
+				character: editor.selection.start.character, // 0-based
+			});
+		}
 	});
 	context.subscriptions.push(refineDisposable);
 
 	await start();
-
-	// restart server command
-	const restartDisposable = vscode.commands.registerCommand('gcl.restartServer', async () => {
-		try {
-			await stop();
-			await start();
-			vscode.window.showInformationMessage('GCL server restarted');
-		} catch (e:any) {
-			vscode.window.showErrorMessage('Failed to restart GCL server: ' + e.message);
-		}
-	});
-	context.subscriptions.push(restartDisposable);
-
-	// request gcl/debug
-	const debugDisposable = vscode.commands.registerCommand('gcl.debug', async () => {
-		const editor = retrieveMainEditor();
-		const filePath = editor?.document.uri.fsPath;
-		const _response = await sendRequest("gcl/debug", {filePath: filePath})
-	});
-	context.subscriptions.push(debugDisposable);
 
 	const outputChannel = vscode.window.createOutputChannel("GCL");
 	context.subscriptions.push(outputChannel);
@@ -150,6 +175,53 @@ export async function activate(context: vscode.ExtensionContext) {
 		gclPanel.rerender(newClientState);
 	});
 	context.subscriptions.push(errorNotificationHandlerDisposable);
+
+	// Trigger load when a GCL file is opened
+	const didOpenDisposable = vscode.workspace.onDidOpenTextDocument(async (document) => {
+		if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
+			const filePath = document.uri.fsPath;
+			await load(filePath);
+		}
+	});
+	context.subscriptions.push(didOpenDisposable);
+
+	// Trigger load when a GCL file is saved
+	const didSaveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
+		if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
+			const filePath = document.uri.fsPath;
+			await load(filePath);
+		}
+	});
+	context.subscriptions.push(didSaveDisposable);
+
+	// Also trigger load for any GCL files that are already open
+	for (const document of vscode.workspace.textDocuments) {
+		if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
+			const filePath = document.uri.fsPath;
+			await load(filePath);
+		}
+	}
+
+	// restart server command
+	const restartDisposable = vscode.commands.registerCommand('gcl.restartServer', async () => {
+		try {
+			await stop();
+			await start();
+			vscode.window.showInformationMessage('GCL server restarted');
+		} catch (e:any) {
+			vscode.window.showErrorMessage('Failed to restart GCL server: ' + e.message);
+		}
+	});
+	context.subscriptions.push(restartDisposable);
+
+	// request gcl/debug
+	const debugDisposable = vscode.commands.registerCommand('gcl.debug', async () => {
+		const document = vscode.window.activeTextEditor?.document;
+		if (document?.uri.scheme === 'file' && document.languageId === 'gcl') {
+			await sendRequest("gcl/debug", { filePath: document.uri.fsPath });
+		}
+	});
+	context.subscriptions.push(debugDisposable);
 }
 
 export async function deactivate() {

@@ -8,8 +8,7 @@ import GCL.Predicate (Origin (..), PO (..), Spec (..))
 import GCL.Range (MaybeRanged (..), Range (..))
 import GCL.WP.Types (StructWarning (MissingBound))
 import qualified Language.LSP.Protocol.Types as LSP
-import Server.Load (load)
-import Server.Monad (FileState (..), ServerM, Versioned, logFileState, logText, modifyFileState, runIfDecreaseDidChangeShouldReload)
+import Server.Monad (FileState (..), ServerM, Versioned, logFileState, logText, modifyFileState)
 import Server.Notification.Update (sendUpdateNotification)
 import Server.PositionMapping (PositionDelta, applyChange, mkDelta, toCurrentRange')
 import qualified Server.SrcLoc as SrcLoc
@@ -29,7 +28,8 @@ handler filePath changes = do
     )
   logFileState filePath (map (\(version, Specification {specRange}) -> (version, specRange)) . specifications)
 
-  runIfDecreaseDidChangeShouldReload filePath load
+  -- Note: load is now triggered by client via gcl/reload request
+  -- No longer need to check didChangeShouldReload flag
 
   -- send notification to update Specs and POs
   logText "didChange: fileState modified\n"
