@@ -15,6 +15,9 @@ module Server.ToClient
     toErrorNotificationJSON,
     FileStateNotification (..),
     ErrorNotification (..),
+    -- Reload response
+    ReloadResponse (..),
+    toReloadResponse,
   )
 where
 
@@ -335,3 +338,39 @@ toErrorNotification path errs =
     { filePath = path,
       errors = map convertError errs
     }
+
+--------------------------------------------------------------------------------
+-- Reload Response Types
+
+-- | Client-side ReloadResponse type
+-- Sent as response to gcl/reload request
+data ReloadResponse
+  = ReloadDone
+  | ReloadNeedsEdit {textDocumentEdit :: LSP.TextDocumentEdit}
+  deriving stock (Show, Generic)
+
+instance JSON.ToJSON ReloadResponse where
+  toJSON ReloadDone = object [("status", JSON.String "done")]
+  toJSON (ReloadNeedsEdit textDocEdit) =
+    object
+      [ ("status", JSON.String "needsEdit"),
+        ("textDocumentEdit", JSON.toJSON textDocEdit)
+      ]
+
+-- | Convert (Range, Text) edits to ReloadResponse with LSP types
+toReloadResponse :: FilePath -> LSP.Int32 -> [(Range, Text.Text)] -> ReloadResponse
+toReloadResponse filePath vfsVersion edits =
+  let textEdits = map toTextEdit edits
+      textDocEdit =
+        LSP.TextDocumentEdit
+          { LSP._textDocument =
+              LSP.OptionalVersionedTextDocumentIdentifier
+                (LSP.filePathToUri filePath)
+                (LSP.InL vfsVersion),
+            LSP._edits = map LSP.InL textEdits
+          }
+   in ReloadNeedsEdit textDocEdit
+
+-- | Convert (Range, Text) to LSP.TextEdit
+toTextEdit :: (Range, Text.Text) -> LSP.TextEdit
+toTextEdit (range, newText) = LSP.TextEdit (toLSPRange range) newText

@@ -1,5 +1,4 @@
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -13,14 +12,12 @@ module Server.Load (LoadResponse (..), load) where
 
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.Trans (lift)
-import qualified Data.Aeson as JSON
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Range (Range, posCol, rangeStart)
 import qualified GCL.Type as TypeChecking
 import qualified GCL.WP as WP
-import GHC.Generics (Generic)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as VFS
@@ -38,33 +35,17 @@ import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
 
--- | Response type for load operation
+-- | Response type for load operation (internal, no LSP types)
 data LoadResponse
   = LoadDone
-  | LoadNeedsEdit {textDocumentEdit :: LSP.TextDocumentEdit}
-  deriving (Eq, Show, Generic)
-
-instance JSON.ToJSON LoadResponse where
-  toJSON LoadDone = JSON.object [("status", JSON.String "done")]
-  toJSON (LoadNeedsEdit textDocEdit) =
-    JSON.object
-      [ ("status", JSON.String "needsEdit"),
-        ("textDocumentEdit", JSON.toJSON textDocEdit)
-      ]
+  | LoadNeedsEdit {edits :: [(Range, Text)]}
+  deriving (Eq, Show)
 
 -- | Generate the replacement text for a hole (same logic as digHoles)
 diggedText :: Range -> Text
 diggedText range =
   let indent = Text.replicate (posCol (rangeStart range) - 1) " "
    in "[!\n" <> indent <> "\n" <> indent <> "!]"
-
--- | Convert GCL Range to LSP TextEdit
-rangeToTextEdit :: Range -> Text -> LSP.TextEdit
-rangeToTextEdit range newText =
-  LSP.TextEdit
-    { _range = SrcLoc.toLSPRange range,
-      _newText = newText
-    }
 
 load :: FilePath -> ServerM LoadResponse
 load filePath = do
@@ -74,11 +55,7 @@ load filePath = do
         Nothing -> 0
         Just FileState {editedVersion} -> editedVersion
 
-  -- Get virtual file version for TextDocumentEdit
   maybeVirtualFile <- LSP.getVirtualFile $ LSP.toNormalizedUri $ LSP.filePathToUri filePath
-  let vfsVersion = maybe 0 VFS.virtualFileVersion maybeVirtualFile
-
-  -- read source
   let maybeSource = fmap VFS.virtualFileText maybeVirtualFile
   case maybeSource of
     Nothing -> do
@@ -127,17 +104,9 @@ load filePath = do
                 return $ Right LoadDone
           holes -> do
             lift $ logText "  should dig holes\n"
-            let textEdits = map (\r -> rangeToTextEdit r (diggedText r)) holes
-            let textDocEdit =
-                  LSP.TextDocumentEdit
-                    { _textDocument =
-                        LSP.OptionalVersionedTextDocumentIdentifier
-                          (LSP.filePathToUri filePath)
-                          (LSP.InL vfsVersion),
-                      _edits = map LSP.InL textEdits
-                    }
+            let holeEdits = map (\r -> (r, diggedText r)) holes
             lift $ logText "  returning needsEdit response\n"
-            return $ LoadNeedsEdit textDocEdit
+            return $ LoadNeedsEdit holeEdits
       logText "load: end\n"
       case result of
         Left response -> return response
