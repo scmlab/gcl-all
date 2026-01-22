@@ -10,9 +10,10 @@ import GHC.Generics (Generic)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as VFS
-import Server.Load (LoadResponse (..), load)
-import Server.Monad (ServerM)
+import Server.Load (LoadResult (..), load)
+import Server.Monad (FileState (..), ServerM, loadFileState, saveFileState)
 import Server.Notification.Error (sendErrorNotification)
+import Server.Notification.Update (sendUpdateNotification)
 import Server.ToClient (ReloadResponse (..), toReloadResponse)
 
 data ReloadParams = ReloadParams {filePath :: FilePath}
@@ -31,7 +32,15 @@ handler ReloadParams {filePath} onResult _ = do
       onResult ReloadDone
     Just source -> do
       let vfsVersion = maybe 0 VFS.virtualFileVersion maybeVirtualFile
-      response <- load filePath source
-      case response of
-        LoadDone -> onResult ReloadDone
-        LoadNeedsEdit edits -> onResult $ toReloadResponse filePath vfsVersion edits
+      maybeFileState <- loadFileState filePath
+      let currentVersion = maybe 0 editedVersion maybeFileState
+      case load filePath source currentVersion of
+        LoadError err -> do
+          sendErrorNotification filePath [err]
+          onResult ReloadDone
+        LoadNeedsEdit edits ->
+          onResult $ toReloadResponse filePath vfsVersion edits
+        LoadSuccess fileState -> do
+          saveFileState filePath fileState
+          sendUpdateNotification filePath
+          onResult ReloadDone
