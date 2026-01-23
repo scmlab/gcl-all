@@ -26,14 +26,14 @@ instance JSON.ToJSON ReloadParams
 handler :: ReloadParams -> (ReloadResponse -> ServerM ()) -> (ReloadResponse -> ServerM ()) -> ServerM ()
 handler ReloadParams {filePath} onResult _ = do
   maybeVirtualFile <- LSP.getVirtualFile $ LSP.toNormalizedUri $ LSP.filePathToUri filePath
-  case fmap VFS.virtualFileText maybeVirtualFile of
+  case maybeVirtualFile of
     Nothing -> do
       sendErrorNotification filePath [CannotReadFile filePath]
       onResult ReloadDone
-    Just source -> do
-      let vfsVersion = maybe 0 VFS.virtualFileVersion maybeVirtualFile
-      maybeFileState <- loadFileState filePath
-      let currentVersion = maybe 0 editedVersion maybeFileState
+    Just virtualFile -> do
+      let source = VFS.virtualFileText virtualFile
+      let vfsVersion = VFS.virtualFileVersion virtualFile
+      currentVersion <- maybe 0 editedVersion <$> loadFileState filePath
       case load filePath source currentVersion of
         LoadError err -> do
           sendErrorNotification filePath [err]
