@@ -26,17 +26,10 @@ import qualified Syntax.Concrete as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 
--- | Result type for load operation
 data LoadResult
   = LoadError Error
   | LoadNeedsEdit [(Range, Text)]
   | LoadSuccess FileState
-
--- | Generate the replacement text for a hole (same logic as digHoles)
-diggedText :: Range -> Text
-diggedText range =
-  let indent = Text.replicate (posCol (rangeStart range) - 1) " "
-   in "[!\n" <> indent <> "\n" <> indent <> "!]"
 
 -- | Pure load function
 load :: FilePath -> Text -> LSP.Int32 -> LoadResult
@@ -45,6 +38,7 @@ load filePath source version =
     Left err -> LoadError (ParseError err)
     Right concrete ->
       case collectHoles concrete of
+        holes@(_ : _) -> LoadNeedsEdit (map (\r -> (r, diggedText r)) holes)
         [] ->
           let abstract = C.toAbstract concrete
            in case TypeChecking.runElaboration abstract mempty of
@@ -68,15 +62,13 @@ load filePath source version =
                             positionDelta = idDelta,
                             editedVersion = version
                           }
-        holes ->
-          LoadNeedsEdit (map (\r -> (r, diggedText r)) holes)
-  where
-    collectHoles :: C.Program -> [Range]
-    collectHoles (C.Program _ statements) = collectHolesFromStatements statements
 
+collectHoles :: C.Program -> [Range]
+collectHoles (C.Program _ statements) = collectHolesFromStatements statements
+  where
     collectHolesFromStatements :: [C.Stmt] -> [Range]
-    collectHolesFromStatements statements = do
-      statement <- statements
+    collectHolesFromStatements stmts = do
+      statement <- stmts
       case statement of
         C.SpecQM range -> [range]
         C.Block _ program _ -> collectHoles program
@@ -84,11 +76,25 @@ load filePath source version =
         C.If _ commands _ -> collectHolesFromGdCmd commands
         _ -> []
 
+    collectHolesFromGdCmd :: SepBy s C.GdCmd -> [Range]
+    collectHolesFromGdCmd s = do
+      ranges <- mapSepBy (\(GdCmd _ _ stmts) -> collectHolesFromStatements stmts) s
+      ranges
+
     mapSepBy :: (a -> b) -> SepBy s a -> [b]
     mapSepBy f (Head c) = [f c]
     mapSepBy f (Delim c _ cs) = f c : mapSepBy f cs
 
-    collectHolesFromGdCmd :: SepBy s C.GdCmd -> [Range]
-    collectHolesFromGdCmd s = do
-      ranges <- mapSepBy (\(GdCmd _ _ statements) -> collectHolesFromStatements statements) s
-      ranges
+-- | Generate the replacement text for a hole
+--
+-- @
+-- some text ?
+--
+-- some text [!
+-- { indent }
+-- { indent }!]
+-- @
+diggedText :: Range -> Text
+diggedText range =
+  let indent = Text.replicate (posCol (rangeStart range) - 1) " "
+   in "[!\n" <> indent <> "\n" <> indent <> "!]"
