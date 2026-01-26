@@ -199,12 +199,16 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(didSaveDisposable);
 
 	// Also trigger load for any GCL files that are already open
-	for (const document of vscode.workspace.textDocuments) {
-		if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
-			const filePath = document.uri.fsPath;
-			await load(filePath);
+	// Sleep 1 sec to ensure the LSP mechanism is ready
+	// (test case: keep a window having a GCL file with ? in it at startup)
+	setTimeout(async () => {
+		for (const document of vscode.workspace.textDocuments) {
+			if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
+				const filePath = document.uri.fsPath;
+				await load(filePath);
+			}
 		}
-	}
+	}, 1000);
 
 	// restart server command
 	const restartDisposable = vscode.commands.registerCommand('gcl.restartServer', async () => {
