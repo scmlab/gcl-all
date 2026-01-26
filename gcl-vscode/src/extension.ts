@@ -49,7 +49,11 @@ async function load(filePath: string): Promise<void> {
 			return;
 		}
 
-		// Apply succeeded, recursively call load to process the updated source
+		// Apply succeeded, wait for didChange to be sent, then recursively call load.
+		// This sleep may not be strictly necessary, but is added as a precaution to ensure
+		// the server receives the didChange notification before the next reload request.
+		// See _pendingChangeDelayer in vscode-languageserver-node for reference.
+		await new Promise(resolve => setTimeout(resolve, 260));
 		await load(filePath);
 	}
 }
