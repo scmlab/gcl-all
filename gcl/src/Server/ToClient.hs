@@ -345,7 +345,11 @@ toErrorNotification path errs =
 -- | Client-side ReloadResponse type
 -- Sent as response to gcl/reload request
 data ReloadResponse
-  = ReloadDone
+  = -- | Reload finished. This could be either success or failure.
+    -- On success, a gcl/update notification is sent.
+    -- On failure, a gcl/error notification is sent.
+    -- The client cannot distinguish between the two from the response alone.
+    ReloadDone
   | ReloadNeedsEdit {textDocumentEdit :: LSP.TextDocumentEdit}
   deriving stock (Show, Generic)
 

@@ -107,7 +107,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	});
 	context.subscriptions.push(changeTabDisposable);
 
-	// request gcl/reload - uses the new load function that handles needsEdit
+	// request gcl/reload
 	const reloadDisposable = vscode.commands.registerCommand('gcl.reload', async () => {
 		const document = vscode.window.activeTextEditor?.document;
 		if (document?.uri.scheme === 'file' && document.languageId === 'gcl') {

@@ -28,9 +28,6 @@ handler filePath changes = do
     )
   logFileState filePath (map (\(version, Specification {specRange}) -> (version, specRange)) . specifications)
 
-  -- Note: load is now triggered by client via gcl/reload request
-  -- No longer need to check didChangeShouldReload flag
-
   -- send notification to update Specs and POs
   logText "didChange: fileState modified\n"
   sendUpdateNotification filePath
