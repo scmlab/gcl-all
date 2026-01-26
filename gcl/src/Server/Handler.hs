@@ -1,7 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
-{-# LANGUAGE FlexibleContexts #-} -- for getUriText: allows concrete types in type class constraints
+-- for getUriText: allows concrete types in type class constraints
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -42,9 +43,10 @@ import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocume
 import qualified Server.Handler.SemanticTokens as SemanticTokens
 import Server.Monad (ServerM, logText, logTextLn)
 
-getUri :: (LSP.HasParams s a1, LSP.HasTextDocument a1 a2,  LSP.HasUri a2 a3) => s -> a3
+getUri :: (LSP.HasParams s a1, LSP.HasTextDocument a1 a2, LSP.HasUri a2 a3) => s -> a3
 getUri = (^. (LSP.params . LSP.textDocument . LSP.uri))
-getUriText :: (LSP.HasParams s a1, LSP.HasTextDocument a1 a2,  LSP.HasUri a2 LSP.Uri) => s -> Text
+
+getUriText :: (LSP.HasParams s a1, LSP.HasTextDocument a1 a2, LSP.HasUri a2 LSP.Uri) => s -> Text
 getUriText = LSP.getUri . getUri
 
 -- handlers of the LSP server
