@@ -16,3 +16,5 @@ sendUpdateNotification filePath = do
     Just fileState -> do
       let json = ToClient.toFileStateNotificationJSON filePath fileState
       Server.sendCustomNotification (Proxy @"gcl/update") json
+      -- Request client to refresh semantic tokens now that file state is ready
+      Server.sendSemanticTokensRefresh

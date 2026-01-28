@@ -21,7 +21,7 @@ handler fileUri responder = do
     Just filePath -> do
       maybeFileState <- loadFileState filePath
       case maybeFileState of
-        Nothing -> respondError (LSP.ResponseError (LSP.InR LSP.ErrorCodes_ServerNotInitialized) "Please reload before requesting for semantic tokens." Nothing)
+        Nothing -> responder (Right $ LSP.InR LSP.Null) -- No file state yet, return null (let client try later)
         Just (FileState {semanticTokens = oldSemanticTokenAbsolutes, positionDelta}) ->
           do
             let newSemanticTokenAbsolutes = translatePositions positionDelta oldSemanticTokenAbsolutes
