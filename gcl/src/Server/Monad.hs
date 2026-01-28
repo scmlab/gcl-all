@@ -257,6 +257,12 @@ editTexts filepath rangeTextPairs onSuccess = do
 sendCustomNotification :: (KnownSymbol s) => Proxy s -> JSON.Value -> ServerM ()
 sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomMethod methodId) (json)
 
+-- Request client to refresh semantic tokens for all open documents
+sendSemanticTokensRefresh :: ServerM ()
+sendSemanticTokensRefresh = do
+  _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
+  return ()
+
 -- send diagnostics
 -- NOTE: existing diagnostics would be erased if `diagnostics` is empty
 sendDiagnostics :: FilePath -> [LSP.Diagnostic] -> ServerM ()

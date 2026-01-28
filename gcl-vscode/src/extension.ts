@@ -2,7 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { TextDocumentEdit } from 'vscode-languageclient';
-import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
+import { start, stop, sendRequest, onUpdateNotification, onErrorNotification, start2 } from "./connection";
 import { GclPanel } from './gclPanel';
 import { ISpecification } from './data/FileState';
 import { ClientState } from './data/ClientState';
@@ -182,9 +182,14 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	// Trigger load when a GCL file is opened
 	const didOpenDisposable = vscode.workspace.onDidOpenTextDocument(async (document) => {
+		outputChannel.appendLine("[Trace] client side: onDidOpenTextDocument: " + document.uri);
 		if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
 			const filePath = document.uri.fsPath;
-			await load(filePath);
+			outputChannel.appendLine("[Trace] client side: onDidOpenTextDocument: calling load");
+
+			setTimeout(async () => {
+				await load(filePath);
+			}, 10);
 		}
 	});
 	context.subscriptions.push(didOpenDisposable);
@@ -197,18 +202,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 	context.subscriptions.push(didSaveDisposable);
-
-	// Also trigger load for any GCL files that are already open
-	// Sleep 1 sec to ensure the LSP mechanism is ready
-	// (test case: keep a window having a GCL file with ? in it at startup)
-	setTimeout(async () => {
-		for (const document of vscode.workspace.textDocuments) {
-			if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
-				const filePath = document.uri.fsPath;
-				await load(filePath);
-			}
-		}
-	}, 1000);
 
 	// restart server command
 	const restartDisposable = vscode.commands.registerCommand('gcl.restartServer', async () => {
@@ -230,6 +223,16 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 	context.subscriptions.push(debugDisposable);
+
+	await start2();
+
+	// Also trigger load for any GCL files that are already open
+	for (const document of vscode.workspace.textDocuments) {
+		if (document.uri.scheme === 'file' && document.languageId === 'gcl') {
+			const filePath = document.uri.fsPath;
+			await load(filePath);
+		}
+	}
 }
 
 export async function deactivate() {
