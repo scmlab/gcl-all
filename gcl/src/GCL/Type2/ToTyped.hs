@@ -21,6 +21,9 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (Name))
 import qualified Syntax.Typed.Types as T
 
+-- TODO: check valid type
+-- prevent
+-- `con A : Int Int`
 collectDeclToEnv :: A.Declaration -> Result Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
   checkDuplicateNames names
@@ -33,7 +36,7 @@ type DefnMap = Map A.Definition Scheme
 
 -- XXX: is checking duplicate definition required here?
 collectDefnToEnv :: A.Definition -> RSE Env Inference Env
-collectDefnToEnv (A.TypeDefn name args ctors loc) = do
+collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
   let nameTy = A.TData name (maybeRangeOf name)
 
   let kind = foldr (\_ acc -> A.TType `typeToType` acc) A.TType args
@@ -45,22 +48,35 @@ collectDefnToEnv (A.TypeDefn name args ctors loc) = do
   -- Left -> forall l r. l -> Either l r
   -- Either -> * -> * -> *
 
-  ctorEnv <-
-    Map.fromList
-      <$> mapM
-        ( \(A.TypeDefnCtor ctorName ctorArgs) -> do
-            let vars = map extractMetaVar ctorArgs
-            let diff = filter (`notElem` args) (nub vars)
+  -- NOTE: we currently do not allow same datatype name and constructor name
+  -- because we store both information in the same environment without distinction
+  -- e.g.
+  -- `data D a = D a` is not allowed and
+  -- `data D a = C a` is allowed
+  foldM
+    ( \env' (A.TypeDefnCtor ctorName ctorArgs) -> do
+        when
+          (Map.member ctorName env')
+          (throwError $ DuplicatedIdentifiers [ctorName])
 
-            case diff of
-              [] -> return (ctorName, Forall args (foldr (typeToType . toTVar) nameTy vars))
-              (x : _) -> throwError $ NotInScope x
-        )
-        ctors
-  return $ kindEnv <> ctorEnv
+        let vars = extractMetaVar ctorArgs
+        let diff = filter (`notElem` args) (nub vars)
+
+        case diff of
+          [] -> return $ Map.insert ctorName (Forall args (foldr (typeToType . toTVar) nameTy vars)) env'
+          (x : _) -> throwError $ NotInScope x
+    )
+    kindEnv
+    ctors
   where
-    extractMetaVar (A.TMetaVar name' _loc') = name'
-    extractMetaVar _ = error "impossible"
+    -- XXX: why is multiple `TMetaVar`s generated as `TApp` by the parser?
+    -- FIX: rewrite the implementation when this gets fixed in the future
+    extractMetaVar [] = []
+    extractMetaVar (x : _) = reverse $ aux x []
+      where
+        aux (A.TMetaVar n _) vars = n : vars
+        aux (A.TApp tys (A.TMetaVar n _) _) vars = n : aux tys vars
+        aux _ _ = error "impossible"
 
     toTVar v = A.TVar v (maybeRangeOf v)
 collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
@@ -98,18 +114,19 @@ instance ToTyped A.Program T.Program where
       foldM
         ( \env' defn -> do
             -- traceM $ Hack.sshow defn
-            defnEnv <- collectDefnToEnv defn
-            traceM $ show defnEnv
-            return env'
+            -- NOTE: definitions have to be in order
+            defnEnv <- local (const env') (collectDefnToEnv defn)
+            -- traceM $ show defnEnv
+            return $ defnEnv <> env'
         )
         declEnv
         defns
 
     let newEnv = defnEnv <> declEnv
+    traceM $ show newEnv
     typedDefns <-
       mapM
         ( \defn -> do
-            -- TODO: make declaration in order
             -- TODO: check array interval type is int
             local (const newEnv) (toTyped defn)
         )
@@ -121,18 +138,8 @@ instance ToTyped A.Program T.Program where
             local (const newEnv) (toTyped decl)
         )
         decls
-    typedExprs <-
-      mapM
-        ( \expr -> do
-            local (const newEnv) (toTyped expr)
-        )
-        exprs
-    typedStmts <-
-      mapM
-        ( \stmt -> do
-            local (const newEnv) (toTyped stmt)
-        )
-        stmts
+    typedExprs <- local (const newEnv) (mapM toTyped exprs)
+    typedStmts <- local (const newEnv) (mapM toTyped stmts)
     return $ T.Program typedDefns typedDecls typedExprs typedStmts loc
 
 instance ToTyped A.Definition T.Definition where

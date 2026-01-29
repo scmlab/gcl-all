@@ -6,7 +6,9 @@
 
 module GCL.Type2.Infer where
 
-import Data.List (foldl', intercalate)
+import Control.Monad (foldM, when)
+import Data.List (foldl', intercalate, sort)
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -60,7 +62,7 @@ instance {-# OVERLAPPING #-} Show Subst where
 
 checkDuplicateNames :: [Name] -> Result ()
 checkDuplicateNames names =
-  let dups = map NE.head . filter ((> 1) . length) . NE.groupBy (\(Name t1 _) (Name t2 _) -> t1 == t2) $ names
+  let dups = map NE.head . filter ((> 1) . length) . NE.groupBy (\(Name t1 _) (Name t2 _) -> t1 == t2) $ sort names
    in if null dups
         then Right ()
         else Left $ DuplicatedIdentifiers dups
@@ -113,12 +115,15 @@ applySubstExpr subst (T.Lam param ty body range) = T.Lam param (applySubst subst
 applySubstExpr subst (T.Quant _ _ _ _ _) = undefined
 applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst arr) (applySubstExpr subst index) range
 applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range
-applySubstExpr subst (T.Case _ _ _) = undefined
+applySubstExpr subst (T.Case expr clauses range) = T.Case (applySubstExpr subst expr) (map (applySubstClause subst) clauses) range
 applySubstExpr subst (T.Subst _ _) = undefined
 
 applySubstChain :: Subst -> T.Chain -> T.Chain
 applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)
 applySubstChain subst (T.More chain op ty expr) = T.More (applySubstChain subst chain) op (applySubst subst ty) (applySubstExpr subst expr)
+
+applySubstClause :: Subst -> T.CaseClause -> T.CaseClause
+applySubstClause subst (T.CaseClause pat expr) = T.CaseClause pat (applySubstExpr subst expr)
 
 freshTyVar :: RSE Env Inference TyVar
 freshTyVar = do
@@ -224,17 +229,21 @@ typeToKind (A.TData name _) = do
 typeToKind (A.TVar name _) = do
   env <- ask
   case Map.lookup name env of
+    -- BUG: this probably wrong
     Just (Forall tyParams _) -> return $ foldr (\_ acc -> A.TType `typeToType` acc) A.TType tyParams -- XXX: is this correct?
     Nothing -> throwError $ NotInScope name
 typeToKind A.TMetaVar {} = undefined
 typeToKind A.TType = return A.TType
 typeToKind (A.TApp t1 t2 _) = do
   t1Kind <- typeToKind t1
+  -- BUG: this is wrong, didn't even check k2
   case t1Kind of
     (A.TApp (A.TApp (A.TOp (Arrow _)) k1 _) k2 _) -> do
       _ <- lift $ unify t2 k1 (maybeRangeOf t2)
       return k2
     (A.TApp A.TType _ range) -> throwError $ PatternArityMismatch 2 1 range
+    -- \* *
+    (A.TApp _ (A.TApp _ _ _) range) -> throwError $ PatternArityMismatch 1 2 range -- (* -> *) (* -> *)
     ty' -> do
       traceM $ show ty'
       error "unknown kind"
@@ -374,22 +383,94 @@ inferArrUpd arr index expr range = do
 
 inferCase :: A.Expr -> [A.CaseClause] -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferCase expr clauses range = do
-  undefined
+  (exprSubst, exprTy, typedExpr) <- infer expr
 
-pat :: A.Pattern -> A.Type -> RSE Env Inference (Env, Subst)
-pat (A.PattLit lit) ty = do
+  caseFtv <- freshTVar
+
+  (clausesSubst, clausesTy, typedClauses) <- foldM (aux exprTy) (mempty, caseFtv, []) clauses
+
+  let resultSubst = clausesSubst <> exprSubst
+  return (resultSubst, clausesTy, T.Case typedExpr (reverse typedClauses) range)
+  where
+    aux exprTy (accSubst, clauseTy, typedClauses) (A.CaseClause pattern caseExpr) = do
+      (s1, clauseTy', typedClause) <- inferClause pattern caseExpr exprTy
+
+      -- NOTE: pattern type checking in done in `bindPattern` so no need for it here
+      s2 <- lift $ unify clauseTy clauseTy' (maybeRangeOf caseExpr)
+
+      return (s2 <> s1 <> accSubst, applySubst s2 clauseTy', typedClause : typedClauses)
+
+checkDuplicateBinders :: A.Pattern -> Result ()
+checkDuplicateBinders pat = do
+  _ <- aux pat []
+  return ()
+  where
+    aux :: A.Pattern -> [Name] -> Result [Name]
+    aux (A.PattLit _) _binders = return []
+    aux (A.PattBinder name) binders =
+      if name `elem` binders
+        then throwError $ DuplicatedIdentifiers [name]
+        else return [name]
+    aux (A.PattWildcard _) _binders = return []
+    aux (A.PattConstructor _p ps) binders =
+      foldM
+        ( \b' p' -> do
+            b'' <- aux p' b'
+            return (b'' <> b')
+        )
+        binders
+        ps
+
+inferClause :: A.Pattern -> A.Expr -> A.Type -> RSE Env Inference (Subst, A.Type, T.CaseClause)
+inferClause pattern expr ty = do
+  lift $ checkDuplicateBinders pattern
+
+  (patSubst, patEnv) <- bindPattern pattern ty
+
+  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+
+  let resultSubst = exprSubst <> patSubst
+  return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
+
+bindPattern :: A.Pattern -> A.Type -> RSE Env Inference (Subst, Env)
+bindPattern (A.PattLit lit) ty = do
   sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (maybeRangeOf lit)) ty (maybeRangeOf ty)
-  return (mempty, sub)
-pat (A.PattBinder name) ty = do
+  return (sub, mempty)
+bindPattern (A.PattBinder name) ty = do
   let env = Map.singleton name (Forall [] ty)
-  return (env, mempty)
-pat (A.PattWildcard _) _ = return (mempty, mempty)
-pat (A.PattConstructor p ps) ty = do
+  return (mempty, env)
+bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
+bindPattern (A.PattConstructor ctorName pats) ty = do
   env <- ask
-  _ <- case Map.lookup p env of
-    Nothing -> throwError $ NotInScope p
-    Just _ -> undefined
-  undefined
+
+  patTy <- case Map.lookup ctorName env of
+    Just scheme -> instantiate scheme
+    Nothing -> throwError $ NotInScope ctorName
+
+  let tys = toList patTy
+  let argTys = NE.init tys
+  let resultTy = NE.last tys
+
+  s <- lift $ unify resultTy ty (maybeRangeOf ctorName)
+
+  when
+    (length pats /= length argTys)
+    (throwError $ PatternArityMismatch (length pats) (length argTys) (maybeRangeOf pats))
+
+  (patsSubst, patsEnv) <-
+    foldM
+      ( \(s', e') (pat, argTy) -> do
+          (s'', e'') <- bindPattern pat argTy
+          return (s'' <> s', e'' <> e')
+      )
+      (s, mempty)
+      (zip pats argTys)
+
+  return (patsSubst, patsEnv)
+  where
+    toList :: A.Type -> NonEmpty A.Type
+    toList (A.TApp (A.TApp (A.TOp (Arrow Nothing)) t1 Nothing) t2 Nothing) = t1 NE.<| toList t2
+    toList ty' = ty' NE.:| []
 
 getArithOpType :: ArithOp -> RSE Env Inference A.Type
 getArithOpType Implies {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
