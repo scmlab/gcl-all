@@ -53,6 +53,7 @@ instance MaybeRanged Expr where
   maybeRangeOf (ArrUpd _ _ _ l) = l
   maybeRangeOf (Case _ _ l) = l
   maybeRangeOf (Subst _ _) = Nothing
+  maybeRangeOf (EHole _ _ _ l) = Just l
 
 instance MaybeRanged Chain where
   maybeRangeOf (Pure e) = maybeRangeOf e

@@ -10,14 +10,14 @@
 module Server.Handler.GCL.Refine where
 
 import qualified Data.Aeson as JSON
-import Data.Bifunctor (bimap)
+import Data.Bifunctor (second)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (Others, ParseError, StructError, TypeError))
 import GCL.Common (Index, TypeInfo)
-import GCL.Predicate (InfMode (..), PO (..), Spec (..))
+import GCL.Predicate (Hole, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type (Elab (..), TypeError, Typed, runElaboration)
 import GCL.WP
@@ -30,6 +30,7 @@ import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
+import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
@@ -131,7 +132,7 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
                                   let FileState {idCount} = fileState
                                   case sweepFragment idCount spec typedImpl of
                                     Left err -> onError (StructError err)
-                                    Right (innerPos, innerSpecs, innerWarnings, idCount') -> do
+                                    Right (innerPos, innerSpecs, innerHoles, innerWarnings, idCount') -> do
                                       logText "  swept\n"
                                       logTextLn . Text.pack $ "==== refine: innerSpecs:" ++ show innerSpecs
                                       logTextLn "\n===="
@@ -201,17 +202,37 @@ handler _params@RefineParams {filePath, line, character} onFinish _ = do
     isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
 
 collectFragmentHoles :: [C.Stmt] -> [Range]
-collectFragmentHoles = concat . map collectStmt
+collectFragmentHoles = concatMap collectStmt
   where
+    collectStmt :: C.Stmt -> [Range]
     collectStmt (C.SpecQM range) = [range]
-    collectStmt (C.Do _ ss _) = collectSepBy ss
-    collectStmt (C.If _ ss _) = collectSepBy ss
+    collectStmt (C.Assign _ _ exprs) = concat $ mapSepBy collectExpr exprs
+    collectStmt (C.AAssign _ _ a _ _ b) = collectExpr a ++ collectExpr b
+    collectStmt (C.Assert _ a _) = collectExpr a
+    collectStmt (C.LoopInvariant _ a _ _ _ b _) = collectExpr a ++ collectExpr b
+    collectStmt (C.Do _ ss _) = concat $ mapSepBy collectGdCmd ss
+    collectStmt (C.If _ ss _) = concat $ mapSepBy collectGdCmd ss
+    collectStmt (C.Alloc _ _ _ _ es _) = concat $ mapSepBy collectExpr es
+    collectStmt (C.HLookup _ _ _ a) = collectExpr a
+    collectStmt (C.HMutate _ a _ b) = collectExpr a ++ collectExpr b
+    collectStmt (C.Dispose _ a) = collectExpr a
     collectStmt _ = []
 
-    collectSepBy (C.Head gcmd) = collectGdCmd gcmd
-    collectSepBy (C.Delim gcmd _ ss) = collectGdCmd gcmd ++ collectSepBy ss
+    mapSepBy :: (a -> b) -> C.SepBy s a -> [b]
+    mapSepBy f (C.Head c) = [f c]
+    mapSepBy f (C.Delim c _ cs) = f c : mapSepBy f cs
 
-    collectGdCmd (C.GdCmd _ _ stmts) = concat (map collectStmt stmts)
+    collectGdCmd :: C.GdCmd -> [Range]
+    collectGdCmd (C.GdCmd _ _ stmts) = concatMap collectStmt stmts
+
+    collectExpr :: C.Expr -> [Range]
+    collectExpr (C.HoleQM range) = [range]
+    collectExpr (C.Paren _ expr _) = collectExpr expr
+    collectExpr (C.Arr a _ b _) = collectExpr a ++ collectExpr b
+    collectExpr (C.App a b) = collectExpr a ++ collectExpr b
+    collectExpr (C.Quant _ _ _ _ a _ b _) = collectExpr a ++ collectExpr b
+    collectExpr (C.Case _ a _ _) = collectExpr a
+    collectExpr _ = []
 
 digImplHoles :: Pos -> FilePath -> Text -> Either ParseError Text
 digImplHoles parseStart filePath implText =
@@ -225,30 +246,30 @@ digImplHoles parseStart filePath implText =
         Right concreteImpl ->
           case collectFragmentHoles concreteImpl of
             [] -> return implText
-            Range start _ : _ -> digImplHoles parseStart filePath $ digFragementHole start implText
+            Range start _ : _ -> digImplHoles parseStart filePath (digFragementHole start implText)
+
+digFragementHole :: Pos -> Text -> Text
+digFragementHole (Pos lineNumber col) fullText =
+  Text.intercalate "\n" linesEdited
   where
-    digFragementHole :: Pos -> Text -> Text
-    digFragementHole (Pos lineNumber col) fullText =
-      Text.intercalate "\n" linesEdited
-      where
-        allLines :: [Text]
-        allLines = Text.lines fullText -- split fullText by '\n'
-        lineToEdit :: Text
-        lineToEdit = allLines !! (lineNumber - 1)
-        beforeHole = Text.take (col - 1) lineToEdit
-        afterHole = Text.drop col lineToEdit -- lineToEdit
-        indentation n = Text.replicate n " "
-        lineEdited :: Text
-        lineEdited =
-          beforeHole
-            <> "[!\n"
-            <> indentation (col - 1)
-            <> "\n"
-            <> indentation (col - 1)
-            <> "!]"
-            <> afterHole
-        linesEdited :: [Text]
-        linesEdited = take (lineNumber - 1) allLines ++ [lineEdited] ++ drop lineNumber allLines
+    allLines :: [Text]
+    allLines = Text.lines fullText -- split fullText by '\n'
+    lineToEdit :: Text
+    lineToEdit = allLines !! (lineNumber - 1)
+    beforeHole = Text.take (col - 1) lineToEdit
+    afterHole = Text.drop col lineToEdit -- lineToEdit
+    indentation n = Text.replicate n " "
+    lineEdited :: Text
+    lineEdited =
+      beforeHole
+        <> "[!\n"
+        <> indentation (col - 1)
+        <> "\n"
+        <> indentation (col - 1)
+        <> "!]"
+        <> afterHole
+    linesEdited :: [Text]
+    linesEdited = take (lineNumber - 1) allLines ++ [lineEdited] ++ drop lineNumber allLines
 
 -- Both fragmentStart and filePath are only used for error reporting and position translation.
 parseFragment :: FilePath -> Pos -> Text -> Either ParseError [C.Stmt]
@@ -282,7 +303,7 @@ parseFragment filePath fragmentStart fragment = do
     translateTokStream _ (TsError e) = TsError e
 
 toAbstractFragment :: [C.Stmt] -> [A.Stmt]
-toAbstractFragment = C.toAbstract
+toAbstractFragment = C.runAbstractTransform
 
 elaborateFragment :: (Elab a) => [(Index, TypeInfo)] -> a -> Either TypeError (Typed a)
 elaborateFragment typeEnv abstractFragment = do
@@ -300,12 +321,11 @@ instance Elab [A.Stmt] where
         stmts
     return (Nothing, typed, mempty)
 
-sweepFragment :: Int -> Spec -> [T.Stmt] -> Either StructError ([PO], [Spec], [StructWarning], Int)
+sweepFragment :: Int -> Spec -> [T.Stmt] -> Either StructError ([PO], [Spec], [Hole], [StructWarning], Int)
 sweepFragment counter (Specification _ pre post _ _) impl =
-  bimap
-    id
+  second
     ( \(_, counter', (pos, specs, sws, _)) ->
-        (pos, specs, sws, counter')
+        (pos, specs, concatMap collectStmtHoles impl, sws, counter')
     )
     $ runWP
       (structStmts Primary (pre, Nothing) impl post)

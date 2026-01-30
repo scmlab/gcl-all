@@ -114,6 +114,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Update specs, pos, warnings in clientState, and clear errors
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
 		filePath,
+		holes,
 		specs,
 		pos,
 		warnings
@@ -123,7 +124,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
 		// Clear errors when receiving a successful update
-		let newClientState: ClientState = { specs, pos, warnings, errors: [] };
+		let newClientState: ClientState = { holes, specs, pos, warnings, errors: [] };
 
 		await context.workspaceState.update(filePath, newClientState);
 		gclPanel.rerender(newClientState);
@@ -144,8 +145,8 @@ export async function activate(context: vscode.ExtensionContext) {
 		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
 		const newClientState: ClientState =
 			oldClientState
-			? {errors, specs: oldClientState.specs, pos: oldClientState.pos, warnings: oldClientState.warnings}
-			: {errors, specs: [], pos: [], warnings: []};
+			? {errors, holes: oldClientState.holes, specs: oldClientState.specs, pos: oldClientState.pos, warnings: oldClientState.warnings}
+			: {errors, holes: [], specs: [], pos: [], warnings: []};
 		await context.workspaceState.update(filePath, newClientState);
 		gclPanel.rerender(newClientState);
 	});

@@ -235,6 +235,10 @@ instance Collect () Highlighting Expr where
       collect expr
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
       collect cases
+    HoleQM _ -> return ()
+    Hole tokA _ tokB -> do
+      addHighlighting J.SemanticTokenTypes_Keyword [] tokA
+      addHighlighting J.SemanticTokenTypes_Keyword [] tokB
 
 instance Collect () Highlighting CaseClause where
   collect (CaseClause _ arrow body) = do

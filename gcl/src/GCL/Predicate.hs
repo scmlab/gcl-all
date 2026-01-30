@@ -6,7 +6,7 @@ import Data.Aeson (ToJSON)
 import qualified Data.Aeson as JSON
 import qualified Data.Set as Set
 import Data.Text (Text)
-import GCL.Common
+import GCL.Common (Index, TypeInfo)
 import GCL.Range
   ( MaybeRanged (..),
     Range,
@@ -15,6 +15,7 @@ import GCL.Range
   )
 import GHC.Generics (Generic)
 import Render.Element
+import Syntax.Abstract.Types (Type)
 import Syntax.Common (Name)
 import Syntax.Typed (Expr)
 
@@ -174,3 +175,16 @@ instance MaybeRanged Spec where
 
 instance Ranged Spec where
   rangeOf (Specification _ _ _ r _) = r
+
+data Hole = Hole
+  { holeID :: Int,
+    holeType :: Type,
+    holeRange :: Range
+  }
+  deriving (Eq, Show, Generic)
+
+instance MaybeRanged Hole where
+  maybeRangeOf (Hole _ _ r) = Just r
+
+instance Ranged Hole where
+  rangeOf (Hole _ _ r) = r

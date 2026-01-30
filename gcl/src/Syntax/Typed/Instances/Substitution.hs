@@ -55,6 +55,8 @@ instance (Fresh m) => Substitutable m Expr Expr where
         ( \(x, f) ->
             (,) x <$> subst sb f
         )
+  -- ChAoS: Is this the correct behavior for specification?
+  subst _ e@EHole {} = return e
 
 instance (Fresh m) => Substitutable m CaseClause Expr where
   subst sb (CaseClause pat rhs) = CaseClause pat <$> subst sb rhs

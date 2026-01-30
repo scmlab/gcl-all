@@ -170,6 +170,8 @@ data Expr
       TokQuantEnds
   | -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
     Case (Token "case") Expr (Token "of") [CaseClause]
+  | HoleQM Range
+  | Hole (Token "{!") [R Tok] (Token "!}")
   deriving (Eq, Show, Generic)
 
 data Chain = Pure Expr | More Chain ChainOp Expr

@@ -97,6 +97,12 @@ instance PrettyWithRange (Token "[!") where
 instance PrettyWithRange (Token "!]") where
   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokSpecClose) l r
 
+instance PrettyWithRange (Token "{!") where
+  prettyWithRange (Token l r) = DocWithRange (pretty $ show TokHoleOpen) l r
+
+instance PrettyWithRange (Token "!}") where
+  prettyWithRange (Token l r) = DocWithRange (pretty $ show TokHoleClose) l r
+
 instance PrettyWithRange (Token "(") where
   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokParenOpen) l r
 
@@ -359,6 +365,12 @@ handleExpr (Case a expr b cases) =
       <> prettyWithRange expr
       <> prettyWithRange b
       <> prettyWithRange cases
+handleExpr (HoleQM r) = return $ fromDoc (Just r) (pretty $ show TokQM)
+handleExpr (Hole l s r) =
+  return $
+    prettyWithRange l
+      <> prettyWithRange (map (fmap show) s)
+      <> prettyWithRange r
 
 handleArithOp :: ArithOp -> Variadic Expr (DocWithRange ann)
 handleArithOp op = case classify (ArithOp op) of -- TODO: rewrite `classify` to only handle `ArithOp`s.
@@ -416,6 +428,8 @@ showWithParentheses expr = case handleExpr' expr of
       return $ show $ pretty q
     handleExpr' c@Case {} =
       return $ show $ pretty c
+    handleExpr' (HoleQM _) = return "?"
+    handleExpr' (Hole _ s _) = return $ "{!" <> unwords (map show s) <> "!}"
 
     handleArithOp' :: ArithOp -> Variadic Expr String
     handleArithOp' op = case classify (ArithOp op) of

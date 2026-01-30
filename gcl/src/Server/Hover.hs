@@ -134,6 +134,7 @@ instance Collect Typed.Expr where
   collect (Typed.ArrUpd arr index expr _) = collect arr <> collect index <> collect expr
   collect (Typed.Case expr clauses _) = collect expr <> foldMap collect clauses
   collect (Typed.Subst orig pairs) = collect orig <> foldMap (\(_, expr) -> collect expr) pairs -- TODO: Not sure if this is correct.
+  collect Typed.EHole {} = mempty
 
 instance Collect Typed.CaseClause where
   collect (Typed.CaseClause _pat expr) = collect expr

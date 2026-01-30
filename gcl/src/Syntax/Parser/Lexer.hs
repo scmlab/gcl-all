@@ -73,6 +73,8 @@ data Tok
   | TokAssign
   | TokSpecOpen
   | TokSpecClose
+  | TokHoleOpen
+  | TokHoleClose
   | TokParenOpen
   | TokParenClose
   | TokBracketOpen
@@ -171,6 +173,8 @@ instance Show Tok where
     TokAssign -> ":="
     TokSpecOpen -> "[!"
     TokSpecClose -> "!]"
+    TokHoleOpen -> "{!"
+    TokHoleClose -> "!}"
     TokParenOpen -> "("
     TokParenClose -> ")"
     TokBracketOpen -> "["
@@ -290,6 +294,10 @@ tokRE =
     <$ string "[!"
       <|> TokSpecClose
     <$ string "!]"
+      <|> TokHoleOpen
+    <$ string "{!"
+      <|> TokHoleClose
+    <$ string "!}"
       <|> TokParenOpen
     <$ string "("
       <|> TokParenClose

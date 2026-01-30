@@ -171,6 +171,7 @@ data Expr
   | ArrIdx Expr Expr (Maybe Range)
   | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [CaseClause] (Maybe Range)
+  | EHole Text Int Range
   deriving (Eq, Show, Generic)
 
 data Chain = Pure Expr (Maybe Range) | More Chain ChainOp Expr (Maybe Range)

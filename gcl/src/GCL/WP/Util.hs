@@ -27,7 +27,8 @@ import GCL.Common
     freshName',
   )
 import GCL.Predicate
-  ( Origin (..),
+  ( Hole (Hole),
+    Origin (..),
     PO (..),
     Pred,
     Spec (Specification),

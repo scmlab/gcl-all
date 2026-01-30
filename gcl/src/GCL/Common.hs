@@ -167,6 +167,7 @@ instance Free Expr where
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e clauses _) = freeVars e <> Set.unions (map freeVars clauses)
+  freeVars EHole {} = mempty
 
 instance Free Chain where
   freeVars (Pure expr _) = freeVars expr
