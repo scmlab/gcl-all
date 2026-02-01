@@ -41,9 +41,10 @@ definition = choice [try funcDefnSig, typeDefn, funcDefnF]
     typeDefn = TypeDefn <$> tokenData <*> upper <*> many lower <*> tokenEQ <*> sepByGuardBar typeDefnCtor
 
     typeDefnCtor :: Parser TypeDefnCtor
-    typeDefnCtor = TypeDefnCtor <$> upper <*> (maybe [] unwindTApp <$> optional type')
+    typeDefnCtor = TypeDefnCtor <$> upper <*>
+                      (maybe [] (reverse . unwindTApp) <$> optional type')
       where unwindTApp :: Type -> [Type]
-            unwindTApp (TApp t ts) = t : unwindTApp ts
+            unwindTApp (TApp ts t) = t : unwindTApp ts
             unwindTApp t = [t]
 
     sepByGuardBar :: Parser a -> Parser (SepBy "|" a)
