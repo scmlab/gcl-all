@@ -3,6 +3,7 @@
 
 module Syntax.Parser.Definition where
 
+import Data.Maybe (maybe)
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
 import Syntax.Parser.Types
@@ -40,7 +41,10 @@ definition = choice [try funcDefnSig, typeDefn, funcDefnF]
     typeDefn = TypeDefn <$> tokenData <*> upper <*> many lower <*> tokenEQ <*> sepByGuardBar typeDefnCtor
 
     typeDefnCtor :: Parser TypeDefnCtor
-    typeDefnCtor = TypeDefnCtor <$> upper <*> many type'
+    typeDefnCtor = TypeDefnCtor <$> upper <*> (maybe [] unwindTApp <$> optional type')
+      where unwindTApp :: Type -> [Type]
+            unwindTApp (TApp t ts) = t : unwindTApp ts
+            unwindTApp t = [t]
 
     sepByGuardBar :: Parser a -> Parser (SepBy "|" a)
     sepByGuardBar = sepBy' tokenGuardBar
