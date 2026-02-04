@@ -271,7 +271,7 @@ infer (A.App e1 e2 range) = inferApp e1 e2 range
 infer (A.Lam param body range) = inferLam param body range
 infer (A.Func name clauses range) = undefined
 infer (A.Tuple exprs) = undefined
-infer expr@(A.Quant _ _ _ _ _) = trace (show expr) undefined
+infer (A.Quant op args cond expr range) = inferQuant op args cond expr range
 infer (A.RedexKernel _ _ _ _) = undefined
 infer (A.RedexShell _ _) = undefined
 infer (A.ArrIdx arr index range) = inferArrIdx arr index range
@@ -348,6 +348,56 @@ inferLam param body range = do
   let returnTy = paramTy' `typeToType` bodyTy
 
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody range)
+
+inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferQuant op@(A.Op (Hash _)) bound cond expr range = do -- speical case for `⟨ # bound : cond : expr ⟩`
+  (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
+
+  -- introduce new vars
+  boundEnv <-
+    Map.fromList
+      <$> mapM
+        ( \b -> do
+            v <- freshTVar
+            return (b, Forall [] v)
+        )
+        bound
+
+  local
+    (\e -> boundEnv <> e)
+    ( do
+      (condSubst, typedCond) <- typeCheck cond typeBool
+      (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
+
+      let resultSubst = exprSubst <> condSubst
+      let typedQuant = T.Quant typedOp bound typedCond typedExpr range
+
+      return (resultSubst, typeInt, typedQuant)
+    )
+inferQuant op bound cond expr range = do
+  ftv <- freshTVar
+
+  -- introduce new vars
+  boundEnv <-
+    Map.fromList
+      <$> mapM
+        ( \b -> do
+            v <- freshTVar
+            return (b, Forall [] v)
+        )
+        bound
+
+  local
+    (\e -> boundEnv <> e)
+    ( do
+        (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
+        (condSubst, typedCond) <- local (applySubstEnv opSubst) (typeCheck cond typeBool)
+        (exprSubst, typedExpr) <- local (applySubstEnv (condSubst <> opSubst)) (typeCheck expr (applySubst (condSubst <> opSubst) ftv))
+
+        let resultSubst = exprSubst <> condSubst <> opSubst
+        let typedQuant = T.Quant typedOp bound typedCond typedExpr range
+        return (resultSubst, applySubst resultSubst ftv, typedQuant)
+    )
 
 inferArrIdx :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferArrIdx arr index range = do
