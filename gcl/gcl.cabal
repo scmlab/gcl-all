@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.38.0.
+-- This file has been generated from package.yaml by hpack version 0.38.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -98,9 +98,16 @@ library
       Syntax.Concrete.Types
       Syntax.ConstExpr
       Syntax.Parser
+      Syntax.Parser.Basics
+      Syntax.Parser.Definition
       Syntax.Parser.Error
+      Syntax.Parser.Expr
       Syntax.Parser.Lexer
+      Syntax.Parser.Program
+      Syntax.Parser.Stmt
+      Syntax.Parser.Token
       Syntax.Parser.TokenStream
+      Syntax.Parser.Types
       Syntax.Parser.Util
       Syntax.Substitution
       Syntax.Typed

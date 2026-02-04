@@ -4,9 +4,7 @@
 {-# HLINT ignore "Use camelCase" #-}
 
 module Syntax.Parser.Util
-  ( M,
-    Parser,
-    runM,
+  ( runM,
     getLastToken,
     getLoc,
     withLoc,
@@ -31,20 +29,14 @@ where
 
 import Control.Monad (guard, (>=>))
 import Control.Monad.State
-import Control.Monad.Writer (Writer, runWriter, tell)
-import Data.List (intercalate)
+import Control.Monad.Writer (tell)
 import qualified Data.List.NonEmpty as NEL
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Monoid (Endo (..))
-import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Void
 import GCL.Range
-import Syntax.Parser.Lexer
-  ( Tok (..),
-    TokStream,
-  )
+import Syntax.Parser.Lexer (Tok (..))
+import Syntax.Parser.Types
 import Text.Megaparsec hiding
   ( Pos,
     State,
@@ -52,7 +44,7 @@ import Text.Megaparsec hiding
   )
 
 --------------------------------------------------------------------------------
-
+{-
 -- | Source location bookkeeping
 type M = StateT Bookkeeping (Writer (Endo [String]))
 
@@ -76,6 +68,7 @@ runM :: StateT Bookkeeping (Writer (Endo [String])) a -> (a, String)
 runM f =
   let (a, pl) = runWriter $ evalStateT f (Bookkeeping Nothing Nothing Set.empty Map.empty 0 [])
    in (a, "parsing log:\n" <> intercalate "\n" (appEndo pl []))
+-}
 
 getCurrentRange :: M (Maybe Range)
 getCurrentRange = gets currentRange
@@ -121,8 +114,7 @@ updateToken tok = modify $ \st -> st {lastToken = Just tok}
 --------------------------------------------------------------------------------
 
 -- | Helper functions
-type Parser = ParsecT Void TokStream M
-
+-- type Parser = ParsecT Void TokStream M
 getLoc :: Parser a -> Parser (a, Maybe Range)
 getLoc parser = do
   i <- lift markStart
