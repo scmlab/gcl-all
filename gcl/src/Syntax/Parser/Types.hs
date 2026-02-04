@@ -14,7 +14,7 @@ import Syntax.Parser.Lexer
   ( Tok (..),
     TokStream,
   )
-import Text.Megaparsec 
+import Text.Megaparsec
 
 type Parser = ParsecT Void TokStream M
 

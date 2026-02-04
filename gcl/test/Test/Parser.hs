@@ -10,10 +10,10 @@ import Pretty
 import Prettyprinter (Pretty)
 import Syntax.Parser (Parser)
 import qualified Syntax.Parser as Parser
-import qualified Syntax.Parser.Program as Parser
 import qualified Syntax.Parser.Definition as Parser
-import qualified Syntax.Parser.Stmt as Parser hiding (statments, statement)
 import qualified Syntax.Parser.Expr as Parser
+import qualified Syntax.Parser.Program as Parser
+import qualified Syntax.Parser.Stmt as Parser hiding (statement, statments)
 import Test.Tasty
   ( TestTree,
     testGroup,

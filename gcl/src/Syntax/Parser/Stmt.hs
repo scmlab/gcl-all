@@ -6,12 +6,12 @@ module Syntax.Parser.Stmt where
 import qualified Data.Text as Text
 import GCL.Range
 import Syntax.Concrete hiding (Op)
-import Syntax.Parser.Types
-import Syntax.Parser.Lexer
-import Syntax.Parser.Util
-import Syntax.Parser.Token
 import Syntax.Parser.Basics
 import Syntax.Parser.Expr
+import Syntax.Parser.Lexer
+import Syntax.Parser.Token
+import Syntax.Parser.Types
+import Syntax.Parser.Util
 import Text.Megaparsec hiding
   ( ParseError,
     Pos,
@@ -55,11 +55,11 @@ statement program =
     <?> "statement"
 
 -- ZERO or more statements
-statements ::  Parser Program -> Parser [Stmt]
+statements :: Parser Program -> Parser [Stmt]
 statements program = sepByAlignmentOrSemi (statement program)
 
 -- ONE or more statements
-statements1 ::  Parser Program -> Parser [Stmt]
+statements1 :: Parser Program -> Parser [Stmt]
 statements1 program = sepByAlignmentOrSemi1 (statement program)
 
 skip :: Parser Stmt
@@ -97,20 +97,32 @@ arrayAssignment =
     <*> expression
 
 loop :: Parser Program -> Parser Stmt
-loop program = Do <$> tokenDo <* optional tokenGuardBar <*>
-                      sepByGuardBar (guardedCommand program) <*> tokenOd
+loop program =
+  Do
+    <$> tokenDo
+    <* optional tokenGuardBar
+    <*> sepByGuardBar (guardedCommand program)
+    <*> tokenOd
 
 conditional :: Parser Program -> Parser Stmt
-conditional program = If <$> tokenIf <* optional tokenGuardBar <*>
-                             sepByGuardBar (guardedCommand program) <*> tokenFi
+conditional program =
+  If
+    <$> tokenIf
+    <* optional tokenGuardBar
+    <*> sepByGuardBar (guardedCommand program)
+    <*> tokenFi
 
 sepByGuardBar :: Parser a -> Parser (SepBy "|" a)
 sepByGuardBar = sepBy' tokenGuardBar
 
 guardedCommand :: Parser Program -> Parser GdCmd
-guardedCommand program = GdCmd <$> predicate <*> tokenArrow <*>
-                                   sepByAlignmentOrSemi1 (statement program)
-                                   -- blockOf statement
+guardedCommand program =
+  GdCmd
+    <$> predicate
+    <*> tokenArrow
+    <*> sepByAlignmentOrSemi1 (statement program)
+
+-- blockOf statement
 
 hole :: Parser Stmt
 hole = SpecQM <$> (rangeOf <$> tokenQuestionMark)

@@ -6,10 +6,10 @@ module Syntax.Parser.Basics where
 import Data.Text (Text)
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
-import Syntax.Parser.Types
 import Syntax.Parser.Lexer
-import Syntax.Parser.Util
 import Syntax.Parser.Token (tokenComma)
+import Syntax.Parser.Types
+import Syntax.Parser.Util
 import Text.Megaparsec hiding
   ( ParseError,
     Pos,

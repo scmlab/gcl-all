@@ -35,8 +35,8 @@ import qualified Data.Map as Map
 import Data.Monoid (Endo (..))
 import qualified Data.Set as Set
 import GCL.Range
-import Syntax.Parser.Types
 import Syntax.Parser.Lexer (Tok (..))
+import Syntax.Parser.Types
 import Text.Megaparsec hiding
   ( Pos,
     State,
@@ -115,7 +115,6 @@ updateToken tok = modify $ \st -> st {lastToken = Just tok}
 
 -- | Helper functions
 -- type Parser = ParsecT Void TokStream M
-
 getLoc :: Parser a -> Parser (a, Maybe Range)
 getLoc parser = do
   i <- lift markStart

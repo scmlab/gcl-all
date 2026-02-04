@@ -2,14 +2,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Syntax.Parser
-  ( Parser(..),
+  ( Parser (..),
     scanAndParse,
     parse,
     parseWithTokList,
     program,
     statements,
     statement,
-    expression
+    expression,
   )
 where
 
@@ -19,12 +19,12 @@ import Data.Text (Text)
 import GCL.Range
 import Language.Lexer.Applicative (TokenStream (TsEof, TsToken))
 import Syntax.Concrete hiding (Op)
-import Syntax.Parser.Types
 import Syntax.Parser.Error
-import Syntax.Parser.Lexer
 import Syntax.Parser.Expr (expression)
-import qualified Syntax.Parser.Stmt as Stmt
+import Syntax.Parser.Lexer
 import Syntax.Parser.Program (program)
+import qualified Syntax.Parser.Stmt as Stmt
+import Syntax.Parser.Types
 import Text.Megaparsec hiding
   ( ParseError,
     Pos,

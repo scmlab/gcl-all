@@ -8,11 +8,11 @@ import GCL.Range
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
 import qualified Syntax.Concrete.Types as Expr
-import Syntax.Parser.Types
-import Syntax.Parser.Lexer
-import Syntax.Parser.Util
-import Syntax.Parser.Token
 import Syntax.Parser.Basics
+import Syntax.Parser.Lexer
+import Syntax.Parser.Token
+import Syntax.Parser.Types
+import Syntax.Parser.Util
 import Text.Megaparsec hiding
   ( ParseError,
     Pos,
@@ -208,7 +208,6 @@ pattern' =
       PattConstructor <$> upper <*> many pattern'
     ]
 
-
 --------------------------------------------------------------------------------
 -- Type
 --------------------------------------------------------------------------------
@@ -267,7 +266,6 @@ tBool = withRange $ (TBase . TBool) <$ symbol TokBoolType
 
 tChar :: Parser Type
 tChar = withRange $ (TBase . TChar) <$ symbol TokCharType
-
 
 --------------------------------------------------------------------------------
 

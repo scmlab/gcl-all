@@ -6,6 +6,7 @@ module Syntax.Parser.Token where
 import GCL.Range
 import Syntax.Concrete
 import Syntax.Parser.Lexer
+import Syntax.Parser.Types
 import Syntax.Parser.Util (symbol)
 import Text.Megaparsec hiding
   ( ParseError,
@@ -22,8 +23,6 @@ import Prelude hiding
     Ordering,
     lookup,
   )
-
-import Syntax.Parser.Types
 
 -- for building parsers for tokens
 adapt :: Tok -> String -> Parser (Token a)

@@ -6,11 +6,11 @@ module Syntax.Parser.Definition where
 import Data.Maybe (maybe)
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
-import Syntax.Parser.Types
-import Syntax.Parser.Util
-import Syntax.Parser.Token
 import Syntax.Parser.Basics
 import Syntax.Parser.Expr
+import Syntax.Parser.Token
+import Syntax.Parser.Types
+import Syntax.Parser.Util
 import Text.Megaparsec hiding
   ( ParseError,
     Pos,
@@ -41,11 +41,14 @@ definition = choice [try funcDefnSig, typeDefn, funcDefnF]
     typeDefn = TypeDefn <$> tokenData <*> upper <*> many lower <*> tokenEQ <*> sepByGuardBar typeDefnCtor
 
     typeDefnCtor :: Parser TypeDefnCtor
-    typeDefnCtor = TypeDefnCtor <$> upper <*>
-                      (maybe [] (reverse . unwindTApp) <$> optional type')
-      where unwindTApp :: Type -> [Type]
-            unwindTApp (TApp ts t) = t : unwindTApp ts
-            unwindTApp t = [t]
+    typeDefnCtor =
+      TypeDefnCtor
+        <$> upper
+        <*> (maybe [] (reverse . unwindTApp) <$> optional type')
+      where
+        unwindTApp :: Type -> [Type]
+        unwindTApp (TApp ts t) = t : unwindTApp ts
+        unwindTApp t = [t]
 
     sepByGuardBar :: Parser a -> Parser (SepBy "|" a)
     sepByGuardBar = sepBy' tokenGuardBar
