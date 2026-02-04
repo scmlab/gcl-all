@@ -58,6 +58,7 @@ instance MaybeRanged Type where
   maybeRangeOf (TApp _ _ l) = l
   maybeRangeOf (TVar _ l) = l
   maybeRangeOf (TMetaVar _ l) = l
+  maybeRangeOf TType = Nothing
 
 instance MaybeRanged Kind where
   maybeRangeOf (KStar loc) = loc

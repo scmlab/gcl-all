@@ -147,6 +147,7 @@ instance Render Type where
   renderPrec _ (TData n _) = render n
   renderPrec _ (TVar i _) = render i
   renderPrec _ (TMetaVar n _) = render n
+  renderPrec _ TType = "*"
 
 -- | Interval
 instance Render Interval where

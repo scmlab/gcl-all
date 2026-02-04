@@ -26,3 +26,18 @@ uIntToInt = fromEnum
 -- - https://hackage.haskell.org/package/lsp-types-2.3.0.1/docs/Language-LSP-Protocol-Message.html#t:ErrorData
 resToTRes :: LSP.ResponseError -> LSP.TResponseError m
 resToTRes (LSP.ResponseError c m _) = LSP.TResponseError c m Nothing
+
+sshow :: (Show a) => a -> String
+sshow x = go 0 (show x)
+  where
+    indent n = replicate (2 * n) ' '
+
+    go _ [] = ""
+    go n (c : cs)
+      | c == '[' = "[\n" ++ indent (n + 1) ++ go (n + 1) cs
+      | c == ']' = "\n" ++ indent (n - 1) ++ "]" ++ go (n - 1) cs
+      | c == ',' = ",\n" ++ indent n ++ go n cs
+      | c == '(' = "\n" ++ indent n ++ "(" ++ go (n + 1) cs
+      | c == ')' = "\n" ++ indent (n - 1) ++ ")" ++ go (n - 1) cs
+      | c == ' ' = " " ++ go n cs
+      | otherwise = c : go n cs

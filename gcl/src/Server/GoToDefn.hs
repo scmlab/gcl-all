@@ -270,6 +270,7 @@ instance Collect TargetRanges OriginTargetRanges Type where
     TApp x y _ -> collect x >> collect y
     TVar _ _ -> return ()
     TMetaVar _ _ -> return ()
+    TType -> return ()
 
 instance Collect TargetRanges OriginTargetRanges Interval where
   collect (Interval x y _) = collect x >> collect y

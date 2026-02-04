@@ -124,6 +124,7 @@ data Type
   | TApp Type Type (Maybe Range)
   | TVar Name (Maybe Range)
   | TMetaVar Name (Maybe Range)
+  | TType -- "*"
   deriving (Show, Generic)
 
 instance Eq Type where

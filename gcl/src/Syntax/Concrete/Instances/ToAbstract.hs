@@ -182,6 +182,7 @@ instance ToAbstract Type A.Type where
             A.TApp a' b' _ -> A.TApp a' b' (maybeRangeOf t)
             A.TVar a' _ -> A.TVar a' (maybeRangeOf t)
             A.TMetaVar a' _ -> A.TMetaVar a' (maybeRangeOf t)
+            A.TType -> A.TType
 
 --------------------------------------------------------------------------------
 
