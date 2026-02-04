@@ -1,4 +1,5 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -59,7 +60,7 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
           (Map.member ctorName env')
           (throwError $ DuplicatedIdentifiers [ctorName])
 
-        let vars = extractMetaVar ctorArgs
+        let vars = extractMetaVars ctorArgs
         let diff = filter (`notElem` args) (nub vars)
 
         case diff of
@@ -69,14 +70,12 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
     kindEnv
     ctors
   where
-    -- XXX: why is multiple `TMetaVar`s generated as `TApp` by the parser?
-    -- FIX: rewrite the implementation when this gets fixed in the future
-    extractMetaVar [] = []
-    extractMetaVar (x : _) = reverse $ aux x []
-      where
-        aux (A.TMetaVar n _) vars = n : vars
-        aux (A.TApp tys (A.TMetaVar n _) _) vars = n : aux tys vars
-        aux _ _ = error "impossible"
+    extractMetaVars =
+      map
+        ( \case
+            (A.TMetaVar n _) -> n
+            _ -> error "impossible"
+        )
 
     toTVar v = A.TVar v (maybeRangeOf v)
 collectDefnToEnv (A.FuncDefnSig name ty _ _) = do

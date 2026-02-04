@@ -350,7 +350,8 @@ inferLam param body range = do
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody range)
 
 inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
-inferQuant op@(A.Op (Hash _)) bound cond expr range = do -- speical case for `⟨ # bound : cond : expr ⟩`
+inferQuant op@(A.Op (Hash _)) bound cond expr range = do
+  -- speical case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
 
   -- introduce new vars
@@ -366,13 +367,13 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do -- speical case for `�
   local
     (\e -> boundEnv <> e)
     ( do
-      (condSubst, typedCond) <- typeCheck cond typeBool
-      (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
+        (condSubst, typedCond) <- typeCheck cond typeBool
+        (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
 
-      let resultSubst = exprSubst <> condSubst
-      let typedQuant = T.Quant typedOp bound typedCond typedExpr range
+        let resultSubst = exprSubst <> condSubst
+        let typedQuant = T.Quant typedOp bound typedCond typedExpr range
 
-      return (resultSubst, typeInt, typedQuant)
+        return (resultSubst, typeInt, typedQuant)
     )
 inferQuant op bound cond expr range = do
   ftv <- freshTVar
