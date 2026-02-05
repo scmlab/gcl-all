@@ -50,6 +50,11 @@ export async function start() {
 	// This enables automatic trace configuration: vscode-languageclient will automatically read
 	// the "gcl-vscode.trace.server" setting without requiring manual setTrace() calls.
 	client = new LanguageClient ("gcl-vscode", "GCL LSP Server", serverOptions, clientOptions);
+
+}
+
+export async function start2() {
+	if (!client) throw new Error('Language client is not running');
 	await client.start();
 }
 

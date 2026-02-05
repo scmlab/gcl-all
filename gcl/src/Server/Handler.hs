@@ -1,6 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DisambiguateRecordFields #-}
+-- for getUriText: allows concrete types in type class constraints
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -39,8 +41,13 @@ import qualified Server.Handler.Hover as Hover
 import qualified Server.Handler.Initialized as Initialized
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Server.Handler.SemanticTokens as SemanticTokens
-import Server.Load (load)
-import Server.Monad (ServerM, logText)
+import Server.Monad (ServerM, logText, logTextLn)
+
+getUri :: (LSP.HasParams s a1, LSP.HasTextDocument a1 a2, LSP.HasUri a2 a3) => s -> a3
+getUri = (^. (LSP.params . LSP.textDocument . LSP.uri))
+
+getUriText :: (LSP.HasParams s a1, LSP.HasTextDocument a1 a2, LSP.HasUri a2 LSP.Uri) => s -> Text
+getUriText = LSP.getUri . getUri
 
 -- handlers of the LSP server
 handlers :: Handlers ServerM
@@ -52,16 +59,12 @@ handlers =
         Initialized.handler,
       -- "textDocument/didOpen" - after open
       notificationHandler LSP.SMethod_TextDocumentDidOpen $ \ntf -> do
-        logText "SMethod_TextDocumentDidOpen start\n"
-        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-        case LSP.uriToFilePath uri of
-          Nothing -> return ()
-          Just filePath -> load filePath
-        logText "SMethod_TextDocumentDidOpen end\n",
+        logTextLn $ "SMethod_TextDocumentDidOpen " <> getUriText ntf,
       -- "textDocument/didChange" - after every edition
       notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do
         logText "SMethod_TextDocumentDidChange start\n"
-        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+        let uri = getUri ntf
+        logTextLn $ "  uri: " <> getUriText ntf
         let changes = ntf ^. (LSP.params . LSP.contentChanges)
         case LSP.uriToFilePath uri of
           Nothing -> return ()
@@ -69,28 +72,13 @@ handlers =
         logText "SMethod_TextDocumentDidChange end\n",
       -- "textDocument/didSave" - after save
       notificationHandler LSP.SMethod_TextDocumentDidSave $ \ntf -> do
-        logText "SMethod_TextDocumentDidSave start\n"
-        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-        case LSP.uriToFilePath uri of
-          Nothing -> return ()
-          Just filePath -> load filePath
-        logText "SMethod_TextDocumentDidSave end\n",
+        logTextLn $ "SMethod_TextDocumentDidSave " <> getUriText ntf,
       -- "textDocument/didClose" - after close
-      notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
-        logText "SMethod_TextDocumentDidClose start\n"
-
-        -- TODO: this handler is only a stub because VSCode complains
-        -- maybe add something here in the future
-
-        logText "SMethod_TextDocumentDidClose end\n",
+      notificationHandler LSP.SMethod_TextDocumentDidClose $ \ntf -> do
+        logTextLn $ "SMethod_TextDocumentDidClose " <> getUriText ntf,
       -- "workspace/didChangeConfiguration"
       notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> do
-        logText "SMethod_WorkspaceDidChangeConfiguration start\n"
-
-        -- TODO: this handler is only a stub because VSCode complains
-        -- maybe add something here in the future
-
-        logText "SMethod_WorkspaceDidChangeConfiguration end\n",
+        logText "SMethod_WorkspaceDidChangeConfiguration\n",
       -- "textDocument/completion" - auto-completion
       requestHandler LSP.SMethod_TextDocumentCompletion $ \req responder -> do
         let completionContext = req ^. LSP.params . LSP.context
@@ -100,7 +88,7 @@ handlers =
       -- "textDocument/definition" - go to definition
       requestHandler LSP.SMethod_TextDocumentDefinition $ \req responder -> do
         logText "SMethod_TextDocumentDefinition is called.\n"
-        let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
+        let uri = getUri req
         let position = req ^. (LSP.params . LSP.position)
         -- FIXME: go to definition doesn't work here?
         -- original code, I think it returns an empty list regardless
@@ -109,12 +97,12 @@ handlers =
         logText "SMethod_TextDocumentDefinition is finished.\n",
       -- "textDocument/hover" - get hover information
       requestHandler LSP.SMethod_TextDocumentHover $ \req responder -> do
-        let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
+        let uri = getUri req
         let pos = req ^. (LSP.params . LSP.position)
         Hover.handler uri pos (responder . Right),
       -- "textDocument/semanticTokens/full" - get all semantic tokens
       requestHandler LSP.SMethod_TextDocumentSemanticTokensFull $ \req responder -> do
-        let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
+        let uri = getUri req
         SemanticTokens.handler uri (responder . first Hack.resToTRes),
       -- "gcl/reload" - reload
       requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Reload.handler,
