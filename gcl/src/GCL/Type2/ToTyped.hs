@@ -19,7 +19,7 @@ import GCL.Type2.RSE
 import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name (Name))
+import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
 -- TODO: check valid type
@@ -176,10 +176,13 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.LoopInvariant e1 e2 loc) = toTypedLoopInvariant e1 e2 loc
   toTyped (A.Do gds loc) = toTypedDo gds loc
   toTyped (A.If gds loc) = toTypedIf gds loc
-  toTyped (A.Spec text range) = undefined
+  toTyped (A.Spec text range) = undefined -- XXX: what is this supposed to return?
   toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
-  -- the rest exprs are all ints
-  toTyped _stmt = trace (show _stmt) undefined
+  toTyped (A.Alloc var exprs range) = toTypedAlloc var exprs range
+  toTyped (A.HLookup name expr range) = toTypedHLookup name expr range
+  toTyped (A.HMutate left right range) = toTypedHMutate left right range
+  toTyped (A.Dispose expr range) = toTypedDispose expr range
+  toTyped A.Block {} = undefined
 
 toTypedAssign :: [Name] -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedAssign names exprs loc
@@ -247,6 +250,48 @@ toTypedIf :: [A.GdCmd] -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedIf gds loc = do
   typedGds <- mapM toTyped gds
   return (T.If typedGds loc)
+
+toTypedAlloc :: Name -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedAlloc var exprs range = do
+  env <- ask
+  ty <- case Map.lookup var env of
+    Just scheme -> instantiate scheme
+    Nothing -> throwError $ NotInScope var
+
+  s <- lift $ unify ty typeInt range -- XXX: is this subst needed in `typedExprs`?
+  (_, typedExprs) <-
+    foldM
+      ( \(s', typedExprs') expr -> do
+          (exprSubst, typedExpr) <- local (applySubstEnv s') (typeCheck expr typeInt)
+          return (exprSubst <> s', typedExpr : typedExprs')
+      )
+      (s, [])
+      exprs
+
+  return (T.Alloc var typedExprs range)
+
+toTypedHLookup :: Name -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedHLookup name expr range = do
+  env <- ask
+  ty <- case Map.lookup name env of
+    Just scheme -> instantiate scheme
+    Nothing -> throwError $ NotInScope name
+
+  s1 <- lift $ unify ty typeInt (maybeRangeOf name)
+  (_, typedExpr) <- local (applySubstEnv s1) (typeCheck expr typeInt)
+
+  return $ T.HLookup name typedExpr range
+
+toTypedHMutate :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedHMutate left right range = do
+  (s1, typedLeft) <- typeCheck left typeInt
+  (_, typedRight) <- local (applySubstEnv s1) (typeCheck right typeInt)
+  return $ T.HMutate typedLeft typedRight range
+
+toTypedDispose :: A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedDispose expr range = do
+  (_, typedExpr) <- typeCheck expr typeInt
+  return $ T.Dispose typedExpr range
 
 instance ToTyped A.GdCmd T.GdCmd where
   toTyped (A.GdCmd expr stmts loc) = do
