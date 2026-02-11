@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.38.1.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -215,6 +215,38 @@ test-suite gcl-test
     , tasty-golden
     , tasty-hunit
     , tasty-quickcheck
+    , text
+    , transformers
+  default-language: Haskell2010
+
+benchmark gcl-bench
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  other-modules:
+      Paths_gcl
+  hs-source-dirs:
+      test/bench
+  ghc-options: -Wall -O2
+  build-depends:
+      aeson
+    , base >=4.7 && <5
+    , bytestring
+    , containers
+    , deepseq
+    , gcl
+    , hashable
+    , lens
+    , lexer-applicative
+    , lsp
+    , megaparsec >=9.2
+    , mtl
+    , network
+    , network-simple
+    , parser-combinators
+    , prettyprinter
+    , random
+    , regex-applicative
+    , srcloc
     , text
     , transformers
   default-language: Haskell2010

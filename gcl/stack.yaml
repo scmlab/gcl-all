@@ -106,5 +106,6 @@ system-ghc: true
 # If you wish to build without running tests, use: 'stack build --no-run-tests'
 build:
   test: true
+  bench: true
 
 
