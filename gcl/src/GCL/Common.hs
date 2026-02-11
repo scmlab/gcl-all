@@ -99,18 +99,6 @@ emptySubs = mempty
 emptyEnv :: Env a
 emptyEnv = mempty
 
-freeMetaVars :: Type -> Set Name
-freeMetaVars (TBase _ _) = mempty
-freeMetaVars (TArray _ t _) = freeMetaVars t
-freeMetaVars (TTuple _) = mempty
-freeMetaVars (TFunc l r _) = freeMetaVars l <> freeMetaVars r
-freeMetaVars (TOp _) = mempty
-freeMetaVars (TData _ _) = mempty
-freeMetaVars (TApp l r _) = freeMetaVars l <> freeMetaVars r
-freeMetaVars (TVar _ _) = mempty
-freeMetaVars (TMetaVar n _) = Set.singleton n
-freeMetaVars TType = mempty
-
 -- A class of types for which we may compute their free variables.
 class Free a where
   freeVars :: a -> Set Name
@@ -120,8 +108,10 @@ class Free a where
 occurs :: (Free a) => Name -> a -> Bool
 occurs n x = n `Set.member` freeVars x
 
-instance (Free a) => Free (Subs a) where
+instance (Free a) => Free (Map i a) where -- Env and Subs
   freeVars = Set.unions . Map.map freeVars
+
+-- or, freeVars = foldMap freeVars . Map.elems
 
 instance {-# OVERLAPPABLE #-} (Free a) => Free [a] where
   freeVars l = foldMap freeVars l
@@ -146,6 +136,10 @@ instance Free Type where
   freeVars (TVar x _) = Set.singleton x
   freeVars (TMetaVar n _) = Set.singleton n
   freeVars TType = mempty
+
+instance Free Scheme where
+  freeVars (Forall tvs ty) =
+    freeVars ty `Set.difference` Set.fromList tvs -- remove quantified tyvars
 
 instance {-# OVERLAPS #-} Free TypeEnv where
   freeVars env = foldMap freeVars $ Map.elems $ Map.fromList env

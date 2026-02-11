@@ -112,7 +112,7 @@ data Interval = Interval Endpoint Endpoint (Maybe Range)
 data TBase = TInt | TBool | TChar
   deriving (Show, Eq, Generic)
 
--- | Types
+-- | Types and Type Scheme
 data Type
   = TBase TBase (Maybe Range)
   | TArray Interval Type (Maybe Range) -- TODO: Make this a higher-kinded type.
@@ -126,6 +126,10 @@ data Type
   | TMetaVar Name (Maybe Range)
   | TType -- "*"
   deriving (Show, Generic)
+
+data Scheme
+  = Forall [Name] Type -- ∀α₁, ..., αₙ. t
+  deriving (Show)
 
 instance Eq Type where
   TBase base1 _ == TBase base2 _ = base1 == base2

@@ -28,12 +28,12 @@ import qualified Syntax.Typed.Types as T
 collectDeclToEnv :: A.Declaration -> Result Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
   checkDuplicateNames names
-  return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
+  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
 collectDeclToEnv (A.VarDecl names ty _ _) = do
   checkDuplicateNames names
-  return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
+  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
 
-type DefnMap = Map A.Definition Scheme
+type DefnMap = Map A.Definition A.Scheme
 
 -- XXX: is checking duplicate definition required here?
 collectDefnToEnv :: A.Definition -> RSE Env Inference Env
@@ -41,7 +41,7 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
   let nameTy = A.TData name (maybeRangeOf name)
 
   let kind = foldr (\_ acc -> A.TType `typeToType` acc) A.TType args
-  let kindEnv = Map.singleton name (Forall [] kind)
+  let kindEnv = Map.singleton name (A.Forall [] kind)
 
   traceM $ show (pretty kind)
   -- \* -> *
@@ -64,7 +64,7 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
         let diff = filter (`notElem` args) (nub vars)
 
         case diff of
-          [] -> return $ Map.insert ctorName (Forall args (foldr (typeToType . toTVar) nameTy vars)) env'
+          [] -> return $ Map.insert ctorName (A.Forall args (foldr (typeToType . toTVar) nameTy vars)) env'
           (x : _) -> throwError $ NotInScope x
     )
     kindEnv
@@ -81,11 +81,11 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
 collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
   env <- ask
   case Map.lookup name env of
-    Nothing -> return $ Map.singleton name (Forall [] ty)
+    Nothing -> return $ Map.singleton name (A.Forall [] ty)
     Just _ -> undefined
 collectDefnToEnv (A.FuncDefn name body) = do
   (_, ty, _) <- infer body
-  return $ Map.singleton name (Forall [] ty)
+  return $ Map.singleton name (A.Forall [] ty)
 
 class ToTyped a t | a -> t where
   toTyped :: a -> RSE Env Inference t

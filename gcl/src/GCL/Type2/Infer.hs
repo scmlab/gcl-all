@@ -16,6 +16,7 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Debug.Trace
+import GCL.Common (Free (..), occurs)
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.RSE
@@ -34,11 +35,7 @@ type TyVar = Name
 
 type TmVar = Name
 
-data Scheme
-  = Forall [TyVar] A.Type -- ∀α₁, ..., αₙ. t
-  deriving (Show)
-
-type Env = Map TmVar Scheme
+type Env = Map TmVar A.Scheme
 
 instance {-# OVERLAPPING #-} Show Env where
   show e = intercalate "\n" $ map (\(var, scheme) -> s var <> " :: " <> showScheme scheme) (Map.toList e)
@@ -46,8 +43,8 @@ instance {-# OVERLAPPING #-} Show Env where
       s :: (Pretty a) => a -> String
       s = show . pretty
 
-      showScheme (Forall [] ty) = s ty
-      showScheme (Forall tyParams ty) = "forall " <> unwords (map s tyParams) <> ". " <> s ty
+      showScheme (A.Forall [] ty) = s ty
+      showScheme (A.Forall tyParams ty) = "forall " <> unwords (map s tyParams) <> ". " <> s ty
 
 type Subst = Map TyVar A.Type
 
@@ -69,10 +66,6 @@ checkDuplicateNames names =
 
 -- checkAssign :: Name -> RSE Env Inference
 
--- prevent infintite types by checking if the type occurs in itself
-checkOccurs :: Name -> A.Type -> Bool
-checkOccurs name ty = Set.member name (freeTypeVars ty)
-
 -- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
 applySubst _ ty@A.TBase {} = ty
@@ -91,13 +84,13 @@ applySubst subst ty@(A.TMetaVar name _) =
   Map.findWithDefault ty name subst
 applySubst _ A.TType = A.TType -- XXX: is this correct or this should error
 
-applySubstScheme :: Subst -> Scheme -> Scheme
-applySubstScheme subst (Forall vars ty) =
+applySubstScheme :: Subst -> A.Scheme -> A.Scheme
+applySubstScheme subst (A.Forall vars ty) =
   let -- Subst $ Map.filterWithKey (\k _ -> k `notElem` vars) subst
       -- is too inefficient i think if `vars` becomes long
       -- TODO: change to rename here
       filteredSubst = foldl' (\acc var -> Map.delete var acc) subst vars
-   in Forall vars (applySubst filteredSubst ty)
+   in A.Forall vars (applySubst filteredSubst ty)
 
 applySubstEnv :: Subst -> Env -> Env
 applySubstEnv subst = Map.map (applySubstScheme subst)
@@ -135,8 +128,8 @@ freshTVar :: RSE Env Inference A.Type
 freshTVar = A.TVar <$> freshTyVar <*> pure Nothing
 
 -- assuming forall ONLY exists on the outside
-instantiate :: Scheme -> RSE Env Inference A.Type
-instantiate (Forall tvs ty) = do
+instantiate :: A.Scheme -> RSE Env Inference A.Type
+instantiate (A.Forall tvs ty) = do
   mappings <-
     mapM
       ( \var -> do
@@ -147,11 +140,11 @@ instantiate (Forall tvs ty) = do
   let subst = Map.fromList mappings
   return $ applySubst subst ty
 
-generalize :: A.Type -> RSE Env Inference Scheme
+generalize :: A.Type -> RSE Env Inference A.Scheme
 generalize ty = do
   env <- ask
-  let freeVars = freeTypeVars ty `Set.difference` freeTypeVarsEnv env
-  return $ Forall (Set.toAscList freeVars) ty
+  let fVars = freeVars ty `Set.difference` freeVars env
+  return $ A.Forall (Set.toAscList fVars) ty
 
 -- the operation `_ : _ ↓ _`
 typeCheck :: A.Expr -> A.Type -> RSE Env Inference (Subst, T.Expr)
@@ -159,26 +152,6 @@ typeCheck expr ty = do
   (s1, exprTy, typedExpr) <- infer expr
   s2 <- lift $ unify exprTy ty (maybeRangeOf expr)
   return (s2 <> s1, typedExpr)
-
-freeTypeVars :: A.Type -> Set TyVar
-freeTypeVars A.TBase {} = mempty
-freeTypeVars (A.TArray _ ty _) = freeTypeVars ty
-freeTypeVars A.TTuple {} = mempty
-freeTypeVars (A.TFunc t1 t2 _) = freeTypeVars t1 <> freeTypeVars t2
-freeTypeVars A.TData {} = mempty
-freeTypeVars A.TOp {} = mempty
-freeTypeVars (A.TApp t1 t2 _) = freeTypeVars t1 <> freeTypeVars t2
-freeTypeVars (A.TVar name _) = Set.singleton name
-freeTypeVars (A.TMetaVar name _) = Set.singleton name
-freeTypeVars A.TType = mempty
-
-freeTypeVarsEnv :: Env -> Set TyVar
-freeTypeVarsEnv env =
-  foldMap freeTypeVarsScheme (Map.elems env)
-
-freeTypeVarsScheme :: Scheme -> Set TyVar
-freeTypeVarsScheme (Forall tvs ty) =
-  freeTypeVars ty `Set.difference` Set.fromList tvs -- remove quantified tyvars
 
 unify :: A.Type -> A.Type -> Maybe Range -> Result Subst
 unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
@@ -205,7 +178,7 @@ unify t1 t2 l =
 unifyVar :: Name -> A.Type -> Maybe Range -> Result Subst
 unifyVar name ty range
   | A.TVar name Nothing == ty = return mempty
-  | checkOccurs name ty = throwError $ RecursiveType name ty range
+  | occurs name ty = throwError $ RecursiveType name ty range
   | otherwise =
       let subst = Map.singleton name ty
        in return subst
@@ -224,13 +197,13 @@ typeToKind (A.TOp (Arrow _)) = return $ A.TType `typeToType` A.TType `typeToType
 typeToKind (A.TData name _) = do
   env <- ask
   case Map.lookup name env of
-    Just (Forall _ k) -> return k
+    Just (A.Forall _ k) -> return k
     Nothing -> throwError $ NotInScope name
 typeToKind (A.TVar name _) = do
   env <- ask
   case Map.lookup name env of
     -- BUG: this probably wrong
-    Just (Forall tyParams _) -> return $ foldr (\_ acc -> A.TType `typeToType` acc) A.TType tyParams -- XXX: is this correct?
+    Just (A.Forall tyParams _) -> return $ foldr (\_ acc -> A.TType `typeToType` acc) A.TType tyParams -- XXX: is this correct?
     Nothing -> throwError $ NotInScope name
 typeToKind A.TMetaVar {} = undefined
 typeToKind A.TType = return A.TType
@@ -342,7 +315,7 @@ inferApp e1 e2 range = do
 inferLam :: Name -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferLam param body range = do
   paramTy <- freshTVar
-  (bodySubst, bodyTy, typedBody) <- local (Map.insert param (Forall [] paramTy)) (infer body)
+  (bodySubst, bodyTy, typedBody) <- local (Map.insert param (A.Forall [] paramTy)) (infer body)
 
   let paramTy' = applySubst bodySubst paramTy
   let returnTy = paramTy' `typeToType` bodyTy
@@ -360,7 +333,7 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
       <$> mapM
         ( \b -> do
             v <- freshTVar
-            return (b, Forall [] v)
+            return (b, A.Forall [] v)
         )
         bound
 
@@ -384,7 +357,7 @@ inferQuant op bound cond expr range = do
       <$> mapM
         ( \b -> do
             v <- freshTVar
-            return (b, Forall [] v)
+            return (b, A.Forall [] v)
         )
         bound
 
@@ -488,7 +461,7 @@ bindPattern (A.PattLit lit) ty = do
   sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (maybeRangeOf lit)) ty (maybeRangeOf ty)
   return (sub, mempty)
 bindPattern (A.PattBinder name) ty = do
-  let env = Map.singleton name (Forall [] ty)
+  let env = Map.singleton name (A.Forall [] ty)
   return (mempty, env)
 bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
 bindPattern (A.PattConstructor ctorName pats) ty = do

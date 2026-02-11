@@ -22,6 +22,7 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Ord as Ord
+import Data.Set (Set)
 import qualified Data.Set as Set
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range, (<--->))
@@ -773,6 +774,18 @@ instantiate ty = do
   let freeMeta = Set.toList (freeMetaVars ty)
   new <- replicateM (length freeMeta) freshVar
   return $ subst (Map.fromList $ zip freeMeta new) ty
+
+freeMetaVars :: Type -> Set Name
+freeMetaVars (TBase _ _) = mempty
+freeMetaVars (TArray _ t _) = freeMetaVars t
+freeMetaVars (TTuple _) = mempty
+freeMetaVars (TFunc l r _) = freeMetaVars l <> freeMetaVars r
+freeMetaVars (TOp _) = mempty
+freeMetaVars (TData _ _) = mempty
+freeMetaVars (TApp l r _) = freeMetaVars l <> freeMetaVars r
+freeMetaVars (TVar _ _) = mempty
+freeMetaVars (TMetaVar n _) = Set.singleton n
+freeMetaVars TType = mempty
 
 -- You can freely use `fromJust` below to extract the underlying `Type` from the `Maybe Type` you got.
 -- You should also ensure that `elaborate` in `Elab Expr` returns a `Just` when it comes to the `Maybe Type` value.
