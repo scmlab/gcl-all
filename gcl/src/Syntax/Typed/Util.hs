@@ -76,3 +76,6 @@ programToScopeForSubstitution (Program defns decls _ _ _) =
 pickFuncDefn :: Definition -> Maybe (Name, Expr)
 pickFuncDefn (FuncDefn n expr) = Just (n, expr)
 pickFuncDefn _ = Nothing
+
+syntaxSubst :: [Name] -> [Expr] -> Expr -> Expr
+syntaxSubst xs es e = Subst e (zip xs es)
