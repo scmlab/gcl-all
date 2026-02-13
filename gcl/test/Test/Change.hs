@@ -19,15 +19,15 @@ tests =
 
 -- | Helper: build an LSPMove from 0-based Int coordinates.
 mv :: Int -> Int -> Int -> Int -> T.Text -> LSPMove
-mv sL sC eL eC = mkLSPMove (pos sL sC) (pos eL eC)
+mv sL sC eL eC = mkLSPMove (rng sL sC eL eC)
 
 -- | Helper: build an LSP Position from 0-based Ints.
 pos :: Int -> Int -> LSP.Position
 pos l c = LSP.Position (fromIntegral l) (fromIntegral c)
 
--- | Helper: apply using Int coordinates.
-applyMv :: Int -> Int -> Int -> Int -> LSPMove -> Maybe (LSP.Position, LSP.Position)
-applyMv oSL oSC oEL oEC = applyLSPMove (pos oSL oSC) (pos oEL oEC)
+-- | Helper: build an LSP Range from 0-based Int coordinates.
+rng :: Int -> Int -> Int -> Int -> LSP.Range
+rng sL sC eL eC = LSP.Range (pos sL sC) (pos eL eC)
 
 --------------------------------------------------------------------------------
 -- mkLSPMove
@@ -109,13 +109,13 @@ beforeChangeTests =
     "before change (unchanged)"
     [ testCase "range on earlier line" $ do
         let m = mv 5 0 5 3 "xyz"
-        applyMv 2 0 2 10 m @?= Just (pos 2 0, pos 2 10),
+        applyLSPMove (rng 2 0 2 10) m @?= Just (rng 2 0 2 10),
       testCase "range on same line, ends at change start" $ do
         let m = mv 3 10 3 15 "x"
-        applyMv 3 5 3 10 m @?= Just (pos 3 5, pos 3 10),
+        applyLSPMove (rng 3 5 3 10) m @?= Just (rng 3 5 3 10),
       testCase "range on same line, ends before change start" $ do
         let m = mv 3 10 3 15 "x"
-        applyMv 3 5 3 8 m @?= Just (pos 3 5, pos 3 8)
+        applyLSPMove (rng 3 5 3 8) m @?= Just (rng 3 5 3 8)
     ]
 
 afterChangeTests :: TestTree
@@ -124,25 +124,25 @@ afterChangeTests =
     "after change (shifted)"
     [ testCase "range on later line, single-line insert" $ do
         let m = mv 3 0 3 0 "xyz"
-        applyMv 5 2 5 8 m @?= Just (pos 5 2, pos 5 8),
+        applyLSPMove (rng 5 2 5 8) m @?= Just (rng 5 2 5 8),
       testCase "range on same line as change end" $ do
         -- replace (3,5)..(3,8) with "ab", dL=0 dC=-1
         let m = mv 3 5 3 8 "ab"
-        applyMv 3 8 3 12 m @?= Just (pos 3 7, pos 3 11),
+        applyLSPMove (rng 3 8 3 12) m @?= Just (rng 3 7 3 11),
       testCase "range starts on change end line, ends on later line" $ do
         let m = mv 3 5 3 8 "ab"
-        applyMv 3 8 4 2 m @?= Just (pos 3 7, pos 4 2),
+        applyLSPMove (rng 3 8 4 2) m @?= Just (rng 3 7 4 2),
       testCase "multi-line insert shifts later lines" $ do
         -- insert "a\nb\nc" at (2,0)..(2,0), dL=2 dC=1
         let m = mv 2 0 2 0 "a\nb\nc"
-        applyMv 3 5 3 10 m @?= Just (pos 5 5, pos 5 10),
+        applyLSPMove (rng 3 5 3 10) m @?= Just (rng 5 5 5 10),
       testCase "multi-line delete shifts later lines up" $ do
         -- delete (2,0)..(4,0), dL=-2 dC=0
         let m = mv 2 0 4 0 ""
-        applyMv 5 3 6 7 m @?= Just (pos 3 3, pos 4 7),
+        applyLSPMove (rng 5 3 6 7) m @?= Just (rng 3 3 4 7),
       testCase "range starts exactly at change end" $ do
         let m = mv 1 0 1 5 "hello world"
-        applyMv 1 5 1 10 m @?= Just (pos 1 11, pos 1 16)
+        applyLSPMove (rng 1 5 1 10) m @?= Just (rng 1 11 1 16)
     ]
 
 overlapTests :: TestTree
@@ -151,20 +151,20 @@ overlapTests =
     "overlapping (invalidated)"
     [ testCase "range contains change" $ do
         let m = mv 3 5 3 8 "x"
-        applyMv 3 0 3 15 m @?= Nothing,
+        applyLSPMove (rng 3 0 3 15) m @?= Nothing,
       testCase "change contains range" $ do
         let m = mv 3 0 3 15 "x"
-        applyMv 3 5 3 8 m @?= Nothing,
+        applyLSPMove (rng 3 5 3 8) m @?= Nothing,
       testCase "range start inside change" $ do
         let m = mv 3 5 3 10 "x"
-        applyMv 3 7 3 15 m @?= Nothing,
+        applyLSPMove (rng 3 7 3 15) m @?= Nothing,
       testCase "range end inside change" $ do
         let m = mv 3 5 3 10 "x"
-        applyMv 3 0 3 7 m @?= Nothing,
+        applyLSPMove (rng 3 0 3 7) m @?= Nothing,
       testCase "range start equals change start (inclusive)" $ do
         let m = mv 3 5 3 10 "x"
-        applyMv 3 5 3 8 m @?= Nothing,
+        applyLSPMove (rng 3 5 3 8) m @?= Nothing,
       testCase "multi-line overlap" $ do
         let m = mv 2 5 4 3 "x"
-        applyMv 3 0 5 0 m @?= Nothing
+        applyLSPMove (rng 3 0 5 0) m @?= Nothing
     ]

@@ -6,9 +6,11 @@ module Server.Change
     mkLSPMove,
     mkLSPMoves,
     applyLSPMove,
+    applyLSPMovesToTokens,
   )
 where
 
+import Control.Monad (foldM)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import qualified Hack
@@ -28,10 +30,10 @@ data LSPMove = LSPMove
   }
   deriving (Eq, Show)
 
--- | Build an LSPMove from two LSP.Positions (0-based) and replacement text.
+-- | Build an LSPMove from an LSP.Range and replacement text.
 --   The text is only used to compute the delta; it is not stored.
-mkLSPMove :: LSP.Position -> LSP.Position -> T.Text -> LSPMove
-mkLSPMove s@(LSP.Position sl sc) e@(LSP.Position el ec) text =
+mkLSPMove :: LSP.Range -> T.Text -> LSPMove
+mkLSPMove (LSP.Range s@(LSP.Position sl sc) e@(LSP.Position el ec)) text =
   let !sC_ = fromIntegral sc
       !eC_ = fromIntegral ec
       !linesOld = fromIntegral el - fromIntegral sl :: Int
@@ -53,24 +55,24 @@ mkLSPMove s@(LSP.Position sl sc) e@(LSP.Position el ec) text =
 mkLSPMoves :: [LSP.TextDocumentContentChangeEvent] -> [LSPMove]
 mkLSPMoves = mapMaybe go
   where
-    go (LSP.TextDocumentContentChangeEvent (LSP.InL (LSP.TextDocumentContentChangePartial (LSP.Range s e) _ text))) =
-      Just (mkLSPMove s e text)
+    go (LSP.TextDocumentContentChangeEvent (LSP.InL (LSP.TextDocumentContentChangePartial range _ text))) =
+      Just (mkLSPMove range text)
     go _ = Nothing
 
--- | Apply an LSPMove to two LSP.Positions (end-exclusive range).
+-- | Apply an LSPMove to an LSP.Range (end-exclusive).
 --
 --   Before change: unchanged.
 --   After  change: shifted by (dL, dC).
 --   Overlapping:   invalidated (Nothing).
-applyLSPMove :: LSP.Position -> LSP.Position -> LSPMove -> Maybe (LSP.Position, LSP.Position)
-applyLSPMove oS oE (LSPMove s e dL dC)
+applyLSPMove :: LSP.Range -> LSPMove -> Maybe LSP.Range
+applyLSPMove (LSP.Range oS oE) (LSPMove s e dL dC)
   -- range ends before change starts: unchanged
-  | oE <= s = Just (oS, oE)
+  | oE <= s = Just (LSP.Range oS oE)
   -- range starts at or after change end: shift
   | oS >= e =
       let !nS = shiftPos oS
           !nE = shiftPos oE
-       in Just (nS, nE)
+       in Just (LSP.Range nS nE)
   -- overlap: invalidated
   | otherwise = Nothing
   where
@@ -79,3 +81,16 @@ applyLSPMove oS oE (LSPMove s e dL dC)
       let !nL = fromIntegral l + dL
           !nC = if l == eL then fromIntegral c + dC else fromIntegral c
        in LSP.Position (Hack.intToUInt nL) (Hack.intToUInt nC)
+
+-- | Apply a list of LSPMoves to a single SemanticTokenAbsolute.
+--   The token is converted to a Range, moved through all changes, then converted back.
+applyLSPMovesToToken :: [LSPMove] -> LSP.SemanticTokenAbsolute -> Maybe LSP.SemanticTokenAbsolute
+applyLSPMovesToToken moves (LSP.SemanticTokenAbsolute tLine tChar tLen tType tMods) = do
+  let tokenRange = LSP.Range (LSP.Position tLine tChar) (LSP.Position tLine (tChar + tLen))
+  LSP.Range (LSP.Position nL nC) _ <- foldM applyLSPMove tokenRange moves
+  Just (LSP.SemanticTokenAbsolute nL nC tLen tType tMods)
+
+-- | Apply a list of LSPMoves to a list of SemanticTokenAbsolutes.
+--   Invalidated tokens are dropped.
+applyLSPMovesToTokens :: [LSPMove] -> [LSP.SemanticTokenAbsolute] -> [LSP.SemanticTokenAbsolute]
+applyLSPMovesToTokens moves = mapMaybe (applyLSPMovesToToken moves)
