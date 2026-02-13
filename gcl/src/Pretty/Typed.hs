@@ -57,6 +57,7 @@ instance Pretty Definition where
   pretty (FuncDefnSig name typ Nothing _) = pretty name <> ": " -- <> pretty typ
   pretty (FuncDefnSig name typ (Just prop) _) =
     pretty name <> ": " <> {- pretty typ <> -} "{ " <> pretty prop <> " }"
+  pretty (FuncDefnSig' name typ range) = pretty name <> ": " -- <> pretty typ
   pretty (FuncDefn name expr) = pretty name <+> " = " <+> pretty expr
 
 instance Pretty TypeDefnCtor where
@@ -85,6 +86,7 @@ instance Pretty Stmt where
   pretty (If gdCmds _) =
     "if" <> line <> vsep (map (\x -> " |" <+> pretty x <> line) gdCmds) <> "fi"
   pretty (Spec content _ _) = "[!" <> pretty content <> "!]"
+  pretty (Spec' content _ _) = "[!" <> pretty content <> "!]"
   pretty (Proof anchor contents _) =
     -- "{-" <> vsep (map (\x -> pretty x <> line) anchors) <> "-}"
     "{- #" <> pretty anchor <> line <> pretty contents <> line <> "-}"

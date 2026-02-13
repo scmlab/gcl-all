@@ -18,6 +18,7 @@ import qualified Data.Text as Text
 import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
+import GCL.Type2.Common (Env, Scheme (..), TyVar)
 import GCL.Type2.RSE
 import qualified Hack
 import Pretty
@@ -29,16 +30,6 @@ import Prelude hiding (EQ, GT, LT)
 newtype Inference = Inference
   { _counter :: Int
   }
-
-type TyVar = Name
-
-type TmVar = Name
-
-data Scheme
-  = Forall [TyVar] A.Type -- ∀α₁, ..., αₙ. t
-  deriving (Show)
-
-type Env = Map TmVar Scheme
 
 instance {-# OVERLAPPING #-} Show Env where
   show e = intercalate "\n" $ map (\(var, scheme) -> s var <> " :: " <> showScheme scheme) (Map.toList e)

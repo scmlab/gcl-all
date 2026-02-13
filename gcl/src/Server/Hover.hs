@@ -73,6 +73,7 @@ unkind (Typed.TMetaVar name _ loc) = UnTyped.TMetaVar name loc
 instance Collect Typed.Definition where
   collect (Typed.TypeDefn _ _ ctors _) = foldMap collect ctors
   collect (Typed.FuncDefnSig name kinded prop _) = annotateType name (unkind kinded) <> collect kinded <> maybe mempty collect prop
+  collect (Typed.FuncDefnSig' name kinded _) = undefined -- TODO: implement this
   collect (Typed.FuncDefn _name expr) = collect expr
 
 instance Collect Typed.TypeDefnCtor where
@@ -109,6 +110,7 @@ instance Collect Typed.Stmt where -- TODO: Display hover info for names.
   collect (Typed.Do gdCmds _) = foldMap collect gdCmds
   collect (Typed.If gdCmds _) = foldMap collect gdCmds
   collect Typed.Spec {} = mempty
+  collect Typed.Spec' {} = mempty
   collect Typed.Proof {} = mempty
   collect (Typed.Alloc _name exprs _) = foldMap collect exprs
   collect (Typed.HLookup _name expr _) = collect expr
