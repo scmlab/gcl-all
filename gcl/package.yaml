@@ -75,3 +75,14 @@ tests:
       - -Wall
       - -Werror=incomplete-patterns
       - -fno-warn-orphans
+
+benchmarks:
+  gcl-bench:
+    main: Main.hs
+    source-dirs:
+      - test/bench
+    dependencies:
+      - gcl
+    ghc-options:
+      - -Wall
+      - -O2
