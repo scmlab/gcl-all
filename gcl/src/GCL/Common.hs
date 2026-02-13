@@ -61,6 +61,10 @@ class (Monad m) => Fresh m where
   fresh = freshPre (Text.pack "")
 
   freshPre :: Text -> m Text
+  freshPre pref = freshPreS (Text.unpack pref)
+
+  freshPreS :: String -> m Text
+  freshPreS pref = freshPre (Text.pack pref)
 
 freshName :: (Fresh m, MaybeRanged a) => Text -> a -> m Name
 freshName prefix l = Name <$> freshPre prefix <*> pure (maybeRangeOf l)
@@ -76,13 +80,14 @@ class Counterous m where
 
 instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
   fresh = Text.pack . ("?m_" ++) . show <$> countUp
-  freshPre prefix =
+  freshPreS prefix =
     Text.pack
       . ("?" ++)
-      . (Text.unpack prefix ++)
+      . (prefix ++)
       . ("_" ++)
       . show
       <$> countUp
+
 
 type FreshState = Int
 

@@ -28,13 +28,12 @@ library
       GCL.Predicate
       GCL.Predicate.Util
       GCL.Range
-      GCL.Substitution
       GCL.Type
       GCL.Type2.Infer
       GCL.Type2.MiniAst
-      GCL.Type2.RSE
       GCL.Type2.Test
       GCL.Type2.ToTyped
+      GCL.Type2.Types
       GCL.WP
       GCL.WP.Explanation
       GCL.WP.SP

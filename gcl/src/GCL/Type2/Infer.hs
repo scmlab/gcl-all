@@ -16,26 +16,16 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import qualified Data.Text as Text
 import Debug.Trace
-import GCL.Common (Free (..), occurs)
+import GCL.Common (Fresh (..), Free (..), occurs)
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
-import GCL.Type2.RSE
+import GCL.Type2.Types
 import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), ChainOp (..), Name (Name), Op (..), TypeOp (..))
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)
-
-newtype Inference = Inference
-  { _counter :: Int
-  }
-
-type TyVar = Name
-
-type TmVar = Name
-
-type Env = Map TmVar A.Scheme
 
 instance {-# OVERLAPPING #-} Show Env where
   show e = intercalate "\n" $ map (\(var, scheme) -> s var <> " :: " <> showScheme scheme) (Map.toList e)
@@ -63,8 +53,6 @@ checkDuplicateNames names =
    in if null dups
         then Right ()
         else Left $ DuplicatedIdentifiers dups
-
--- checkAssign :: Name -> RSE Env Inference
 
 -- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
@@ -118,17 +106,8 @@ applySubstChain subst (T.More chain op ty expr) = T.More (applySubstChain subst 
 applySubstClause :: Subst -> T.CaseClause -> T.CaseClause
 applySubstClause subst (T.CaseClause pat expr) = T.CaseClause pat (applySubstExpr subst expr)
 
-freshTyVar :: RSE Env Inference TyVar
-freshTyVar = do
-  n <- gets _counter
-  put $ Inference (n + 1)
-  return $ Name (Text.pack $ "t" <> show n) Nothing
-
-freshTVar :: RSE Env Inference A.Type
-freshTVar = A.TVar <$> freshTyVar <*> pure Nothing
-
 -- assuming forall ONLY exists on the outside
-instantiate :: A.Scheme -> RSE Env Inference A.Type
+instantiate :: A.Scheme -> TIMonad A.Type
 instantiate (A.Forall tvs ty) = do
   mappings <-
     mapM
@@ -140,14 +119,14 @@ instantiate (A.Forall tvs ty) = do
   let subst = Map.fromList mappings
   return $ applySubst subst ty
 
-generalize :: A.Type -> RSE Env Inference A.Scheme
+generalize :: A.Type -> TIMonad A.Scheme
 generalize ty = do
   env <- ask
   let fVars = freeVars ty `Set.difference` freeVars env
   return $ A.Forall (Set.toAscList fVars) ty
 
 -- the operation `_ : _ ↓ _`
-typeCheck :: A.Expr -> A.Type -> RSE Env Inference (Subst, T.Expr)
+typeCheck :: A.Expr -> A.Type -> TIMonad (Subst, T.Expr)
 typeCheck expr ty = do
   (s1, exprTy, typedExpr) <- infer expr
   s2 <- lift $ unify exprTy ty (maybeRangeOf expr)
@@ -188,7 +167,7 @@ unifyVar name ty range
 
 -- * -> *
 
-typeToKind :: A.Type -> RSE Env Inference A.Type
+typeToKind :: A.Type -> TIMonad A.Type
 typeToKind A.TBase {} = return A.TType
 typeToKind A.TArray {} = return $ A.TType `typeToType` A.TType
 typeToKind A.TTuple {} = undefined
@@ -229,7 +208,7 @@ typeToKind (A.TApp t1 t2 _) = do
 -- (* -> * -> *) (* -> *)
 
 -- we keep `T.Expr` to prevent repeating calculate the same expression
-infer :: A.Expr -> RSE Env Inference (Subst, A.Type, T.Expr)
+infer :: A.Expr -> TIMonad (Subst, A.Type, T.Expr)
 infer (A.Lit lit range) = inferLit lit range
 infer (A.Var name range) = inferVar name range
 infer (A.Const name range) = inferVar name range
@@ -251,12 +230,12 @@ infer (A.ArrIdx arr index range) = inferArrIdx arr index range
 infer (A.ArrUpd arr index expr range) = inferArrUpd arr index expr range
 infer (A.Case expr clauses range) = inferCase expr clauses range
 
-inferLit :: A.Lit -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferLit :: A.Lit -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLit lit range =
   let ty = A.TBase (A.baseTypeOfLit lit) range
    in return (mempty, ty, T.Lit lit ty range)
 
-inferVar :: Name -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferVar :: Name -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferVar name range = do
   env <- ask
   case Map.lookup name env of
@@ -268,7 +247,7 @@ inferVar name range = do
 
 -- NOTE: the inferred type of `Chain` should always be `typeBool`
 -- because it is a shorthand for chaining comparision operators with `&&`
-inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type, T.Chain)
+inferChain :: A.Chain -> TIMonad (Subst, A.Type, T.Chain)
 inferChain (A.More chain@A.More {} op2 e2 l2) = do
   -- XXX: this also looks similar to `inferApp`
 
@@ -301,7 +280,7 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   return (resultSubst, ty2, typedChain)
 inferChain _ = error "this cannot happen"
 
-inferApp :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferApp :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferApp e1 e2 range = do
   ftv <- freshTVar
   (s1, ty1, typedE1) <- infer e1
@@ -312,7 +291,7 @@ inferApp e1 e2 range = do
 
   return (resultSubst, applySubst s3 ftv, T.App typedE1 typedE2 range)
 
-inferLam :: Name -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferLam :: Name -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLam param body range = do
   paramTy <- freshTVar
   (bodySubst, bodyTy, typedBody) <- local (Map.insert param (A.Forall [] paramTy)) (infer body)
@@ -322,7 +301,7 @@ inferLam param body range = do
 
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody range)
 
-inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferQuant op@(A.Op (Hash _)) bound cond expr range = do
   -- speical case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
@@ -373,7 +352,7 @@ inferQuant op bound cond expr range = do
         return (resultSubst, applySubst resultSubst ftv, typedQuant)
     )
 
-inferArrIdx :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferArrIdx :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferArrIdx arr index range = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
@@ -388,7 +367,7 @@ inferArrIdx arr index range = do
   return (resultSubst, applySubst si ftv, T.ArrIdx typedArr typedIndex range)
 
 -- TODO: verify this is correct
-inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferArrUpd arr index expr range = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
@@ -405,7 +384,7 @@ inferArrUpd arr index expr range = do
   let resultSubst = se <> si <> sa
   return (resultSubst, A.TArray interval (applySubst si ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
 
-inferCase :: A.Expr -> [A.CaseClause] -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferCase :: A.Expr -> [A.CaseClause] -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferCase expr clauses range = do
   (exprSubst, exprTy, typedExpr) <- infer expr
 
@@ -445,7 +424,7 @@ checkDuplicateBinders pat = do
         binders
         ps
 
-inferClause :: A.Pattern -> A.Expr -> A.Type -> RSE Env Inference (Subst, A.Type, T.CaseClause)
+inferClause :: A.Pattern -> A.Expr -> A.Type -> TIMonad (Subst, A.Type, T.CaseClause)
 inferClause pattern expr ty = do
   lift $ checkDuplicateBinders pattern
 
@@ -456,7 +435,7 @@ inferClause pattern expr ty = do
   let resultSubst = exprSubst <> patSubst
   return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
 
-bindPattern :: A.Pattern -> A.Type -> RSE Env Inference (Subst, Env)
+bindPattern :: A.Pattern -> A.Type -> TIMonad (Subst, Env)
 bindPattern (A.PattLit lit) ty = do
   sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (maybeRangeOf lit)) ty (maybeRangeOf ty)
   return (sub, mempty)
@@ -496,7 +475,7 @@ bindPattern (A.PattConstructor ctorName pats) ty = do
     toList (A.TApp (A.TApp (A.TOp (Arrow Nothing)) t1 Nothing) t2 Nothing) = t1 NE.<| toList t2
     toList ty' = ty' NE.:| []
 
-getArithOpType :: ArithOp -> RSE Env Inference A.Type
+getArithOpType :: ArithOp -> TIMonad A.Type
 getArithOpType Implies {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getArithOpType ImpliesU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getArithOpType Conj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
@@ -519,7 +498,7 @@ getArithOpType PointsTo {} = return (typeInt `typeToType` typeInt `typeToType` t
 getArithOpType SConj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getArithOpType SImp {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 
-getChainOpType :: ChainOp -> RSE Env Inference A.Type
+getChainOpType :: ChainOp -> TIMonad A.Type
 getChainOpType EQProp {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getChainOpType EQPropU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
 getChainOpType EQ {} = do
@@ -538,7 +517,7 @@ getChainOpType GT {} = return (typeInt `typeToType` typeInt `typeToType` typeBoo
 getChainOpType GTE {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
 getChainOpType GTEU {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
 
-inferTypeOp :: TypeOp -> RSE Env Inference (Subst, A.Type, Op)
+inferTypeOp :: TypeOp -> TIMonad (Subst, A.Type, Op)
 inferTypeOp op = undefined
 
 infixr 1 `typeToType`

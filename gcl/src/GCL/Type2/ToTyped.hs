@@ -15,7 +15,7 @@ import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
-import GCL.Type2.RSE
+import GCL.Type2.Types
 import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
@@ -36,7 +36,7 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
 type DefnMap = Map A.Definition A.Scheme
 
 -- XXX: is checking duplicate definition required here?
-collectDefnToEnv :: A.Definition -> RSE Env Inference Env
+collectDefnToEnv :: A.Definition -> TIMonad Env
 collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
   let nameTy = A.TData name (maybeRangeOf name)
 
@@ -88,7 +88,7 @@ collectDefnToEnv (A.FuncDefn name body) = do
   return $ Map.singleton name (A.Forall [] ty)
 
 class ToTyped a t | a -> t where
-  toTyped :: a -> RSE Env Inference t
+  toTyped :: a -> TIMonad t
 
 instance ToTyped A.Program T.Program where
   toTyped (A.Program defns decls exprs stmts loc) = do
@@ -181,7 +181,7 @@ instance ToTyped A.Stmt T.Stmt where
   -- the rest exprs are all ints
   toTyped _stmt = trace (show _stmt) undefined
 
-toTypedAssign :: [Name] -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedAssign :: [Name] -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedAssign names exprs loc
   | length names > length exprs = throwError $ RedundantNames (drop (length exprs) names)
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
@@ -202,7 +202,7 @@ toTypedAssign names exprs loc
           assignments
       return $ T.Assign names typedExprs loc
 
-toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedAAssign arr index expr loc = do
   ftv <- freshTVar
   (sa, typedArr) <- typeCheck arr (typeInt `typeToType` ftv)
@@ -219,13 +219,13 @@ toTypedAAssign arr index expr loc = do
 
   return resultStmt
 
-toTypedAssert :: A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedAssert :: A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedAssert expr loc = do
   (s1, exprTy, typedExpr) <- infer expr
   s2 <- lift $ unify exprTy typeBool (maybeRangeOf expr)
   return (T.Assert (applySubstExpr (s2 <> s1) typedExpr) loc)
 
-toTypedLoopInvariant :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedLoopInvariant :: A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedLoopInvariant e1 e2 loc = do
   (e1Subst, typedE1) <- typeCheck e1 typeBool
   (e2Subst, typedE2) <- local (applySubstEnv e1Subst) (typeCheck e2 typeInt)
@@ -238,12 +238,12 @@ toTypedLoopInvariant e1 e2 loc = do
 
   return resultStmt
 
-toTypedDo :: [A.GdCmd] -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedDo :: [A.GdCmd] -> Maybe Range -> TIMonad T.Stmt
 toTypedDo gds loc = do
   typedGds <- mapM toTyped gds
   return (T.Do typedGds loc)
 
-toTypedIf :: [A.GdCmd] -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedIf :: [A.GdCmd] -> Maybe Range -> TIMonad T.Stmt
 toTypedIf gds loc = do
   typedGds <- mapM toTyped gds
   return (T.If typedGds loc)
@@ -270,4 +270,4 @@ instance ToTyped A.Expr T.Expr where
     return typed'
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t
-runToTyped a env = evalRSE (toTyped a) env (Inference 0)
+runToTyped a env = evalTI (toTyped a) env 0
