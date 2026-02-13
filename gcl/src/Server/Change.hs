@@ -6,7 +6,7 @@ module Server.Change
     mkLSPMove,
     mkLSPMoves,
     applyLSPMove,
-    applyLSPMovesToTokens,
+    applyLSPMovesToToken,
   )
 where
 
@@ -89,8 +89,3 @@ applyLSPMovesToToken moves (LSP.SemanticTokenAbsolute tLine tChar tLen tType tMo
   let tokenRange = LSP.Range (LSP.Position tLine tChar) (LSP.Position tLine (tChar + tLen))
   LSP.Range (LSP.Position nL nC) _ <- foldM applyLSPMove tokenRange moves
   Just (LSP.SemanticTokenAbsolute nL nC tLen tType tMods)
-
--- | Apply a list of LSPMoves to a list of SemanticTokenAbsolutes.
---   Invalidated tokens are dropped.
-applyLSPMovesToTokens :: [LSPMove] -> [LSP.SemanticTokenAbsolute] -> [LSP.SemanticTokenAbsolute]
-applyLSPMovesToTokens moves = mapMaybe (applyLSPMovesToToken moves)

@@ -14,7 +14,8 @@ tests =
     "Change"
     [ mkLSPMoveTests,
       mkLSPMovesTests,
-      applyLSPMoveTests
+      applyLSPMoveTests,
+      applyLSPMovesToTokenTests
     ]
 
 -- | Helper: build an LSPMove from 0-based Int coordinates.
@@ -167,4 +168,67 @@ overlapTests =
       testCase "multi-line overlap" $ do
         let m = mv 2 5 4 3 "x"
         applyLSPMove (rng 3 0 5 0) m @?= Nothing
+    ]
+
+--------------------------------------------------------------------------------
+-- applyLSPMovesToToken
+--------------------------------------------------------------------------------
+
+-- | Helper: build a SemanticTokenAbsolute.
+tok :: Int -> Int -> Int -> LSP.SemanticTokenAbsolute
+tok l c len =
+  LSP.SemanticTokenAbsolute
+    (fromIntegral l)
+    (fromIntegral c)
+    (fromIntegral len)
+    LSP.SemanticTokenTypes_Variable
+    []
+
+-- | Helper: check token position and length.
+tokAt :: LSP.SemanticTokenAbsolute -> (Int, Int, Int)
+tokAt (LSP.SemanticTokenAbsolute l c len _ _) = (fromIntegral l, fromIntegral c, fromIntegral len)
+
+applyLSPMovesToTokenTests :: TestTree
+applyLSPMovesToTokenTests =
+  testGroup
+    "applyLSPMovesToToken"
+    [ testCase "no moves" $ do
+        fmap tokAt (applyLSPMovesToToken [] (tok 3 5 4)) @?= Just (3, 5, 4),
+      testCase "two sequential shifts accumulate" $ do
+        -- first: insert "ab" at (3,0), dC=2
+        -- second: insert "c" at (3,0), dC=1
+        -- token at (3,5) -> (3,7) -> (3,8)
+        let moves = [mv 3 0 3 0 "ab", mv 3 0 3 0 "c"]
+        fmap tokAt (applyLSPMovesToToken moves (tok 3 5 4)) @?= Just (3, 8, 4),
+      testCase "first move shifts, second sees new position" $ do
+        -- first: insert "\n" at (3,0), shifts token from line 3 to line 4
+        -- second: change on line 3 — token is now on line 4, no overlap
+        let moves = [mv 3 0 3 0 "\n", mv 3 0 3 5 "x"]
+        fmap tokAt (applyLSPMovesToToken moves (tok 3 5 4)) @?= Just (4, 5, 4),
+      testCase "second move invalidates after first shifts" $ do
+        -- first: insert "aaa" at (3,0), shifts token (3,5) -> (3,8)
+        -- second: change (3,7)..(3,10) overlaps with token at (3,8..12)
+        let moves = [mv 3 0 3 0 "aaa", mv 3 7 3 10 "x"]
+        applyLSPMovesToToken moves (tok 3 5 4) @?= Nothing,
+      testCase "invalidated at first move, short-circuits" $ do
+        -- first move overlaps token, second is irrelevant
+        let moves = [mv 3 4 3 8 "x", mv 0 0 0 0 "y"]
+        applyLSPMovesToToken moves (tok 3 5 4) @?= Nothing,
+      testCase "order matters: both survive but result depends on sequence" $ do
+        -- token at (3,10) len 4 -> range (3,10)..(3,14)
+        -- move A: delete (3,0)..(3,3), dL=0 dC=-3  (shrink before token)
+        -- move B: insert "\n" at (3,5)..(3,5), dL=1 dC=-5  (newline before token)
+        --
+        -- correct (A then B):
+        --   A: token (3,10)..(3,14) -> (3,7)..(3,11)
+        --   B: change at (3,5), token start (3,7) >= (3,5), same line as eL=3
+        --      dL=1 dC=-5: (3+1, 7-5) = (4,2) -> token (4,2)..(4,6)
+        --
+        -- wrong (B then A):
+        --   B: change at (3,5), token start (3,10) >= (3,5)
+        --      dL=1 dC=-5: (4,5) -> token (4,5)..(4,9)
+        --   A: change (3,0)..(3,3), token on line 4, different from eL=3
+        --      dL=0: (4,5)..(4,9) unchanged
+        let moves = [mv 3 0 3 3 "", mv 3 5 3 5 "\n"]
+        fmap tokAt (applyLSPMovesToToken moves (tok 3 10 4)) @?= Just (4, 2, 4)
     ]
