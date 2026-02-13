@@ -3,7 +3,7 @@
 module Test.Change where
 
 import qualified Data.Text as T
-import Language.LSP.Protocol.Types (Position (Position))
+import qualified Language.LSP.Protocol.Types as LSP
 import Server.Change
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -13,6 +13,7 @@ tests =
   testGroup
     "Change"
     [ mkLSPMoveTests,
+      mkLSPMovesTests,
       applyLSPMoveTests
     ]
 
@@ -21,11 +22,11 @@ mv :: Int -> Int -> Int -> Int -> T.Text -> LSPMove
 mv sL sC eL eC = mkLSPMove (pos sL sC) (pos eL eC)
 
 -- | Helper: build an LSP Position from 0-based Ints.
-pos :: Int -> Int -> Position
-pos l c = Position (fromIntegral l) (fromIntegral c)
+pos :: Int -> Int -> LSP.Position
+pos l c = LSP.Position (fromIntegral l) (fromIntegral c)
 
--- | Helper: apply and compare using Int coordinates.
-applyMv :: Int -> Int -> Int -> Int -> LSPMove -> Maybe (Position, Position)
+-- | Helper: apply using Int coordinates.
+applyMv :: Int -> Int -> Int -> Int -> LSPMove -> Maybe (LSP.Position, LSP.Position)
 applyMv oSL oSC oEL oEC = applyLSPMove (pos oSL oSC) (pos oEL oEC)
 
 --------------------------------------------------------------------------------
@@ -61,6 +62,33 @@ mkLSPMoveTests =
         dL m @?= -2
         dC m @?= 3 -- new end column is 5 (collapses to start), was 2
     ]
+
+--------------------------------------------------------------------------------
+-- mkLSPMoves
+--------------------------------------------------------------------------------
+
+mkLSPMovesTests :: TestTree
+mkLSPMovesTests =
+  testGroup
+    "mkLSPMoves"
+    [ testCase "keeps incremental, skips whole" $ do
+        let moves =
+              mkLSPMoves
+                [ partialChange 0 0 0 1 "x",
+                  wholeChange "entire new content",
+                  partialChange 2 0 2 5 ""
+                ]
+        length moves @?= 2
+        dC (head moves) @?= 0   -- replace 1 char with 1 char
+        dC (moves !! 1) @?= -5  -- delete 5 chars
+    ]
+  where
+    partialChange sL sC eL eC text =
+      LSP.TextDocumentContentChangeEvent
+        (LSP.InL (LSP.TextDocumentContentChangePartial (LSP.Range (pos sL sC) (pos eL eC)) Nothing text))
+    wholeChange text =
+      LSP.TextDocumentContentChangeEvent
+        (LSP.InR (LSP.TextDocumentContentChangeWholeDocument text))
 
 --------------------------------------------------------------------------------
 -- applyLSPMove

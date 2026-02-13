@@ -4,34 +4,34 @@
 module Server.Change
   ( LSPMove (..),
     mkLSPMove,
+    mkLSPMoves,
     applyLSPMove,
   )
 where
 
+import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import qualified Hack
-import Language.LSP.Protocol.Types
-  ( Position (Position),
-  )
+import qualified Language.LSP.Protocol.Types as LSP
 
 -- | Pre-computed info for moving existing LSP Ranges after an edit.
 --   Contains only positional displacement, not the replacement text.
 --
---   start, end = changed range (before edit, 0-based LSP Position)
+--   start, end = changed range (before edit, 0-based LSP.Position)
 --   dL = new lines introduced minus old lines removed
 --   dC = column shift for positions on the same line as the change end
 data LSPMove = LSPMove
-  { start :: !Position,
-    end :: !Position,
+  { start :: !LSP.Position,
+    end :: !LSP.Position,
     dL :: !Int,
     dC :: !Int
   }
   deriving (Eq, Show)
 
--- | Build an LSPMove from two LSP Positions (0-based) and replacement text.
+-- | Build an LSPMove from two LSP.Positions (0-based) and replacement text.
 --   The text is only used to compute the delta; it is not stored.
-mkLSPMove :: Position -> Position -> T.Text -> LSPMove
-mkLSPMove s@(Position sl sc) e@(Position el ec) text =
+mkLSPMove :: LSP.Position -> LSP.Position -> T.Text -> LSPMove
+mkLSPMove s@(LSP.Position sl sc) e@(LSP.Position el ec) text =
   let !sC_ = fromIntegral sc
       !eC_ = fromIntegral ec
       !linesOld = fromIntegral el - fromIntegral sl :: Int
@@ -48,12 +48,21 @@ mkLSPMove s@(Position sl sc) e@(Position el ec) text =
           dC = cDiff
         }
 
--- | Apply an LSPMove to an LSP Range (two Positions, end-exclusive).
+-- | Convert a list of TextDocumentContentChangeEvents to LSPMoves.
+--   Skips non-incremental (whole-document) changes.
+mkLSPMoves :: [LSP.TextDocumentContentChangeEvent] -> [LSPMove]
+mkLSPMoves = mapMaybe go
+  where
+    go (LSP.TextDocumentContentChangeEvent (LSP.InL (LSP.TextDocumentContentChangePartial (LSP.Range s e) _ text))) =
+      Just (mkLSPMove s e text)
+    go _ = Nothing
+
+-- | Apply an LSPMove to two LSP.Positions (end-exclusive range).
 --
 --   Before change: unchanged.
 --   After  change: shifted by (dL, dC).
 --   Overlapping:   invalidated (Nothing).
-applyLSPMove :: Position -> Position -> LSPMove -> Maybe (Position, Position)
+applyLSPMove :: LSP.Position -> LSP.Position -> LSPMove -> Maybe (LSP.Position, LSP.Position)
 applyLSPMove oS oE (LSPMove s e dL dC)
   -- range ends before change starts: unchanged
   | oE <= s = Just (oS, oE)
@@ -65,8 +74,8 @@ applyLSPMove oS oE (LSPMove s e dL dC)
   -- overlap: invalidated
   | otherwise = Nothing
   where
-    Position eL _ = e
-    shiftPos (Position l c) =
+    LSP.Position eL _ = e
+    shiftPos (LSP.Position l c) =
       let !nL = fromIntegral l + dL
           !nC = if l == eL then fromIntegral c + dC else fromIntegral c
-       in Position (Hack.intToUInt nL) (Hack.intToUInt nC)
+       in LSP.Position (Hack.intToUInt nL) (Hack.intToUInt nC)
