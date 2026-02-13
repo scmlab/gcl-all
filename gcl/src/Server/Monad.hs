@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text as Text
-import GCL.Predicate (PO, Spec (Specification, specID))
+import GCL.Predicate (Hole, PO, Spec (Specification, specID))
 import GCL.Range (Range, posCol, rangeStart)
 import GCL.WP.Types (StructWarning)
 import GHC.TypeLits (KnownSymbol)
@@ -41,9 +41,6 @@ import Server.GoToDefn (OriginTargetRanges)
 import Server.IntervalMap (IntervalMap)
 import Server.PositionMapping (PositionDelta)
 import qualified Server.SrcLoc as SrcLoc
-import qualified Syntax.Abstract as Abstract
-import qualified Syntax.Concrete as Concrete
-import qualified Syntax.Typed as Typed
 
 -- | State shared by all clients and requests
 data GlobalState = GlobalState
@@ -61,6 +58,7 @@ data FileState = FileState
   -- main states for Reload and Refine
   { refinedVersion :: LSP.Int32, -- the version number of the last refine
     specifications :: [Versioned Spec], -- editedVersion or (editedVersion + 1)
+    holes :: [Versioned Hole],
     proofObligations :: [Versioned PO], -- editedVersion
     warnings :: [Versioned StructWarning],
     didChangeShouldReload :: Int, -- trigger a reload after the server sends an edit
@@ -284,6 +282,11 @@ sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomM
 
 -- send diagnostics
 -- NOTE: existing diagnostics would be erased if `diagnostics` is empty
+data HoleKind
+  = StmtHole
+  | ExprHole
+  deriving (Eq, Show)
+
 sendDiagnostics :: FilePath -> [LSP.Diagnostic] -> ServerM ()
 sendDiagnostics filePath diagnostics = do
   maybeFileState <- loadFileState filePath
@@ -294,12 +297,17 @@ sendDiagnostics filePath diagnostics = do
     maybeVersion
     (LSP.partitionBySource diagnostics)
 
-digHoles :: FilePath -> [Range] -> ServerM () -> ServerM ()
+digHoles :: FilePath -> [(HoleKind, Range)] -> ServerM () -> ServerM ()
 digHoles filePath ranges onFinish = do
   logTextLn $ "    < DigHoles " <> Text.pack (Prelude.show ranges)
-  let indent range = Text.replicate (posCol (rangeStart range) - 1) " "
-  let diggedText range = "[!\n" <> indent range <> "\n" <> indent range <> "!]"
-  editTexts filePath (Prelude.map (\range -> (range, diggedText range)) ranges) onFinish
+  let
+  editTexts filePath (Prelude.map (\(kind, range) -> (range, diggedText kind range)) ranges) onFinish
+  where
+    indent range = Text.replicate (posCol (rangeStart range) - 1) " "
+
+    diggedText :: HoleKind -> Range -> Text
+    diggedText StmtHole range = "[!\n" <> indent range <> "\n" <> indent range <> "!]"
+    diggedText ExprHole _ = "{! !}"
 
 sendDebugMessage :: Text -> ServerM ()
 sendDebugMessage message' = do

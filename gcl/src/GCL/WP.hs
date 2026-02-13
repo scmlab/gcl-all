@@ -3,7 +3,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module GCL.WP (WP, TM, sweep, structStmts, runWP) where
+module GCL.WP (WP, TM, sweep, structStmts, runWP, collectStmtHoles) where
 
 import Control.Monad.Except
   ( MonadError (throwError),
@@ -15,7 +15,8 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Text (Text)
 import GCL.Predicate
-  ( InfMode (..),
+  ( Hole (Hole),
+    InfMode (..),
     PO (..),
     Pred,
     Spec (..),
@@ -44,12 +45,14 @@ runWP p decls counter = runExcept $ runRWST p decls counter
 
 sweep ::
   Program ->
-  Either StructError ([PO], [Spec], [StructWarning], IntMap (Int, Expr), Int)
+  Either StructError ([PO], [Spec], [Hole], [StructWarning], IntMap (Int, Expr), Int)
 sweep program@(Program _ decs _props stmts _) = do
   let decls = programToScopeForSubstitution program
   let dnames = [map nameToText $ declaredNames decs]
   (_, counter, (pos, specs, warnings, redexes)) <-
     runWP (structProgram stmts) (decls, dnames) 0
+  -- collect holes from expressions
+  let holes = collectProgramHoles program
   -- update Proof Obligations with corresponding Proof Anchors
   let proofAnchors =
         stmts >>= \case
@@ -63,7 +66,7 @@ sweep program@(Program _ decs _props stmts _) = do
 
   let pos' = map updatePO pos
 
-  return (pos', specs, warnings, redexes, counter)
+  return (pos', specs, holes, warnings, redexes, counter)
 
 --------------------------------------------------------------------------------
 
@@ -124,3 +127,74 @@ structStmts = this
         )
     (wpSegs, wpSStmts, wp) = wpFunctions structSegs
     spSStmts = spFunctions (structSegs, struct)
+
+collectProgramHoles :: Program -> [Hole]
+collectProgramHoles (Program defs decls exprs stmts _) =
+  concatMap collectDefHoles defs
+    <> concatMap collectDeclHoles decls
+    <> concatMap collectExprHoles exprs
+    <> concatMap collectStmtHoles stmts
+  where
+    collectDefHoles :: Definition -> [Hole]
+    collectDefHoles (FuncDefnSig _ _ (Just expr) _) = collectExprHoles expr
+    collectDefHoles (FuncDefn _ expr) = collectExprHoles expr
+    collectDefHoles _ = []
+
+    collectDeclHoles :: Declaration -> [Hole]
+    collectDeclHoles (ConstDecl _ _ (Just expr) _) = collectExprHoles expr
+    collectDeclHoles (VarDecl _ _ (Just expr) _) = collectExprHoles expr
+    collectDeclHoles _ = []
+
+collectStmtHoles :: Stmt -> [Hole]
+collectStmtHoles (Assign _ exprs _) = concatMap collectExprHoles exprs
+collectStmtHoles (AAssign a b c _) =
+  collectExprHoles a
+    <> collectExprHoles b
+    <> collectExprHoles c
+collectStmtHoles (If guards _) = concatMap collectGdCmdHoles guards
+collectStmtHoles (Do guards _) = concatMap collectGdCmdHoles guards
+collectStmtHoles (Block program _) = collectProgramHoles program
+collectStmtHoles (Alloc _ exprs _) = concatMap collectExprHoles exprs
+collectStmtHoles (HLookup _ expr _) = collectExprHoles expr
+collectStmtHoles (HMutate _ expr _) = collectExprHoles expr
+collectStmtHoles (Dispose expr _) = collectExprHoles expr
+collectStmtHoles _ = []
+
+collectGdCmdHoles :: GdCmd -> [Hole]
+collectGdCmdHoles (GdCmd guard body _) =
+  collectExprHoles guard
+    <> concatMap collectStmtHoles body
+
+collectExprHoles :: Expr -> [Hole]
+collectExprHoles (Chain ch) = collectChainHoles ch
+  where
+    collectChainHoles :: Chain -> [Hole]
+    collectChainHoles (Pure a) =
+      collectExprHoles a
+    collectChainHoles (More c _ _ a) =
+      collectChainHoles c
+        <> collectExprHoles a
+collectExprHoles (App a b _) =
+  collectExprHoles a
+    <> collectExprHoles b
+collectExprHoles (Lam _ _ a _) =
+  collectExprHoles a
+collectExprHoles (Quant a _ b c _) =
+  collectExprHoles a
+    <> collectExprHoles b
+    <> collectExprHoles c
+collectExprHoles (ArrIdx a b _) =
+  collectExprHoles a
+    <> collectExprHoles b
+collectExprHoles (ArrUpd a b c _) =
+  collectExprHoles a
+    <> collectExprHoles b
+    <> collectExprHoles c
+collectExprHoles (Case a _ _) =
+  collectExprHoles a
+collectExprHoles (Subst a b) =
+  collectExprHoles a
+    <> concatMap (collectExprHoles . snd) b
+collectExprHoles (EHole _ i ty range) =
+  [Hole i ty range]
+collectExprHoles _ = []

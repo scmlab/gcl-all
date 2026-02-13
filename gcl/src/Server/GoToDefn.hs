@@ -230,6 +230,7 @@ instance Collect TargetRanges OriginTargetRanges Expr where
     -- TODO: provide types for tokens in patterns
     Case e _ _ -> do
       collect e
+    EHole {} -> return ()
 
 -- collect patterns
 

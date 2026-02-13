@@ -135,15 +135,15 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
       let guards = getGuards gcmds
       tellPO (conjunct (inv : map neg guards)) post (AtLoop l)
       forM_ gcmds (structGdcmdInduct inv)
-    struct _ (Proof _ _ _) _ = return ()
+    struct _ Proof {} _ = return ()
     struct (pre, _) (Block prog _) post = structBlock pre prog post
-    struct (pre, _) s@(Alloc _ _ l) post =
+    struct (pre, _) s@(Alloc _ _ l) post = do
       tellPO' (AtAbort l) pre =<< wp s post
-    struct (pre, _) s@(HLookup _ _ l) post =
+    struct (pre, _) s@(HLookup _ _ l) post = do
       tellPO' (AtAbort l) pre =<< wp s post
-    struct (pre, _) s@(HMutate _ _ l) post =
+    struct (pre, _) s@(HMutate _ _ l) post = do
       tellPO' (AtAbort l) pre =<< wp s post
-    struct (pre, _) s@(Dispose _ l) post =
+    struct (pre, _) s@(Dispose _ l) post = do
       tellPO' (AtAbort l) pre =<< wp s post
     struct _ _ _ = error "missing case in struct"
 
@@ -171,7 +171,7 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
           )
       stmts' <- subst (toSubst ys) stmts
       withScopeExtension
-        (xs ++ (map (nameToText . fst . snd) ys))
+        (xs ++ map (nameToText . fst . snd) ys)
         (structStmts Primary (pre, Nothing) stmts' post)
       where
         toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))

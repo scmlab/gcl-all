@@ -19,7 +19,7 @@ instance Free Expr where
   freeVars (Const x _ _) = Set.singleton x
   freeVars (Op _ _) = mempty
   freeVars (Chain chain) = freeVars chain
-  freeVars (Lit _ _ _) = mempty
+  freeVars Lit {} = mempty
   freeVars (App e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (Lam x _ e _) = freeVars e \\ Set.singleton x
   freeVars (Quant op xs range term _) =
@@ -31,6 +31,7 @@ instance Free Expr where
     where
       dom = map fst sb
       rng = map snd sb
+  freeVars EHole {} = mempty
 
 instance Free CaseClause where
   freeVars (CaseClause _ expr) = freeVars expr

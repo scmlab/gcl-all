@@ -3,6 +3,8 @@
 
 module Render.Syntax.Typed where
 
+import Data.Char (chr, ord)
+import qualified Data.Text as Text
 import Render.Class
 import Render.Element
 import Render.Syntax.Abstract hiding (handleExpr)
@@ -68,6 +70,25 @@ handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"
 -- SCM: need to print parenthesis around e1 when necessary.
 handleExpr _ (Case e cs _) = "case" <+> render e <+> "of" <+> renderManySepByComma cs -- TODO: Use semicolon instead of comma
+handleExpr _ (EHole t holeNumber _ _) = "{!" <+> render t <+> "!}" <> subscriptNumber holeNumber
+  where
+    -- Transform number to its subscript form by convert it to ascii value then adds to
+    -- the unicode subscript number section.
+    subscriptNumber :: Int -> Inlines
+    subscriptNumber = render . map digitToSubscript . show
+
+    digitToSubscript :: Char -> Char
+    digitToSubscript '0' = '₀'
+    digitToSubscript '1' = '₁'
+    digitToSubscript '2' = '₂'
+    digitToSubscript '3' = '₃'
+    digitToSubscript '4' = '₄'
+    digitToSubscript '5' = '₅'
+    digitToSubscript '6' = '₆'
+    digitToSubscript '7' = '₇'
+    digitToSubscript '8' = '₈'
+    digitToSubscript '9' = '₉'
+    digitToSubscript c = c
 handleExpr n (Subst e subs) =
   parensIf n Nothing $
     handleExpr AppHOLE e

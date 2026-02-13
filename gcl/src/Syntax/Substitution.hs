@@ -65,6 +65,8 @@ instance (Fresh m) => Substitutable m Expr Expr where
     cases' <- forM cases $
       \(CaseClause patt body) -> CaseClause patt <$> subst sb body
     return $ Case e cases' l
+  -- ChAoS: Is this the correct behavior for specification?
+  subst _ e@EHole {} = return e
 
 -- just a wrapper calling substBinder, when e is typeless Expr
 substBinderTypeless ::

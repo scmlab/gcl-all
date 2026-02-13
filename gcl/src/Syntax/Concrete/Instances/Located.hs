@@ -100,6 +100,8 @@ instance MaybeRanged Expr where
   maybeRangeOf (App x y) = maybeRangeOf x <---> maybeRangeOf y
   maybeRangeOf (Quant l _ _ _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (Case l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (HoleQM r) = Just r
+  maybeRangeOf (Hole l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Chain where
   maybeRangeOf (Pure expr) = maybeRangeOf expr

@@ -117,6 +117,7 @@ applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst
 applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range
 applySubstExpr subst (T.Case expr clauses range) = T.Case (applySubstExpr subst expr) (map (applySubstClause subst) clauses) range
 applySubstExpr subst (T.Subst _ _) = undefined
+applySubstExpr subst (T.EHole text range ty holeNumber) = T.EHole text range (applySubst subst ty) holeNumber
 
 applySubstChain :: Subst -> T.Chain -> T.Chain
 applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)
@@ -277,6 +278,9 @@ infer (A.RedexShell _ _) = undefined
 infer (A.ArrIdx arr index range) = inferArrIdx arr index range
 infer (A.ArrUpd arr index expr range) = inferArrUpd arr index expr range
 infer (A.Case expr clauses range) = inferCase expr clauses range
+infer (A.EHole text holeNumber range) = do
+  ty <- freshTVar
+  return (mempty, ty, T.EHole text holeNumber ty range)
 
 inferLit :: A.Lit -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
 inferLit lit range =

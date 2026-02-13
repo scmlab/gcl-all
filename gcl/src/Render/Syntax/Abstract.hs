@@ -3,10 +3,11 @@
 
 module Render.Syntax.Abstract where
 
-import Data.Foldable (toList)
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 
+import Data.Char (chr, ord)
+import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Render.Class
 import Render.Element
@@ -92,7 +93,7 @@ handleExpr n (RedexKernel name _value _freeVars mappings) =
     mappings' =
       punctuateE
         " "
-        (map render $ filter (not . Map.null) $ reverse $ toList mappings)
+        (map render $ reverse (filter (not . Map.null) (toList mappings)))
 handleExpr n (RedexShell index expr) =
   substE index (renderPrec n expr)
 handleExpr _ (ArrIdx e1 e2 _) = render e1 <> "[" <> render e2 <> "]"
@@ -101,6 +102,25 @@ handleExpr _ (ArrUpd e1 e2 e3 _) =
 -- SCM: need to print parenthesis around e1 when necessary.
 handleExpr _ (Case expr cases _) =
   "case" <+> render expr <+> "of" <+> vertE (map render cases)
+handleExpr _ (EHole text num _) = "{!" <> textE text <> "!}" <> subscriptNumber num
+  where
+    -- Transform number to its subscript form by convert it to ascii value then adds to
+    -- the unicode subscript number section.
+    subscriptNumber :: Int -> Inlines
+    subscriptNumber = render . map digitToSubscript . show
+
+    digitToSubscript :: Char -> Char
+    digitToSubscript '0' = '₀'
+    digitToSubscript '1' = '₁'
+    digitToSubscript '2' = '₂'
+    digitToSubscript '3' = '₃'
+    digitToSubscript '4' = '₄'
+    digitToSubscript '5' = '₅'
+    digitToSubscript '6' = '₆'
+    digitToSubscript '7' = '₇'
+    digitToSubscript '8' = '₈'
+    digitToSubscript '9' = '₉'
+    digitToSubscript c = c
 
 instance Render Chain where -- Hopefully this is correct.
   render (Pure expr _) = render expr

@@ -5,6 +5,7 @@ import renderError from './components/FileState/ErrorSection';
 import renderProofObligation from './components/FileState/ProofObligation';
 import renderWarning from './components/FileState/WarningSection';
 import renderSpecification from './components/FileState/Specification';
+import renderHole from './components/FileState/Hole';
 
 export class Welcome {
 	constructor() {}
@@ -65,6 +66,7 @@ function renderClientState(clientState: ClientState): string {
             <body>
 				${clientState.errors.map(renderError).join('')}
 				${clientState.warnings.map(renderWarning).join('')}
+				${clientState.holes.map(renderHole).join('')}
 				${clientState.specs.map(renderSpecification).join('')}
 				${clientState.pos.map(renderProofObligation).join('')}
             </body>
