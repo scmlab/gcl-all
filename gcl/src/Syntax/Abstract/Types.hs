@@ -141,7 +141,7 @@ instance Eq Type where
   TOp {} == _ = False
   TData name1 _ == TData name2 _ = name1 == name2
   TData {} == _ = False
-  TApp left1 right1 _ == TApp left2 right2 _ = left1 == right1 && left2 == right2 -- XXX: bug?
+  TApp left1 right1 _ == TApp left2 right2 _ = left1 == left2 && right1 == right2
   TApp {} == _ = False
   TVar name1 _ == TVar name2 _ = name1 == name2
   TVar {} == _ = False
