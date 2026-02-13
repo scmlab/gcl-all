@@ -64,7 +64,6 @@ checkDuplicateNames names =
 checkOccurs :: Name -> A.Type -> Bool
 checkOccurs name ty = Set.member name (freeTypeVars ty)
 
--- TODO: maybe `Subst` type class?
 applySubst :: Subst -> A.Type -> A.Type
 applySubst _ ty@A.TBase {} = ty
 applySubst subst (A.TArray interval ty range) =
@@ -201,11 +200,6 @@ unifyVar name ty range
       let subst = Map.singleton name ty
        in return subst
 
--- (-->) :: a -> b -> (a --> b)
---
-
--- * -> *
-
 typeToKind :: A.Type -> RSE Env Inference A.Type
 typeToKind A.TBase {} = return A.TType
 typeToKind A.TArray {} = return $ A.TType `typeToType` A.TType
@@ -217,34 +211,23 @@ typeToKind (A.TData name _) = do
   case Map.lookup name env of
     Just (Forall _ k) -> return k
     Nothing -> throwError $ NotInScope name
-typeToKind (A.TVar name _) = do
-  env <- ask
-  case Map.lookup name env of
-    -- BUG: this probably wrong
-    Just (Forall tyParams _) -> return $ foldr (\_ acc -> A.TType `typeToType` acc) A.TType tyParams -- XXX: is this correct?
-    Nothing -> throwError $ NotInScope name
-typeToKind A.TMetaVar {} = undefined
+typeToKind (A.TVar _ _) = do
+  return A.TType
+typeToKind (A.TMetaVar name range) = typeToKind (A.TVar name range) -- XXX: hack
 typeToKind A.TType = return A.TType
 typeToKind (A.TApp t1 t2 _) = do
   t1Kind <- typeToKind t1
-  -- BUG: this is wrong, didn't even check k2
+  t2Kind <- typeToKind t2
   case t1Kind of
     (A.TApp (A.TApp (A.TOp (Arrow _)) k1 _) k2 _) -> do
-      _ <- lift $ unify t2 k1 (maybeRangeOf t2)
+      _ <- lift $ unify t2Kind k1 (maybeRangeOf t2)
       return k2
-    (A.TApp A.TType _ range) -> throwError $ PatternArityMismatch 2 1 range
-    -- \* *
-    (A.TApp _ (A.TApp _ _ _) range) -> throwError $ PatternArityMismatch 1 2 range -- (* -> *) (* -> *)
+    A.TType -> do
+      -- \* *
+      throwError $ UnifyFailed A.TType t2Kind (maybeRangeOf t1)
     ty' -> do
       traceM $ show ty'
       error "unknown kind"
-
--- typeToKind (TApp f x) = do
---  (k1 -> k2) <- typeToKind f
---  typeToKind x == k1
---  return k2
-
--- (* -> * -> *) (* -> *)
 
 -- we keep `T.Expr` to prevent repeating calculate the same expression
 infer :: A.Expr -> RSE Env Inference (Subst, A.Type, T.Expr)

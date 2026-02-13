@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
+import GCL.Type2.Common (Env, Scheme (..))
 import GCL.Type2.Infer
 import GCL.Type2.RSE
 import qualified Hack
@@ -142,12 +143,23 @@ instance ToTyped A.Program T.Program where
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
 
 instance ToTyped A.Definition T.Definition where
-  toTyped (A.TypeDefn name args ctors loc) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) loc
-  toTyped (A.FuncDefnSig name ty prop loc) = undefined
+  toTyped (A.TypeDefn name args ctors range) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) range
+  toTyped (A.FuncDefnSig name ty prop range) = toTypedFuncDefnSig name ty prop range
   toTyped (A.FuncDefn name body) = T.FuncDefn name <$> toTyped body
 
 toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
 toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
+
+-- FIXME: prop is not needed, remove in the future
+toTypedFuncDefnSig :: Name -> A.Type -> Maybe A.Expr -> Maybe Range -> RSE Env Inference T.Definition
+toTypedFuncDefnSig name ty prop range = do
+  tyKind <- typeToKind ty
+
+  when
+    (tyKind /= A.TType)
+    (throwError $ UnifyFailed tyKind A.TType range)
+
+  return (T.FuncDefnSig' name tyKind range)
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do
@@ -176,7 +188,7 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.LoopInvariant e1 e2 range) = toTypedLoopInvariant e1 e2 range
   toTyped (A.Do gds range) = toTypedDo gds range
   toTyped (A.If gds range) = toTypedIf gds range
-  toTyped (A.Spec text range) = undefined -- XXX: what is this supposed to return?
+  toTyped (A.Spec text range) = T.Spec' text range <$> ask
   toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
   toTyped (A.Alloc var exprs range) = toTypedAlloc var exprs range
   toTyped (A.HLookup name expr range) = toTypedHLookup name expr range
@@ -258,8 +270,8 @@ toTypedAlloc var exprs range = do
     Just scheme -> instantiate scheme
     Nothing -> throwError $ NotInScope var
 
-  s <- lift $ unify ty typeInt range -- XXX: is this subst needed in `typedExprs`?
-  (_, typedExprs) <-
+  s <- lift $ unify ty typeInt range
+  (resultSubst, typedExprs) <-
     foldM
       ( \(s', typedExprs') expr -> do
           (exprSubst, typedExpr) <- local (applySubstEnv s') (typeCheck expr typeInt)
@@ -268,7 +280,7 @@ toTypedAlloc var exprs range = do
       (s, [])
       exprs
 
-  return (T.Alloc var typedExprs range)
+  return (T.Alloc var (map (applySubstExpr resultSubst) typedExprs) range)
 
 toTypedHLookup :: Name -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedHLookup name expr range = do
@@ -278,20 +290,20 @@ toTypedHLookup name expr range = do
     Nothing -> throwError $ NotInScope name
 
   s1 <- lift $ unify ty typeInt (maybeRangeOf name)
-  (_, typedExpr) <- local (applySubstEnv s1) (typeCheck expr typeInt)
+  (s2, typedExpr) <- local (applySubstEnv s1) (typeCheck expr typeInt)
 
-  return $ T.HLookup name typedExpr range
+  return $ T.HLookup name (applySubstExpr (s2 <> s1) typedExpr) range
 
 toTypedHMutate :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedHMutate left right range = do
   (s1, typedLeft) <- typeCheck left typeInt
-  (_, typedRight) <- local (applySubstEnv s1) (typeCheck right typeInt)
-  return $ T.HMutate typedLeft typedRight range
+  (s2, typedRight) <- local (applySubstEnv s1) (typeCheck right typeInt)
+  return $ T.HMutate (applySubstExpr (s2 <> s1) typedLeft) (applySubstExpr (s2 <> s1) typedRight) range
 
 toTypedDispose :: A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
 toTypedDispose expr range = do
-  (_, typedExpr) <- typeCheck expr typeInt
-  return $ T.Dispose typedExpr range
+  (s, typedExpr) <- typeCheck expr typeInt
+  return $ T.Dispose (applySubstExpr s typedExpr) range
 
 instance ToTyped A.GdCmd T.GdCmd where
   toTyped (A.GdCmd expr stmts range) = do
