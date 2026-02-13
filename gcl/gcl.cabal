@@ -61,6 +61,7 @@ library
       Render.Syntax.Common
       Render.Syntax.Typed
       Server
+      Server.Change
       Server.GoToDefn
       Server.Handler
       Server.Handler.AutoCompletion
@@ -180,6 +181,7 @@ test-suite gcl-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.Change
       Test.Parser
       Test.Render
       Test.SrcLoc
