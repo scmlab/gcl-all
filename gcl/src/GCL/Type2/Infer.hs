@@ -125,6 +125,29 @@ generalize ty = do
   let fVars = freeVars ty `Set.difference` freeVars env
   return $ A.Forall (Set.toAscList fVars) ty
 
+
+-- ===============================================
+
+{-
+
+Summary of Algorithmic Typing Rules
+
+ Type Checking:  Γ ⊢ e : t ↓ s
+       pattern:  Γ ⊢p p : t ↓ (s, Γ')
+
+ Type Inference: Γ ⊢ e ↑ (s, t)
+          chain: Γ ⊢ch ch ↑ (s, t)
+       clauses : Γ ⊢cl p : t -> e ↑ (s, u)
+-}
+
+
+{-
+   Γ ⊢ x ↑ (s1, t')
+   s'2 = unify (t, t')
+   -------------------- Checking
+   Γ ⊢ x : t ↓ s2 <> s1
+-}
+
 -- the operation `_ : _ ↓ _`
 typeCheck :: A.Expr -> A.Type -> TIMonad (Subst, T.Expr)
 typeCheck expr ty = do
@@ -235,6 +258,12 @@ inferLit lit range =
   let ty = A.TBase (A.baseTypeOfLit lit) range
    in return (mempty, ty, T.Lit lit ty range)
 
+{-
+   x : t ∈ Γ
+   -------------- VAR
+   Γ ⊢ x ↑ (∅, t)
+-}
+
 inferVar :: Name -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferVar name range = do
   env <- ask
@@ -244,6 +273,28 @@ inferVar name range = do
       return (mempty, ty, T.Var name ty range)
     Nothing ->
       throwError $ NotInScope name
+
+
+{-
+   Γ ⊢ch ch ↑ (s, t)
+   ------------------ Chain-Invoke
+   Γ ⊢ ch ↑ (s, Bool)
+
+   -- if it is assumed that (≼) has type a -> a -> Bool,
+   -- we wouldn't need to check t1 == t2
+
+   (≼) : t ∈ Γ
+   Γ ⊢ e1 ↑ (s1, t1)  s1 Γ ⊢ e2 ↑ (s2, t2)
+   s3 = unify (t, s2 t1 -> t2 -> Bool)
+   --------------------------------------- Chain-Base
+   Γ ⊢ch e1 ≼ e2 ↑ (s3 <> s2 <> s1, s3 t2)
+
+   (≼) : t ∈ Γ
+   Γ ⊢ch ch ↑ (s1, t1)  s1 Γ ⊢ e2 ↑ (s2, t2)
+   s3 = unify (t, s2 t1 -> t2 -> Bool)
+   ----------------------------------------- Chain-Ind
+   Γ ⊢ch ch ≼ e2 ↑ (s3 <> s2 <> s1, s3 t2)
+-}
 
 -- NOTE: the inferred type of `Chain` should always be `typeBool`
 -- because it is a shorthand for chaining comparision operators with `&&`
@@ -258,11 +309,12 @@ inferChain (A.More chain@A.More {} op2 e2 l2) = do
   (chainSubst, ty1, typedChain) <- inferChain chain
 
   (s2, ty2, typedE2) <- local (applySubstEnv chainSubst) (infer e2)
-
+                      --- SCM:  ty1 -> s2 ty1 ?
   s3 <- lift $ unify opTy (ty1 `typeToType` ty2 `typeToType` typeBool) l2
   let resultSubst = s3 <> s2 <> chainSubst
   let typedChain' = T.More typedChain (ChainOp op2) (applySubst s3 opTy) typedE2
 
+                   --- SCM: ty2 -> s3 ty2?
   return (resultSubst, ty2, typedChain')
 inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   opTy <- getChainOpType op
@@ -270,6 +322,7 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   (s2, ty2, typedE2) <- local (applySubstEnv s1) (infer e2)
 
   -- i think we should check if `ty1` == `ty2` == `opTy`?
+  --                  SCM:  ty1 -> s2 ty1 ?
   s3 <- lift $ unify opTy (ty1 `typeToType` ty2 `typeToType` typeBool) l2
   let resultSubst = s3 <> s2 <> s1
   let typedChain = T.More (T.Pure typedE1) (ChainOp op) (applySubst s3 opTy) typedE2
@@ -278,7 +331,17 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   -- it's not actually important what this returns
   -- but i still think this is a bit hacky
   return (resultSubst, ty2, typedChain)
+   --- SCM: Should "ty2" be "subst s3 ty2"?
 inferChain _ = error "this cannot happen"
+
+{-
+   Γ ⊢ e1 ↑ (s1, t1)
+   s1 Γ ⊢ e2 ↑ (s2, t2)
+   fresh ft
+   s3 = unify (s2 t1, t2 -> ft)
+   ----------------------------------- App
+   Γ ⊢ e1 e2 ↑ (s3 <> s2 <> s1, s3 ft)
+-}
 
 inferApp :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferApp e1 e2 range = do
@@ -291,6 +354,13 @@ inferApp e1 e2 range = do
 
   return (resultSubst, applySubst s3 ftv, T.App typedE1 typedE2 range)
 
+{-
+   fresh tx
+   Γ, x : tx ⊢ e ↑ (s, tb)
+   -------------------------------- Lam
+   Γ ⊢ (λ x -> e) ↑ (s tx -> tb, s)
+-}
+
 inferLam :: Name -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLam param body range = do
   paramTy <- freshTVar
@@ -301,9 +371,25 @@ inferLam param body range = do
 
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody range)
 
+{-
+   fresh ti
+   Γ, i : ti ⊢ R : Bool ↓ s2
+   s2 Γ, i : s2 ti ⊢ B : Bool ↓ s3
+   ---------------------------------------------------- Quant-Count
+   Γ ⊢ ⟨# i : R : B⟩ ↑ (s3 <> s2, Int)
+
+   fresh a
+   Γ ⊢ (⊕) : a -> a -> a ↓ s1
+   fresh ti
+   s1 Γ, i : ti ⊢ R : Bool ↓ s2
+   s2 (s1 Γ), i : s2 ti ⊢ B : s2 (s1 a) ↓ s3
+   ---------------------------------------------------- Quant
+   Γ ⊢ ⟨⊕ i : R : B⟩ ↑ (s3 <> s2 <> s1, s3 (s2 (s1 a)))
+-}
+
 inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferQuant op@(A.Op (Hash _)) bound cond expr range = do
-  -- speical case for `⟨ # bound : cond : expr ⟩`
+  -- special case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
 
   -- introduce new vars
@@ -321,6 +407,7 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
     ( do
         (condSubst, typedCond) <- typeCheck cond typeBool
         (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
+          -- SCM: |applySubst condSubst typeBool)| is always typeBool, right?
 
         let resultSubst = exprSubst <> condSubst
         let typedQuant = T.Quant typedOp bound typedCond typedExpr range
@@ -352,6 +439,14 @@ inferQuant op bound cond expr range = do
         return (resultSubst, applySubst resultSubst ftv, typedQuant)
     )
 
+{-
+   fresh a
+   Γ ⊢ arr : Int -> a ↓ sa
+   sa Γ ⊢ e : Int ↓ si
+   ---------------------------------- ArrIdx
+   Γ ⊢ arr[e] ↑ (si <> sa, si (sa a))
+-}
+
 inferArrIdx :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferArrIdx arr index range = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
@@ -365,6 +460,17 @@ inferArrIdx arr index range = do
 
   let resultSubst = si <> sa
   return (resultSubst, applySubst si ftv, T.ArrIdx typedArr typedIndex range)
+                   --- SCM: I think it should be (si (sa ftv))
+
+--
+{-
+   fresh a
+   Γ ⊢ arr : Int -> a ↓ sa
+   sa Γ ⊢ ei : Int ↓ si
+   si (sa Γ) ⊢ ev : si (sa a) ↓ sv
+   ------------------------------------------------------------- ArrUpd
+   Γ ⊢ (arr : ei ↦ ev) ↑ (sv <> si <> sa, Int -> sv (si (sa a)))
+-}
 
 -- TODO: verify this is correct
 inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
@@ -379,10 +485,22 @@ inferArrUpd arr index expr range = do
     s2 <- lift $ unify exprTy (typeInt `typeToType` ftv) (maybeRangeOf arr)
     return (s2 <> s1, typedExpr, interval')
   (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
-  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv))
+  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv))  -- SCM: I think you need (si (sa ftv))
 
   let resultSubst = se <> si <> sa
   return (resultSubst, A.TArray interval (applySubst si ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
+        -- SCM: I think you need (se (si (sa ftv)))
+
+{-
+  Γ ⊢ e ↑ (s0, t0)
+  s0 Γ      ⊢cl p1 : t0 -> e1 ↑ (s1, t1)
+  s1 (s0 Γ) ⊢cl p2 : t0 -> e2 ↑ (s2, t2)
+  s = unify (t1, t2)
+  ---------------------------------------- Case
+  Γ ⊢ case e of
+        p1 -> e1   ↑ (s<>s2<>s1<>s0, s t2)
+        p2 -> e2
+-}
 
 inferCase :: A.Expr -> [A.CaseClause] -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferCase expr clauses range = do
@@ -423,6 +541,13 @@ checkDuplicateBinders pat = do
         )
         binders
         ps
+
+{-
+  Γ ⊢p p : t ↓ (sp, Γ')
+  sp Γ, Γ' ⊢ e ↑ (se, te)
+  --------------------------------- Case-Clause
+  Γ ⊢cl p : t -> e ↑ (se <> sp, te)
+-}
 
 inferClause :: A.Pattern -> A.Expr -> A.Type -> TIMonad (Subst, A.Type, T.CaseClause)
 inferClause pattern expr ty = do
