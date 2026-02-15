@@ -156,7 +156,6 @@ instance Free Expr where
   freeVars (Chain chain) = freeVars chain
   freeVars (Lit _ _) = mempty
   freeVars (App e1 e2 _) = freeVars e1 <> freeVars e2
-  freeVars (Func _ clauses _) = Set.unions (fmap freeVars clauses)
   freeVars (Lam x e _) = freeVars e \\ Set.singleton x
   freeVars (Tuple xs) = Set.unions (map freeVars xs)
   freeVars (Quant op xs range term _) =

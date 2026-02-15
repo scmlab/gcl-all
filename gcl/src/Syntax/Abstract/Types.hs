@@ -153,7 +153,6 @@ data Expr
   | Chain Chain
   | App Expr Expr (Maybe Range)
   | Lam Name Expr (Maybe Range)
-  | Func Name (NonEmpty FuncClause) (Maybe Range)
   | -- Tuple has no srcloc info because it has no conrete syntax at the moment
     Tuple [Expr]
   | Quant Expr [Name] Expr Expr (Maybe Range)

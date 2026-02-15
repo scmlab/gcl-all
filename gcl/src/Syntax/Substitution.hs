@@ -49,8 +49,6 @@ instance (Fresh m) => Substitutable m Expr Expr where
     | otherwise = do
         (xs', e', _) <- substBinderTypeless sb [x] e
         return (Lam (head xs') e' l)
-  subst sb (Func f clauses l) =
-    Func f <$> mapM (subst sb) clauses <*> pure l
   subst sb (Tuple es) = Tuple <$> mapM (subst sb) es
   subst sb (Quant op xs ran body l) = do
     (xs', (ran', body'), _) <- substBinderTypeless sb xs (ran, body)

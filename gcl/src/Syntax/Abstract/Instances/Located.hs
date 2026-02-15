@@ -72,7 +72,6 @@ instance MaybeRanged Expr where
   maybeRangeOf (Op op) = maybeRangeOf op
   maybeRangeOf (Chain chain) = maybeRangeOf chain
   maybeRangeOf (App _ _ l) = l
-  maybeRangeOf (Func _ _ l) = l
   maybeRangeOf (Lam _ _ l) = l
   maybeRangeOf (Tuple _) = Nothing
   maybeRangeOf (Quant _ _ _ _ l) = l

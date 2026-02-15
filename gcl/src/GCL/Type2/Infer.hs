@@ -244,7 +244,6 @@ infer (A.Chain chain) = do
   return (subst, typeBool, T.Chain chain')
 infer (A.App e1 e2 range) = inferApp e1 e2 range
 infer (A.Lam param body range) = inferLam param body range
-infer (A.Func name clauses range) = undefined
 infer (A.Tuple exprs) = undefined
 infer (A.Quant op args cond expr range) = inferQuant op args cond expr range
 infer (A.RedexKernel _ _ _ _) = undefined

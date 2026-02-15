@@ -210,7 +210,6 @@ instance Collect TargetRanges OriginTargetRanges Expr where
     Chain ch -> collect ch
     App a b _ -> collect a >> collect b
     Lam _ b _ -> collect b
-    Func a b _ -> collect a >> collect b
     Tuple as -> mapM_ collect as
     Quant op args c d _ -> do
       collect op

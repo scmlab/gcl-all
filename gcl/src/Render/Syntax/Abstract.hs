@@ -62,9 +62,6 @@ handleExpr prec (Lam p q _) =
         NoContext -> id
         _ -> parensE
    in ifparens $ "λ" <+> render p <+> "→" <+> render q
-handleExpr _ (Func name _ _) =
-  -- display only a Func's name
-  render name
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
 handleExpr _ (Quant op xs r t _) =

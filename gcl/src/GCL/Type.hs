@@ -841,7 +841,6 @@ instance Elab Expr where
     (ty1, typedExpr1, sub1) <- elaborate expr newEnv
     let returnTy = subst sub1 tv ~-> fromJust ty1
     return (Just returnTy, subst sub1 (T.Lam bound (subst sub1 tv) typedExpr1 loc), sub1)
-  elaborate (Func name clauses l) env = undefined
   -- Γ ⊢ e1 ↑ (s1, t1)
   -- s1 Γ ⊢ e2 ↑ (s2, t2)
   ---- Tuple -----------------------------
