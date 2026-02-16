@@ -4,12 +4,12 @@ import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Common (occurs)
 import GCL.Range (Range)
-import GCL.Type2.Subst
 import GCL.Type (TypeError (..))
+import GCL.Type2.Subst
 import GCL.Type2.Types
 import Pretty
-import Syntax.Common.Types (Name, TypeOp (..))
 import qualified Syntax.Abstract.Types as A
+import Syntax.Common.Types (Name, TypeOp (..))
 import Prelude hiding (EQ, GT, LT)
 
 unify :: A.Type -> A.Type -> Maybe Range -> Result Subst

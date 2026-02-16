@@ -15,11 +15,11 @@ import qualified Data.Set as Set
 import Debug.Trace
 import GCL.Common (Free (..))
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
+import GCL.Type (TypeError (..))
 import GCL.Type2.Infer.BuiltIn
 import GCL.Type2.Subst
-import GCL.Type2.Unify
-import GCL.Type (TypeError (..))
 import GCL.Type2.Types
+import GCL.Type2.Unify
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), Name (Name), Op (..), TypeOp (..))
@@ -42,7 +42,6 @@ checkDuplicateNames names =
         then Right ()
         else Left $ DuplicatedIdentifiers dups
 
-
 -- assuming forall ONLY exists on the outside
 instantiate :: A.Scheme -> TIMonad A.Type
 instantiate (A.Forall tvs ty) = do
@@ -62,7 +61,6 @@ generalize ty = do
   let fVars = freeVars ty `Set.difference` freeVars env
   return $ A.Forall (Set.toAscList fVars) ty
 
-
 -- ===============================================
 
 {-
@@ -76,7 +74,6 @@ Summary of Algorithmic Typing Rules
           chain: Γ ⊢ch ch ↑ (s, t)
        clauses : Γ ⊢cl p : t -> e ↑ (s, u)
 -}
-
 
 {-
    Γ ⊢ x ↑ (s1, t')
@@ -180,7 +177,6 @@ inferVar name range = do
     Nothing ->
       throwError $ NotInScope name
 
-
 {-
    Γ ⊢ch ch ↑ (s, t)
    ------------------ Chain-Invoke
@@ -215,12 +211,12 @@ inferChain (A.More chain@A.More {} op2 e2 l2) = do
   (chainSubst, ty1, typedChain) <- inferChain chain
 
   (s2, ty2, typedE2) <- local (applySubstEnv chainSubst) (infer e2)
-                      --- SCM:  ty1 -> s2 ty1 ?
+  --- SCM:  ty1 -> s2 ty1 ?
   s3 <- lift $ unify opTy (ty1 `typeToType` ty2 `typeToType` typeBool) l2
   let resultSubst = s3 <> s2 <> chainSubst
   let typedChain' = T.More typedChain (ChainOp op2) (applySubst s3 opTy) typedE2
 
-                   --- SCM: ty2 -> s3 ty2?
+  --- SCM: ty2 -> s3 ty2?
   return (resultSubst, ty2, typedChain')
 inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   opTy <- getChainOpType op
@@ -237,7 +233,7 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   -- it's not actually important what this returns
   -- but i still think this is a bit hacky
   return (resultSubst, ty2, typedChain)
-   --- SCM: Should "ty2" be "subst s3 ty2"?
+--- SCM: Should "ty2" be "subst s3 ty2"?
 inferChain _ = error "this cannot happen"
 
 {-
@@ -313,7 +309,7 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
     ( do
         (condSubst, typedCond) <- typeCheck cond typeBool
         (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
-          -- SCM: |applySubst condSubst typeBool)| is always typeBool, right?
+        -- SCM: |applySubst condSubst typeBool)| is always typeBool, right?
 
         let resultSubst = exprSubst <> condSubst
         let typedQuant = T.Quant typedOp bound typedCond typedExpr range
@@ -366,7 +362,8 @@ inferArrIdx arr index range = do
 
   let resultSubst = si <> sa
   return (resultSubst, applySubst si ftv, T.ArrIdx typedArr typedIndex range)
-                   --- SCM: I think it should be (si (sa ftv))
+
+--- SCM: I think it should be (si (sa ftv))
 
 --
 {-
@@ -391,11 +388,11 @@ inferArrUpd arr index expr range = do
     s2 <- lift $ unify exprTy (typeInt `typeToType` ftv) (maybeRangeOf arr)
     return (s2 <> s1, typedExpr, interval')
   (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
-  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv))  -- SCM: I think you need (si (sa ftv))
-
+  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv)) -- SCM: I think you need (si (sa ftv))
   let resultSubst = se <> si <> sa
   return (resultSubst, A.TArray interval (applySubst si ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
-        -- SCM: I think you need (se (si (sa ftv)))
+
+-- SCM: I think you need (se (si (sa ftv)))
 
 {-
   Γ ⊢ e ↑ (s0, t0)

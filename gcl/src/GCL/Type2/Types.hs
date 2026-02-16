@@ -1,6 +1,6 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module GCL.Type2.Types
   ( TIMonad,
@@ -47,10 +47,10 @@ import Control.Monad.RWS
   )
 import Data.Map (Map)
 import Data.Text (pack)
-import Syntax.Common.Types (Name(Name), TypeOp(..))
-import qualified Syntax.Abstract.Types as A
-import GCL.Common (Counterous(..), Fresh(..))
+import GCL.Common (Counterous (..), Fresh (..))
 import GCL.Type (TypeError)
+import qualified Syntax.Abstract.Types as A
+import Syntax.Common.Types (Name (Name), TypeOp (..))
 
 type TyVar = Name
 
@@ -73,7 +73,6 @@ evalRSE m r s = fst <$> runRSE m r s
 execRSE :: RSE r s a -> r -> s -> Result s
 execRSE m r s = snd <$> runRSE m r s
 
-
 newtype Inference = Inference
   { _counter :: Int
   }
@@ -81,15 +80,16 @@ newtype Inference = Inference
 type TIMonad = RSE Env Inference
 
 evalTI :: TIMonad a -> Env -> Int -> Result a
-evalTI m env c  = evalRSE m env (Inference c)
+evalTI m env c = evalRSE m env (Inference c)
 
 instance Counterous TIMonad where
-  countUp = do n <- gets _counter
-               put $ Inference (n + 1)
-               return n
+  countUp = do
+    n <- gets _counter
+    put $ Inference (n + 1)
+    return n
 
 instance Fresh TIMonad where
-  freshPreS prefix = (pack . (prefix++) . show) <$> countUp
+  freshPreS prefix = (pack . (prefix ++) . show) <$> countUp
 
 freshTyVar :: TIMonad TyVar
 freshTyVar = (\t -> Name t Nothing) <$> freshPreS "t"

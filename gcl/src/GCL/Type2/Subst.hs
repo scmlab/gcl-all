@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
+
 -- SCM: This is temporary. Might switch to system-wise Syntax.Substitution.
 module GCL.Type2.Subst where
 
@@ -9,7 +10,6 @@ import Pretty
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)
-
 
 composeSubst :: Subst -> Subst -> Subst
 s1 `composeSubst` s2 = Map.map (applySubst s1) s2 `Map.union` s1

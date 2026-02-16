@@ -16,8 +16,8 @@ import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
 import GCL.Type2.Subst
-import GCL.Type2.Unify
 import GCL.Type2.Types
+import GCL.Type2.Unify
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)

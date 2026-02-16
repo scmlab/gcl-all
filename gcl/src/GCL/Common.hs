@@ -88,7 +88,6 @@ instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
       . show
       <$> countUp
 
-
 type FreshState = Int
 
 initFreshState :: FreshState
