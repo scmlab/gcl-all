@@ -62,9 +62,9 @@ data Definition
   = -- data T a1 a2 ... = K1 v1 v2 ... | K2 u1 u2 ...
     TypeDefn (Token "data") Name [Name] (Token "=") (SepBy "|" TypeDefnCtor)
   | -- f : A -> B { Prop }
-    FuncDefnSig DeclBase (Maybe DeclProp)
+    ValDefnSig DeclBase
   | -- f a = a
-    FuncDefn Name [Name] (Token "=") Expr
+    ValDefn Name [Pattern] (Token "=") Expr
   deriving (Eq, Show)
 
 data TypeDefnCtor = TypeDefnCtor Name [Type] deriving (Eq, Show)

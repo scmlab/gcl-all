@@ -111,8 +111,8 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
     -- Check if there are duplications of definitions.
     -- While checking signatures and function definitions, we take account of the names of (term) constructors.
     duplicationCheck $ (\(TypeDefn name _ _ _) -> name) <$> typeDefns
-    duplicationCheck $ ((\(FuncDefnSig name _ _ _) -> name) <$> funcSigs) <> gatherCtorNames typeDefns
-    duplicationCheck $ ((\(FuncDefn name _) -> name) <$> funcDefns) <> gatherCtorNames typeDefns
+    -- duplicationCheck $ ((\(FuncDefnSig name _ _ _) -> name) <$> funcSigs) <> gatherCtorNames typeDefns
+    -- duplicationCheck $ ((\(FuncDefn name _) -> name) <$> funcDefns) <> gatherCtorNames typeDefns
     -- Gather the type definitions.
     -- Type definitions are collected first because signatures and function definitions may depend on them.
     collectTypeDefns typeDefns
@@ -126,7 +126,7 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
     let defined =
           concatMap
             ( \case
-                (FuncDefn name _exprs) -> [Index name]
+                (ValDefn name _ _) -> [Index name]
                 _ -> []
             )
             defns
@@ -140,8 +140,8 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
       foldlM
         ( \(context, names, tys, sub) funcDefn -> do
             case funcDefn of
-              (FuncDefn name expr) -> do
-                (ty, _, sub1) <- elaborate expr context -- Calling `head` is safe for the meantime.
+              (ValDefn name _ expr) -> do
+                (ty, _, sub1) <- error "GCL.Type deprecated" -- elaborate expr context -- Calling `head` is safe for the meantime.
                 unifySub <- unifyType (subst sub1 $ typeInfoToType (fromJust $ lookup (Index name) context)) (fromJust ty) (maybeRangeOf name) -- the first `fromJust` should also be safe.
                 -- We see if there are signatures restricting the type of function definitions.
                 case lookup (Index name) sigEnv of
@@ -170,8 +170,7 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
         foldr
           ( \def (typeDefns, sigs, funcDefns) -> case def of
               d@TypeDefn {} -> (d : typeDefns, sigs, funcDefns)
-              d@FuncDefnSig {} -> (typeDefns, d : sigs, funcDefns)
-              d@FuncDefn {} -> (typeDefns, sigs, d : funcDefns)
+              d@ValDefn {} -> (typeDefns, sigs, d : funcDefns)
           )
           mempty
           defs
@@ -189,7 +188,7 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
       collectFuncSigs :: [Definition] -> ElaboratorM ()
       collectFuncSigs funcSigs =
         mapM_
-          ( \(FuncDefnSig n t _ _) -> do
+          ( \(ValDefn n (Just t) _) -> do
               let infos = (Index n, ConstTypeInfo t)
               modify (\(freshState, typeDefnInfos, origInfos, patInfos) -> (freshState, typeDefnInfos, infos : origInfos, patInfos))
           )
@@ -611,21 +610,23 @@ instance Elab Definition where
     where
       scopeCheck :: (MonadError TypeError m) => Set.Set Name -> Type -> m ()
       scopeCheck ns t = mapM_ (\n -> if Set.member n ns then return () else throwError $ NotInScope n) (freeVars t)
-  elaborate (FuncDefnSig name ty maybeExpr loc) env = do
-    expr' <-
-      mapM
-        ( \expr -> do
-            (_, typed, _) <- elaborate expr env
-            return typed
-        )
-        maybeExpr
-    (_, infos, _, _) <- get
-    (kind, kinded) <- toKinded infos ty
-    if kind == KStar Nothing then return () else throwError $ KindUnifyFailed kind (KStar Nothing) (maybeRangeOf kind)
-    return (Nothing, T.FuncDefnSig name kinded expr' loc, mempty)
-  elaborate (FuncDefn name expr) env = do
-    (_, typed, _) <- elaborate expr env
-    return (Nothing, T.FuncDefn name typed, mempty)
+  elaborate (ValDefn _ _ _) env = error "GCL.Type deprecated"
+  -- elaborate (ValDefnSig name (Just ty) clauses loc) env =
+  --   do
+  --   expr' <-
+  --     mapM
+  --       ( \expr -> do
+  --           (_, typed, _) <- elaborate expr env
+  --           return typed
+  --       )
+  --       maybeExpr
+  --   (_, infos, _, _) <- get
+  --   (kind, kinded) <- toKinded infos ty
+  --   if kind == KStar Nothing then return () else throwError $ KindUnifyFailed kind (KStar Nothing) (maybeRangeOf kind)
+  --   return (Nothing, T.FuncDefnSig name kinded expr' loc, mempty)
+  -- elaborate (FuncDefn name expr) env = do
+  --   (_, typed, _) <- elaborate expr env
+  --   return (Nothing, T.FuncDefn name typed, mempty)
 
 instance Elab TypeDefnCtor where
   elaborate (TypeDefnCtor name ts) _ = do

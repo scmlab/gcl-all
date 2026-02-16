@@ -41,8 +41,12 @@ data Program
 -- | Definition (the functional language part)
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | FuncDefnSig Name Type (Maybe Expr) (Maybe Range)
-  | FuncDefn Name Expr
+    -- data T a b = C1 a | C2 b
+  | ValDefn Name (Maybe Type) [FuncClause]
+    -- f :: a -> b
+    -- f p1 = e1
+    -- f p2 = e2
+
   deriving (Eq, Show)
 
 -- constructor of type definition

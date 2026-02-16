@@ -248,7 +248,7 @@ instance Pretty Inline where
   pretty (Snpt s) = pretty s
   pretty (Link _ xs _) = pretty xs
   pretty (Sbst _i xs) = pretty xs
-  pretty (Horz xs) = Pretty.hcat (map pretty $ toList xs)
+  pretty (Horz xs) = Pretty.sep (map pretty $ toList xs)
   pretty (Vert xs) = Pretty.vcat (map pretty $ toList xs)
   pretty (Parn x) = "(" <> pretty x <> ")"
   pretty (PrHz xs) = "(" <> Pretty.hcat (map pretty $ toList xs) <> ")"

@@ -63,17 +63,51 @@ instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.De
 
 -- | Definition
 instance ToAbstract DefinitionBlock [A.Definition] where
-  toAbstract (DefinitionBlock _ defns _) = concat (toAbstract defns)
+  toAbstract (DefinitionBlock _ defns _) = aggregateDefns defns
 
-instance ToAbstract Definition [A.Definition] where
-  toAbstract (TypeDefn tok name binders _ cons) =
-    [A.TypeDefn name binders (toAbstract cons) (maybeRangeOf tok <---> maybeRangeOf cons)]
-  toAbstract (FuncDefnSig decl prop) =
-    let (names, typ) = toAbstract decl
-     in map (\n -> A.FuncDefnSig n typ (toAbstract prop) (maybeRangeOf decl <---> maybe Nothing maybeRangeOf prop)) names
-  toAbstract (FuncDefn name args _ body) =
-    let body' = toAbstract body
-     in [A.FuncDefn name (wrapLam args body')]
+aggregateDefns :: [Definition] -> [A.Definition]
+aggregateDefns [] = []
+aggregateDefns (TypeDefn tok name binders _ cons : ds) =
+  A.TypeDefn name binders (toAbstract cons) (maybeRangeOf tok <---> maybeRangeOf cons) :
+  aggregateDefns ds
+aggregateDefns (ValDefnSig decl : ds) =
+   let (names, typ) = toAbstract decl
+       (ds1, ds2) = span (sameDefn names) ds
+   in aggregTypedDefn names typ ds1 ++ aggregateDefns ds2
+  where sameDefn names (ValDefn name _ _ _) = name `elem` names
+        sameDefn _ _ = False
+aggregateDefns (d@(ValDefn name args _ body) : ds) =
+   let (ds1, ds2) = span (sameDefn name) ds
+   in aggregDefn name (d:ds1) : aggregateDefns ds2
+  where sameDefn name (ValDefn name' _ _ _) = name == name'
+        sameDefn _ _ = False
+
+aggregTypedDefn :: [Name] -> A.Type -> [Definition] -> [A.Definition]
+aggregTypedDefn names ty defns =
+   map aggregTypedDefn1 names
+  where aggregTypedDefn1 name =
+          A.ValDefn name (Just ty) (map extractFnClause (filter (isThis name) defns))
+        isThis name (ValDefn name' _ _ _) = name == name'
+        isThis _    _  = error "aggregTypedDefn: shouldn't happen"
+
+aggregDefn :: Name -> [Definition] -> A.Definition
+aggregDefn name defns =
+   A.ValDefn name Nothing (map extractFnClause defns)
+
+extractFnClause :: Definition -> A.FuncClause
+extractFnClause (ValDefn _ ptns _ body) =
+  A.FuncClause (map toAbstract ptns) (toAbstract body)
+extractFnClause _ = error "extractFnClause: shouldn't happen"
+
+-- instance ToAbstract Definition [A.Definition] where
+--   toAbstract (TypeDefn tok name binders _ cons) =
+--     [A.TypeDefn name binders (toAbstract cons) (maybeRangeOf tok <---> maybeRangeOf cons)]
+--   toAbstract (ValDefnSig decl) = undefined
+--     -- let (names, typ) = toAbstract decl
+--     --  in map (\n -> A.FuncDefnSig n typ (toAbstract prop) (maybeRangeOf decl <---> maybe Nothing maybeRangeOf prop)) names
+--   toAbstract (ValDefn name args _ body) = undefined
+--     -- let body' = toAbstract body
+--     --  in [A.FuncDefn name (wrapLam args body')]
 
 instance ToAbstract TypeDefnCtor A.TypeDefnCtor where
   toAbstract (TypeDefnCtor c tys) =

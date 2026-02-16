@@ -53,25 +53,25 @@ declaredNames decls = concat . map extractNames $ decls
 -- constant/variable declaration => Nothing
 
 -- TODO:
-programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
-programToScopeForSubstitution (Program defns decls _ _ _) =
-  Map.mapKeys nameToText $
-    foldMap extractDeclaration decls
-      <> ( Map.fromList
-             . map (second Just)
-             . Maybe.mapMaybe pickFuncDefn
-         )
-        defns
-  where
-    extractDeclaration :: Declaration -> Map Name (Maybe Expr)
-    extractDeclaration (ConstDecl names _ _ _) =
-      Map.fromList (zip names (repeat Nothing))
-    extractDeclaration (VarDecl names _ _ _) =
-      Map.fromList (zip names (repeat Nothing))
-
-pickFuncDefn :: Definition -> Maybe (Name, Expr)
-pickFuncDefn (FuncDefn n expr) = Just (n, expr)
-pickFuncDefn _ = Nothing
+-- programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
+-- programToScopeForSubstitution (Program defns decls _ _ _) =
+--   Map.mapKeys nameToText $
+--     foldMap extractDeclaration decls
+--       <> ( Map.fromList
+--              . map (second Just)
+--              . Maybe.mapMaybe pickFuncDefn
+--          )
+--         defns
+--   where
+--     extractDeclaration :: Declaration -> Map Name (Maybe Expr)
+--     extractDeclaration (ConstDecl names _ _ _) =
+--       Map.fromList (zip names (repeat Nothing))
+--     extractDeclaration (VarDecl names _ _ _) =
+--       Map.fromList (zip names (repeat Nothing))
+--
+-- pickFuncDefn :: Definition -> Maybe (Name, Expr)
+-- pickFuncDefn (ValDefn n _ : expr) = Just (n, expr)
+-- pickFuncDefn _ = Nothing
 
 {-
 combineFuncDefns :: [Definition] -> [Definition]

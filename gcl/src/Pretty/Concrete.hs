@@ -178,9 +178,9 @@ instance PrettyWithRange Definition where
       <> prettyWithRange binders
       <> prettyWithRange eq
       <> prettyWithRange qdcons
-  prettyWithRange (FuncDefnSig base prop) =
-    prettyWithRange base <> maybe Empty prettyWithRange prop
-  prettyWithRange (FuncDefn n args e b) =
+  prettyWithRange (ValDefnSig base) =
+    prettyWithRange base
+  prettyWithRange (ValDefn n args e b) =
     prettyWithRange n <> prettyWithRange args <> prettyWithRange e <> prettyWithRange b
 
 --------------------------------------------------------------------------------
