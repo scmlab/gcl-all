@@ -15,11 +15,12 @@ import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
 import GCL.Type2.Infer
+import GCL.Type2.Subst
+import GCL.Type2.Unify
 import GCL.Type2.Types
-import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name (Name))
+import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
 -- TODO: check valid type

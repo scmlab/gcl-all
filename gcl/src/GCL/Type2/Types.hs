@@ -6,6 +6,7 @@ module GCL.Type2.Types
   ( TIMonad,
     Env,
     TyVar,
+    Subst,
     -- TIMonad
     evalTI,
     -- Reader
@@ -22,10 +23,14 @@ module GCL.Type2.Types
     -- Error
     Result,
     throwError,
-    -- Utils,
+    -- Utils
     lift,
     freshTyVar,
     freshTVar,
+    -- Useful Constants
+    typeToType,
+    typeInt,
+    typeBool,
   )
 where
 
@@ -42,7 +47,7 @@ import Control.Monad.RWS
   )
 import Data.Map (Map)
 import Data.Text (pack)
-import Syntax.Common.Types (Name(Name))
+import Syntax.Common.Types (Name(Name), TypeOp(..))
 import qualified Syntax.Abstract.Types as A
 import GCL.Common (Counterous(..), Fresh(..))
 import GCL.Type (TypeError)
@@ -50,6 +55,8 @@ import GCL.Type (TypeError)
 type TyVar = Name
 
 type TmVar = Name
+
+type Subst = Map TyVar A.Type
 
 type Env = Map TmVar A.Scheme
 
@@ -89,3 +96,16 @@ freshTyVar = (\t -> Name t Nothing) <$> freshPreS "t"
 
 freshTVar :: TIMonad A.Type
 freshTVar = A.TVar <$> freshTyVar <*> pure Nothing
+
+infixr 1 `typeToType`
+
+-- | construct a type of `a -> b`
+typeToType :: A.Type -> A.Type -> A.Type
+typeToType t1 t2 = A.TApp (A.TApp (A.TOp (Arrow Nothing)) t1 Nothing) t2 Nothing
+
+-- XXX: is including `Loc` relevant here?
+typeInt :: A.Type
+typeInt = A.TBase A.TInt Nothing
+
+typeBool :: A.Type
+typeBool = A.TBase A.TBool Nothing
