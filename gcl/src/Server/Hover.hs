@@ -73,7 +73,7 @@ unkind (Typed.TMetaVar name _ loc) = UnTyped.TMetaVar name loc
 instance Collect Typed.Definition where
   collect (Typed.TypeDefn _ _ ctors _) = foldMap collect ctors
   collect (Typed.FuncDefnSig name kinded prop _) = annotateType name (unkind kinded) <> collect kinded <> maybe mempty collect prop
-  collect (Typed.FuncDefnSig' name kinded _) = undefined -- TODO: implement this
+  collect (Typed.FuncDefnSig' name kinded _) = annotateType name kinded -- XXX: this is probably incomplete?
   collect (Typed.FuncDefn _name expr) = collect expr
 
 instance Collect Typed.TypeDefnCtor where
