@@ -1,5 +1,4 @@
 {-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
@@ -61,24 +60,24 @@ collectDefnToEnv (A.TypeDefn name args ctors _range) = do
           (Map.member ctorName env')
           (throwError $ DuplicatedIdentifiers [ctorName])
 
-        let vars = extractMetaVars ctorArgs
-        let diff = filter (`notElem` args) (nub vars)
+        let (tvs, ctorTy) = extractMetaVars nameTy ctorArgs
+        let diff = filter (`notElem` args) (nub tvs)
 
         case diff of
-          [] -> return $ Map.insert ctorName (Forall args (foldr (typeToType . toTVar) nameTy vars)) env'
+          [] -> return $ Map.insert ctorName (Forall args ctorTy) env'
           (x : _) -> throwError $ NotInScope x
     )
     kindEnv
     ctors
   where
-    extractMetaVars =
-      map
-        ( \case
-            (A.TMetaVar n _) -> n
-            _ -> error "impossible"
+    extractMetaVars baseTy =
+      foldr
+        ( \argType (ftvs, argTypes) ->
+            case argType of
+              (A.TMetaVar n _) -> (n : ftvs, A.TVar n (maybeRangeOf n) `typeToType` argTypes)
+              ty -> (ftvs, ty `typeToType` argTypes)
         )
-
-    toTVar v = A.TVar v (maybeRangeOf v)
+        ([], baseTy)
 collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
   env <- ask
   case Map.lookup name env of
