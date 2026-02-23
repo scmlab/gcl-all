@@ -46,21 +46,21 @@ import Prelude hiding (lookup)
 -- Uses IntMap internally for speeding up lookups
 -- with the key of IntMap acting as the starting posOrd (ordering key),
 -- and the element's Int acting as the ending posOrd
-newtype IntervalMap token = IntervalMap (IntMap (Int, token)) deriving (Eq, Monoid, Semigroup)
+newtype IntervalMap value = IntervalMap (IntMap (Int, value)) deriving (Eq, Monoid, Semigroup)
 
 instance Functor IntervalMap where
   fmap f (IntervalMap m) = IntervalMap (IntMap.map (fmap f) m)
 
 -- Instances for debugging
-instance (Pretty token) => Show (IntervalMap token) where
+instance (Pretty value) => Show (IntervalMap value) where
   show = show . pretty
 
-instance (Pretty token) => Pretty (IntervalMap token) where
+instance (Pretty value) => Pretty (IntervalMap value) where
   pretty (IntervalMap xs) =
     vcat
       $ Prelude.map
-        ( \(start, (end, token)) ->
-            "(" <> pretty start <> ", " <> pretty end <> ") => " <> pretty token
+        ( \(start, (end, value)) ->
+            "(" <> pretty start <> ", " <> pretty end <> ") => " <> pretty value
         )
       $ IntMap.toList xs
 
@@ -71,31 +71,31 @@ instance Foldable IntervalMap where
 -- Construction
 
 -- Constructs a IntervalMap with a Range and a payload
-singleton :: Range -> token -> IntervalMap token
-singleton range token =
+singleton :: Range -> value -> IntervalMap value
+singleton range value =
   IntervalMap $
     IntMap.singleton
       (posOrd (rangeStart range))
-      (posOrd (rangeEnd range), token)
+      (posOrd (rangeEnd range), value)
 
-toList :: IntervalMap token -> [((Int, Int), token)]
+toList :: IntervalMap value -> [((Int, Int), value)]
 toList (IntervalMap m) = map (\(a, (b, c)) -> ((a, b), c)) (IntMap.toList m)
 
-fromList :: [((Int, Int), token)] -> IntervalMap token
+fromList :: [((Int, Int), value)] -> IntervalMap value
 fromList = IntervalMap . IntMap.fromList . map (\((a, b), c) -> (a, (b, c)))
 
 --------------------------------------------------------------------------------
 -- Insertion
 
-insert :: Range -> token -> IntervalMap token -> IntervalMap token
-insert range token (IntervalMap m) =
+insert :: Range -> value -> IntervalMap value -> IntervalMap value
+insert range value (IntervalMap m) =
   IntervalMap $
     IntMap.insert
       (posOrd (rangeStart range))
-      (posOrd (rangeEnd range), token)
+      (posOrd (rangeEnd range), value)
       m
 
-split :: Range -> IntervalMap token -> (IntervalMap token, IntervalMap token)
+split :: Range -> IntervalMap value -> (IntervalMap value, IntervalMap value)
 split rng (IntervalMap m) =
   bimap IntervalMap IntervalMap (IntMap.split (posOrd (rangeStart rng)) m)
 
@@ -103,7 +103,7 @@ split rng (IntervalMap m) =
 -- Query
 
 -- Given a Pos, returns the paylod and its Range if the Pos is within its Range
-lookup' :: Pos -> IntervalMap token -> Maybe ((Int, Int), token)
+lookup' :: Pos -> IntervalMap value -> Maybe ((Int, Int), value)
 lookup' pos (IntervalMap m) =
   let ord = posOrd pos
    in case IntMap.lookupLE ord m of
@@ -112,7 +112,7 @@ lookup' pos (IntervalMap m) =
           if ord < end then Just ((start, end), x) else Nothing
 
 -- Given a Pos, returns the paylod if the Pos is within its Range
-lookup :: Pos -> IntervalMap token -> Maybe token
+lookup :: Pos -> IntervalMap value -> Maybe value
 lookup pos m = snd <$> lookup' pos m
 
 --------------------------------------------------------------------------------
