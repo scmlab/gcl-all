@@ -22,15 +22,14 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
--- TODO: check valid type
--- prevent
--- `con A : Int Int`
-collectDeclToEnv :: A.Declaration -> Result Env
+collectDeclToEnv :: A.Declaration -> RSE Env Inference Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
-  checkDuplicateNames names
+  lift $ checkDuplicateNames names
+  _ <- typeToKind ty
   return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
 collectDeclToEnv (A.VarDecl names ty _ _) = do
-  checkDuplicateNames names
+  lift $ checkDuplicateNames names
+  _ <- typeToKind ty
   return $ Map.fromList $ map (\name -> (name, Forall [] ty)) names
 
 type DefnMap = Map A.Definition Scheme
@@ -82,7 +81,7 @@ collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
   env <- ask
   case Map.lookup name env of
     Nothing -> return $ Map.singleton name (Forall [] ty)
-    Just _ -> undefined
+    Just _ -> throwError $ DuplicatedIdentifiers [name]
 collectDefnToEnv (A.FuncDefn name body) = do
   (_, ty, _) <- infer body
   return $ Map.singleton name (Forall [] ty)
@@ -100,7 +99,7 @@ instance ToTyped A.Program T.Program where
     declEnv <-
       foldM
         ( \env' decl -> do
-            declEnv' <- lift $ collectDeclToEnv decl
+            declEnv' <- collectDeclToEnv decl
             let dups = declEnv' `Map.intersection` env'
             unless
               (null dups)
@@ -112,10 +111,8 @@ instance ToTyped A.Program T.Program where
     defnEnv <-
       foldM
         ( \env' defn -> do
-            -- traceM $ Hack.sshow defn
             -- NOTE: definitions have to be in order
             defnEnv <- local (const env') (collectDefnToEnv defn)
-            -- traceM $ show defnEnv
             return $ defnEnv <> env'
         )
         declEnv
@@ -133,7 +130,6 @@ instance ToTyped A.Program T.Program where
     typedDecls <-
       mapM
         ( \decl -> do
-            -- traceM $ show decl
             local (const newEnv) (toTyped decl)
         )
         decls
@@ -319,10 +315,7 @@ instance ToTyped A.Expr T.Expr where
     -- so it is probably really inefficient to do so when
     -- there is likely a few tyvars needed to be substituted
     let typed' = applySubstExpr subst typed
-    -- traceM $ show (pretty typed')
-    -- traceM $ show (pretty ty)
-    -- traceM $ show subst
-    -- traceM $ "\n" <> Hack.sshow typed <> "\n"
+
     return typed'
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t
