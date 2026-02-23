@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Server.Change
   ( LSPMove (..),
@@ -10,15 +11,20 @@ module Server.Change
     GCLMove,
     fromLSPMove,
     applyGCLMove,
+    applyMovesToIntervalMap,
+    updateOriginTargetRanges,
   )
 where
 
 import Control.Monad (foldM)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
-import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posLine)
+import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posLine, posOrd, rangeEnd, rangeStart)
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as LSP
+import Server.GoToDefn (OriginTargetRanges (..))
+import Server.IntervalMap (IntervalMap)
+import qualified Server.IntervalMap as IntervalMap
 import Server.SrcLoc (fromLSPRangeWithoutCharacterOffset)
 
 -- | Pre-computed info for moving existing LSP Ranges after an edit.
@@ -119,6 +125,42 @@ applyGCLMove (Range oS oE) (GCLMove s e dL dC)
       let !nL = l + dL
           !nC = if l == eL then c + dC else c
        in mkPos nL nC
+
+-- | Apply a list of GCLMoves to the three GCL Ranges inside an OriginTargetRanges.
+--   Returns Nothing if any range is invalidated by the moves.
+updateOriginTargetRanges :: [GCLMove] -> OriginTargetRanges -> Maybe OriginTargetRanges
+updateOriginTargetRanges moves (OriginTargetRanges orig tgt tgtSel) = do
+  orig'   <- foldM applyGCLMove orig   moves
+  tgt'    <- foldM applyGCLMove tgt    moves
+  tgtSel' <- foldM applyGCLMove tgtSel moves
+  return (OriginTargetRanges orig' tgt' tgtSel')
+
+--------------------------------------------------------------------------------
+-- IntervalMap helpers
+--------------------------------------------------------------------------------
+
+-- | Reconstruct a GCL Range from two posOrd integers.
+posOrdToRange :: (Int, Int) -> Range
+posOrdToRange (s, e) =
+  mkRange
+    (mkPos (s `div` 10000000) (s `mod` 10000000))
+    (mkPos (e `div` 10000000) (e `mod` 10000000))
+
+-- | Apply a list of GCLMoves to every entry in an IntervalMap.
+--   The key range and the payload are both updated via the supplied function.
+--   Any entry whose key range or payload update returns Nothing is dropped.
+applyMovesToIntervalMap :: forall a. [GCLMove] -> ([GCLMove] -> a -> Maybe a) -> IntervalMap a -> IntervalMap a
+applyMovesToIntervalMap moves updatePayload imap =
+  IntervalMap.fromList $ mapMaybe applyEntry (IntervalMap.toList imap)
+  where
+    applyEntry :: ((Int, Int), a) -> Maybe ((Int, Int), a)
+    applyEntry (ords, value) = do
+      newRange <- foldM applyGCLMove (posOrdToRange ords) moves
+      newValue <- updatePayload moves value
+      return
+        ( (posOrd (rangeStart newRange), posOrd (rangeEnd newRange)),
+          newValue
+        )
 
 --------------------------------------------------------------------------------
 -- SemanticToken helpers
