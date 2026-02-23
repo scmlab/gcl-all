@@ -957,6 +957,9 @@ instance Elab Expr where
                         list <- zipWithM patBind subpats (subst sub outputs')
                         let (envs, subs) = unzip list
                         return (mconcat envs, mconcat (sub : subs))
+  elaborate (EHole text holeNumber range) _ = do
+    tv <- freshVar
+    return (Just tv, T.EHole text holeNumber tv range, mempty)
 
 instance Elab Chain where -- TODO: Make sure the below implementation is correct.
   elaborate (More (More ch' op1 e1 loc1) op2 e2 loc2) env = do
@@ -966,7 +969,7 @@ instance Elab Chain where -- TODO: Make sure the below implementation is correct
     opTy' <- instantiate $ fromJust opTy
     (ty1, _typedExpr1, sub1) <- elaborate e1 $ subst chainSub env
     (ty2, typedExpr2, sub2) <- elaborate e2 $ subst (chainSub <> sub1) env
-    unifyTy <- unifyType (fromJust ty1 ~-> fromJust ty2 ~-> tv) opTy' (loc2)
+    unifyTy <- unifyType (fromJust ty1 ~-> fromJust ty2 ~-> tv) opTy' loc2
     let sub = chainSub <> opSub <> sub1 <> sub2
     return (Just $ subst unifyTy tv, subst sub $ T.More typedChain opTyped (subst unifyTy opTy') typedExpr2, sub)
   elaborate (More (Pure e1 _loc1) op e2 loc2) env = do
@@ -975,7 +978,7 @@ instance Elab Chain where -- TODO: Make sure the below implementation is correct
     opTy' <- instantiate $ fromJust opTy
     (ty1, typedExpr1, sub1) <- elaborate e1 env
     (ty2, typedExpr2, sub2) <- elaborate e2 $ subst sub1 env
-    unifyTy <- unifyType (fromJust ty1 ~-> fromJust ty2 ~-> tv) opTy' (loc2)
+    unifyTy <- unifyType (fromJust ty1 ~-> fromJust ty2 ~-> tv) opTy' loc2
     let sub = unifyTy <> sub2 <> sub1 <> opSub
     return (Just $ subst unifyTy tv, subst sub $ T.More (T.Pure typedExpr1) opTyped (subst unifyTy opTy') typedExpr2, sub)
   elaborate (Pure _expr _loc) _ = error "Chain of length 1 shouldn't exist."
@@ -1138,6 +1141,8 @@ instance Substitutable (Subs Type) T.Expr where
   subst s (T.ArrUpd arr index expr loc) = T.ArrUpd (subst s arr) (subst s index) (subst s expr) loc
   subst s (T.Case expr clauses loc) = T.Case (subst s expr) (subst s <$> clauses) loc
   subst s (T.Subst expr pairs) = T.Subst (subst s expr) (subst s <$> pairs)
+  -- ChAoS: Is this the correct behavior for hole?
+  subst _ e@T.EHole {} = e
 
 instance Substitutable (Subs Type) T.CaseClause where
   subst s (T.CaseClause pat expr) = T.CaseClause pat (subst s expr)

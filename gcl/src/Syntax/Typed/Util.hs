@@ -52,6 +52,7 @@ typeOf (ArrIdx arr _ _) = case typeOf arr of
 typeOf (ArrUpd arr _ _ _) = typeOf arr
 typeOf (Case expr _ _) = typeOf expr -- FIXME: This is wrong and acts as a placeholder. Figure out what this should be.
 typeOf (Subst e _) = typeOf e
+typeOf (EHole _ _ t _) = t
 
 typeOfChain :: Chain -> Type
 typeOfChain (Pure e) = typeOf e -- SCM: shouldn't happen?

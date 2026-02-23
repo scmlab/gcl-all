@@ -6,6 +6,7 @@ import Control.Monad.Except
     runExceptT,
     throwError,
   )
+import Control.Monad.State.Lazy (evalState)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
@@ -49,7 +50,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
         Right concrete -> return $ Right concrete
 
     toAbstract :: C.Program -> IO (Either Error A.Program)
-    toAbstract concrete = return $ Right (C.toAbstract concrete)
+    toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
 
     toTyped :: A.Program -> IO (Either Error T.Program)
     toTyped abstract = do

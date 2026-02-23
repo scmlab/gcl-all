@@ -20,13 +20,14 @@ import qualified GCL.WP as WP
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), ServerM, digHoles, increaseDidChangeShouldReload, loadFileState, logText, readSource, saveFileState)
+import Server.Monad (FileState (..), HoleKind (..), ServerM, digHoles, increaseDidChangeShouldReload, loadFileState, logText, readSource, saveFileState)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
 import Server.PositionMapping (idDelta)
 import qualified Server.SrcLoc as SrcLoc
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
+import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
@@ -60,11 +61,12 @@ load filePath = do
             logText "  sweep error\n"
             onError (StructError err)
             return $ Left ()
-          Right (pos, specs, warnings, redexes, idCount) -> do
+          Right (pos, specs, holes, warnings, redexes, idCount) -> do
             let fileState =
                   FileState
                     { refinedVersion = currentVersion,
                       specifications = map (\spec -> (currentVersion, spec)) specs,
+                      holes = map (\hole -> (currentVersion, hole)) holes,
                       proofObligations = map (\po -> (currentVersion, po)) pos,
                       warnings = map (\warning -> (currentVersion, warning)) warnings,
                       didChangeShouldReload = 0,
@@ -114,7 +116,7 @@ load filePath = do
     reportHolesOrToAbstract concrete filePath =
       case collectHoles concrete of
         [] -> do
-          let abstract = C.toAbstract concrete
+          let abstract = C.runAbstractTransform concrete
           logText "  all holes digged\n"
           logText "  abstract program generated\n"
           return $ Right abstract
@@ -125,27 +127,41 @@ load filePath = do
             increaseDidChangeShouldReload filePath
           return $ Left ()
 
-    collectHoles :: C.Program -> [Range]
+    collectHoles :: C.Program -> [(HoleKind, Range)]
     collectHoles (C.Program _ statements) = collectHolesFromStatements statements
 
-    collectHolesFromStatements :: [C.Stmt] -> [Range]
-    collectHolesFromStatements statements = do
-      statement <- statements
-      case statement of
-        C.SpecQM range -> [range]
-        C.Block _ program _ -> collectHoles program
-        C.Do _ commands _ -> collectHolesFromGdCmd commands
-        C.If _ commands _ -> collectHolesFromGdCmd commands
-        _ -> []
+    collectHolesFromStatements :: [C.Stmt] -> [(HoleKind, Range)]
+    collectHolesFromStatements = concatMap collectHolesFromStatement
+
+    collectHolesFromStatement :: C.Stmt -> [(HoleKind, Range)]
+    collectHolesFromStatement (C.SpecQM range) = [(StmtHole, range)]
+    collectHolesFromStatement (C.Assign _ _ exprs) = concat $ mapSepBy collectHolesFromExpr exprs
+    collectHolesFromStatement (C.AAssign _ _ a _ _ b) = collectHolesFromExpr a ++ collectHolesFromExpr b
+    collectHolesFromStatement (C.Assert _ a _) = collectHolesFromExpr a
+    collectHolesFromStatement (C.LoopInvariant _ a _ _ _ b _) = collectHolesFromExpr a ++ collectHolesFromExpr b
+    collectHolesFromStatement (C.Do _ ss _) = concat $ mapSepBy collectHolesFromGdCmd ss
+    collectHolesFromStatement (C.If _ ss _) = concat $ mapSepBy collectHolesFromGdCmd ss
+    collectHolesFromStatement (C.Alloc _ _ _ _ es _) = concat $ mapSepBy collectHolesFromExpr es
+    collectHolesFromStatement (C.HLookup _ _ _ a) = collectHolesFromExpr a
+    collectHolesFromStatement (C.HMutate _ a _ b) = collectHolesFromExpr a ++ collectHolesFromExpr b
+    collectHolesFromStatement (C.Dispose _ a) = collectHolesFromExpr a
+    collectHolesFromStatement _ = []
 
     mapSepBy :: (a -> b) -> SepBy s a -> [b]
     mapSepBy f (Head c) = [f c]
     mapSepBy f (Delim c _ cs) = f c : mapSepBy f cs
 
-    collectHolesFromGdCmd :: SepBy s C.GdCmd -> [Range]
-    collectHolesFromGdCmd s = do
-      ranges <- mapSepBy (\(GdCmd _ _ statements) -> collectHolesFromStatements statements) s
-      ranges
+    collectHolesFromGdCmd :: C.GdCmd -> [(HoleKind, Range)]
+    collectHolesFromGdCmd (GdCmd _ _ stmts) = collectHolesFromStatements stmts
+
+    collectHolesFromExpr :: C.Expr -> [(HoleKind, Range)]
+    collectHolesFromExpr (C.HoleQM range) = [(ExprHole, range)]
+    collectHolesFromExpr (C.Paren _ expr _) = collectHolesFromExpr expr
+    collectHolesFromExpr (C.Arr a _ b _) = collectHolesFromExpr a ++ collectHolesFromExpr b
+    collectHolesFromExpr (C.App a b) = collectHolesFromExpr a ++ collectHolesFromExpr b
+    collectHolesFromExpr (C.Quant _ _ _ _ a _ b _) = collectHolesFromExpr a ++ collectHolesFromExpr b
+    collectHolesFromExpr (C.Case _ a _ _) = collectHolesFromExpr a
+    collectHolesFromExpr _ = []
 
     elaborate :: A.Program -> ServerM (Either () T.Program)
     elaborate abstract = do

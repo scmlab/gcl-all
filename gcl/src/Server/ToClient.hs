@@ -44,6 +44,7 @@ import qualified Syntax.Parser.Error as Parse
 data FileStateNotification = FileStateNotification
   { filePath :: FilePath,
     specs :: [Specification],
+    holes :: [Hole],
     pos :: [ProofObligation],
     warnings :: [StructWarning]
   }
@@ -56,6 +57,14 @@ data Specification = Specification
     preCondition :: String,
     postCondition :: String,
     specRange :: LSP.Range
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
+
+data Hole = Hole
+  { holeID :: String,
+    holeType :: String,
+    holeRange :: LSP.Range
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -99,6 +108,7 @@ toFileStateNotification path serverFileState =
   FileStateNotification
     { filePath = path,
       specs = map (convertSpec . Server.unversioned) (Server.specifications serverFileState),
+      holes = map (convertHole . Server.unversioned) (Server.holes serverFileState),
       pos = map (convertPO . Server.unversioned) (Server.proofObligations serverFileState),
       warnings = map (convertWarning . Server.unversioned) (Server.warnings serverFileState)
     }
@@ -111,6 +121,14 @@ convertSpec (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, G
       preCondition = show $ pretty specPreCond,
       postCondition = show $ pretty specPostCond,
       specRange = toLSPRange specRange
+    }
+
+convertHole :: GCL.Hole -> Hole
+convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
+  Hole
+    { holeID = show holeID,
+      holeType = show $ pretty holeType,
+      holeRange = toLSPRange holeRange
     }
 
 -- | Convert server-side PO to client-side ProofObligation

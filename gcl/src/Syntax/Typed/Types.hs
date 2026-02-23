@@ -66,6 +66,7 @@ data Expr
   | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [CaseClause] (Maybe Range)
   | Subst Expr [(Name, Expr)]
+  | EHole Text Int Type Range
   deriving (Eq, Show)
 
 data CaseClause = CaseClause Pattern Expr
