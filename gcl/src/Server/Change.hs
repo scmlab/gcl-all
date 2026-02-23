@@ -62,13 +62,14 @@ mkLSPMove (LSP.Range s@(LSP.Position sl sc) e@(LSP.Position el ec)) text =
         }
 
 -- | Convert a list of TextDocumentContentChangeEvents to LSPMoves.
---   Skips non-incremental (whole-document) changes.
+--   Errors on non-incremental (whole-document) changes, which should never
+--   occur since the server only declares TextDocumentSyncKind_Incremental.
 mkLSPMoves :: [LSP.TextDocumentContentChangeEvent] -> [LSPMove]
-mkLSPMoves = mapMaybe go
+mkLSPMoves = map go
   where
     go (LSP.TextDocumentContentChangeEvent (LSP.InL (LSP.TextDocumentContentChangePartial range _ text))) =
-      Just (mkLSPMove range text)
-    go _ = Nothing
+      mkLSPMove range text
+    go _ = error "mkLSPMoves: received full document change, but server only declared incremental sync"
 
 -- | Apply an LSPMove to an LSP.Range (end-exclusive).
 --
