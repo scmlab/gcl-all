@@ -80,7 +80,6 @@ library
       Server.Monad
       Server.Notification.Error
       Server.Notification.Update
-      Server.PositionMapping
       Server.SrcLoc
       Server.ToClient
       Syntax.Abstract
