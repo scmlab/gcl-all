@@ -7,14 +7,19 @@ module Server.Change
     mkLSPMoves,
     applyLSPMove,
     applyLSPMovesToToken,
+    GCLMove,
+    fromLSPMove,
+    applyGCLMove,
   )
 where
 
 import Control.Monad (foldM)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
+import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posLine)
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as LSP
+import Server.SrcLoc (fromLSPRangeWithoutCharacterOffset)
 
 -- | Pre-computed info for moving existing LSP Ranges after an edit.
 --   Contains only positional displacement, not the replacement text.
@@ -81,6 +86,43 @@ applyLSPMove (LSP.Range oS oE) (LSPMove s e dL dC)
       let !nL = fromIntegral l + dL
           !nC = if l == eL then fromIntegral c + dC else fromIntegral c
        in LSP.Position (Hack.intToUInt nL) (Hack.intToUInt nC)
+
+--------------------------------------------------------------------------------
+-- GCLMove: same logic, GCL coordinates (1-based)
+--------------------------------------------------------------------------------
+
+-- | GCL-coordinate version of LSPMove.
+--   Positional: start end dL dC
+data GCLMove = GCLMove !Pos !Pos !Int !Int
+  deriving (Eq, Show)
+
+-- | Convert an LSPMove (0-based) to a GCLMove (1-based).
+--   dL and dC are coordinate-system-independent.
+fromLSPMove :: LSPMove -> GCLMove
+fromLSPMove (LSPMove s e dl dc) = GCLMove gclS gclE dl dc
+  where
+    Range gclS gclE = fromLSPRangeWithoutCharacterOffset (LSP.Range s e)
+
+-- | Apply a GCLMove to a GCL Range (end-exclusive).
+--   Before change: unchanged.  After change: shifted.  Overlapping: Nothing.
+applyGCLMove :: Range -> GCLMove -> Maybe Range
+applyGCLMove (Range oS oE) (GCLMove s e dL dC)
+  | oE <= s = Just (mkRange oS oE)
+  | oS >= e =
+      let !nS = shiftPos oS
+          !nE = shiftPos oE
+       in Just (mkRange nS nE)
+  | otherwise = Nothing
+  where
+    eL = posLine e
+    shiftPos (Pos l c) =
+      let !nL = l + dL
+          !nC = if l == eL then c + dC else c
+       in mkPos nL nC
+
+--------------------------------------------------------------------------------
+-- SemanticToken helpers
+--------------------------------------------------------------------------------
 
 -- | Apply a list of LSPMoves to a single SemanticTokenAbsolute.
 --   The token is converted to a Range, moved through all changes, then converted back.
