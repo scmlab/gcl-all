@@ -31,11 +31,8 @@ handler uri lspPosition responder = do
       maybeFileState <- loadFileState filePath
       case maybeFileState of
         Nothing -> responder []
-        Just
-          FileState
-            { definitionLinks
-            } -> do
-            let pos = SrcLoc.fromLSPPosition lspPosition
-            case IntervalMap.lookup pos definitionLinks of
-              Nothing -> responder []
-              Just otr -> responder [originTargetRangesToLocationLink otr uri]
+        Just FileState {definitionLinks} -> do
+          let pos = SrcLoc.fromLSPPosition lspPosition
+          case IntervalMap.lookup pos definitionLinks of
+            Nothing -> responder []
+            Just otr -> responder [originTargetRangesToLocationLink otr uri]

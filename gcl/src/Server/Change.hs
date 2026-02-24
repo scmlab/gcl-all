@@ -131,8 +131,8 @@ applyGCLMove (Range oS oE) (GCLMove s e dL dC)
 --   Returns Nothing if any range is invalidated by the moves.
 updateOriginTargetRanges :: [GCLMove] -> OriginTargetRanges -> Maybe OriginTargetRanges
 updateOriginTargetRanges moves (OriginTargetRanges orig tgt tgtSel) = do
-  orig'   <- foldM applyGCLMove orig   moves
-  tgt'    <- foldM applyGCLMove tgt    moves
+  orig' <- foldM applyGCLMove orig moves
+  tgt' <- foldM applyGCLMove tgt moves
   tgtSel' <- foldM applyGCLMove tgtSel moves
   return (OriginTargetRanges orig' tgt' tgtSel')
 
