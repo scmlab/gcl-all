@@ -8,7 +8,7 @@ import Control.Monad (foldM)
 import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as Text
-import GCL.Predicate (Origin (..), PO (..), Spec (..))
+import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
 import GCL.Range (MaybeRanged (..), Range (..))
 import GCL.WP.Types (StructWarning (MissingBound))
 import GHC.Clock (getMonotonicTimeNSec)
@@ -26,10 +26,11 @@ handler filePath changes = do
       gclMoves = map fromLSPMove lspMoves
   modifyFileState
     filePath
-    ( \filesState@FileState {editedVersion, specifications, proofObligations, warnings, definitionLinks, hoverInfos, semanticTokens} ->
+    ( \filesState@FileState {editedVersion, specifications, holes, proofObligations, warnings, definitionLinks, hoverInfos, semanticTokens} ->
         filesState
           { editedVersion = editedVersion + 1,
             specifications = translateThroughOneVersion (translateSpecRange gclMoves) editedVersion specifications,
+            holes = translateThroughOneVersion (translateHoleRange gclMoves) editedVersion holes,
             proofObligations = translateThroughOneVersion (translatePoRange gclMoves) editedVersion proofObligations,
             warnings = translateThroughOneVersion (translateWarningRange gclMoves) editedVersion warnings,
             definitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges definitionLinks,
@@ -81,6 +82,14 @@ translatePoRange moves po@PO {poOrigin} = do
   oldRange :: Range <- maybeRangeOf poOrigin
   newRange <- foldM applyGCLMove oldRange moves
   return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
+
+-- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
+-- holeType 只會被 pretty print 成字串傳給前端，不會直接用到其中的 Range
+-- 如果未來前端有需要的話，請在這裡維護
+translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
+translateHoleRange moves hole@Hole {holeRange = oldRange} = do
+  newRange <- foldM applyGCLMove oldRange moves
+  return $ hole {holeRange = newRange}
 
 translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
 translateWarningRange moves (MissingBound oldRange) = do
