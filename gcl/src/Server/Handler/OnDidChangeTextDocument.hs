@@ -5,7 +5,11 @@
 module Server.Handler.OnDidChangeTextDocument where
 
 import Control.Monad (foldM)
+import Control.Monad.IO.Class (liftIO)
 import Data.Maybe (mapMaybe)
+import qualified Data.Text as Text
+import Numeric (showFFloat)
+import GHC.Clock (getMonotonicTimeNSec)
 import GCL.Predicate (Origin (..), PO (..), Spec (..))
 import GCL.Range (MaybeRanged (..), Range (..))
 import GCL.WP.Types (StructWarning (MissingBound))
@@ -17,6 +21,7 @@ import Server.Notification.Update (sendUpdateNotification)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
+  t0 <- liftIO getMonotonicTimeNSec
   let lspMoves = mkLSPMoves changes
       gclMoves = map fromLSPMove lspMoves
   modifyFileState
@@ -35,6 +40,10 @@ handler filePath changes = do
   logFileState filePath (map (\(version, Specification {specRange}) -> (version, specRange)) . specifications)
 
   runIfDecreaseDidChangeShouldReload filePath load
+
+  t1 <- liftIO getMonotonicTimeNSec
+  let elapsedMs = fromIntegral (t1 - t0) / 1e6 :: Double
+  logText $ "didChange: took " <> Text.pack (showFFloat (Just 3) elapsedMs "") <> " ms\n"
 
   -- send notification to update Specs and POs
   logText "didChange: fileState modified\n"

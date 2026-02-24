@@ -55,22 +55,22 @@ unversioned = snd
 
 data FileState = FileState
   -- main states for Reload and Refine
-  { refinedVersion :: LSP.Int32, -- the version number of the last refine
-    specifications :: [Versioned Spec], -- editedVersion or (editedVersion + 1)
-    holes :: [Versioned Hole],
-    proofObligations :: [Versioned PO], -- editedVersion
-    warnings :: [Versioned StructWarning],
-    didChangeShouldReload :: Int, -- trigger a reload after the server sends an edit
+  { refinedVersion :: !LSP.Int32, -- the version number of the last refine
+    specifications :: ![Versioned Spec], -- editedVersion or (editedVersion + 1)
+    holes :: ![Versioned Hole],
+    proofObligations :: ![Versioned PO], -- editedVersion
+    warnings :: ![Versioned StructWarning],
+    didChangeShouldReload :: !Int, -- trigger a reload after the server sends an edit
     -- SEE: increaseDidChangeShouldReload
 
     -- to support other LSP methods in a light-weighted manner
-    loadedVersion :: LSP.Int32, -- the version number of the last reload
-    toOffsetMap :: SrcLoc.ToOffset,
-    semanticTokens :: [LSP.SemanticTokenAbsolute],
-    idCount :: Int,
-    definitionLinks :: IntervalMap OriginTargetRanges,
-    hoverInfos :: IntervalMap LSP.Hover,
-    editedVersion :: LSP.Int32 -- the version number of the last change
+    loadedVersion :: !LSP.Int32, -- the version number of the last reload
+    toOffsetMap :: !SrcLoc.ToOffset,
+    semanticTokens :: ![LSP.SemanticTokenAbsolute],
+    idCount :: !Int,
+    definitionLinks :: !(IntervalMap OriginTargetRanges),
+    hoverInfos :: !(IntervalMap LSP.Hover),
+    editedVersion :: !LSP.Int32 -- the version number of the last change
   }
   deriving (Show)
 
