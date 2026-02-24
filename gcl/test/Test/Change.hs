@@ -76,12 +76,12 @@ mkLSPMovesTests =
     [ testCase "converts incremental changes" $ do
         let moves = mkLSPMoves [partialChange 0 0 0 1 "x", partialChange 2 0 2 5 ""]
         length moves @?= 2
-        dC (head moves) @?= 0   -- replace 1 char with 1 char
-        dC (moves !! 1) @?= -5  -- delete 5 chars
-    , testCase "errors on full document change" $ do
+        dC (head moves) @?= 0 -- replace 1 char with 1 char
+        dC (moves !! 1) @?= -5, -- delete 5 chars
+      testCase "errors on full document change" $ do
         result <- try (evaluate (head (mkLSPMoves [wholeChange "entire new content"]))) :: IO (Either ErrorCall LSPMove)
         case result of
-          Left _  -> return ()
+          Left _ -> return ()
           Right _ -> assertFailure "expected error but got none"
     ]
   where
