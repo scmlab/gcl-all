@@ -23,8 +23,8 @@ handler uri lspPosition responder = do
         Nothing -> do
           logText "hover: failed - not loaded yet\n"
           responder $ LSP.InR LSP.Null
-        Just FileState {hoverInfos, toOffsetMap} -> do
-          let pos = SrcLoc.fromLSPPosition toOffsetMap lspPosition
+        Just FileState {hoverInfos} -> do
+          let pos = SrcLoc.fromLSPPosition lspPosition
           case IntervalMap.lookup pos hoverInfos of
             Nothing -> do
               logText "hover: not exist - no information for this position\n"

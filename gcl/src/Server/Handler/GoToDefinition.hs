@@ -33,10 +33,9 @@ handler uri lspPosition responder = do
         Nothing -> responder []
         Just
           FileState
-            { definitionLinks,
-              toOffsetMap
+            { definitionLinks
             } -> do
-            let pos = SrcLoc.fromLSPPosition toOffsetMap lspPosition
+            let pos = SrcLoc.fromLSPPosition lspPosition
             case IntervalMap.lookup pos definitionLinks of
               Nothing -> responder []
               Just otr -> responder [originTargetRangesToLocationLink otr uri]

@@ -25,7 +25,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import Server.GoToDefn (OriginTargetRanges (..))
 import Server.IntervalMap (IntervalMap)
 import qualified Server.IntervalMap as IntervalMap
-import Server.SrcLoc (fromLSPRangeWithoutCharacterOffset)
+import Server.SrcLoc (fromLSPRange)
 
 -- | Pre-computed info for moving existing LSP Ranges after an edit.
 --   Contains only positional displacement, not the replacement text.
@@ -108,7 +108,7 @@ data GCLMove = GCLMove !Pos !Pos !Int !Int
 fromLSPMove :: LSPMove -> GCLMove
 fromLSPMove (LSPMove s e dl dc) = GCLMove gclS gclE dl dc
   where
-    Range gclS gclE = fromLSPRangeWithoutCharacterOffset (LSP.Range s e)
+    Range gclS gclE = fromLSPRange (LSP.Range s e)
 
 -- | Apply a GCLMove to a GCL Range (end-exclusive).
 --   Before change: unchanged.  After change: shifted.  Overlapping: Nothing.
