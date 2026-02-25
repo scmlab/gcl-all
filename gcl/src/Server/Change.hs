@@ -152,7 +152,7 @@ posOrdToRange (s, e) =
 --   Any entry whose key range or payload update returns Nothing is dropped.
 applyMovesToIntervalMap :: forall a. [GCLMove] -> ([GCLMove] -> a -> Maybe a) -> IntervalMap a -> IntervalMap a
 applyMovesToIntervalMap moves updatePayload imap =
-  IntervalMap.fromList $ mapMaybe applyEntry (IntervalMap.toList imap)
+  IntervalMap.fromAscList $ mapMaybe applyEntry (IntervalMap.toList imap)
   where
     applyEntry :: ((Int, Int), a) -> Maybe ((Int, Int), a)
     applyEntry (ords, value) = do

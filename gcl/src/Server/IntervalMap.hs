@@ -9,6 +9,7 @@ module Server.IntervalMap
     singleton,
     toList,
     fromList,
+    fromAscList,
     insert,
     lookup,
     split,
@@ -83,6 +84,9 @@ toList (IntervalMap m) = map (\(a, (b, c)) -> ((a, b), c)) (IntMap.toList m)
 
 fromList :: [((Int, Int), value)] -> IntervalMap value
 fromList = IntervalMap . IntMap.fromList . map (\((a, b), c) -> (a, (b, c)))
+
+fromAscList :: [((Int, Int), value)] -> IntervalMap value
+fromAscList = IntervalMap . IntMap.fromAscList . map (\((a, b), c) -> (a, (b, c)))
 
 --------------------------------------------------------------------------------
 -- Insertion
