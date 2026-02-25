@@ -39,7 +39,6 @@ import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
 import Server.GoToDefn (OriginTargetRanges)
 import Server.IntervalMap (IntervalMap)
-import Server.PositionMapping (PositionDelta)
 import qualified Server.SrcLoc as SrcLoc
 
 -- | State shared by all clients and requests
@@ -56,23 +55,22 @@ unversioned = snd
 
 data FileState = FileState
   -- main states for Reload and Refine
-  { refinedVersion :: LSP.Int32, -- the version number of the last refine
-    specifications :: [Versioned Spec], -- editedVersion or (editedVersion + 1)
-    holes :: [Versioned Hole],
-    proofObligations :: [Versioned PO], -- editedVersion
-    warnings :: [Versioned StructWarning],
-    didChangeShouldReload :: Int, -- trigger a reload after the server sends an edit
+  { refinedVersion :: !LSP.Int32, -- the version number of the last refine
+    specifications :: ![Versioned Spec], -- editedVersion or (editedVersion + 1)
+    holes :: ![Versioned Hole],
+    proofObligations :: ![Versioned PO], -- editedVersion
+    warnings :: ![Versioned StructWarning],
+    didChangeShouldReload :: !Int, -- trigger a reload after the server sends an edit
     -- SEE: increaseDidChangeShouldReload
 
     -- to support other LSP methods in a light-weighted manner
-    loadedVersion :: LSP.Int32, -- the version number of the last reload
-    toOffsetMap :: SrcLoc.ToOffset,
-    semanticTokens :: [LSP.SemanticTokenAbsolute],
-    idCount :: Int,
-    definitionLinks :: IntervalMap OriginTargetRanges,
-    hoverInfos :: IntervalMap LSP.Hover,
-    positionDelta :: PositionDelta, -- loadedVersion ~> editedVersion
-    editedVersion :: LSP.Int32 -- the version number of the last change
+    loadedVersion :: !LSP.Int32, -- the version number of the last reload
+    toOffsetMap :: !SrcLoc.ToOffset,
+    semanticTokens :: ![LSP.SemanticTokenAbsolute],
+    idCount :: !Int,
+    definitionLinks :: !(IntervalMap OriginTargetRanges),
+    hoverInfos :: !(IntervalMap LSP.Hover),
+    editedVersion :: !LSP.Int32 -- the version number of the last change
   }
   deriving (Show)
 
@@ -242,10 +240,6 @@ readSource filepath = do
     Just virtualFile -> do
       logTextLn $ "readSource: LSP.virtualFileVersion: " <> Text.pack (Prelude.show $ LSP.virtualFileVersion virtualFile)
       return (Just $ LSP.virtualFileText virtualFile)
-
-modifyPositionDelta :: FilePath -> (PositionDelta -> PositionDelta) -> ServerM ()
-modifyPositionDelta filePath modifier = do
-  modifyFileState filePath (\fileState@FileState {positionDelta} -> fileState {positionDelta = modifier positionDelta})
 
 editTexts :: FilePath -> [(Range, Text)] -> ServerM () -> ServerM ()
 editTexts filepath rangeTextPairs onSuccess = do

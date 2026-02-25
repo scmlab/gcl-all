@@ -22,7 +22,6 @@ import Server.Hover (collectHoverInfo)
 import Server.Monad (FileState (..), HoleKind (..), ServerM, digHoles, increaseDidChangeShouldReload, loadFileState, logText, readSource, saveFileState)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
-import Server.PositionMapping (idDelta)
 import qualified Server.SrcLoc as SrcLoc
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
@@ -75,7 +74,6 @@ load filePath = do
                       idCount = idCount,
                       definitionLinks = collectLocationLinks abstract,
                       hoverInfos = collectHoverInfo elaborated,
-                      positionDelta = idDelta,
                       editedVersion = currentVersion
                     }
             logText "  fileState created\n"

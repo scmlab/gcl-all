@@ -11,7 +11,6 @@ module Server.SrcLoc
     fromLSPPosition,
     toLSPRange,
     toLSPPosition,
-    fromLSPRangeWithoutCharacterOffset,
   )
 where
 
@@ -31,28 +30,15 @@ import qualified Language.LSP.Protocol.Types as J
 -- | LSP source locations => Data.Loc/Data.Range source locations
 
 -- | LSP Range -> Data.Range.Range
-fromLSPRange :: ToOffset -> J.Range -> Range
-fromLSPRange table (J.Range start end) =
+fromLSPRange :: J.Range -> Range
+fromLSPRange (J.Range start end) =
   mkRange
-    (fromLSPPosition table start)
-    (fromLSPPosition table end)
+    (fromLSPPosition start)
+    (fromLSPPosition end)
 
 -- | LSP Position -> GCL.Range.Pos
-fromLSPPosition :: ToOffset -> J.Position -> Pos
-fromLSPPosition table (J.Position line col) =
-  mkPos
-    (fromIntegral line + 1) -- starts at 1
-    (fromIntegral col + 1) -- starts at 1
-
-fromLSPRangeWithoutCharacterOffset :: J.Range -> Range
-fromLSPRangeWithoutCharacterOffset (J.Range start end) =
-  mkRange
-    (fromLSPPositionWithoutCharacterOffset start)
-    (fromLSPPositionWithoutCharacterOffset end)
-
--- | LSP Position -> GCL.Range.Pos
-fromLSPPositionWithoutCharacterOffset :: J.Position -> Pos
-fromLSPPositionWithoutCharacterOffset (J.Position line col) =
+fromLSPPosition :: J.Position -> Pos
+fromLSPPosition (J.Position line col) =
   mkPos
     (fromIntegral line + 1) -- starts at 1
     (fromIntegral col + 1) -- starts at 1

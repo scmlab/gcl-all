@@ -4,32 +4,47 @@
 
 module Server.Handler.OnDidChangeTextDocument where
 
-import GCL.Predicate (Origin (..), PO (..), Spec (..))
+import Control.Monad (foldM)
+import Control.Monad.IO.Class (liftIO)
+import Data.Maybe (mapMaybe)
+import qualified Data.Text as Text
+import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
 import GCL.Range (MaybeRanged (..), Range (..))
 import GCL.WP.Types (StructWarning (MissingBound))
+import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
+import Numeric (showFFloat)
+import Server.Change (GCLMove, applyGCLMove, applyLSPMovesToToken, applyMovesToIntervalMap, fromLSPMove, mkLSPMoves, updateOriginTargetRanges)
 import Server.Load (load)
 import Server.Monad (FileState (..), ServerM, Versioned, logFileState, logText, modifyFileState, runIfDecreaseDidChangeShouldReload)
 import Server.Notification.Update (sendUpdateNotification)
-import Server.PositionMapping (PositionDelta, applyChange, mkDelta, toCurrentRange')
-import qualified Server.SrcLoc as SrcLoc
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
+  t0 <- liftIO getMonotonicTimeNSec
+  let lspMoves = mkLSPMoves changes
+      gclMoves = map fromLSPMove lspMoves
   modifyFileState
     filePath
-    ( \filesState@FileState {positionDelta, editedVersion, specifications, proofObligations, warnings} ->
+    ( \filesState@FileState {editedVersion, specifications, holes, proofObligations, warnings, definitionLinks, hoverInfos, semanticTokens} ->
         filesState
-          { positionDelta = foldl applyChange positionDelta changes,
-            editedVersion = editedVersion + 1,
-            specifications = translateThroughOneVersion translateSpecRange editedVersion specifications,
-            proofObligations = translateThroughOneVersion translatePoRange editedVersion proofObligations,
-            warnings = translateThroughOneVersion translateWarningRange editedVersion warnings
+          { editedVersion = editedVersion + 1,
+            specifications = translateThroughOneVersion (translateSpecRange gclMoves) editedVersion specifications,
+            holes = translateThroughOneVersion (translateHoleRange gclMoves) editedVersion holes,
+            proofObligations = translateThroughOneVersion (translatePoRange gclMoves) editedVersion proofObligations,
+            warnings = translateThroughOneVersion (translateWarningRange gclMoves) editedVersion warnings,
+            definitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges definitionLinks,
+            hoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) hoverInfos,
+            semanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) semanticTokens
           }
     )
   logFileState filePath (map (\(version, Specification {specRange}) -> (version, specRange)) . specifications)
 
   runIfDecreaseDidChangeShouldReload filePath load
+
+  t1 <- liftIO getMonotonicTimeNSec
+  let elapsedMs = fromIntegral (t1 - t0) / 1e6 :: Double
+  logText $ "didChange: took " <> Text.pack (showFFloat (Just 3) elapsedMs "") <> " ms\n"
 
   -- send notification to update Specs and POs
   logText "didChange: fileState modified\n"
@@ -37,17 +52,16 @@ handler filePath changes = do
   logText "didChange: upate notification sent\n"
   where
     translateThroughOneVersion ::
-      (PositionDelta -> a -> Maybe a) ->
+      (a -> Maybe a) ->
       LSP.Int32 ->
       [Versioned a] ->
       [Versioned a]
     translateThroughOneVersion translator fromVersion versioned = do
       (version, a) <- versioned
-      let delta :: PositionDelta = mkDelta changes
       if fromVersion == version
-        then case translator delta a of
+        then case translator a of
           Nothing -> []
-          Just spec' -> [(version + 1, spec')]
+          Just a' -> [(version + 1, a')]
         else
           if fromVersion + 1 == version
             then
@@ -56,28 +70,30 @@ handler filePath changes = do
 
 -- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
 -- 如果未來前端有需要的話，請在這裡維護
-translateSpecRange :: PositionDelta -> Spec -> Maybe Spec
-translateSpecRange delta spec@Specification {specRange = oldRange} = do
-  let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
-  currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset currentLspRange
+translateSpecRange :: [GCLMove] -> Spec -> Maybe Spec
+translateSpecRange moves spec@Specification {specRange = oldRange} = do
+  newRange <- foldM applyGCLMove oldRange moves
   return $ spec {specRange = newRange}
 
 -- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
 -- 如果未來前端有需要的話，請在這裡維護
-translatePoRange :: PositionDelta -> PO -> Maybe PO
-translatePoRange delta po@PO {poOrigin} = do
+translatePoRange :: [GCLMove] -> PO -> Maybe PO
+translatePoRange moves po@PO {poOrigin} = do
   oldRange :: Range <- maybeRangeOf poOrigin
-  let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
-  currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset currentLspRange
+  newRange <- foldM applyGCLMove oldRange moves
   return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
 
-translateWarningRange :: PositionDelta -> StructWarning -> Maybe StructWarning
-translateWarningRange delta (MissingBound oldRange) = do
-  let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
-  currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset currentLspRange
+-- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
+-- holeType 只會被 pretty print 成字串傳給前端，不會直接用到其中的 Range
+-- 如果未來前端有需要的話，請在這裡維護
+translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
+translateHoleRange moves hole@Hole {holeRange = oldRange} = do
+  newRange <- foldM applyGCLMove oldRange moves
+  return $ hole {holeRange = newRange}
+
+translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
+translateWarningRange moves (MissingBound oldRange) = do
+  newRange <- foldM applyGCLMove oldRange moves
   return $ MissingBound newRange
 
 setOriginRange :: Maybe Range -> Origin -> Origin
