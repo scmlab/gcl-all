@@ -143,9 +143,9 @@ updateOriginTargetRanges moves (OriginTargetRanges orig tgt tgtSel) = do
 -- | Reconstruct a GCL Range from two posOrd integers.
 posOrdToRange :: (Int, Int) -> Range
 posOrdToRange (s, e) =
-  mkRange
-    (mkPos (s `div` 10000000) (s `mod` 10000000))
-    (mkPos (e `div` 10000000) (e `mod` 10000000))
+  let (sLine, sCol) = s `divMod` 10000000
+      (eLine, eCol) = e `divMod` 10000000
+  in mkRange (mkPos sLine sCol) (mkPos eLine eCol)
 
 -- | Apply a list of GCLMoves to every entry in an IntervalMap.
 --   The key range and the payload are both updated via the supplied function.
