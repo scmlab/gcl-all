@@ -398,8 +398,8 @@ inferArrUpd arr index expr range = do
 {-
   Γ ⊢ e ↑ (s0, t0)
   s0 Γ      ⊢cl p1 : t0 -> e1 ↑ (s1, t1)
-  s1 (s0 Γ) ⊢cl p2 : t0 -> e2 ↑ (s2, t2)
-  s = unify (t1, t2)
+  s1 (s0 Γ) ⊢cl p2 : s1 t0 -> e2 ↑ (s2, t2)
+  s = unify (s2 t1, t2)
   ---------------------------------------- Case
   Γ ⊢ case e of
         p1 -> e1   ↑ (s<>s2<>s1<>s0, s t2)
@@ -532,6 +532,14 @@ inferTypeOp op = undefined
 
 
 {-
+  For reference: to infer types of simple recursive equations:
+
+    fresh a
+    Γ, x : a ⊢ e ↑ (s, t)
+    s1 = unify (a, t)
+    ----------------------------
+    Γ ⊢ x = e ↑ (s1 <> s, s1 a)
+
   fresh a b
   Γ ⊢p p1 : a ↓ (sp1, Γ1)
   sp1 Γ, Γ1, f : sp1 a -> b ⊢ e1 : b ↓ se1
