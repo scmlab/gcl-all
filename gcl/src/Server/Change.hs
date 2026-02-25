@@ -145,7 +145,7 @@ posOrdToRange :: (Int, Int) -> Range
 posOrdToRange (s, e) =
   let (sLine, sCol) = s `divMod` 10000000
       (eLine, eCol) = e `divMod` 10000000
-  in mkRange (mkPos sLine sCol) (mkPos eLine eCol)
+   in mkRange (mkPos sLine sCol) (mkPos eLine eCol)
 
 -- | Apply a list of GCLMoves to every entry in an IntervalMap.
 --   The key range and the payload are both updated via the supplied function.
