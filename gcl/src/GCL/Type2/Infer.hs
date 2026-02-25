@@ -72,7 +72,8 @@ Summary of Algorithmic Typing Rules
 
  Type Inference: Γ ⊢ e ↑ (s, t)
           chain: Γ ⊢ch ch ↑ (s, t)
-       clauses : Γ ⊢cl p : t -> e ↑ (s, u)
+       clauses : Γ ⊢cl (p : t) -> e ↑ (s, u)
+    definition : Γ ⊢def d ↑ (s, t)
 -}
 
 {-
@@ -463,6 +464,29 @@ inferClause pattern expr ty = do
   let resultSubst = exprSubst <> patSubst
   return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
 
+{-
+
+  Γ ⊢p 1 : t ↓ (unify (t, Int), {})
+
+  Γ ⊢p x : t ↓ (∅, {x : t})
+
+  Γ ⊢p _ : t ↓ (∅, {})
+
+  C : cu ∈ Γ
+  u1 -> u2 -> u = inst cu
+  s = unify (t, u)
+  s Γ ⊢p p1 : s u1 ↓ (s1, η1)
+  (s1 . s) Γ ⊢p p2 : (s1 . s) u2 ↓ (s2, η2)
+  ----------------------------------------------
+  Γ ⊢p C p1 p2 : t ↓ (s2 . s1 . s, s2 η1 ++ η 2)
+
+  fresh a
+  Γ ⊢p p : a ↓ (s, η)
+  --------------------
+  Γ ⊢p p ↑ (s, s a, η)
+-}
+
+
 bindPattern :: A.Pattern -> A.Type -> TIMonad (Subst, Env)
 bindPattern (A.PattLit lit) ty = do
   sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (maybeRangeOf lit)) ty (maybeRangeOf ty)
@@ -505,3 +529,26 @@ bindPattern (A.PattConstructor ctorName pats) ty = do
 
 inferTypeOp :: TypeOp -> TIMonad (Subst, A.Type, Op)
 inferTypeOp op = undefined
+
+
+{-
+  fresh a b
+  Γ ⊢p p1 : a ↓ (sp1, Γ1)
+  sp1 Γ, Γ1, f : sp1 a -> b ⊢ e1 : b ↓ se1
+  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) a ↓ (sp2, Γ2)
+  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) a -> (sp2 . se1) b
+      ⊢ e2 : (sp2 . se1) b ↓ se2
+  ------------------------------------------------ Definition
+  Γ ⊢def f p1 = e1 ↑ (se2 . sp2 . se1 . sp1,
+         f p2 = e2    (se2 . sp2 . se1 . sp1) (a -> b))
+
+  Γ ⊢p p1 : ti ↓ (sp1, Γ1)
+  sp1 Γ, Γ1, f : sp1 (ti -> to) ⊢ e1 : sp1 to ↓ se1
+  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) ti ↓ (sp2, Γ2)
+  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) (ti -> to))
+      ⊢ e2 : (sp2 . se1 . sp1) to ↓ se2
+  ------------------------------------------------ Definition-Sig
+  Γ ⊢def f : ti -> to      (se2 . sp2 . se1 . sp1,
+         f p1 = e1     ↑    (se2 . sp2 . se1 . sp1) (ti -> to))
+         f p2 = e2
+-}
