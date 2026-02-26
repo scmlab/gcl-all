@@ -5,6 +5,7 @@
 module Server.Load2 where
 
 import Data.IntMap (IntMap)
+import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
 import Data.Ord (comparing)
 import Data.Text (Text)
@@ -161,19 +162,18 @@ diggedText ExprHole _ = "{! !}"
 -- processed from first to last.
 applyEdits :: Text -> [(Range, Text)] -> Text
 applyEdits source edits =
-  let ls       = Text.lines source
-      toOffset pos =
-        sum (map (\l -> Text.length l + 1) (take (posLine pos - 1) ls))
-          + (posCol pos - 1)
-      sorted   = sortBy (comparing (rangeStart . fst)) edits
+  let ls = Text.split (== '\n') source
+      lineStarts = IntMap.fromList $ zip [1 ..] $ scanl (\off l -> off + Text.length l + 1) 0 ls
+      toOffset pos = IntMap.findWithDefault 0 (posLine pos) lineStarts + (posCol pos - 1)
+      sorted = sortBy (comparing (rangeStart . fst)) edits
       go pos [] = Text.drop pos source
       go pos ((range, replacement) : rest) =
         let s = toOffset (rangeStart range)
-            e = toOffset (rangeEnd   range)
-        in Text.take (s - pos) (Text.drop pos source)
-             <> replacement
-             <> go e rest
-  in go 0 sorted
+            e = toOffset (rangeEnd range)
+         in Text.take (s - pos) (Text.drop pos source)
+              <> replacement
+              <> go e rest
+   in go 0 sorted
 
 -- | Same as applyEdits but uses a line-column cursor instead of offset conversion.
 -- Avoids the line-ending ambiguity of toOffset.
