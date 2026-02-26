@@ -65,7 +65,6 @@ data FileState = FileState
 
     -- to support other LSP methods in a light-weighted manner
     loadedVersion :: !LSP.Int32, -- the version number of the last reload
-    toOffsetMap :: !SrcLoc.ToOffset,
     semanticTokens :: ![LSP.SemanticTokenAbsolute],
     idCount :: !Int,
     definitionLinks :: !(IntervalMap OriginTargetRanges),

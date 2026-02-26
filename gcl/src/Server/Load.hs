@@ -22,7 +22,6 @@ import Server.Hover (collectHoverInfo)
 import Server.Monad (FileState (..), HoleKind (..), ServerM, digHoles, increaseDidChangeShouldReload, loadFileState, logText, readSource, saveFileState)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
-import qualified Server.SrcLoc as SrcLoc
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -69,7 +68,6 @@ load filePath = do
                       didChangeShouldReload = 0,
                       -- to support other LSP methods in a light-weighted manner
                       loadedVersion = currentVersion,
-                      toOffsetMap = SrcLoc.makeToOffset source,
                       semanticTokens = collectHighlighting concrete,
                       idCount = idCount,
                       definitionLinks = collectLocationLinks abstract,
