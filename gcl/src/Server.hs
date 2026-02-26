@@ -23,7 +23,7 @@ import Network.Simple.TCP
 import Network.Socket (socketToHandle)
 import Server.Handler (handlers)
 import Server.Monad (GlobalState, initGlobalEnv, logChannel, runServerMLogError)
-import System.IO (hFlush, hSetEncoding, openFile, utf8)
+import System.IO (hFlush, openFile)
 
 --------------------------------------------------------------------------------
 
@@ -63,7 +63,6 @@ runOnStdio maybeLogFile = do
     writeLog :: GlobalState -> FilePath -> IO ()
     writeLog env logFile = forever $ do
       handle <- openFile logFile AppendMode
-      hSetEncoding handle utf8
       forever $ do
         result <- readChan (logChannel env)
         Text.hPutStr handle result
