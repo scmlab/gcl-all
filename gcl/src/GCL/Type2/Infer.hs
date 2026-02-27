@@ -425,10 +425,10 @@ inferCase expr clauses range = do
   return (resultSubst, clausesTy, T.Case typedExpr (reverse typedClauses) range)
   where
     aux exprTy (accSubst, clauseTy, typedClauses) (A.CaseClause pattern caseExpr) = do
-      (s1, clauseTy', typedClause) <- inferClause pattern caseExpr exprTy
+      (s1, clauseTy', typedClause) <- inferClause pattern caseExpr (applySubst accSubst exprTy)
 
       -- NOTE: pattern type checking in done in `bindPattern` so no need for it here
-      s2 <- lift $ unify clauseTy clauseTy' (maybeRangeOf caseExpr)
+      s2 <- lift $ unify (applySubst s1 clauseTy) clauseTy' (maybeRangeOf caseExpr)
 
       return (s2 <> s1 <> accSubst, applySubst s2 clauseTy', typedClause : typedClauses)
 
@@ -462,6 +462,7 @@ inferClause pattern expr ty = do
   (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
 
   let resultSubst = exprSubst <> patSubst
+  traceM $ "result: " <> show patEnv
   return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
 
 bindPattern :: A.Pattern -> A.Type -> RSE Env Inference (Subst, Env)
