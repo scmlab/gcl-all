@@ -15,6 +15,7 @@ import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Range (Range)
 import qualified GCL.Type as TypeChecking
+import GCL.Type2.ToTyped
 import qualified GCL.WP as WP
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
@@ -51,7 +52,8 @@ load filePath = do
         -- parse source into concrete syntax
         concrete <- ExceptT $ parse filePath source
         abstract <- ExceptT $ reportHolesOrToAbstract concrete filePath
-        elaborated <- ExceptT $ elaborate abstract
+        elaborated <- ExceptT $ elaborate2 abstract
+        -- elaborated <- ExceptT $ elaborate abstract
         ExceptT $ case WP.sweep elaborated of
           Left err -> do
             logText "  sweep error\n"
@@ -160,6 +162,18 @@ load filePath = do
     elaborate :: A.Program -> ServerM (Either () T.Program)
     elaborate abstract = do
       case TypeChecking.runElaboration abstract mempty of
+        Left e -> do
+          logText "  elaborate error\n"
+          onError $ TypeError e
+          return $ Left ()
+        Right typedProgram -> do
+          logText "  program elaborated\n"
+          return $ Right typedProgram
+
+    elaborate2 :: A.Program -> ServerM (Either () T.Program)
+    elaborate2 abstract = do
+      logText "  [WARN] running experimental new typechecker, things might break"
+      case runToTyped abstract mempty of
         Left e -> do
           logText "  elaborate error\n"
           onError $ TypeError e

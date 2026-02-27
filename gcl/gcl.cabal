@@ -30,6 +30,7 @@ library
       GCL.Range
       GCL.Substitution
       GCL.Type
+      GCL.Type2.Common
       GCL.Type2.Infer
       GCL.Type2.MiniAst
       GCL.Type2.RSE
