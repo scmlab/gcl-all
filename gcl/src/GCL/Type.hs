@@ -22,6 +22,7 @@ import Data.List
 import qualified Data.Map as Map
 import Data.Maybe (fromJust)
 import qualified Data.Ord as Ord
+import Data.Set (Set)
 import qualified Data.Set as Set
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range, (<--->))
@@ -110,8 +111,8 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
     -- Check if there are duplications of definitions.
     -- While checking signatures and function definitions, we take account of the names of (term) constructors.
     duplicationCheck $ (\(TypeDefn name _ _ _) -> name) <$> typeDefns
-    duplicationCheck $ ((\(FuncDefnSig name _ _ _) -> name) <$> funcSigs) <> gatherCtorNames typeDefns
-    duplicationCheck $ ((\(FuncDefn name _) -> name) <$> funcDefns) <> gatherCtorNames typeDefns
+    -- duplicationCheck $ ((\(FuncDefnSig name _ _ _) -> name) <$> funcSigs) <> gatherCtorNames typeDefns
+    -- duplicationCheck $ ((\(FuncDefn name _) -> name) <$> funcDefns) <> gatherCtorNames typeDefns
     -- Gather the type definitions.
     -- Type definitions are collected first because signatures and function definitions may depend on them.
     collectTypeDefns typeDefns
@@ -125,7 +126,7 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
     let defined =
           concatMap
             ( \case
-                (FuncDefn name _exprs) -> [Index name]
+                (ValDefn name _ _) -> [Index name]
                 _ -> []
             )
             defns
@@ -139,8 +140,8 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
       foldlM
         ( \(context, names, tys, sub) funcDefn -> do
             case funcDefn of
-              (FuncDefn name expr) -> do
-                (ty, _, sub1) <- elaborate expr context -- Calling `head` is safe for the meantime.
+              (ValDefn name _ expr) -> do
+                (ty, _, sub1) <- error "GCL.Type deprecated" -- elaborate expr context -- Calling `head` is safe for the meantime.
                 unifySub <- unifyType (subst sub1 $ typeInfoToType (fromJust $ lookup (Index name) context)) (fromJust ty) (maybeRangeOf name) -- the first `fromJust` should also be safe.
                 -- We see if there are signatures restricting the type of function definitions.
                 case lookup (Index name) sigEnv of
@@ -169,8 +170,7 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
         foldr
           ( \def (typeDefns, sigs, funcDefns) -> case def of
               d@TypeDefn {} -> (d : typeDefns, sigs, funcDefns)
-              d@FuncDefnSig {} -> (typeDefns, d : sigs, funcDefns)
-              d@FuncDefn {} -> (typeDefns, sigs, d : funcDefns)
+              d@ValDefn {} -> (typeDefns, sigs, d : funcDefns)
           )
           mempty
           defs
@@ -188,7 +188,7 @@ instance CollectIds [Definition] where -- TODO: Collect patterns.
       collectFuncSigs :: [Definition] -> ElaboratorM ()
       collectFuncSigs funcSigs =
         mapM_
-          ( \(FuncDefnSig n t _ _) -> do
+          ( \(ValDefn n (Just t) _) -> do
               let infos = (Index n, ConstTypeInfo t)
               modify (\(freshState, typeDefnInfos, origInfos, patInfos) -> (freshState, typeDefnInfos, infos : origInfos, patInfos))
           )
@@ -610,21 +610,23 @@ instance Elab Definition where
     where
       scopeCheck :: (MonadError TypeError m) => Set.Set Name -> Type -> m ()
       scopeCheck ns t = mapM_ (\n -> if Set.member n ns then return () else throwError $ NotInScope n) (freeVars t)
-  elaborate (FuncDefnSig name ty maybeExpr loc) env = do
-    expr' <-
-      mapM
-        ( \expr -> do
-            (_, typed, _) <- elaborate expr env
-            return typed
-        )
-        maybeExpr
-    (_, infos, _, _) <- get
-    (kind, kinded) <- toKinded infos ty
-    if kind == KStar Nothing then return () else throwError $ KindUnifyFailed kind (KStar Nothing) (maybeRangeOf kind)
-    return (Nothing, T.FuncDefnSig name kinded expr' loc, mempty)
-  elaborate (FuncDefn name expr) env = do
-    (_, typed, _) <- elaborate expr env
-    return (Nothing, T.FuncDefn name typed, mempty)
+  elaborate (ValDefn _ _ _) env = error "GCL.Type deprecated"
+  -- elaborate (ValDefnSig name (Just ty) clauses loc) env =
+  --   do
+  --   expr' <-
+  --     mapM
+  --       ( \expr -> do
+  --           (_, typed, _) <- elaborate expr env
+  --           return typed
+  --       )
+  --       maybeExpr
+  --   (_, infos, _, _) <- get
+  --   (kind, kinded) <- toKinded infos ty
+  --   if kind == KStar Nothing then return () else throwError $ KindUnifyFailed kind (KStar Nothing) (maybeRangeOf kind)
+  --   return (Nothing, T.FuncDefnSig name kinded expr' loc, mempty)
+  -- elaborate (FuncDefn name expr) env = do
+  --   (_, typed, _) <- elaborate expr env
+  --   return (Nothing, T.FuncDefn name typed, mempty)
 
 instance Elab TypeDefnCtor where
   elaborate (TypeDefnCtor name ts) _ = do
@@ -774,6 +776,18 @@ instantiate ty = do
   new <- replicateM (length freeMeta) freshVar
   return $ subst (Map.fromList $ zip freeMeta new) ty
 
+freeMetaVars :: Type -> Set Name
+freeMetaVars (TBase _ _) = mempty
+freeMetaVars (TArray _ t _) = freeMetaVars t
+freeMetaVars (TTuple _) = mempty
+freeMetaVars (TFunc l r _) = freeMetaVars l <> freeMetaVars r
+freeMetaVars (TOp _) = mempty
+freeMetaVars (TData _ _) = mempty
+freeMetaVars (TApp l r _) = freeMetaVars l <> freeMetaVars r
+freeMetaVars (TVar _ _) = mempty
+freeMetaVars (TMetaVar n _) = Set.singleton n
+freeMetaVars TType = mempty
+
 -- You can freely use `fromJust` below to extract the underlying `Type` from the `Maybe Type` you got.
 -- You should also ensure that `elaborate` in `Elab Expr` returns a `Just` when it comes to the `Maybe Type` value.
 -- TODO: Maybe fix this?
@@ -828,7 +842,6 @@ instance Elab Expr where
     (ty1, typedExpr1, sub1) <- elaborate expr newEnv
     let returnTy = subst sub1 tv ~-> fromJust ty1
     return (Just returnTy, subst sub1 (T.Lam bound (subst sub1 tv) typedExpr1 loc), sub1)
-  elaborate (Func name clauses l) env = undefined
   -- Γ ⊢ e1 ↑ (s1, t1)
   -- s1 Γ ⊢ e2 ↑ (s2, t2)
   ---- Tuple -----------------------------

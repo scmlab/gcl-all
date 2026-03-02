@@ -41,8 +41,12 @@ data Program
 -- | Definition (the functional language part)
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | FuncDefnSig Name Type (Maybe Expr) (Maybe Range)
-  | FuncDefn Name Expr
+    -- data T a b = C1 a | C2 b
+  | ValDefn Name (Maybe Type) [FuncClause]
+    -- f :: a -> b
+    -- f p1 = e1
+    -- f p2 = e2
+
   deriving (Eq, Show)
 
 -- constructor of type definition
@@ -112,7 +116,7 @@ data Interval = Interval Endpoint Endpoint (Maybe Range)
 data TBase = TInt | TBool | TChar
   deriving (Show, Eq, Generic)
 
--- | Types
+-- | Types and Type Scheme
 data Type
   = TBase TBase (Maybe Range)
   | TArray Interval Type (Maybe Range) -- TODO: Make this a higher-kinded type.
@@ -126,6 +130,10 @@ data Type
   | TMetaVar Name (Maybe Range)
   | TType -- "*"
   deriving (Show, Generic)
+
+data Scheme
+  = Forall [Name] Type -- ∀α₁, ..., αₙ. t
+  deriving (Show)
 
 -- NOTE: i don't want to deal with template haskell right now
 -- but i want to catch incomplete patterns when i add new variants in
@@ -161,7 +169,6 @@ data Expr
   | Chain Chain
   | App Expr Expr (Maybe Range)
   | Lam Name Expr (Maybe Range)
-  | Func Name (NonEmpty FuncClause) (Maybe Range)
   | -- Tuple has no srcloc info because it has no conrete syntax at the moment
     Tuple [Expr]
   | Quant Expr [Name] Expr Expr (Maybe Range)

@@ -61,6 +61,10 @@ class (Monad m) => Fresh m where
   fresh = freshPre (Text.pack "")
 
   freshPre :: Text -> m Text
+  freshPre pref = freshPreS (Text.unpack pref)
+
+  freshPreS :: String -> m Text
+  freshPreS pref = freshPre (Text.pack pref)
 
 freshName :: (Fresh m, MaybeRanged a) => Text -> a -> m Name
 freshName prefix l = Name <$> freshPre prefix <*> pure (maybeRangeOf l)
@@ -76,10 +80,10 @@ class Counterous m where
 
 instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
   fresh = Text.pack . ("?m_" ++) . show <$> countUp
-  freshPre prefix =
+  freshPreS prefix =
     Text.pack
       . ("?" ++)
-      . (Text.unpack prefix ++)
+      . (prefix ++)
       . ("_" ++)
       . show
       <$> countUp
@@ -99,18 +103,6 @@ emptySubs = mempty
 emptyEnv :: Env a
 emptyEnv = mempty
 
-freeMetaVars :: Type -> Set Name
-freeMetaVars (TBase _ _) = mempty
-freeMetaVars (TArray _ t _) = freeMetaVars t
-freeMetaVars (TTuple _) = mempty
-freeMetaVars (TFunc l r _) = freeMetaVars l <> freeMetaVars r
-freeMetaVars (TOp _) = mempty
-freeMetaVars (TData _ _) = mempty
-freeMetaVars (TApp l r _) = freeMetaVars l <> freeMetaVars r
-freeMetaVars (TVar _ _) = mempty
-freeMetaVars (TMetaVar n _) = Set.singleton n
-freeMetaVars TType = mempty
-
 -- A class of types for which we may compute their free variables.
 class Free a where
   freeVars :: a -> Set Name
@@ -120,8 +112,10 @@ class Free a where
 occurs :: (Free a) => Name -> a -> Bool
 occurs n x = n `Set.member` freeVars x
 
-instance (Free a) => Free (Subs a) where
+instance (Free a) => Free (Map i a) where -- Env and Subs
   freeVars = Set.unions . Map.map freeVars
+
+-- or, freeVars = foldMap freeVars . Map.elems
 
 instance {-# OVERLAPPABLE #-} (Free a) => Free [a] where
   freeVars l = foldMap freeVars l
@@ -147,6 +141,10 @@ instance Free Type where
   freeVars (TMetaVar n _) = Set.singleton n
   freeVars TType = mempty
 
+instance Free Scheme where
+  freeVars (Forall tvs ty) =
+    freeVars ty `Set.difference` Set.fromList tvs -- remove quantified tyvars
+
 instance {-# OVERLAPS #-} Free TypeEnv where
   freeVars env = foldMap freeVars $ Map.elems $ Map.fromList env
 
@@ -157,7 +155,6 @@ instance Free Expr where
   freeVars (Chain chain) = freeVars chain
   freeVars (Lit _ _) = mempty
   freeVars (App e1 e2 _) = freeVars e1 <> freeVars e2
-  freeVars (Func _ clauses _) = Set.unions (fmap freeVars clauses)
   freeVars (Lam x e _) = freeVars e \\ Set.singleton x
   freeVars (Tuple xs) = Set.unions (map freeVars xs)
   freeVars (Quant op xs range term _) =

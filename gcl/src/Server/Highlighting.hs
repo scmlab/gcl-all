@@ -93,13 +93,10 @@ instance Collect () Highlighting Definition where
     addHighlighting J.SemanticTokenTypes_Type [] name
     addHighlighting J.SemanticTokenTypes_Parameter [] binders
     collect bs
-  collect (FuncDefnSig a b) = do
-    collect a
-    collect b
-  collect (FuncDefn a bs _tok c) = do
+  collect (ValDefnSig d) = collect d 
+  collect (ValDefn a _t _tokEq e) = do
     addHighlighting J.SemanticTokenTypes_Function [J.SemanticTokenModifiers_Declaration] a
-    collect (fmap AsVariable bs)
-    collect c
+    collect e
 
 --------------------------------------------------------------------------------
 -- Declaration

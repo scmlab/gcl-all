@@ -85,8 +85,7 @@ programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a 
 
     splitDefn :: Definition -> [(Name, Definition)]
     splitDefn def@(TypeDefn con _params ctors _) = (con, def) : concatMap (`splitCtor` def) ctors
-    splitDefn FuncDefnSig {} = mempty
-    splitDefn def@(FuncDefn name _exprs) = [(name, def)]
+    splitDefn def@(ValDefn name _ _) = [(name, def)]
 
     splitCtor :: TypeDefnCtor -> Definition -> [(Name, Definition)]
     splitCtor (TypeDefnCtor name _params) def = [(name, def)]
@@ -158,11 +157,7 @@ instance Collect TargetRanges OriginTargetRanges Program where
 -- Definition
 instance Collect TargetRanges OriginTargetRanges Definition where
   collect TypeDefn {} = return ()
-  collect (FuncDefnSig n t prop _) = do
-    collect n
-    collect t
-    collect prop
-  collect (FuncDefn n exprs) = do
+  collect (ValDefn n _ exprs) = do
     collect n
     collect exprs
 
@@ -210,7 +205,6 @@ instance Collect TargetRanges OriginTargetRanges Expr where
     Chain ch -> collect ch
     App a b _ -> collect a >> collect b
     Lam _ b _ -> collect b
-    Func a b _ -> collect a >> collect b
     Tuple as -> mapM_ collect as
     Quant op args c d _ -> do
       collect op
