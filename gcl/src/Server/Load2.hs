@@ -138,7 +138,7 @@ mapSepBy f (Delim c _ cs) = f c : mapSepBy f cs
 -- | Wrapper around load: if holes are found, dig them and call load again.
 -- Returns Left for real errors, Right (result, Nothing) if no holes were found,
 -- Right (result, Just (newSource, edits)) if holes were dug.
-loadFull :: FilePath -> Text -> Either Error (LoadResult, Maybe (Text, [(Range, Text)]))
+loadFull :: FilePath -> Text -> Either Error (LoadResult, Maybe ([(Range, Text)], Text))
 loadFull filePath source =
   case load filePath source of
     Left (HaltError err)   -> Left err
@@ -148,7 +148,7 @@ loadFull filePath source =
       in case load filePath newSource of
            Left (HaltError err) -> Left err
            Left (HaltHoles _)   -> Left (Others "Load2" "unexpected holes after digging" Nothing)
-           Right result         -> Right (result, Just (newSource, edits))
+           Right result         -> Right (result, Just (edits, newSource))
     Right result -> Right (result, Nothing)
 
 -- | Replacement text for a hole, matching the behaviour of Server.Monad.digHoles.
