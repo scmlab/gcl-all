@@ -78,38 +78,46 @@ instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.De
 instance ToAbstract DefinitionBlock [A.Definition] where
   toAbstract (DefinitionBlock _ defns _) = aggregateDefns defns
 
-aggregateDefns :: [Definition] -> [A.Definition]
-aggregateDefns [] = []
-aggregateDefns (TypeDefn tok name binders _ cons : ds) =
-  A.TypeDefn name binders (toAbstract cons) (maybeRangeOf tok <---> maybeRangeOf cons) :
-  aggregateDefns ds
-aggregateDefns (ValDefnSig decl : ds) =
-   let (names, typ) = toAbstract decl
-       (ds1, ds2) = span (sameDefn names) ds
-   in aggregTypedDefn names typ ds1 ++ aggregateDefns ds2
-  where sameDefn names (ValDefn name _ _ _) = name `elem` names
-        sameDefn _ _ = False
-aggregateDefns (d@(ValDefn name args _ body) : ds) =
-   let (ds1, ds2) = span (sameDefn name) ds
-   in aggregDefn name (d:ds1) : aggregateDefns ds2
-  where sameDefn name (ValDefn name' _ _ _) = name == name'
-        sameDefn _ _ = False
+aggregateDefns :: [Definition] -> AbstractTransformerM [A.Definition]
+aggregateDefns [] = return []
+aggregateDefns (TypeDefn tok name binders _ cons : ds) = do
+  d' <- A.TypeDefn name binders <$> toAbstract cons <*> pure (maybeRangeOf tok <---> maybeRangeOf cons)
+  ds' <- aggregateDefns ds
+  return $ d' : ds'
+aggregateDefns (ValDefnSig decl : ds) = do
+  (names, typ) <- toAbstract decl
+  let    (ds1, ds2) = span (sameDefn names) ds
+  ds1' <- aggregTypedDefn names typ ds1
+  ds2' <- aggregateDefns ds2
+  return $ ds1' ++ ds2'
+  where
+    sameDefn names (ValDefn name _ _ _) = name `elem` names
+    sameDefn _ _ = False
+aggregateDefns (d@(ValDefn name args _ body) : ds) = do
+  let (ds1, ds2) = span (sameDefn name) ds
+  d' <- aggregDefn name (d : ds1)
+  ds2' <- aggregateDefns ds2
+  return $ d' : ds2'
+  where
+    sameDefn name (ValDefn name' _ _ _) = name == name'
+    sameDefn _ _ = False
 
-aggregTypedDefn :: [Name] -> A.Type -> [Definition] -> [A.Definition]
+aggregTypedDefn :: [Name] -> A.Type -> [Definition] -> AbstractTransformerM [A.Definition]
 aggregTypedDefn names ty defns =
-   map aggregTypedDefn1 names
-  where aggregTypedDefn1 name =
-          A.ValDefn name (Just ty) (map extractFnClause (filter (isThis name) defns))
-        isThis name (ValDefn name' _ _ _) = name == name'
-        isThis _    _  = error "aggregTypedDefn: shouldn't happen"
+  mapM aggregTypedDefn1 names
+  where
+    aggregTypedDefn1 name =
+      A.ValDefn name (Just ty) <$> mapM extractFnClause (filter (isThis name) defns)
+    isThis name (ValDefn name' _ _ _) = name == name'
+    isThis _ _ = error "aggregTypedDefn: shouldn't happen"
 
-aggregDefn :: Name -> [Definition] -> A.Definition
+aggregDefn :: Name -> [Definition] -> AbstractTransformerM A.Definition
 aggregDefn name defns =
-   A.ValDefn name Nothing (map extractFnClause defns)
+  A.ValDefn name Nothing <$> mapM extractFnClause defns
 
-extractFnClause :: Definition -> A.FuncClause
+extractFnClause :: Definition -> AbstractTransformerM A.FuncClause
 extractFnClause (ValDefn _ ptns _ body) =
-  A.FuncClause (map toAbstract ptns) (toAbstract body)
+  A.FuncClause <$> mapM toAbstract ptns <*> toAbstract body
 extractFnClause _ = error "extractFnClause: shouldn't happen"
 
 -- instance ToAbstract Definition [A.Definition] where
