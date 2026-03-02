@@ -9,12 +9,20 @@
           T -> F 
           F -> T
 
-    -- data Maybe = Just B | Nothing 
+    data Maybe = Just B | Nothing 
 
-    -- isJust : Maybe -> B 
-    -- isJust x = case x of 
-    --     Nothing -> F 
-    --     Just a -> T 
+    isJust : Maybe -> B 
+    isJust x = case x of 
+        Nothing -> F 
+        Just a -> T
+
+    even : Int -> B
+    even a = T
+    even n = odd (n - 1)
+
+    odd : Int -> B
+    odd a = F
+    odd n = even (n - 1)
 :}
 
 
