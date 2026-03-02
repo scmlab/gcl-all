@@ -1,9 +1,8 @@
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Server.Load2 where
 
+import Data.Bifunctor (first)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
 import Data.Ord (comparing)
@@ -59,12 +58,8 @@ loadAndDig filePath source = do
 loadConcrete :: C.Program -> Either Error LoadResult
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
-  elaborated <- case TypeChecking.runElaboration abstract mempty of
-    Left err -> Left (TypeError err)
-    Right e  -> Right e
-  (pos, specs, holes, warnings, _redexes, idCount) <- case WP.sweep elaborated of
-    Left err -> Left (StructError err)
-    Right r  -> Right r
+  elaborated <- first TypeError $ TypeChecking.runElaboration abstract mempty
+  (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return LoadResult
     { specifications   = specs
     , holes            = holes
