@@ -20,8 +20,9 @@ import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
-import GCL.Dependency (resolveDependency)
+import GCL.Dependency (resolveDependency, showDependency)
 import qualified Data.Map
+import Control.Monad.Trans (lift)
 
 loadFromFile filepath = do
   source <- TE.decodeUtf8 <$> BS.readFile filepath
@@ -36,7 +37,8 @@ simpleLoad filepath source = runExceptT $ catchError run handler
       concrete <- ExceptT $ parse filepath source
       -- lift $ print concrete
       abstract <- ExceptT $ toAbstract concrete
-      let !deps = evalState (resolveDependency abstract) (Data.Map.empty, Data.Map.empty)
+      let !deps = evalState (resolveDependency abstract) (Data.Map.empty, Data.Map.empty, Data.Map.empty, 0)
+      lift $ showDependency deps
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
       typed2 <- ExceptT $ toTyped2 abstract
