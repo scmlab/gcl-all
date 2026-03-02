@@ -611,22 +611,23 @@ instance Elab Definition where
       scopeCheck :: (MonadError TypeError m) => Set.Set Name -> Type -> m ()
       scopeCheck ns t = mapM_ (\n -> if Set.member n ns then return () else throwError $ NotInScope n) (freeVars t)
   elaborate (ValDefn _ _ _) env = error "GCL.Type deprecated"
-  -- elaborate (ValDefnSig name (Just ty) clauses loc) env =
-  --   do
-  --   expr' <-
-  --     mapM
-  --       ( \expr -> do
-  --           (_, typed, _) <- elaborate expr env
-  --           return typed
-  --       )
-  --       maybeExpr
-  --   (_, infos, _, _) <- get
-  --   (kind, kinded) <- toKinded infos ty
-  --   if kind == KStar Nothing then return () else throwError $ KindUnifyFailed kind (KStar Nothing) (maybeRangeOf kind)
-  --   return (Nothing, T.FuncDefnSig name kinded expr' loc, mempty)
-  -- elaborate (FuncDefn name expr) env = do
-  --   (_, typed, _) <- elaborate expr env
-  --   return (Nothing, T.FuncDefn name typed, mempty)
+
+-- elaborate (ValDefnSig name (Just ty) clauses loc) env =
+--   do
+--   expr' <-
+--     mapM
+--       ( \expr -> do
+--           (_, typed, _) <- elaborate expr env
+--           return typed
+--       )
+--       maybeExpr
+--   (_, infos, _, _) <- get
+--   (kind, kinded) <- toKinded infos ty
+--   if kind == KStar Nothing then return () else throwError $ KindUnifyFailed kind (KStar Nothing) (maybeRangeOf kind)
+--   return (Nothing, T.FuncDefnSig name kinded expr' loc, mempty)
+-- elaborate (FuncDefn name expr) env = do
+--   (_, typed, _) <- elaborate expr env
+--   return (Nothing, T.FuncDefn name typed, mempty)
 
 instance Elab TypeDefnCtor where
   elaborate (TypeDefnCtor name ts) _ = do

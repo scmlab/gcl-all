@@ -5,7 +5,7 @@ module Pretty.Abstract () where
 import Pretty.Common ()
 import Pretty.Util
 import Prettyprinter
-import Render.Class (PrecContext (NoContext, AppHOLE))
+import Render.Class (PrecContext (AppHOLE, NoContext))
 import Render.Error ()
 import Render.Predicate ()
 import Render.Syntax.Common ()
@@ -55,12 +55,16 @@ instance Pretty Definition where
   pretty (ValDefn name Nothing clauses) =
     vsep $ map (prettyDefnClause name) clauses
   pretty (ValDefn name (Just ty) clauses) =
-    vsep $ (pretty name <+> ":" <+> align (pretty ty)
-            : map (prettyDefnClause name) clauses)
+    vsep $
+      ( pretty name <+> ":" <+> align (pretty ty)
+          : map (prettyDefnClause name) clauses
+      )
 
 prettyDefnClause name (FuncClause ptns expr) =
-  pretty name <+> sep (map (prettyPrec AppHOLE) ptns)
-      <+> "=" <+> align (pretty expr)
+  pretty name
+    <+> sep (map (prettyPrec AppHOLE) ptns)
+    <+> "="
+    <+> align (pretty expr)
 
 instance Pretty TypeDefnCtor where
   pretty (TypeDefnCtor cn ts) = pretty cn <+> hsep (pretty <$> ts)

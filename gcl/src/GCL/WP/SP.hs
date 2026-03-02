@@ -23,8 +23,8 @@ import Syntax.Typed.Operator
   )
 import Syntax.Typed.Util
   ( getGuards,
-    typeOf,
     syntaxSubst,
+    typeOf,
   )
 
 spFunctions :: (TstructSegs, Tstruct) -> TspSStmts

@@ -237,7 +237,7 @@ instance MaybeRanged Range where
 instance (MaybeRanged a) => MaybeRanged (Maybe a) where
   maybeRangeOf (Just x) = maybeRangeOf x
   maybeRangeOf Nothing = Nothing
-  
+
 instance (MaybeRanged a) => MaybeRanged [a] where
   maybeRangeOf = foldr ((<--->) . maybeRangeOf) Nothing
 
