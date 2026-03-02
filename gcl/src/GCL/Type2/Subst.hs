@@ -5,8 +5,6 @@ module GCL.Type2.Subst where
 
 import Data.List (foldl', intercalate)
 import qualified Data.Map as Map
-import GCL.Type2.Types
-import Pretty
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)

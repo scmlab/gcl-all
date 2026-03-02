@@ -1,13 +1,9 @@
 module GCL.Type2.Unify where
 
 import qualified Data.Map as Map
-import Debug.Trace
 import GCL.Common (occurs)
 import GCL.Range (Range)
 import GCL.Type (TypeError (..))
-import GCL.Type2.Subst
-import GCL.Type2.Types
-import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name, TypeOp (..))
 import Prelude hiding (EQ, GT, LT)

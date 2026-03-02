@@ -16,13 +16,25 @@ import Debug.Trace
 import GCL.Common (Free (..))
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
-import GCL.Type2.Common (Env, Scheme (..), TyVar)
-import GCL.Type2.RSE
-import qualified Hack
-import GCL.Type2.Infer.BuiltIn
-import GCL.Type2.Subst
+import GCL.Type2.Infer.BuiltIn (getArithOpType, getChainOpType)
+import GCL.Type2.Subst (applySubst, applySubstEnv)
 import GCL.Type2.Types
-import GCL.Type2.Unify
+  ( Env,
+    Result,
+    Subst,
+    TIMonad,
+    ask,
+    freshTVar,
+    freshTyVar,
+    lift,
+    local,
+    throwError,
+    typeBool,
+    typeInt,
+    typeToType,
+  )
+import GCL.Type2.Unify (unify)
+import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), Name (Name), Op (..), TypeOp (..))
@@ -482,7 +494,6 @@ inferClause pattern expr ty = do
   Γ ⊢p p ↑ (s, s a, η)
 -}
 
-
 bindPattern :: A.Pattern -> A.Type -> TIMonad (Subst, Env)
 bindPattern (A.PattLit lit) ty = do
   sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (maybeRangeOf lit)) ty (maybeRangeOf ty)
@@ -525,7 +536,6 @@ bindPattern (A.PattConstructor ctorName pats) ty = do
 
 inferTypeOp :: TypeOp -> TIMonad (Subst, A.Type, Op)
 inferTypeOp op = undefined
-
 
 {-
   For reference: to infer types of simple recursive equations:

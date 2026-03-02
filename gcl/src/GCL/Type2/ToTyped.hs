@@ -10,15 +10,8 @@ import Control.Monad (foldM, unless, when)
 import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type (TypeError (..))
-import GCL.Type2.Common (Env, Scheme (..))
-import GCL.Type2.Infer
-import GCL.Type2.Subst
-import GCL.Type2.Types
-import GCL.Type2.Unify
-import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
