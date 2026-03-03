@@ -60,7 +60,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
 
     toDeps :: A.Program -> IO (Either Error [DependencyNode])
     toDeps abstract = do
-      case evalState (resolveDependency abstract) (Data.Map.empty, Data.Map.empty, 0) of
+      case evalState (resolveDependency abstract) mempty of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError err)

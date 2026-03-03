@@ -3,17 +3,13 @@
 
 module GCL.Dependency(resolveDependency, showDependency, DependencyNode) where
 
-import Data.Graph (SCC (AcyclicSCC, CyclicSCC), stronglyConnCompR, graphFromEdges', topSort)
-import Data.Map (Map, insert, insertWith, lookup, elems, (!), traverseWithKey)
+import Data.Graph (SCC (..), stronglyConnCompR)
+import Data.Map (Map, insert, insertWith, lookup, elems, traverseWithKey)
 import Data.Set (Set, toList, singleton, union)
-import Control.Monad.State.Lazy (State, get, modify, put)
+import Control.Monad.State.Lazy (State, get, modify)
 import Syntax.Abstract as A
 import Syntax.Common as C
-import Data.Foldable (forM_)
 import Control.Applicative ((<|>))
-import Debug.Trace (traceM)
-import GCL.Common (Counterous (..))
-import Data.List.NonEmpty (NonEmpty (..), fromList, toList)
 import GCL.Type (TypeError (NotInScope))
 import Control.Monad (foldM)
 import Data.Text (Text, intercalate)
@@ -30,27 +26,20 @@ import qualified Data.Text as Text
 -- |    then report as an `NotInScope` error. This step guarantees later dependant's
 -- |    type not to be wrapped within `Maybe`.
 -- |
--- | After (2), the nodes are namely `DepGraphPrimaryNode`.
+-- | After (2), the nodes are namely `ResolvedDepNode`.
 -- |
--- | 3. Construct the SCCs from `[DepGraphPrimaryNode]`, then map SCCs to an identical IDs
--- |    and store under `DepMonad`.
--- |    
--- | 4. Degrades them into `[DepGraphSecondaryNode]` given their original IDs computed from
--- |    previous step.
--- |
--- | 5. Construct `[DepGraphSecondaryNode]` into a graph then perform topological sort on it.
--- |
--- | 6. Finally, construct `[DependencyNode]` from the order given by topological sort and
--- |    the `[DepGraphSecondaryNode]`.
+-- | 3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
+-- |    finally trasnform into `[DependencyNode]`.
 -- |=========================================================================================
 
-type DepGraphNode val edge t = (val, edge, t edge)
+type DepNode val t = (val, C.Name, t C.Name)
+type DepMap node = Map C.Name node
 
-type DepMap val edges = Map C.Name (DepGraphNode val C.Name edges)
+type UnresolvedDepNode = DepNode (Maybe A.Definition) Set
+type UnresolvedDepMap = DepMap UnresolvedDepNode
 
-type UnresolvedDepMap = DepMap (Maybe A.Definition) Set
-
-type ResolvedDepMap = DepMap A.Definition []
+type ResolvedDepMap = DepMap ResolvedDepNode
+type ResolvedDepNode = DepNode A.Definition []
 
 type Result a = Either TypeError a
 
@@ -61,15 +50,7 @@ data DependencyNode
 
 type TypeDefinitions = Map C.Name C.Name
 
-type SecondaryIdMap = Map C.Name Int
-
-type DepMonad = State (TypeDefinitions, SecondaryIdMap, Int)
-
-instance Counterous DepMonad where
-  countUp = do
-    (defns, smap, i) <- get
-    _ <- put (defns, smap, succ i)
-    return i
+type DepMonad = State TypeDefinitions
 
 resolveDependency :: A.Program -> DepMonad (Result [DependencyNode])
 resolveDependency program = do
@@ -79,13 +60,9 @@ resolveDependency program = do
     Left err -> return $ Left err
     Right resolvedDeps' -> do
       let scc = stronglyConnCompR $ elems resolvedDeps'
-      mapSCCIds scc
-      secondaryVertexes <- degradeNode scc
-      let (graph, nodeMapper) = graphFromEdges' secondaryVertexes
-      let order = topSort graph
-      let dependency = map nodeMapper order
-      -- error $ renderDepGraph' dependency
-      return $ pure $ constructNode dependency
+      let scc' = reverse scc
+      -- error $ renderDepGraph scc'
+      return $ pure $ constructNode scc'
 
 resolveProgram :: A.Program -> DepMonad UnresolvedDepMap
 resolveProgram (A.Program defs _ _ _ _) =
@@ -99,7 +76,7 @@ resolveDefinition deps def@(A.TypeDefn name _ ctors _) = do
     resolveTypeDefnCtor :: UnresolvedDepMap -> A.TypeDefnCtor -> DepMonad UnresolvedDepMap
     resolveTypeDefnCtor deps' (A.TypeDefnCtor ctorName types) = do
       foldM (\deps'' typ -> do
-        modify (\(defns, smap, id') -> (Data.Map.insert ctorName name defns, smap, id'))
+        modify $ Data.Map.insert ctorName name
         resolveType name deps'' typ
         ) deps' types
 resolveDefinition deps def@(A.FuncDefnSig name typ expr _) = do
@@ -157,7 +134,7 @@ resolveExpr _ deps _ = return deps
 
 resolvePattern :: C.Name -> UnresolvedDepMap -> A.Pattern -> DepMonad UnresolvedDepMap
 resolvePattern name deps (A.PattConstructor ctorName pats) = do
-  (defns, _, _) <- get
+  defns <- get
   let deps' = case Data.Map.lookup ctorName defns of
         Just dependent -> addDependency dependent name deps
         Nothing -> deps
@@ -192,7 +169,7 @@ validateDependency :: UnresolvedDepMap -> DepMonad (Result ResolvedDepMap)
 validateDependency deps = do
   return $ traverseWithKey validateEntry deps
   where
-    validateEntry :: C.Name -> DepGraphNode (Maybe A.Definition) C.Name Set -> Result DepGraphPrimaryNode
+    validateEntry :: C.Name -> UnresolvedDepNode -> Result ResolvedDepNode
     validateEntry name (Nothing, _, _) = Left $ NotInScope name
     validateEntry _ (Just def, name, deps') = pure (def, name, Data.Set.toList deps')
 
@@ -200,45 +177,11 @@ validateDependency deps = do
 -- | Graph node transformation |
 -- |===========================|
 
-type DepGraphPrimaryNode = DepGraphNode A.Definition C.Name []
-
-type DepGraphSecondaryNode = DepGraphNode (NonEmpty DepGraphPrimaryNode) Int []
-
-degradeNode :: [SCC DepGraphPrimaryNode] -> DepMonad [DepGraphSecondaryNode]
-degradeNode (AcyclicSCC node : ns) = do
-  (_, idmap, _) <- get
-  let (_, name, names) = node
-  ns' <- degradeNode ns
-  return $ (node :| [], idmap ! name, map (idmap !) names) : ns'
-degradeNode (CyclicSCC nodes : ns) = do
-  (_, idmap, _) <- get
-  ns' <- degradeNode ns
-  let (_, name, _) = head nodes
-  return $ (fromList nodes, idmap ! name, map (\(_, name', _) -> idmap ! name') nodes) : ns'
-degradeNode [] = return []
-
-mapSCCIds :: [SCC DepGraphPrimaryNode] -> DepMonad ()
-mapSCCIds (AcyclicSCC node : ns) = do
-  let (_, name, _) = node
-  nodeId <- countUp
-  modify (\(defns, idmap, i) -> (defns, Data.Map.insert name nodeId idmap, i))
-  mapSCCIds ns
-mapSCCIds (CyclicSCC nodes : ns) = do
-  nodeId <- countUp
-  forM_ nodes (\node -> do
-      let (_, name, _) = node
-      modify (\(defns, idmap, i) -> (defns, Data.Map.insert name nodeId idmap, i))
-      return ()
-    )
-  mapSCCIds ns
-mapSCCIds [] = return ()
-
-constructNode :: [DepGraphSecondaryNode] -> [DependencyNode]
-constructNode (((node, _, _) :| [], _, _) : ns) =
-  Acyclic node : constructNode ns
-constructNode ((nodes, _, _) : ns) =
-  let nodes' = Data.List.NonEmpty.toList nodes
-  in Cyclic (map (\(n, _, _) -> n) nodes') : constructNode ns
+constructNode :: [SCC ResolvedDepNode] -> [DependencyNode]
+constructNode (AcyclicSCC (def, _, _) : ns) =
+  Acyclic def : constructNode ns
+constructNode (CyclicSCC defs : ns) =
+  Cyclic (map (\(n, _, _) -> n) defs) : constructNode ns
 constructNode [] = []
 
 showDependency :: DependencyNode -> Text
@@ -247,25 +190,31 @@ showDependency (Acyclic definition) =
 showDependency (Cyclic defns) =
   intercalate (Text.pack " <-> ") $ map (C.nameToText . definitionToName) defns
 
+showDependency' :: SCC ResolvedDepNode -> Text
+showDependency' (AcyclicSCC (definition, _, _)) =
+  C.nameToText $ definitionToName definition
+showDependency' (CyclicSCC definitions) =
+  intercalate (Text.pack " <-> ") $ map (\(def, _, _) -> C.nameToText $ definitionToName def) definitions
+
 -- |====================|
 -- | Graphviz Rendering |
 -- |====================|
-renderDepGraph :: [DepGraphSecondaryNode] -> String
+renderDepGraph :: [SCC ResolvedDepNode] -> String
 renderDepGraph nodes =
   "digraph DependencyGraph {\n" <>
   "  node [shape=box];\n" <>
   concatMap formatNode nodes <>
   "}"
 
-formatNode :: DepGraphSecondaryNode -> String
-formatNode ((_, C.Name name _, deps) :| [], _, _) =
+formatNode :: SCC ResolvedDepNode -> String
+formatNode (AcyclicSCC (_, C.Name name _, deps)) =
   let nodeName = show name
       label = nodeName <> "[style=filled, fillcolor=lightblue];\n"
   in "  " <> label <> concatMap (\(C.Name name' _) -> "  " <> nodeName <> " -> " <> show name' <> ";\n") deps
-formatNode (nodes, nodeId, _) =
-  let nodeName = show nodeId
-      nodes' = Data.List.NonEmpty.toList nodes
-      labels = concatMap formatNode'' nodes'
+formatNode (CyclicSCC defs) =
+  let (_, name, _) = head defs
+      nodeName = Text.unpack $ nameToText name
+      labels = concatMap formatNode'' defs
   in "  subgraph cluster" <> nodeName <> "{\n" <>
      labels <>
      "  }\n"
