@@ -4,16 +4,19 @@
 module GCL.Dependency(resolveDependency, showDependency, DependencyNode) where
 
 import Data.Graph (SCC (..), stronglyConnCompR)
-import Data.Map (Map, insert, insertWith, lookup, elems, traverseWithKey)
+import Data.Map (Map, insert, insertWith, lookup, elems, traverseWithKey, member, lookupIndex, keys)
 import Data.Set (Set, toList, singleton, union)
 import Control.Monad.State.Lazy (State, get, modify)
 import Syntax.Abstract as A
 import Syntax.Common as C
 import Control.Applicative ((<|>))
-import GCL.Type (TypeError (NotInScope))
-import Control.Monad (foldM)
+import GCL.Type (TypeError (NotInScope, DuplicatedIdentifiers))
+import Control.Monad (foldM, when)
 import Data.Text (Text, intercalate)
 import qualified Data.Text as Text
+import Control.Monad.Trans.Except (ExceptT)
+import Control.Monad.Except (MonadError(throwError))
+import Debug.Trace (traceM)
 
 -- |=========================================================================================
 -- | Depdendency resolution is constructed in follow steps:
@@ -41,8 +44,6 @@ type UnresolvedDepMap = DepMap UnresolvedDepNode
 type ResolvedDepMap = DepMap ResolvedDepNode
 type ResolvedDepNode = DepNode A.Definition []
 
-type Result a = Either TypeError a
-
 data DependencyNode
   = Acyclic A.Definition
   | Cyclic [A.Definition]
@@ -50,19 +51,15 @@ data DependencyNode
 
 type TypeDefinitions = Map C.Name C.Name
 
-type DepMonad = State TypeDefinitions
+type DepMonad = ExceptT TypeError (State TypeDefinitions)
 
-resolveDependency :: A.Program -> DepMonad (Result [DependencyNode])
+resolveDependency :: A.Program -> DepMonad [DependencyNode]
 resolveDependency program = do
   deps <- resolveProgram program
   resolvedDeps <- validateDependency deps
-  case resolvedDeps of
-    Left err -> return $ Left err
-    Right resolvedDeps' -> do
-      let scc = stronglyConnCompR $ elems resolvedDeps'
-      let scc' = reverse scc
-      -- error $ renderDepGraph scc'
-      return $ pure $ constructNode scc'
+  let scc = reverse $ stronglyConnCompR $ elems resolvedDeps
+  -- error $ renderDepGraph scc
+  return $ constructNode scc
 
 resolveProgram :: A.Program -> DepMonad UnresolvedDepMap
 resolveProgram (A.Program defs _ _ _ _) =
@@ -70,21 +67,29 @@ resolveProgram (A.Program defs _ _ _ _) =
 
 resolveDefinition :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
 resolveDefinition deps def@(A.TypeDefn name _ ctors _) = do
-  let deps' = registerDependency name (Just def) deps
+  deps' <- registerDependency name def deps
   foldM resolveTypeDefnCtor deps' ctors
   where
     resolveTypeDefnCtor :: UnresolvedDepMap -> A.TypeDefnCtor -> DepMonad UnresolvedDepMap
     resolveTypeDefnCtor deps' (A.TypeDefnCtor ctorName types) = do
-      foldM (\deps'' typ -> do
-        modify $ Data.Map.insert ctorName name
-        resolveType name deps'' typ
-        ) deps' types
+      typeDefs <- get
+      -- Checks if type definition constructor has duplicated names
+      -- e.g.
+      -- data A = B
+      -- data C = B
+      case Data.Map.lookupIndex ctorName typeDefs of
+        Just idx -> do
+          let previousCtorName = Data.Map.keys typeDefs !! idx
+          throwError $ DuplicatedIdentifiers [previousCtorName, ctorName]
+        Nothing -> do
+          modify $ Data.Map.insert ctorName name
+      foldM (resolveType name) deps' types
 resolveDefinition deps def@(A.FuncDefnSig name typ expr _) = do
-  let deps' = registerDependency name (Just def) deps
+  deps' <- registerDependency name def deps
   deps'' <- resolveType name deps' typ
   foldM (resolveExpr name) deps'' expr
 resolveDefinition deps def@(A.FuncDefn name expr) = do
-  let deps' = registerDependency name (Just def) deps
+  deps' <- registerDependency name def deps
   resolveExpr name deps' expr
 
 resolveExpr :: C.Name -> UnresolvedDepMap -> A.Expr -> DepMonad UnresolvedDepMap
@@ -156,22 +161,32 @@ resolveType _ deps _ = return deps
 -- | usage.
 -- | If the provided definition is `Just` and the existed definition in
 -- | the map is `Nothing`, then replace it with provided one. 
-registerDependency :: C.Name -> Maybe A.Definition -> UnresolvedDepMap -> UnresolvedDepMap
-registerDependency name def =
-  insertWith (\(newDef, _, _) (oldDef, depName, deps') -> (oldDef <|> newDef, depName, deps')) name (def, name, mempty)
+registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad UnresolvedDepMap
+registerDependency name def deps = do
+  case (Data.Map.lookup name deps, def) of
+    (Just (Just def'@(A.FuncDefnSig {}), _, _), A.FuncDefnSig {}) ->
+      reportDuplicate (definitionToName def') name
+    (Just (Just def'@(A.TypeDefn {}), _, _), A.TypeDefn {}) ->
+      reportDuplicate (definitionToName def') name
+    _ ->
+      return $ insertWith (\(newDef, _, _) (oldDef, depName, deps') -> (oldDef <|> newDef, depName, deps')) name (pure def, name, mempty) deps
+  where
+    reportDuplicate :: C.Name -> C.Name -> DepMonad a
+    reportDuplicate previous current =
+      throwError $ DuplicatedIdentifiers [previous, current]
 
 addDependency :: C.Name -> C.Name -> UnresolvedDepMap -> UnresolvedDepMap
 addDependency dependant dependency = do
   insertWith (\(_, _, newDeps) (def, depName, oldDeps) ->
     (def, depName, Data.Set.union newDeps oldDeps)) dependant (Nothing, dependant, Data.Set.singleton dependency)
 
-validateDependency :: UnresolvedDepMap -> DepMonad (Result ResolvedDepMap)
+validateDependency :: UnresolvedDepMap -> DepMonad ResolvedDepMap
 validateDependency deps = do
-  return $ traverseWithKey validateEntry deps
+  traverseWithKey validateEntry deps
   where
-    validateEntry :: C.Name -> UnresolvedDepNode -> Result ResolvedDepNode
-    validateEntry name (Nothing, _, _) = Left $ NotInScope name
-    validateEntry _ (Just def, name, deps') = pure (def, name, Data.Set.toList deps')
+    validateEntry :: C.Name -> UnresolvedDepNode -> DepMonad ResolvedDepNode
+    validateEntry name (Nothing, _, _) = throwError $ NotInScope name
+    validateEntry _ (Just def, name, deps') = return (def, name, Data.Set.toList deps')
 
 -- |===========================|
 -- | Graph node transformation |

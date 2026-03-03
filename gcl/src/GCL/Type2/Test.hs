@@ -1,4 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
 module GCL.Type2.Test where
 
 import Control.Monad.Except
@@ -21,7 +20,6 @@ import qualified Syntax.Concrete as C
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
 import GCL.Dependency (resolveDependency, showDependency, DependencyNode)
-import qualified Data.Map
 import Control.Monad.Trans (lift)
 
 loadFromFile filepath = do
@@ -60,7 +58,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
 
     toDeps :: A.Program -> IO (Either Error [DependencyNode])
     toDeps abstract = do
-      case evalState (resolveDependency abstract) mempty of
+      case evalState (runExceptT (resolveDependency abstract)) mempty of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError err)
