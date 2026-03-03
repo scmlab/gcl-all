@@ -16,8 +16,11 @@ import GCL.WP (collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning)
 import Language.Lexer.Applicative (TokenStream (..))
 import Server.Handler.GCL.Refine () -- for Elab [A.Stmt] orphan instance
-import Server.Load2 (DigResult, applyEdits, collectHolesFromStatements, diggedText)
+import Server.Highlighting (collectHighlightingFromStmts)
+import Server.Hover (collectHoverInfoFromStmts)
+import Server.Load2 (DigResult, LoadResult (..), applyEdits, collectHolesFromStatements, diggedText)
 import Server.Monad (HoleKind (..))
+import qualified Language.LSP.Protocol.Types as LSP
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -28,22 +31,14 @@ import GCL.Range (R (..))
 import qualified Syntax.Typed as T
 
 --------------------------------------------------------------------------------
--- Types
-
-data RefineResult = RefineResult
-  { innerSpecs    :: [Spec]
-  , innerHoles    :: [Hole]
-  , innerPOs      :: [PO]
-  , innerWarnings :: [StructWarning]
-  , newIdCount    :: Int
-  }
+-- Types are reused from Server.Load2 (LoadResult, DigResult)
 
 --------------------------------------------------------------------------------
 -- Main pipeline
 
 -- | Full pipeline: validate spec → extract impl → parseAndDigFragment → loadConcreteFragment.
 refineAndDig :: FilePath -> Int -> Spec -> Text
-             -> Either Error (Maybe DigResult, RefineResult)
+             -> Either Error (Maybe DigResult, LoadResult)
 refineAndDig filePath idCount spec source = do
   let specRng = specRange spec
   when (isSingleLine specRng) $
@@ -59,18 +54,21 @@ refineAndDig filePath idCount spec source = do
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt]
-               -> Either Error RefineResult
+               -> Either Error LoadResult
 loadConcreteFragment typeEnv idCount spec stmts = do
   let abstract = C.runAbstractTransform stmts
   elaborated <- first TypeError $ runElaboration abstract typeEnv
   (pos, specs, holes, warnings, idCount') <-
     first StructError $ sweepFragment idCount spec elaborated
-  return RefineResult
-    { innerSpecs    = specs
-    , innerHoles    = holes
-    , innerPOs      = pos
-    , innerWarnings = warnings
-    , newIdCount    = idCount'
+  return LoadResult
+    { specifications   = specs
+    , holes            = holes
+    , proofObligations = pos
+    , warnings         = warnings
+    , idCount          = idCount'
+    , semanticTokens   = collectHighlightingFromStmts stmts
+    , definitionLinks  = mempty -- TODO: needs scope info from declarations
+    , hoverInfos       = collectHoverInfoFromStmts elaborated
     }
 
 -- | Parse fragment and dig holes if needed.
