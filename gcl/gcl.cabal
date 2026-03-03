@@ -81,6 +81,7 @@ library
       Server.Monad
       Server.Notification.Error
       Server.Notification.Update
+      Server.Refine2
       Server.SrcLoc
       Server.ToClient
       Syntax.Abstract
