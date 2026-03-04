@@ -19,7 +19,7 @@ import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
-import GCL.Dependency (resolveDependency, showDependency, DependencyNode)
+import GCL.Dependency (resolveDependency)
 import Control.Monad.Trans (lift)
 
 loadFromFile filepath = do
@@ -36,7 +36,6 @@ simpleLoad filepath source = runExceptT $ catchError run handler
       -- lift $ print concrete
       abstract <- ExceptT $ toAbstract concrete
       deps <- ExceptT $ toDeps abstract
-      lift $ print $ map showDependency deps
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
       typed2 <- ExceptT $ toTyped2 abstract
@@ -56,7 +55,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
     toAbstract :: C.Program -> IO (Either Error A.Program)
     toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
 
-    toDeps :: A.Program -> IO (Either Error [DependencyNode])
+    toDeps :: A.Program -> IO (Either Error [[A.Definition]])
     toDeps abstract = do
       case evalState (runExceptT (resolveDependency abstract)) mempty of
         Left err -> do

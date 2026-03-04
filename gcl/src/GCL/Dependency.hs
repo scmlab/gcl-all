@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module GCL.Dependency(resolveDependency, showDependency, DependencyNode) where
+module GCL.Dependency(resolveDependency) where
 
 import Data.Graph (SCC (..), stronglyConnCompR)
 import Data.Map (Map, insert, insertWith, lookup, elems, traverseWithKey, member, lookupIndex, keys)
@@ -17,9 +17,16 @@ import qualified Data.Text as Text
 import Control.Monad.Trans.Except (ExceptT)
 import Control.Monad.Except (MonadError(throwError))
 import Debug.Trace (traceM)
+import GCL.Common (Free(freeVars))
+import Data.Bitraversable (bimapM)
+import Data.Bifunctor (Bifunctor(bimap))
+import Data.Bifoldable (Bifoldable(bifoldMap, bifold))
 
 -- |=========================================================================================
--- | Depdendency resolution is constructed in follow steps:
+-- | Dependency resolution returns topological-sorted results of dependencies for type and 
+-- | function definitions, type definitions are guaranteed to be sorted before functions.
+-- |
+-- | Dependency resolution is constructed in the following steps:
 -- | 1. Traverse within AST and construct an unresolved dependency map
 -- | 1.1 if the relation exists but the dependant is not yet resolved, register it first
 -- |     but validate its existence upon finishing construction of map
@@ -32,43 +39,53 @@ import Debug.Trace (traceM)
 -- | After (2), the nodes are namely `ResolvedDepNode`.
 -- |
 -- | 3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
--- |    finally trasnform into `[DependencyNode]`.
+-- |    finally trasnform into `[[Definition]]`.
 -- |=========================================================================================
 
+-- | DepNode consists of an instance, a key represents the dependant,
+-- | and a collection of keys represents the dependencies that depends 
+-- | on the dependant.
 type DepNode val t = (val, C.Name, t C.Name)
 type DepMap node = Map C.Name node
 
 type UnresolvedDepNode = DepNode (Maybe A.Definition) Set
 type UnresolvedDepMap = DepMap UnresolvedDepNode
 
-type ResolvedDepMap = DepMap ResolvedDepNode
 type ResolvedDepNode = DepNode A.Definition []
+type ResolvedDepMap = DepMap ResolvedDepNode
 
-data DependencyNode
-  = Acyclic A.Definition
-  | Cyclic [A.Definition]
-  deriving (Eq, Show)
-
+-- | Maps from TypeDefnCtor's name to the TypeDefn's name
+-- | e.g.
+-- | data A = B | C
+-- | gives [("B", "A"), ("C", "A")]
+-- | 
+-- | This is used to mask out constructors from function dependency.
 type TypeDefinitions = Map C.Name C.Name
 
 type DepMonad = ExceptT TypeError (State TypeDefinitions)
 
-resolveDependency :: A.Program -> DepMonad [DependencyNode]
+resolveDependency :: A.Program -> DepMonad [[A.Definition]]
 resolveDependency program = do
-  deps <- resolveProgram program
-  resolvedDeps <- validateDependency deps
-  let scc = reverse $ stronglyConnCompR $ elems resolvedDeps
-  -- error $ renderDepGraph scc
-  return $ constructNode scc
+  unresolvedDeps <- resolveProgram program
+  resolvedDeps <- bimapM validateDependency validateDependency unresolvedDeps
+  let sccs = bimap toTopSortedSCC toTopSortedSCC resolvedDeps
+  let result = bifoldMap (map degradeSCCNode) (map degradeSCCNode) sccs
+  traceM $ show $ map showDependency result
+  traceM $ renderDepGraph $ bifold sccs
+  return result
+  where
+    toTopSortedSCC :: ResolvedDepMap -> [SCC ResolvedDepNode]
+    toTopSortedSCC = reverse . stronglyConnCompR . elems
 
-resolveProgram :: A.Program -> DepMonad UnresolvedDepMap
+resolveProgram :: A.Program -> DepMonad (UnresolvedDepMap, UnresolvedDepMap)
 resolveProgram (A.Program defs _ _ _ _) =
   foldM resolveDefinition mempty defs
 
-resolveDefinition :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
-resolveDefinition deps def@(A.TypeDefn name _ ctors _) = do
-  deps' <- registerDependency name def deps
-  foldM resolveTypeDefnCtor deps' ctors
+resolveDefinition :: (UnresolvedDepMap, UnresolvedDepMap) -> A.Definition -> DepMonad (UnresolvedDepMap, UnresolvedDepMap)
+resolveDefinition (typeDeps, funcDeps) def@(A.TypeDefn name _ ctors _) = do
+  typeDeps' <- registerDependency name def typeDeps
+  typeDeps'' <- foldM resolveTypeDefnCtor typeDeps' ctors
+  return (typeDeps'', funcDeps)
   where
     resolveTypeDefnCtor :: UnresolvedDepMap -> A.TypeDefnCtor -> DepMonad UnresolvedDepMap
     resolveTypeDefnCtor deps' (A.TypeDefnCtor ctorName types) = do
@@ -81,78 +98,39 @@ resolveDefinition deps def@(A.TypeDefn name _ ctors _) = do
         Just idx -> do
           let previousCtorName = Data.Map.keys typeDefs !! idx
           throwError $ DuplicatedIdentifiers [previousCtorName, ctorName]
-        Nothing -> do
+        Nothing ->
           modify $ Data.Map.insert ctorName name
       foldM (resolveType name) deps' types
-resolveDefinition deps def@(A.FuncDefnSig name typ expr _) = do
-  deps' <- registerDependency name def deps
-  deps'' <- resolveType name deps' typ
-  foldM (resolveExpr name) deps'' expr
-resolveDefinition deps def@(A.FuncDefn name expr) = do
-  deps' <- registerDependency name def deps
-  resolveExpr name deps' expr
+resolveDefinition (typeDeps, funcDeps) def@(A.FuncDefnSig name _ expr _) = do
+  funcDeps' <- registerDependency name def funcDeps
+  funcDeps'' <- foldM (resolveExpr name) funcDeps' expr
+  return (typeDeps, funcDeps'')
+resolveDefinition (typeDeps, funcDeps) def@(A.FuncDefn name expr) = do
+  funcDeps' <- registerDependency name def funcDeps
+  funcDeps'' <- resolveExpr name funcDeps' expr
+  return (typeDeps, funcDeps'')
 
 resolveExpr :: C.Name -> UnresolvedDepMap -> A.Expr -> DepMonad UnresolvedDepMap
-resolveExpr name deps (A.Chain chain) = resolveChain chain
-  where
-    resolveChain :: A.Chain -> DepMonad UnresolvedDepMap
-    resolveChain (Pure expr _) =
-      resolveExpr name deps expr
-    resolveChain (More chain' _ expr _) = do
-      deps' <- resolveChain chain'
-      resolveExpr name deps' expr
-resolveExpr name deps (A.App exprA exprB _) = do
-  -- ChAoS: Is this correct way to identify function invocation?
-  let deps' = case exprA of
-        A.Var name' _ -> addDependency name' name deps
-        _ -> deps
-  deps'' <- resolveExpr name deps' exprA
-  resolveExpr name deps'' exprB
-resolveExpr name deps (A.Lam _ expr _) =
-  resolveExpr name deps expr
-resolveExpr name deps (A.Func funcName clauses _) =
-  -- ChAoS: Include this definition later
-  -- registerDependency funcName
-  foldM resolveFuncClause deps clauses
-  where
-    resolveFuncClause :: UnresolvedDepMap -> A.FuncClause -> DepMonad UnresolvedDepMap
-    resolveFuncClause deps' (A.FuncClause pats expr) = do
-      deps'' <- foldM (resolvePattern name) deps' pats
-      resolveExpr name deps'' expr
-resolveExpr name deps (A.Tuple exprs) =
-  foldM (resolveExpr name) deps exprs
-resolveExpr name deps (A.Quant exprA _ exprB exprC _) = do
-  foldM (resolveExpr name) deps [exprA, exprB, exprC]
-resolveExpr name deps (A.ArrIdx exprA exprB _) = do
-  foldM (resolveExpr name) deps [exprA, exprB]
-resolveExpr name deps (A.ArrUpd exprA exprB exprC _) = do
-  foldM (resolveExpr name) deps [exprA, exprB, exprC]
-resolveExpr name deps (A.Case expr clauses _) = do
-  deps' <- resolveExpr name deps expr
-  foldM resolveCaseClause deps' clauses
-  where
-    resolveCaseClause :: UnresolvedDepMap -> A.CaseClause -> DepMonad UnresolvedDepMap
-    resolveCaseClause deps' (A.CaseClause pat expr') = do
-      deps'' <- resolvePattern name deps' pat
-      resolveExpr name deps'' expr'
-resolveExpr _ deps _ = return deps
-
-resolvePattern :: C.Name -> UnresolvedDepMap -> A.Pattern -> DepMonad UnresolvedDepMap
-resolvePattern name deps (A.PattConstructor ctorName pats) = do
-  defns <- get
-  let deps' = case Data.Map.lookup ctorName defns of
-        Just dependent -> addDependency dependent name deps
-        Nothing -> deps
-  foldM (resolvePattern name) deps' pats
-resolvePattern _ deps _ = return deps
+resolveExpr name deps expr = do
+  let vars = freeVars expr
+  typeDefs <- get
+  -- If this free variable is a constructor, then ignore it, otherwise,
+  -- consider this as a function and add dependency to its entry
+  foldM (\deps' var ->
+    if Data.Map.member var typeDefs then
+      return deps'
+    else
+      return $ addDependency var name deps'
+    ) deps vars
 
 resolveType :: C.Name -> UnresolvedDepMap -> A.Type -> DepMonad UnresolvedDepMap
-resolveType name deps (A.TArray _ typ _) = resolveType name deps typ
-resolveType name deps (A.TFunc typA typB _) = do
+resolveType name deps (A.TArray _ typ _) =
+  resolveType name deps typ
+resolveType name deps (A.TFunc typA typB _) =
   foldM (resolveType name) deps [typA, typB]
-resolveType name deps (A.TData dataName _) = do
+resolveType name deps (A.TData dataName _) =
   return $ addDependency dataName name deps
-resolveType name deps (A.TApp typA typB _) = do
+resolveType name deps (A.TApp typA typB _) =
   foldM (resolveType name) deps [typA, typB]
 resolveType _ deps _ = return deps
 
@@ -163,6 +141,7 @@ resolveType _ deps _ = return deps
 -- | the map is `Nothing`, then replace it with provided one. 
 registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad UnresolvedDepMap
 registerDependency name def deps = do
+  -- ChAoS: Later accommodate to the refactored definitions
   case (Data.Map.lookup name deps, def) of
     (Just (Just def'@(A.FuncDefnSig {}), _, _), A.FuncDefnSig {}) ->
       reportDuplicate (definitionToName def') name
@@ -192,24 +171,16 @@ validateDependency deps = do
 -- | Graph node transformation |
 -- |===========================|
 
-constructNode :: [SCC ResolvedDepNode] -> [DependencyNode]
-constructNode (AcyclicSCC (def, _, _) : ns) =
-  Acyclic def : constructNode ns
-constructNode (CyclicSCC defs : ns) =
-  Cyclic (map (\(n, _, _) -> n) defs) : constructNode ns
-constructNode [] = []
+degradeSCCNode :: SCC ResolvedDepNode -> [A.Definition]
+degradeSCCNode (AcyclicSCC (def, _, _)) = [def]
+degradeSCCNode (CyclicSCC defs) = map (\(def, _, _) -> def) defs
 
-showDependency :: DependencyNode -> Text
-showDependency (Acyclic definition) =
-  C.nameToText $ definitionToName definition
-showDependency (Cyclic defns) =
-  intercalate (Text.pack " <-> ") $ map (C.nameToText . definitionToName) defns
-
-showDependency' :: SCC ResolvedDepNode -> Text
-showDependency' (AcyclicSCC (definition, _, _)) =
-  C.nameToText $ definitionToName definition
-showDependency' (CyclicSCC definitions) =
-  intercalate (Text.pack " <-> ") $ map (\(def, _, _) -> C.nameToText $ definitionToName def) definitions
+showDependency :: [A.Definition] -> Text
+showDependency [] = error "should not be empty"
+showDependency [def] =
+  C.nameToText $ definitionToName def
+showDependency defs =
+  intercalate (Text.pack " <-> ") $ map (C.nameToText . definitionToName) defs
 
 -- |====================|
 -- | Graphviz Rendering |
@@ -237,7 +208,8 @@ formatNode (CyclicSCC defs) =
     formatNode'' (_, C.Name name _, deps) =
       let nodeName = show name
           label = nodeName <> "[style=filled, fillcolor=lightblue];\n"
-      in "    " <> label <> concatMap (\(C.Name name' _) -> "  " <> nodeName <> " -> " <> show name' <> ";\n") deps
+      in  
+        "    " <> label <> concatMap (\(C.Name name' _) -> "  " <> nodeName <> " -> " <> show name' <> ";\n") deps
 
 definitionToName :: A.Definition -> C.Name
 definitionToName (A.TypeDefn name _ _ _) = name
