@@ -9,17 +9,13 @@ import Data.Ord (comparing)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Predicate (Hole, PO, Spec)
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
-import GCL.WP.Types (StructWarning)
 import qualified GCL.Type as TypeChecking
 import qualified GCL.WP as WP
-import Server.GoToDefn (OriginTargetRanges, collectLocationLinks)
+import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.IntervalMap (IntervalMap)
-import Server.Monad (HoleKind (..))
-import qualified Language.LSP.Protocol.Types as LSP
+import Server.Monad (FileState3 (..), HoleKind (..))
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -31,44 +27,33 @@ import qualified Syntax.Parser as Parser
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
 type DigResult = ([(Range, Text)], Text)
 
-data LoadResult = LoadResult
-  { specifications  :: [Spec]
-  , holes           :: [Hole]
-  , proofObligations :: [PO]
-  , warnings        :: [StructWarning]
-  , idCount         :: Int
-  , semanticTokens  :: [LSP.SemanticTokenAbsolute]
-  , definitionLinks :: IntervalMap OriginTargetRanges
-  , hoverInfos      :: IntervalMap LSP.Hover
-  }
-
 --------------------------------------------------------------------------------
 -- Main pipeline
 
 -- | Full pipeline: parseAndDig → loadConcrete.
 -- Returns Left for errors, Right (Nothing, result) if no holes were found,
 -- Right (Just digResult, result) if holes were dug.
-loadAndDig :: FilePath -> Text -> Either Error (Maybe DigResult, LoadResult)
+loadAndDig :: FilePath -> Text -> Either Error (Maybe DigResult, FileState3)
 loadAndDig filePath source = do
   (maybeDig, concrete) <- parseAndDig filePath source
   result <- loadConcrete concrete
   return (maybeDig, result)
 
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
-loadConcrete :: C.Program -> Either Error LoadResult
+loadConcrete :: C.Program -> Either Error FileState3
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
   elaborated <- first TypeError $ TypeChecking.runElaboration abstract mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
-  return LoadResult
-    { specifications   = specs
-    , holes            = holes
-    , proofObligations = pos
-    , warnings         = warnings
-    , idCount          = idCount
-    , semanticTokens   = collectHighlighting concrete
-    , definitionLinks  = collectLocationLinks abstract
-    , hoverInfos       = collectHoverInfo elaborated
+  return FileState3
+    { fs3Specifications   = specs
+    , fs3Holes            = holes
+    , fs3ProofObligations = pos
+    , fs3Warnings         = warnings
+    , fs3IdCount          = idCount
+    , fs3SemanticTokens   = collectHighlighting concrete
+    , fs3DefinitionLinks  = collectLocationLinks abstract
+    , fs3HoverInfos       = collectHoverInfo elaborated
     }
 
 -- | Parse source, and if holes are found, dig them and re-parse.

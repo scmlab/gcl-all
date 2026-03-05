@@ -19,7 +19,8 @@ import Server.Handler.GCL.Refine ()
 -- for Elab [A.Stmt] orphan instance
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
-import Server.Load2 (LoadResult (..), applyEdits, collectHolesFromStatements, diggedText)
+import Server.Load2 (applyEdits, collectHolesFromStatements, diggedText)
+import Server.Monad (FileState3 (..))
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
@@ -31,7 +32,7 @@ import qualified Syntax.Typed as T
 -- Main pipeline
 
 -- | Full pipeline: validate spec → extract impl → parseAndDigFragment → loadConcreteFragment.
-refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, LoadResult)
+refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, FileState3)
 refineAndDig filePath idCount spec source = do
   let specRng = specRange spec
   when (isSingleLine specRng) $
@@ -47,22 +48,22 @@ refineAndDig filePath idCount spec source = do
   return (finalImplText, result)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
-loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt] -> Either Error LoadResult
+loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt] -> Either Error FileState3
 loadConcreteFragment typeEnv idCount spec stmts = do
   let abstract = C.runAbstractTransform stmts
   elaborated <- first TypeError $ runElaboration abstract typeEnv
   (pos, specs, holes, warnings, idCount') <-
     first StructError $ sweepFragment idCount spec elaborated
   return
-    LoadResult
-      { specifications = specs,
-        holes = holes,
-        proofObligations = pos,
-        warnings = warnings,
-        idCount = idCount',
-        semanticTokens = collectHighlightingFromStmts stmts,
-        definitionLinks = mempty, -- TODO: needs scope info from declarations
-        hoverInfos = collectHoverInfoFromStmts elaborated
+    FileState3
+      { fs3Specifications = specs,
+        fs3Holes = holes,
+        fs3ProofObligations = pos,
+        fs3Warnings = warnings,
+        fs3IdCount = idCount',
+        fs3SemanticTokens = collectHighlightingFromStmts stmts,
+        fs3DefinitionLinks = mempty, -- TODO: needs scope info from declarations
+        fs3HoverInfos = collectHoverInfoFromStmts elaborated
       }
 
 -- | Parse fragment and dig holes if needed.

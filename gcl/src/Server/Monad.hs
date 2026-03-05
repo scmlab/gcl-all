@@ -44,7 +44,9 @@ import qualified Server.SrcLoc as SrcLoc
 -- | State shared by all clients and requests
 data GlobalState = GlobalState
   { logChannel :: Chan Text, -- Channel for printing log
-    filesState :: IORef (Map FilePath FileState)
+    filesState :: IORef (Map FilePath FileState),
+    filesState3 :: IORef (Map FilePath FileState3),
+    pendingEdits :: IORef (Map FilePath PendingEdit)
   }
 
 type Versioned a = (LSP.Int32, a)
@@ -52,6 +54,22 @@ type Versioned a = (LSP.Int32, a)
 -- | Extract the value from a Versioned tuple, discarding the version number
 unversioned :: Versioned a -> a
 unversioned = snd
+
+data FileState3 = FileState3
+  { fs3Specifications  :: ![Spec]
+  , fs3Holes           :: ![Hole]
+  , fs3ProofObligations :: ![PO]
+  , fs3Warnings        :: ![StructWarning]
+  , fs3IdCount         :: !Int
+  , fs3SemanticTokens  :: ![LSP.SemanticTokenAbsolute]
+  , fs3DefinitionLinks :: !(IntervalMap OriginTargetRanges)
+  , fs3HoverInfos      :: !(IntervalMap LSP.Hover)
+  }
+
+data PendingEdit = PendingEdit
+  { expectedContent  :: !Text
+  , pendingFileState :: !FileState3
+  }
 
 data FileState = FileState
   -- main states for Reload and Refine
@@ -78,6 +96,8 @@ initGlobalEnv :: IO GlobalState
 initGlobalEnv =
   GlobalState
     <$> newChan
+    <*> newIORef Map.empty
+    <*> newIORef Map.empty
     <*> newIORef Map.empty
 
 --------------------------------------------------------------------------------
@@ -230,6 +250,33 @@ runIfDecreaseDidChangeShouldReload filePath action = do
       modifyFileState filePath (\fileState' -> fileState' {didChangeShouldReload = orig - 1})
       action filePath
     _ -> return ()
+
+getFileState3 :: FilePath -> ServerM (Maybe FileState3)
+getFileState3 filePath = do
+  ref <- lift $ asks filesState3
+  m <- liftIO $ readIORef ref
+  return $ Map.lookup filePath m
+
+setFileState3 :: FilePath -> FileState3 -> ServerM ()
+setFileState3 filePath fs = do
+  ref <- lift $ asks filesState3
+  liftIO $ modifyIORef ref (Map.insert filePath fs)
+
+getPendingEdit :: FilePath -> ServerM (Maybe PendingEdit)
+getPendingEdit filePath = do
+  ref <- lift $ asks pendingEdits
+  m <- liftIO $ readIORef ref
+  return $ Map.lookup filePath m
+
+setPendingEdit :: FilePath -> PendingEdit -> ServerM ()
+setPendingEdit filePath pe = do
+  ref <- lift $ asks pendingEdits
+  liftIO $ modifyIORef ref (Map.insert filePath pe)
+
+deletePendingEdit :: FilePath -> ServerM ()
+deletePendingEdit filePath = do
+  ref <- lift $ asks pendingEdits
+  liftIO $ modifyIORef ref (Map.delete filePath)
 
 readSource :: FilePath -> ServerM (Maybe Text)
 readSource filepath = do
