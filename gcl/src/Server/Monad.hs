@@ -287,6 +287,14 @@ readSource filepath = do
       logTextLn $ "readSource: LSP.virtualFileVersion: " <> Text.pack (Prelude.show $ LSP.virtualFileVersion virtualFile)
       return (Just $ LSP.virtualFileText virtualFile)
 
+readSourceAndVersion :: FilePath -> ServerM (Maybe (Text, LSP.Int32))
+readSourceAndVersion filepath = do
+  maybeVirtualFile <- LSP.getVirtualFile $ LSP.toNormalizedUri $ LSP.filePathToUri filepath
+  case maybeVirtualFile of
+    Nothing -> return Nothing
+    Just virtualFile ->
+      return (Just (LSP.virtualFileText virtualFile, LSP.virtualFileVersion virtualFile))
+
 editTexts :: FilePath -> [(Range, Text)] -> ServerM () -> ServerM ()
 editTexts filepath rangeTextPairs onSuccess = do
   let requestParams :: LSP.ApplyWorkspaceEditParams =
@@ -306,6 +314,38 @@ editTexts filepath rangeTextPairs onSuccess = do
     textDocumentEdit =
       LSP.TextDocumentEdit
         { _textDocument = LSP.OptionalVersionedTextDocumentIdentifier (LSP.filePathToUri filepath) (LSP.InL 0),
+          _edits = Prelude.map LSP.InL textEdits
+        }
+    textEdits :: [LSP.TextEdit]
+    textEdits = Prelude.map makeTextEdit rangeTextPairs
+    makeTextEdit :: (Range, Text) -> LSP.TextEdit
+    makeTextEdit (range, textToReplace) =
+      LSP.TextEdit
+        { _range = SrcLoc.toLSPRange range,
+          _newText = textToReplace
+        }
+
+-- | Send edits to client with a specific document version.
+-- The client will reject the edit if the version doesn't match.
+editTextsWithVersion :: FilePath -> LSP.Int32 -> [(Range, Text)] -> ServerM ()
+editTextsWithVersion filepath version rangeTextPairs = do
+  let requestParams =
+        LSP.ApplyWorkspaceEditParams
+          { _label = Just "GCL Edit",
+            _edit =
+              LSP.WorkspaceEdit
+                { _changes = Nothing,
+                  _documentChanges = Just [LSP.InL textDocumentEdit],
+                  _changeAnnotations = Nothing
+                }
+          }
+  _requestId <- LSP.sendRequest LSP.SMethod_WorkspaceApplyEdit requestParams (\_response -> return ())
+  return ()
+  where
+    textDocumentEdit :: LSP.TextDocumentEdit
+    textDocumentEdit =
+      LSP.TextDocumentEdit
+        { _textDocument = LSP.OptionalVersionedTextDocumentIdentifier (LSP.filePathToUri filepath) (LSP.InL version),
           _edits = Prelude.map LSP.InL textEdits
         }
     textEdits :: [LSP.TextEdit]

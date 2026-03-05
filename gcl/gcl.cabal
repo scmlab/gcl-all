@@ -66,6 +66,7 @@ library
       Server.Handler
       Server.Handler.AutoCompletion
       Server.Handler.GCL.Debug
+      Server.Handler.GCL.Load2
       Server.Handler.GCL.Refine
       Server.Handler.GCL.Reload
       Server.Handler.GoToDefinition

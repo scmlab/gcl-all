@@ -33,7 +33,7 @@ import qualified Language.LSP.Server as LSP
 import qualified Server.Handler.AutoCompletion as AutoCompletion
 import qualified Server.Handler.GCL.Debug as Debug
 import qualified Server.Handler.GCL.Refine as Refine
-import qualified Server.Handler.GCL.Reload as Reload
+import qualified Server.Handler.GCL.Load2 as Load2
 import qualified Server.Handler.GoToDefinition as GoToDefinition
 import qualified Server.Handler.Hover as Hover
 import qualified Server.Handler.Initialized as Initialized
@@ -117,7 +117,7 @@ handlers =
         let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
         SemanticTokens.handler uri (responder . first Hack.resToTRes),
       -- "gcl/reload" - reload
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Reload.handler,
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Load2.handler,
       -- "gcl/refine" - refine
       requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine.handler,
       -- "gcl/debug" - debug FileState

@@ -12,6 +12,7 @@
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
   ( toFileStateNotificationJSON,
+    toFileState3NotificationJSON,
     toErrorNotificationJSON,
     FileStateNotification (..),
     ErrorNotification (..),
@@ -111,6 +112,22 @@ toFileStateNotification path serverFileState =
       holes = map (convertHole . Server.unversioned) (Server.holes serverFileState),
       pos = map (convertPO . Server.unversioned) (Server.proofObligations serverFileState),
       warnings = map (convertWarning . Server.unversioned) (Server.warnings serverFileState)
+    }
+
+-- | Convert server-side FileState3 to JSON for client consumption
+toFileState3NotificationJSON :: FilePath -> Server.FileState3 -> JSON.Value
+toFileState3NotificationJSON path fs3 =
+  JSON.toJSON (toFileState3Notification path fs3)
+
+-- | Convert server-side FileState3 to client-side FileStateNotification
+toFileState3Notification :: FilePath -> Server.FileState3 -> FileStateNotification
+toFileState3Notification path fs3 =
+  FileStateNotification
+    { filePath = path,
+      specs = map convertSpec (Server.fs3Specifications fs3),
+      holes = map convertHole (Server.fs3Holes fs3),
+      pos = map convertPO (Server.fs3ProofObligations fs3),
+      warnings = map convertWarning (Server.fs3Warnings fs3)
     }
 
 -- | Convert server-side Spec to client-side Specification
