@@ -11,7 +11,7 @@ import Syntax.Abstract as A
 import Syntax.Common as C
 import Control.Applicative ((<|>))
 import GCL.Type (TypeError (NotInScope, DuplicatedIdentifiers))
-import Control.Monad (foldM, when)
+import Control.Monad (foldM)
 import Data.Text (Text, intercalate)
 import qualified Data.Text as Text
 import Control.Monad.Trans.Except (ExceptT)
@@ -22,29 +22,31 @@ import Data.Bitraversable (bimapM)
 import Data.Bifunctor (Bifunctor(bimap))
 import Data.Bifoldable (Bifoldable(bifoldMap, bifold))
 
--- |=========================================================================================
--- | Dependency resolution returns topological-sorted results of dependencies for type and 
--- | function definitions, type definitions are guaranteed to be sorted before functions.
--- |
--- | Dependency resolution is constructed in the following steps:
--- | 1. Traverse within AST and construct an unresolved dependency map
--- | 1.1 if the relation exists but the dependant is not yet resolved, register it first
--- |     but validate its existence upon finishing construction of map
--- | 1.2 otherwise, if the relation exists and the dependant is resolved, register it.
--- |
--- | 2. Validate the dependency map, if relation exists but the dependant does not exist,
--- |    then report as an `NotInScope` error. This step guarantees later dependant's
--- |    type not to be wrapped within `Maybe`.
--- |
--- | After (2), the nodes are namely `ResolvedDepNode`.
--- |
--- | 3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
--- |    finally trasnform into `[[Definition]]`.
--- |=========================================================================================
+{-
+  Dependency resolution returns topological-sorted results of dependencies for type and 
+  function definitions, type definitions are guaranteed to be sorted before functions.
+
+  Dependency resolution is constructed in the following steps:
+  1. Traverse within AST and construct an unresolved dependency map
+  1.1 if the relation exists but the dependant is not yet resolved, register it first
+      but validate its existence upon finishing construction of map
+  1.2 otherwise, if the relation exists and the dependant is resolved, register it.
+
+  2. Validate the dependency map, if relation exists but the dependant does not exist,
+     then report as an `NotInScope` error. This step guarantees later dependant's
+     type not to be wrapped within `Maybe`.
+
+  After (2), the nodes are namely `ResolvedDepNode`.
+
+  3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
+     finally trasnform into `[[Definition]]`.
+-}
 
 -- | DepNode consists of an instance, a key represents the dependant,
--- | and a collection of keys represents the dependencies that depends 
--- | on the dependant.
+-- and a collection of keys represents the dependencies that depends 
+-- on the dependant.
+--
+-- The structure is required by `Data.Graph.stronglyConnCompR`.
 type DepNode val t = (val, C.Name, t C.Name)
 type DepMap node = Map C.Name node
 
@@ -55,11 +57,13 @@ type ResolvedDepNode = DepNode A.Definition []
 type ResolvedDepMap = DepMap ResolvedDepNode
 
 -- | Maps from TypeDefnCtor's name to the TypeDefn's name
--- | e.g.
--- | data A = B | C
--- | gives [("B", "A"), ("C", "A")]
--- | 
--- | This is used to mask out constructors from function dependency.
+-- e.g.
+--
+-- data A = B | C
+-- 
+-- gives [("B", "A"), ("C", "A")]
+-- 
+-- This is used to mask out constructors from function dependency.
 type TypeDefinitions = Map C.Name C.Name
 
 type DepMonad = ExceptT TypeError (State TypeDefinitions)
@@ -90,6 +94,7 @@ resolveDefinition (typeDeps, funcDeps) def@(A.TypeDefn name _ ctors _) = do
     resolveTypeDefnCtor :: UnresolvedDepMap -> A.TypeDefnCtor -> DepMonad UnresolvedDepMap
     resolveTypeDefnCtor deps' (A.TypeDefnCtor ctorName types) = do
       typeDefs <- get
+      -- ChAoS: Should we care about the duplication here?
       -- Checks if type definition constructor has duplicated names
       -- e.g.
       -- data A = B
@@ -135,10 +140,10 @@ resolveType name deps (A.TApp typA typB _) =
 resolveType _ deps _ = return deps
 
 -- | Registers a dependency graph node to the map, definition may be
--- | `Nothing` if definition syntax is not yet identified first before
--- | usage.
--- | If the provided definition is `Just` and the existed definition in
--- | the map is `Nothing`, then replace it with provided one. 
+-- `Nothing` if definition syntax is not yet identified first before
+-- usage.
+-- If the provided definition is `Just` and the existed definition in
+-- the map is `Nothing`, then replace it with provided one. 
 registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad UnresolvedDepMap
 registerDependency name def deps = do
   -- ChAoS: Later accommodate to the refactored definitions
@@ -155,21 +160,20 @@ registerDependency name def deps = do
       throwError $ DuplicatedIdentifiers [previous, current]
 
 addDependency :: C.Name -> C.Name -> UnresolvedDepMap -> UnresolvedDepMap
-addDependency dependant dependency = do
+addDependency dependant dependency =
   insertWith (\(_, _, newDeps) (def, depName, oldDeps) ->
     (def, depName, Data.Set.union newDeps oldDeps)) dependant (Nothing, dependant, Data.Set.singleton dependency)
 
 validateDependency :: UnresolvedDepMap -> DepMonad ResolvedDepMap
-validateDependency deps = do
-  traverseWithKey validateEntry deps
+validateDependency = traverseWithKey validateEntry
   where
     validateEntry :: C.Name -> UnresolvedDepNode -> DepMonad ResolvedDepNode
     validateEntry name (Nothing, _, _) = throwError $ NotInScope name
     validateEntry _ (Just def, name, deps') = return (def, name, Data.Set.toList deps')
 
--- |===========================|
--- | Graph node transformation |
--- |===========================|
+{-
+  Graph node transformation
+-}
 
 degradeSCCNode :: SCC ResolvedDepNode -> [A.Definition]
 degradeSCCNode (AcyclicSCC (def, _, _)) = [def]
@@ -182,9 +186,10 @@ showDependency [def] =
 showDependency defs =
   intercalate (Text.pack " <-> ") $ map (C.nameToText . definitionToName) defs
 
--- |====================|
--- | Graphviz Rendering |
--- |====================|
+{-
+  Graphviz Rendering
+-}
+
 renderDepGraph :: [SCC ResolvedDepNode] -> String
 renderDepGraph nodes =
   "digraph DependencyGraph {\n" <>
@@ -208,7 +213,7 @@ formatNode (CyclicSCC defs) =
     formatNode'' (_, C.Name name _, deps) =
       let nodeName = show name
           label = nodeName <> "[style=filled, fillcolor=lightblue];\n"
-      in  
+      in
         "    " <> label <> concatMap (\(C.Name name' _) -> "  " <> nodeName <> " -> " <> show name' <> ";\n") deps
 
 definitionToName :: A.Definition -> C.Name
