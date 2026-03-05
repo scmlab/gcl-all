@@ -1,5 +1,5 @@
 {:  
-    data B = T | F 
+    data B = T | F
 
     x : B
     x = T

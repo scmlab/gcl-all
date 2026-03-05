@@ -18,9 +18,6 @@ import Control.Monad.Trans.Except (ExceptT)
 import Control.Monad.Except (MonadError(throwError))
 import Debug.Trace (traceM)
 import GCL.Common (Free(freeVars))
-import Data.Bitraversable (bimapM)
-import Data.Bifunctor (Bifunctor(bimap))
-import Data.Bifoldable (Bifoldable(bifoldMap, bifold))
 
 {-
   Dependency resolution returns topological-sorted results of dependencies for type and 
@@ -71,25 +68,28 @@ type DepMonad = ExceptT TypeError (State TypeDefinitions)
 resolveDependency :: A.Program -> DepMonad [[A.Definition]]
 resolveDependency program = do
   unresolvedDeps <- resolveProgram program
-  resolvedDeps <- bimapM validateDependency validateDependency unresolvedDeps
-  let sccs = bimap toTopSortedSCC toTopSortedSCC resolvedDeps
-  let result = bifoldMap (map degradeSCCNode) (map degradeSCCNode) sccs
-  traceM $ show $ map showDependency result
-  traceM $ renderDepGraph $ bifold sccs
-  return result
+  resolvedDeps <- mapM validateDependency unresolvedDeps
+  let sccs = concatMap toTopSortedSCC resolvedDeps
+  let depSequence = map degradeSCCNode sccs
+  traceM $ show $ map showDependency depSequence
+  traceM $ renderDepGraph sccs
+  return depSequence
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC ResolvedDepNode]
     toTopSortedSCC = reverse . stronglyConnCompR . elems
 
-resolveProgram :: A.Program -> DepMonad (UnresolvedDepMap, UnresolvedDepMap)
-resolveProgram (A.Program defs _ _ _ _) =
-  foldM resolveDefinition mempty defs
+resolveProgram :: A.Program -> DepMonad [UnresolvedDepMap]
+resolveProgram (A.Program defs _ _ _ _) = do
+  -- Do this in 2 pass, as TypeDefnCtor must be collected first in type resolution pass
+  -- then we can distinguish them in term resolution pass.
+  typeDeps <- foldM resolveTypeDefinitions mempty defs
+  termDeps <- foldM resolveTermDefinitions mempty defs
+  return [typeDeps, termDeps]
 
-resolveDefinition :: (UnresolvedDepMap, UnresolvedDepMap) -> A.Definition -> DepMonad (UnresolvedDepMap, UnresolvedDepMap)
-resolveDefinition (typeDeps, funcDeps) def@(A.TypeDefn name _ ctors _) = do
+resolveTypeDefinitions :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
+resolveTypeDefinitions typeDeps def@(A.TypeDefn name _ ctors _) = do
   typeDeps' <- registerDependency name def typeDeps
-  typeDeps'' <- foldM resolveTypeDefnCtor typeDeps' ctors
-  return (typeDeps'', funcDeps)
+  foldM resolveTypeDefnCtor typeDeps' ctors
   where
     resolveTypeDefnCtor :: UnresolvedDepMap -> A.TypeDefnCtor -> DepMonad UnresolvedDepMap
     resolveTypeDefnCtor deps' (A.TypeDefnCtor ctorName types) = do
@@ -106,14 +106,16 @@ resolveDefinition (typeDeps, funcDeps) def@(A.TypeDefn name _ ctors _) = do
         Nothing ->
           modify $ Data.Map.insert ctorName name
       foldM (resolveType name) deps' types
-resolveDefinition (typeDeps, funcDeps) def@(A.FuncDefnSig name _ expr _) = do
-  funcDeps' <- registerDependency name def funcDeps
-  funcDeps'' <- foldM (resolveExpr name) funcDeps' expr
-  return (typeDeps, funcDeps'')
-resolveDefinition (typeDeps, funcDeps) def@(A.FuncDefn name expr) = do
-  funcDeps' <- registerDependency name def funcDeps
-  funcDeps'' <- resolveExpr name funcDeps' expr
-  return (typeDeps, funcDeps'')
+resolveTypeDefinitions typeDeps _ = return typeDeps
+
+resolveTermDefinitions :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
+resolveTermDefinitions termDeps def@(A.FuncDefnSig name _ expr _) = do
+  termDeps' <- registerDependency name def termDeps
+  foldM (resolveExpr name) termDeps' expr
+resolveTermDefinitions termDeps def@(A.FuncDefn name expr) = do
+  termDeps' <- registerDependency name def termDeps
+  resolveExpr name termDeps' expr
+resolveTermDefinitions termDeps _ = return termDeps
 
 resolveExpr :: C.Name -> UnresolvedDepMap -> A.Expr -> DepMonad UnresolvedDepMap
 resolveExpr name deps expr = do
