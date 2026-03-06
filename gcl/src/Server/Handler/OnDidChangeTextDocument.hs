@@ -14,59 +14,49 @@ import GCL.WP.Types (StructWarning (MissingBound))
 import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
-import Server.Change (GCLMove, applyGCLMove, applyLSPMovesToToken, applyMovesToIntervalMap, fromLSPMove, mkLSPMoves, updateOriginTargetRanges)
-import Server.Load (load)
-import Server.Monad (FileState (..), ServerM, Versioned, logFileState, logText, modifyFileState, runIfDecreaseDidChangeShouldReload)
-import Server.Notification.Update (sendUpdateNotification)
+import Server.Change (GCLMove, LSPMove, applyGCLMove, applyLSPMovesToToken, applyMovesToIntervalMap, fromLSPMove, mkLSPMoves, updateOriginTargetRanges)
+import Server.Monad (FileState3 (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState3, getPendingEdit, logText, readSource, setFileState3)
+import Server.Notification.Update (sendUpdateNotification3)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
   t0 <- liftIO getMonotonicTimeNSec
-  let lspMoves = mkLSPMoves changes
-      gclMoves = map fromLSPMove lspMoves
-  modifyFileState
-    filePath
-    ( \filesState@FileState {editedVersion, specifications, holes, proofObligations, warnings, definitionLinks, hoverInfos, semanticTokens} ->
-        filesState
-          { editedVersion = editedVersion + 1,
-            specifications = translateThroughOneVersion (translateSpecRange gclMoves) editedVersion specifications,
-            holes = translateThroughOneVersion (translateHoleRange gclMoves) editedVersion holes,
-            proofObligations = translateThroughOneVersion (translatePoRange gclMoves) editedVersion proofObligations,
-            warnings = translateThroughOneVersion (translateWarningRange gclMoves) editedVersion warnings,
-            definitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges definitionLinks,
-            hoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) hoverInfos,
-            semanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) semanticTokens
-          }
-    )
-  logFileState filePath (map (\(version, Specification {specRange}) -> (version, specRange)) . specifications)
-
-  runIfDecreaseDidChangeShouldReload filePath load
-
+  maybePending <- getPendingEdit filePath
+  case maybePending of
+    Just PendingEdit {expectedContent, pendingFileState} -> do
+      deletePendingEdit filePath
+      maybeSource <- readSource filePath
+      case maybeSource of
+        Just src | src == expectedContent -> do
+          setFileState3 filePath pendingFileState
+          sendUpdateNotification3 filePath pendingFileState
+        _ -> applyTranslation
+    Nothing -> applyTranslation
   t1 <- liftIO getMonotonicTimeNSec
   let elapsedMs = fromIntegral (t1 - t0) / 1e6 :: Double
   logText $ "didChange: took " <> Text.pack (showFFloat (Just 3) elapsedMs "") <> " ms\n"
-
-  -- send notification to update Specs and POs
-  logText "didChange: fileState modified\n"
-  sendUpdateNotification filePath
-  logText "didChange: upate notification sent\n"
   where
-    translateThroughOneVersion ::
-      (a -> Maybe a) ->
-      LSP.Int32 ->
-      [Versioned a] ->
-      [Versioned a]
-    translateThroughOneVersion translator fromVersion versioned = do
-      (version, a) <- versioned
-      if fromVersion == version
-        then case translator a of
-          Nothing -> []
-          Just a' -> [(version + 1, a')]
-        else
-          if fromVersion + 1 == version
-            then
-              [(version, a)]
-            else error "should not happen"
+    applyTranslation = do
+      maybeFs3 <- getFileState3 filePath
+      case maybeFs3 of
+        Nothing -> return ()
+        Just fs3 -> do
+          let fs3' = translateFileState3 (mkLSPMoves changes) fs3
+          setFileState3 filePath fs3'
+          sendUpdateNotification3 filePath fs3'
+
+translateFileState3 :: [LSPMove] -> FileState3 -> FileState3
+translateFileState3 lspMoves fs3 =
+  let gclMoves = map fromLSPMove lspMoves
+   in fs3
+        { fs3Specifications = mapMaybe (translateSpecRange gclMoves) (fs3Specifications fs3),
+          fs3Holes = mapMaybe (translateHoleRange gclMoves) (fs3Holes fs3),
+          fs3ProofObligations = mapMaybe (translatePoRange gclMoves) (fs3ProofObligations fs3),
+          fs3Warnings = mapMaybe (translateWarningRange gclMoves) (fs3Warnings fs3),
+          fs3SemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fs3SemanticTokens fs3),
+          fs3DefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fs3DefinitionLinks fs3),
+          fs3HoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fs3HoverInfos fs3)
+        }
 
 -- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
 -- 如果未來前端有需要的話，請在這裡維護
