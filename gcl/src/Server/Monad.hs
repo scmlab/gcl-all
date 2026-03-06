@@ -56,19 +56,19 @@ unversioned :: Versioned a -> a
 unversioned = snd
 
 data FileState3 = FileState3
-  { fs3Specifications  :: ![Spec]
-  , fs3Holes           :: ![Hole]
-  , fs3ProofObligations :: ![PO]
-  , fs3Warnings        :: ![StructWarning]
-  , fs3IdCount         :: !Int
-  , fs3SemanticTokens  :: ![LSP.SemanticTokenAbsolute]
-  , fs3DefinitionLinks :: !(IntervalMap OriginTargetRanges)
-  , fs3HoverInfos      :: !(IntervalMap LSP.Hover)
+  { fs3Specifications :: ![Spec],
+    fs3Holes :: ![Hole],
+    fs3ProofObligations :: ![PO],
+    fs3Warnings :: ![StructWarning],
+    fs3IdCount :: !Int,
+    fs3SemanticTokens :: ![LSP.SemanticTokenAbsolute],
+    fs3DefinitionLinks :: !(IntervalMap OriginTargetRanges),
+    fs3HoverInfos :: !(IntervalMap LSP.Hover)
   }
 
 data PendingEdit = PendingEdit
-  { expectedContent  :: !Text
-  , pendingFileState :: !FileState3
+  { expectedContent :: !Text,
+    pendingFileState :: !FileState3
   }
 
 data FileState = FileState

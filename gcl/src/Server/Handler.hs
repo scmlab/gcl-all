@@ -32,8 +32,8 @@ import Language.LSP.Server
 import qualified Language.LSP.Server as LSP
 import qualified Server.Handler.AutoCompletion as AutoCompletion
 import qualified Server.Handler.GCL.Debug as Debug
-import qualified Server.Handler.GCL.Refine as Refine
 import qualified Server.Handler.GCL.Load2 as Load2
+import qualified Server.Handler.GCL.Refine as Refine
 import qualified Server.Handler.GoToDefinition as GoToDefinition
 import qualified Server.Handler.Hover as Hover
 import qualified Server.Handler.Initialized as Initialized

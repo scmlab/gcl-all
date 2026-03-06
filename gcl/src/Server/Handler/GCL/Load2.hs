@@ -5,15 +5,15 @@
 
 module Server.Handler.GCL.Load2 where
 
-import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import qualified Data.Aeson.Types as JSON
 import Data.Int (Int32)
 import Data.Text (Text)
-import GHC.Generics (Generic)
 import Error (Error)
+import GHC.Generics (Generic)
 import Server.Load2 (DigResult, loadAndDig)
-import Server.Monad (FileState3, PendingEdit (..), ServerM, logText, logTextLn, setFileState3, setPendingEdit, readSourceAndVersion, editTextsWithVersion)
+import Server.Monad (FileState3, PendingEdit (..), ServerM, editTextsWithVersion, logText, logTextLn, readSourceAndVersion, setFileState3, setPendingEdit)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification3)
 
@@ -43,10 +43,11 @@ handler ReloadParams {filePath} onResult _ = do
           sendUpdateNotification3 filePath fs3
         Just (edits, newSource) -> do
           logText "Load2: holes dug, setting pending edit\n"
-          let pending = PendingEdit
-                { expectedContent = newSource
-                , pendingFileState = fs3
-                }
+          let pending =
+                PendingEdit
+                  { expectedContent = newSource,
+                    pendingFileState = fs3
+                  }
           setPendingEdit filePath pending
           editTextsWithVersion filePath vfsVersion edits
       onResult ()

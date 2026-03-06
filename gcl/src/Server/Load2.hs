@@ -45,16 +45,17 @@ loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
   elaborated <- first TypeError $ TypeChecking.runElaboration abstract mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
-  return FileState3
-    { fs3Specifications   = specs
-    , fs3Holes            = holes
-    , fs3ProofObligations = pos
-    , fs3Warnings         = warnings
-    , fs3IdCount          = idCount
-    , fs3SemanticTokens   = collectHighlighting concrete
-    , fs3DefinitionLinks  = collectLocationLinks abstract
-    , fs3HoverInfos       = collectHoverInfo elaborated
-    }
+  return
+    FileState3
+      { fs3Specifications = specs,
+        fs3Holes = holes,
+        fs3ProofObligations = pos,
+        fs3Warnings = warnings,
+        fs3IdCount = idCount,
+        fs3SemanticTokens = collectHighlighting concrete,
+        fs3DefinitionLinks = collectLocationLinks abstract,
+        fs3HoverInfos = collectHoverInfo elaborated
+      }
 
 -- | Parse source, and if holes are found, dig them and re-parse.
 -- Returns (if holes were dug) the DigResult, and the clean concrete AST.
@@ -63,16 +64,16 @@ parseAndDig filePath source = do
   (concrete1, holes1) <- parseAndCollectHoles filePath source
   case holes1 of
     [] -> Right (Nothing, concrete1)
-    _  -> do
+    _ -> do
       let (edits, newSource) = replaceHoles source holes1
       (concrete2, holes2) <- parseAndCollectHoles filePath newSource
       case holes2 of
         [] -> Right (Just (edits, newSource), concrete2)
-        _  -> Left (Others "Load2" "unexpected holes after digging" Nothing)
+        _ -> Left (Others "Load2" "unexpected holes after digging" Nothing)
   where
     parseAndCollectHoles fp src =
       case Parser.scanAndParse Parser.program fp src of
-        Left err       -> Left (ParseError err)
+        Left err -> Left (ParseError err)
         Right concrete -> Right (concrete, collectHoles concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
@@ -84,7 +85,8 @@ parseAndDig filePath source = do
 -- | Replacement text for a hole, matching the behaviour of Server.Monad.digHoles.
 diggedText :: HoleKind -> Range -> Text
 diggedText StmtHole range = "[!\n" <> ind <> "\n" <> ind <> "!]"
-  where ind = Text.replicate (posCol (rangeStart range) - 1) " "
+  where
+    ind = Text.replicate (posCol (rangeStart range) - 1) " "
 diggedText ExprHole _ = "{! !}"
 
 -- | Apply a list of non-overlapping edits to source text.
@@ -114,22 +116,22 @@ applyEdits2 source edits =
     go _ src [] = [src]
     go cur src all@((range, repl) : rest) =
       case Text.uncons src of
-        Nothing      -> []
+        Nothing -> []
         Just (c, cs)
           | curAt cur (rangeStart range) -> repl : skipTo (rangeEnd range) cur src rest
-          | otherwise                    -> Text.singleton c : go (step c cur) cs all
+          | otherwise -> Text.singleton c : go (step c cur) cs all
 
     skipTo endPos cur src rest =
       case Text.uncons src of
-        Nothing      -> go cur Text.empty rest
+        Nothing -> go cur Text.empty rest
         Just (c, cs)
           | curAt cur endPos -> go cur src rest
-          | otherwise        -> skipTo endPos (step c cur) cs rest
+          | otherwise -> skipTo endPos (step c cur) cs rest
 
     curAt (l, col) pos = l == posLine pos && col == posCol pos
 
-    step '\n' (l, _)   = (l + 1, 1)
-    step _    (l, col) = (l, col + 1)
+    step '\n' (l, _) = (l + 1, 1)
+    step _ (l, col) = (l, col + 1)
 
 --------------------------------------------------------------------------------
 -- Collecting holes from concrete syntax
@@ -141,31 +143,31 @@ collectHolesFromStatements :: [C.Stmt] -> [(HoleKind, Range)]
 collectHolesFromStatements = concatMap collectHolesFromStatement
 
 collectHolesFromStatement :: C.Stmt -> [(HoleKind, Range)]
-collectHolesFromStatement (C.SpecQM range)              = [(StmtHole, range)]
-collectHolesFromStatement (C.Assign _ _ exprs)          = concat $ mapSepBy collectHolesFromExpr exprs
-collectHolesFromStatement (C.AAssign _ _ a _ _ b)       = collectHolesFromExpr a ++ collectHolesFromExpr b
-collectHolesFromStatement (C.Assert _ a _)              = collectHolesFromExpr a
+collectHolesFromStatement (C.SpecQM range) = [(StmtHole, range)]
+collectHolesFromStatement (C.Assign _ _ exprs) = concat $ mapSepBy collectHolesFromExpr exprs
+collectHolesFromStatement (C.AAssign _ _ a _ _ b) = collectHolesFromExpr a ++ collectHolesFromExpr b
+collectHolesFromStatement (C.Assert _ a _) = collectHolesFromExpr a
 collectHolesFromStatement (C.LoopInvariant _ a _ _ _ b _) = collectHolesFromExpr a ++ collectHolesFromExpr b
-collectHolesFromStatement (C.Do _ ss _)                 = concat $ mapSepBy collectHolesFromGdCmd ss
-collectHolesFromStatement (C.If _ ss _)                 = concat $ mapSepBy collectHolesFromGdCmd ss
-collectHolesFromStatement (C.Alloc _ _ _ _ es _)        = concat $ mapSepBy collectHolesFromExpr es
-collectHolesFromStatement (C.HLookup _ _ _ a)           = collectHolesFromExpr a
-collectHolesFromStatement (C.HMutate _ a _ b)           = collectHolesFromExpr a ++ collectHolesFromExpr b
-collectHolesFromStatement (C.Dispose _ a)               = collectHolesFromExpr a
-collectHolesFromStatement _                             = []
+collectHolesFromStatement (C.Do _ ss _) = concat $ mapSepBy collectHolesFromGdCmd ss
+collectHolesFromStatement (C.If _ ss _) = concat $ mapSepBy collectHolesFromGdCmd ss
+collectHolesFromStatement (C.Alloc _ _ _ _ es _) = concat $ mapSepBy collectHolesFromExpr es
+collectHolesFromStatement (C.HLookup _ _ _ a) = collectHolesFromExpr a
+collectHolesFromStatement (C.HMutate _ a _ b) = collectHolesFromExpr a ++ collectHolesFromExpr b
+collectHolesFromStatement (C.Dispose _ a) = collectHolesFromExpr a
+collectHolesFromStatement _ = []
 
 collectHolesFromGdCmd :: C.GdCmd -> [(HoleKind, Range)]
 collectHolesFromGdCmd (GdCmd _ _ stmts) = collectHolesFromStatements stmts
 
 collectHolesFromExpr :: C.Expr -> [(HoleKind, Range)]
-collectHolesFromExpr (C.HoleQM range)          = [(ExprHole, range)]
-collectHolesFromExpr (C.Paren _ expr _)        = collectHolesFromExpr expr
-collectHolesFromExpr (C.Arr a _ b _)           = collectHolesFromExpr a ++ collectHolesFromExpr b
-collectHolesFromExpr (C.App a b)               = collectHolesFromExpr a ++ collectHolesFromExpr b
+collectHolesFromExpr (C.HoleQM range) = [(ExprHole, range)]
+collectHolesFromExpr (C.Paren _ expr _) = collectHolesFromExpr expr
+collectHolesFromExpr (C.Arr a _ b _) = collectHolesFromExpr a ++ collectHolesFromExpr b
+collectHolesFromExpr (C.App a b) = collectHolesFromExpr a ++ collectHolesFromExpr b
 collectHolesFromExpr (C.Quant _ _ _ _ a _ b _) = collectHolesFromExpr a ++ collectHolesFromExpr b
-collectHolesFromExpr (C.Case _ a _ _)          = collectHolesFromExpr a
-collectHolesFromExpr _                         = []
+collectHolesFromExpr (C.Case _ a _ _) = collectHolesFromExpr a
+collectHolesFromExpr _ = []
 
 mapSepBy :: (a -> b) -> SepBy s a -> [b]
-mapSepBy f (Head c)       = [f c]
+mapSepBy f (Head c) = [f c]
 mapSepBy f (Delim c _ cs) = f c : mapSepBy f cs
