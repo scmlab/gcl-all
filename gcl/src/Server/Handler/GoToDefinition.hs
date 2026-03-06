@@ -9,7 +9,7 @@ module Server.Handler.GoToDefinition where
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Server.GoToDefn as GoToDefn
 import qualified Server.IntervalMap as IntervalMap
-import Server.Monad (FileState (..), ServerM, loadFileState)
+import Server.Monad (FileState3 (..), ServerM, getFileState3)
 import qualified Server.SrcLoc as SrcLoc
 
 -- | Convert OriginTargetRanges to LSP LocationLink
@@ -28,11 +28,11 @@ handler uri lspPosition responder = do
   case LSP.uriToFilePath uri of
     Nothing -> responder []
     Just filePath -> do
-      maybeFileState <- loadFileState filePath
+      maybeFileState <- getFileState3 filePath
       case maybeFileState of
         Nothing -> responder []
-        Just FileState {definitionLinks} -> do
+        Just FileState3 {fs3DefinitionLinks} -> do
           let pos = SrcLoc.fromLSPPosition lspPosition
-          case IntervalMap.lookup pos definitionLinks of
+          case IntervalMap.lookup pos fs3DefinitionLinks of
             Nothing -> responder []
             Just otr -> responder [originTargetRangesToLocationLink otr uri]
