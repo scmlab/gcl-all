@@ -33,6 +33,7 @@ import qualified Language.LSP.Server as LSP
 import qualified Server.Handler.AutoCompletion as AutoCompletion
 import qualified Server.Handler.GCL.Debug as Debug
 import qualified Server.Handler.GCL.Load2 as Load2
+import Server.Load2 (load2)
 import qualified Server.Handler.GCL.Refine as Refine
 import qualified Server.Handler.GoToDefinition as GoToDefinition
 import qualified Server.Handler.Hover as Hover
@@ -56,7 +57,7 @@ handlers =
         let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
         case LSP.uriToFilePath uri of
           Nothing -> return ()
-          Just filePath -> load filePath
+          Just filePath -> load2 filePath
         logText "SMethod_TextDocumentDidOpen end\n",
       -- "textDocument/didChange" - after every edition
       notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do

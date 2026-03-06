@@ -2,7 +2,10 @@
 
 module Server.Load2 where
 
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Bifunctor (first)
+import Data.Int (Int32)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
 import Data.Ord (comparing)
@@ -15,7 +18,9 @@ import qualified GCL.WP as WP
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState3 (..), HoleKind (..))
+import Server.Monad (FileState3 (..), HoleKind (..), PendingEdit (..), ServerM, editTextsWithVersion, logText, logTextLn, readSourceAndVersion, setFileState3, setPendingEdit)
+import Server.Notification.Error (sendErrorNotification)
+import Server.Notification.Update (sendUpdateNotification3)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -26,6 +31,54 @@ import qualified Syntax.Parser as Parser
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
 type DigResult = ([(Range, Text)], Text)
+
+--------------------------------------------------------------------------------
+-- ServerM action
+
+load2 :: FilePath -> ServerM ()
+load2 filePath = do
+  logText "Load2: start\n"
+  result <- runExceptT $ do
+    (source, vfsVersion) <- readSourceOrThrow filePath
+    (maybeDig, fs3) <- loadOrThrow filePath source
+    return (vfsVersion, maybeDig, fs3)
+  case result of
+    Left errs ->
+      sendErrorNotification filePath errs
+    Right (vfsVersion, maybeDig, fs3) ->
+      case maybeDig of
+        Nothing -> do
+          logText "Load2: no holes, saving directly\n"
+          setFileState3 filePath fs3
+          sendUpdateNotification3 filePath fs3
+        Just (edits, newSource) -> do
+          logText "Load2: holes dug, setting pending edit\n"
+          let pending =
+                PendingEdit
+                  { expectedContent = newSource,
+                    pendingFileState = fs3
+                  }
+          setPendingEdit filePath pending
+          editTextsWithVersion filePath vfsVersion edits
+  logText "Load2: end\n"
+
+readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
+readSourceOrThrow filePath = do
+  lift $ logText "Load2: reading virtual file\n"
+  result <- lift $ readSourceAndVersion filePath
+  case result of
+    Nothing -> do
+      lift $ logText "Load2: cannot read virtual file\n"
+      throwE []
+    Just x -> return x
+
+loadOrThrow :: FilePath -> Text -> ExceptT [Error] ServerM (Maybe DigResult, FileState3)
+loadOrThrow filePath source = do
+  case loadAndDig filePath source of
+    Left err -> do
+      lift $ logTextLn "Load2: load error"
+      throwE [err]
+    Right result -> return result
 
 --------------------------------------------------------------------------------
 -- Main pipeline
