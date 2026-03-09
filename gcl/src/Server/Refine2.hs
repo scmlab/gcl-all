@@ -3,30 +3,101 @@
 module Server.Refine2 where
 
 import Control.Monad (when)
+import Control.Monad.Trans (lift)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Bifunctor (first, second)
+import Data.Int (Int32)
+import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Common (Index, TypeInfo)
-import GCL.Predicate (Hole, InfMode (..), PO, Spec (..))
+import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type (runElaboration)
 import GCL.WP (collectStmtHoles, runWP, structStmts)
-import GCL.WP.Types (StructError, StructWarning)
+import GCL.WP.Types (StructError, StructWarning (..))
 import Language.Lexer.Applicative (TokenStream (..))
-import Server.Handler.GCL.Refine ()
+import Server.Change (mkLSPMove)
 -- for Elab [A.Stmt] orphan instance
+import Server.Handler.GCL.Refine ()
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
 import Server.Load2 (applyEdits, collectHolesFromStatements, diggedText)
-import Server.Monad (FileState3 (..))
+import Server.Monad
+  ( FileState3 (..),
+    PendingEdit (..),
+    ServerM,
+    editTextsWithVersion,
+    getFileState3,
+    logText,
+    logTextLn,
+    readSourceAndVersion,
+    setPendingEdit,
+    translateFileState3,
+  )
+import Server.Notification.Error (sendErrorNotification)
+import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
 import qualified Syntax.Typed as T
+
+--------------------------------------------------------------------------------
+-- ServerM action
+
+refine2 :: FilePath -> Pos -> ServerM ()
+refine2 filePath cursor = do
+  logTextLn $ "Refine2: cursor: " <> Text.pack (show cursor)
+  result <- runExceptT $ do
+    fs3 <- getFileState3OrThrow filePath
+    (source, vfsVersion) <- readSourceOrThrow filePath
+    spec <- findSpecOrThrow cursor (fs3Specifications fs3)
+    (finalImplText, fragmentFs3) <- refineOrThrow filePath (fs3IdCount fs3) spec source
+    return (fs3, vfsVersion, spec, source, finalImplText, fragmentFs3)
+  case result of
+    Left errs ->
+      sendErrorNotification filePath errs
+    Right (fs3, vfsVersion, spec, source, finalImplText, fragmentFs3) -> do
+      let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+          newFs3 = mergeFileState3 (translateFileState3 [lspMove] fs3) fragmentFs3
+          newSource = applyEdits source [(specRange spec, finalImplText)]
+          pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs3}
+      setPendingEdit filePath pending
+      editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
+      sendErrorNotification filePath []
+      logText "Refine2: edit sent\n"
+  where
+    getFileState3OrThrow :: FilePath -> ExceptT [Error] ServerM FileState3
+    getFileState3OrThrow fp = do
+      lift $ logText "Refine2: getting file state\n"
+      result <- lift (getFileState3 fp)
+      case result of
+        Nothing -> throwE [Others "Refine2" "File not loaded." Nothing]
+        Just fs3 -> return fs3
+
+    readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
+    readSourceOrThrow fp = do
+      lift $ logText "Refine2: reading source\n"
+      result <- lift (readSourceAndVersion fp)
+      case result of
+        Nothing -> throwE [Others "Refine2" "Cannot read source." Nothing]
+        Just source -> return source
+
+    findSpecOrThrow :: Pos -> [Spec] -> ExceptT [Error] ServerM Spec
+    findSpecOrThrow cur specs =
+      case findEnclosingSpec cur specs of
+        Nothing -> throwE [Others "Refine2" "No enclosing spec found." Nothing]
+        Just spec -> return spec
+
+    refineOrThrow :: FilePath -> Int -> Spec -> Text -> ExceptT [Error] ServerM (Text, FileState3)
+    refineOrThrow fp idCount spec source =
+      case refineAndDig fp idCount spec source of
+        Left err -> throwE [err]
+        Right result -> return result
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -150,3 +221,30 @@ shrinkRange diff (Range (Pos l1 c1) (Pos l2 c2)) =
 
 isFirstLineBlank :: Text -> Bool
 isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
+
+--------------------------------------------------------------------------------
+-- Finding enclosing spec
+
+findEnclosingSpec :: Pos -> [Spec] -> Maybe Spec
+findEnclosingSpec cursor specs =
+  find (\spec -> isInRange cursor (shrinkRange 1 (specRange spec))) specs
+  where
+    isInRange (Pos l c) (Range (Pos l1 c1) (Pos l2 c2)) =
+      (l1, c1) <= (l, c) && (l, c) <= (l2, c2)
+
+--------------------------------------------------------------------------------
+-- Merge FileState3
+
+-- | Merge a fragment FileState3 (from refine) into the already-moved base state.
+mergeFileState3 :: FileState3 -> FileState3 -> FileState3
+mergeFileState3 moved fragment =
+  FileState3
+    { fs3Specifications = fs3Specifications moved ++ fs3Specifications fragment,
+      fs3Holes = fs3Holes moved ++ fs3Holes fragment,
+      fs3ProofObligations = fs3ProofObligations moved ++ fs3ProofObligations fragment,
+      fs3Warnings = fs3Warnings moved ++ fs3Warnings fragment,
+      fs3IdCount = fs3IdCount fragment,
+      fs3SemanticTokens = fs3SemanticTokens moved ++ fs3SemanticTokens fragment,
+      fs3DefinitionLinks = fs3DefinitionLinks moved <> fs3DefinitionLinks fragment,
+      fs3HoverInfos = fs3HoverInfos moved <> fs3HoverInfos fragment
+    }

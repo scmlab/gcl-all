@@ -15,6 +15,7 @@ import Control.Concurrent
     writeChan,
   )
 import Control.Exception (SomeException, catch, displayException, throwIO)
+import Control.Monad (foldM)
 import Control.Monad.Reader
 import qualified Data.Aeson as JSON
 import Data.IORef
@@ -25,18 +26,28 @@ import Data.IORef
   )
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Data.Maybe (mapMaybe)
 import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text as Text
-import GCL.Predicate (Hole, PO, Spec (Specification, specID))
-import GCL.Range (Range, posCol, rangeStart)
-import GCL.WP.Types (StructWarning)
+import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
+import GCL.Range (MaybeRanged (..), Range, posCol, rangeStart)
+import GCL.WP.Types (StructWarning (..))
 import GHC.TypeLits (KnownSymbol)
 import qualified Language.LSP.Diagnostics as LSP
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
+import Server.Change
+  ( GCLMove,
+    LSPMove,
+    applyGCLMove,
+    applyLSPMovesToToken,
+    applyMovesToIntervalMap,
+    fromLSPMove,
+    updateOriginTargetRanges,
+  )
 import Server.GoToDefn (OriginTargetRanges)
 import Server.IntervalMap (IntervalMap)
 import qualified Server.SrcLoc as SrcLoc
@@ -388,6 +399,59 @@ digHoles filePath ranges onFinish = do
     diggedText :: HoleKind -> Range -> Text
     diggedText StmtHole range = "[!\n" <> indent range <> "\n" <> indent range <> "!]"
     diggedText ExprHole _ = "{! !}"
+
+--------------------------------------------------------------------------------
+-- FileState3 translation
+
+translateFileState3 :: [LSPMove] -> FileState3 -> FileState3
+translateFileState3 lspMoves fs3 =
+  let gclMoves = map fromLSPMove lspMoves
+   in fs3
+        { fs3Specifications = mapMaybe (translateSpecRange gclMoves) (fs3Specifications fs3),
+          fs3Holes = mapMaybe (translateHoleRange gclMoves) (fs3Holes fs3),
+          fs3ProofObligations = mapMaybe (translatePoRange gclMoves) (fs3ProofObligations fs3),
+          fs3Warnings = mapMaybe (translateWarningRange gclMoves) (fs3Warnings fs3),
+          fs3SemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fs3SemanticTokens fs3),
+          fs3DefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fs3DefinitionLinks fs3),
+          fs3HoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fs3HoverInfos fs3)
+        }
+
+-- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
+translateSpecRange :: [GCLMove] -> Spec -> Maybe Spec
+translateSpecRange moves spec@Specification {specRange = oldRange} = do
+  newRange <- foldM applyGCLMove oldRange moves
+  return $ spec {specRange = newRange}
+
+-- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
+translatePoRange :: [GCLMove] -> PO -> Maybe PO
+translatePoRange moves po@PO {poOrigin} = do
+  oldRange <- maybeRangeOf poOrigin
+  newRange <- foldM applyGCLMove oldRange moves
+  return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
+
+-- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
+translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
+translateHoleRange moves hole@Hole {holeRange = oldRange} = do
+  newRange <- foldM applyGCLMove oldRange moves
+  return $ hole {holeRange = newRange}
+
+translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
+translateWarningRange moves (MissingBound oldRange) = do
+  newRange <- foldM applyGCLMove oldRange moves
+  return $ MissingBound newRange
+
+setOriginRange :: Maybe Range -> Origin -> Origin
+setOriginRange l (AtAbort _) = AtAbort l
+setOriginRange l (AtSkip _) = AtSkip l
+setOriginRange l (AtSpec _) = AtSpec l
+setOriginRange l (AtAssignment _) = AtAssignment l
+setOriginRange l (AtAssertion _) = AtAssertion l
+setOriginRange l (AtIf _) = AtIf l
+setOriginRange l (AtLoop _) = AtLoop l
+setOriginRange l (AtTermination _) = AtTermination l
+setOriginRange l (Explain h e i p _) = Explain h e i p l
+
+--------------------------------------------------------------------------------
 
 sendDebugMessage :: Text -> ServerM ()
 sendDebugMessage message' = do
