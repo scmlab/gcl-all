@@ -7,7 +7,7 @@
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
-import Data.List (nub)
+import Data.List (foldl', nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
@@ -34,7 +34,6 @@ import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
-import Data.List (foldl')
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
