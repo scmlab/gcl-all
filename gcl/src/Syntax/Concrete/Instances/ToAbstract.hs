@@ -86,7 +86,7 @@ aggregateDefns (TypeDefn tok name binders _ cons : ds) = do
   return $ d' : ds'
 aggregateDefns (ValDefnSig decl : ds) = do
   (names, typ) <- toAbstract decl
-  let    (ds1, ds2) = span (sameDefn names) ds
+  let (ds1, ds2) = span (sameDefn names) ds
   ds1' <- aggregTypedDefn names typ ds1
   ds2' <- aggregateDefns ds2
   return $ ds1' ++ ds2'

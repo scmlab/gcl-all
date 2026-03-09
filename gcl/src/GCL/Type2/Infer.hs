@@ -15,7 +15,6 @@ import qualified Data.Set as Set
 import Debug.Trace
 import GCL.Common (Free (..))
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
-import GCL.Type (TypeError (..))
 import GCL.Type2.Infer.BuiltIn (getArithOpType, getChainOpType)
 import GCL.Type2.Subst (applySubst, applySubstEnv)
 import GCL.Type2.Types
@@ -23,6 +22,7 @@ import GCL.Type2.Types
     Result,
     Subst,
     TIMonad,
+    TypeError (..),
     ask,
     freshTVar,
     freshTyVar,

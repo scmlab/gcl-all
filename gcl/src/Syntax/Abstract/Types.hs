@@ -133,7 +133,7 @@ data Type
 
 data Scheme
   = Forall [Name] Type -- ∀α₁, ..., αₙ. t
-  deriving (Show)
+  deriving (Eq, Show)
 
 -- NOTE: i don't want to deal with template haskell right now
 -- but i want to catch incomplete patterns when i add new variants in

@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
@@ -20,6 +21,7 @@ module GCL.Type2.Types
     put,
     modify,
     -- Error
+    TypeError (..),
     Result,
     throwError,
     -- Utils
@@ -47,9 +49,23 @@ import Control.Monad.RWS
 import Data.Map (Map)
 import Data.Text (pack)
 import GCL.Common (Counterous (..), Fresh (..))
-import GCL.Type (TypeError)
+import GCL.Range (Range)
+import GHC.Generics (Generic)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (Name), TypeOp (..))
+
+data TypeError
+  = NotInScope Name
+  | UnifyFailed A.Type A.Type (Maybe Range)
+  | RecursiveType Name A.Type (Maybe Range)
+  | AssignToConst Name
+  | UndefinedType Name
+  | DuplicatedIdentifiers [Name]
+  | RedundantNames [Name]
+  | RedundantExprs [A.Expr]
+  | MissingArguments [Name]
+  | PatternArityMismatch {- Expected -} Int {- Actual -} Int (Maybe Range)
+  deriving (Show, Eq, Generic)
 
 type TyVar = Name
 

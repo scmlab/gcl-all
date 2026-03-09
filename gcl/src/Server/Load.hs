@@ -17,6 +17,7 @@ import GCL.Range (Range)
 import qualified GCL.Type as TypeChecking
 import GCL.Type2.ToTyped
 import qualified GCL.WP as WP
+import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -180,7 +181,7 @@ load filePath = do
       case runToTyped abstract mempty of
         Left e -> do
           logText "  elaborate error\n"
-          onError $ TypeError e
+          onError $ TypeError $ Hack.toOldError e
           return $ Left ()
         Right typedProgram -> do
           logText "  program elaborated\n"

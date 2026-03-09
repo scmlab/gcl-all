@@ -5,6 +5,7 @@ module GCL.Type2.Subst where
 
 import Data.List (foldl', intercalate)
 import qualified Data.Map as Map
+import GCL.Type2.Types (Env, Subst)
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)
@@ -62,6 +63,7 @@ applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst
 applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range
 applySubstExpr subst (T.Case expr clauses range) = T.Case (applySubstExpr subst expr) (map (applySubstClause subst) clauses) range
 applySubstExpr subst (T.Subst _ _) = undefined
+applySubstExpr subst (T.EHole _ _ _ _) = undefined
 
 applySubstChain :: Subst -> T.Chain -> T.Chain
 applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)

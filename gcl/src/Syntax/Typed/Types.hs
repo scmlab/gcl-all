@@ -3,7 +3,7 @@ module Syntax.Typed.Types where
 import Data.Text (Text)
 import GCL.Common (Index, TypeInfo)
 import GCL.Range (Range)
-import GCL.Type2.Common (Env)
+import GCL.Type2.Types (Env)
 import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
 import Syntax.Common.Types (Name, Op, TypeOp)
 
@@ -70,6 +70,9 @@ data Expr
   deriving (Eq, Show)
 
 data CaseClause = CaseClause Pattern Expr
+  deriving (Eq, Show)
+
+data FuncClause = FuncClause [Pattern] Expr
   deriving (Eq, Show)
 
 data Chain

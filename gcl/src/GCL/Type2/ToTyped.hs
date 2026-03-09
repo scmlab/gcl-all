@@ -10,13 +10,31 @@ import Control.Monad (foldM, unless, when)
 import Data.List (nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
+import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
-import GCL.Type (TypeError (..))
+import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
+import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
+import GCL.Type2.Types
+  ( Env,
+    TIMonad,
+    TypeError (..),
+    ask,
+    evalTI,
+    freshTVar,
+    lift,
+    local,
+    throwError,
+    typeBool,
+    typeInt,
+    typeToType,
+  )
+import GCL.Type2.Unify (unify)
+import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
-collectDeclToEnv :: A.Declaration -> RSE Env Inference Env
+collectDeclToEnv :: A.Declaration -> TIMonad Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
   lift $ checkDuplicateNames names
   _ <- typeToKind ty
@@ -71,14 +89,7 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
               ty -> (ftvs, ty `typeToType` argTypes)
         )
         ([], baseTy)
-collectDefnToEnv (A.FuncDefnSig name ty _ _) = do
-  env <- ask
-  case Map.lookup name env of
-    Nothing -> return $ Map.singleton name (A.Forall [] ty)
-    Just _ -> throwError $ DuplicatedIdentifiers [name]
-collectDefnToEnv (A.FuncDefn name body) = do
-  (_, ty, _) <- infer body
-  return $ Map.singleton name (A.Forall [] ty)
+collectDefnToEnv A.ValDefn {} = undefined
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
@@ -133,14 +144,13 @@ instance ToTyped A.Program T.Program where
 
 instance ToTyped A.Definition T.Definition where
   toTyped (A.TypeDefn name args ctors range) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) range
-  toTyped (A.FuncDefnSig name ty prop range) = toTypedFuncDefnSig name ty prop range
-  toTyped (A.FuncDefn name body) = T.FuncDefn name <$> toTyped body
+  toTyped A.ValDefn {} = undefined
 
 toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
 toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
 
 -- FIXME: prop is not needed, remove in the future
-toTypedFuncDefnSig :: Name -> A.Type -> Maybe A.Expr -> Maybe Range -> RSE Env Inference T.Definition
+toTypedFuncDefnSig :: Name -> A.Type -> Maybe A.Expr -> Maybe Range -> TIMonad T.Definition
 toTypedFuncDefnSig name ty prop range = do
   tyKind <- typeToKind ty
 
@@ -252,7 +262,7 @@ toTypedIf gds range = do
   typedGds <- mapM toTyped gds
   return (T.If typedGds range)
 
-toTypedAlloc :: Name -> [A.Expr] -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedAlloc :: Name -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedAlloc var exprs range = do
   env <- ask
   ty <- case Map.lookup var env of
@@ -271,7 +281,7 @@ toTypedAlloc var exprs range = do
 
   return (T.Alloc var (map (applySubstExpr resultSubst) typedExprs) range)
 
-toTypedHLookup :: Name -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedHLookup :: Name -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedHLookup name expr range = do
   env <- ask
   ty <- case Map.lookup name env of
@@ -283,13 +293,13 @@ toTypedHLookup name expr range = do
 
   return $ T.HLookup name (applySubstExpr (s2 <> s1) typedExpr) range
 
-toTypedHMutate :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedHMutate :: A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedHMutate left right range = do
   (s1, typedLeft) <- typeCheck left typeInt
   (s2, typedRight) <- local (applySubstEnv s1) (typeCheck right typeInt)
   return $ T.HMutate (applySubstExpr (s2 <> s1) typedLeft) (applySubstExpr (s2 <> s1) typedRight) range
 
-toTypedDispose :: A.Expr -> Maybe Range -> RSE Env Inference T.Stmt
+toTypedDispose :: A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedDispose expr range = do
   (s, typedExpr) <- typeCheck expr typeInt
   return $ T.Dispose (applySubstExpr s typedExpr) range
