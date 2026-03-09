@@ -12,8 +12,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
-import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
-import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
+import GCL.Type2.Infer (checkDuplicateNames, infer, inferFuncClause, instantiate, typeCheck, typeToKind)
+import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
     TIMonad,
@@ -29,6 +29,7 @@ import GCL.Type2.Types
     typeToType,
   )
 import GCL.Type2.Unify (unify)
+import Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
@@ -89,7 +90,24 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
               ty -> (ftvs, ty `typeToType` argTypes)
         )
         ([], baseTy)
-collectDefnToEnv A.ValDefn {} = undefined
+collectDefnToEnv (A.ValDefn name sig clauses) = do
+  funcTy <- maybe freshTVar return sig
+
+  (_, funcTy') <-
+    foldM
+      ( \(s', ty')
+         c@(A.FuncClause pats expr) -> do
+            (funcSubst', funcTy', _typedClause) <- inferFuncClause pats expr
+
+            unifySubst <- lift $ unify ty' funcTy' (maybeRangeOf c)
+
+            let resultSubst = unifySubst <> funcSubst'
+            return (funcSubst' <> s', applySubst resultSubst ty')
+      )
+      (mempty, funcTy)
+      clauses
+
+  return (Map.singleton name (A.Forall [] funcTy'))
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
@@ -144,21 +162,16 @@ instance ToTyped A.Program T.Program where
 
 instance ToTyped A.Definition T.Definition where
   toTyped (A.TypeDefn name args ctors range) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) range
-  toTyped A.ValDefn {} = undefined
+  toTyped (A.ValDefn name sig clauses) = toTypedValDefn name sig clauses
 
 toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
 toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
 
--- FIXME: prop is not needed, remove in the future
-toTypedFuncDefnSig :: Name -> A.Type -> Maybe A.Expr -> Maybe Range -> TIMonad T.Definition
-toTypedFuncDefnSig name ty prop range = do
-  tyKind <- typeToKind ty
-
-  when
-    (tyKind /= A.TType)
-    (throwError $ UnifyFailed tyKind A.TType range)
-
-  return (T.FuncDefnSig' name tyKind range)
+toTypedValDefn :: Name -> Maybe A.Type -> [A.FuncClause] -> TIMonad T.Definition
+toTypedValDefn name sig clauses = do
+  -- XXX: no `T.ValDefn` is currently available
+  -- and i don't want to call `inferFuncClause` twice
+  undefined
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do

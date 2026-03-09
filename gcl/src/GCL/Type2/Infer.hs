@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, when)
+import Control.Monad (foldM, foldM_, when)
 import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
@@ -369,7 +369,7 @@ inferArrIdx arr index range = do
   (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
 
   let resultSubst = si <> sa
-  return (resultSubst, applySubst si ftv, T.ArrIdx typedArr typedIndex range)
+  return (resultSubst, applySubst resultSubst ftv, T.ArrIdx typedArr typedIndex range)
 
 --- SCM: I think it should be (si (sa ftv))
 
@@ -398,7 +398,7 @@ inferArrUpd arr index expr range = do
   (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
   (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv)) -- SCM: I think you need (si (sa ftv))
   let resultSubst = se <> si <> sa
-  return (resultSubst, A.TArray interval (applySubst si ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
+  return (resultSubst, A.TArray interval (applySubst resultSubst ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
 
 -- SCM: I think you need (se (si (sa ftv)))
 
@@ -425,17 +425,105 @@ inferCase expr clauses range = do
   return (resultSubst, clausesTy, T.Case typedExpr (reverse typedClauses) range)
   where
     aux exprTy (accSubst, clauseTy, typedClauses) (A.CaseClause pattern caseExpr) = do
-      (s1, clauseTy', typedClause) <- inferClause pattern caseExpr (applySubst accSubst exprTy)
+      (s1, clauseTy', typedClause) <- inferCaseClause pattern caseExpr (applySubst accSubst exprTy)
 
       -- NOTE: pattern type checking in done in `bindPattern` so no need for it here
       s2 <- lift $ unify (applySubst s1 clauseTy) clauseTy' (maybeRangeOf caseExpr)
 
       return (s2 <> s1 <> accSubst, applySubst s2 clauseTy', typedClause : typedClauses)
 
-checkDuplicateBinders :: A.Pattern -> Result ()
-checkDuplicateBinders pat = do
-  _ <- aux pat []
-  return ()
+{-
+  Γ ⊢p p : t ↓ (sp, Γ')
+  sp Γ, Γ' ⊢ e ↑ (se, te)
+  --------------------------------- Case-Clause
+  Γ ⊢cl p : t -> e ↑ (se <> sp, te)
+-}
+
+inferCaseClause :: A.Pattern -> A.Expr -> A.Type -> TIMonad (Subst, A.Type, T.CaseClause)
+inferCaseClause pattern expr ty = do
+  lift $ checkDuplicateBinders [pattern]
+
+  (patSubst, patEnv) <- bindPattern pattern ty
+
+  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+
+  let resultSubst = exprSubst <> patSubst
+  traceM $ "result: " <> show patEnv
+  return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
+
+{-
+  For reference: to infer types of simple recursive equations:
+
+    fresh a
+    Γ, x : a ⊢ e ↑ (s, t)
+    s1 = unify (a, t)
+    ----------------------------
+    Γ ⊢ x = e ↑ (s1 <> s, s1 a)
+
+  fresh a b
+  Γ ⊢p p1 : a ↓ (sp1, Γ1)
+  sp1 Γ, Γ1, f : sp1 a -> b ⊢ e1 : b ↓ se1
+  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) a ↓ (sp2, Γ2)
+  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) a -> (sp2 . se1) b
+      ⊢ e2 : (sp2 . se1) b ↓ se2
+  ------------------------------------------------ Definition
+  Γ ⊢def f p1 = e1 ↑ (se2 . sp2 . se1 . sp1,
+         f p2 = e2    (se2 . sp2 . se1 . sp1) (a -> b))
+
+  Γ ⊢p p1 : ti ↓ (sp1, Γ1)
+  sp1 Γ, Γ1, f : sp1 (ti -> to) ⊢ e1 : sp1 to ↓ se1
+  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) ti ↓ (sp2, Γ2)
+  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) (ti -> to))
+      ⊢ e2 : (sp2 . se1 . sp1) to ↓ se2
+  ------------------------------------------------ Definition-Sig
+  Γ ⊢def f : ti -> to      (se2 . sp2 . se1 . sp1,
+         f p1 = e1     ↑    (se2 . sp2 . se1 . sp1) (ti -> to))
+         f p2 = e2
+-}
+
+inferFuncClause :: [A.Pattern] -> A.Expr -> TIMonad (Subst, A.Type, T.FuncClause)
+inferFuncClause patterns expr = do
+  lift $ checkDuplicateBinders patterns
+
+  ftv <- freshTVar
+
+  (patSubst, patEnv, ty) <-
+    foldM
+      ( \(s', e', ty') pat -> do
+          traceM $ show (pretty pat)
+          -- XXX: because the number of arguments is unknown if the signature is not provided
+          -- we can only use freshTVar and subst later
+          ftv' <- freshTVar
+          -- XXX: patterns shouldn't affect each other so `local` is not needed?
+          (patSubst, patEnv) <- bindPattern pat ftv'
+
+          let patTy = applySubst patSubst ftv'
+
+          -- let resultTy = case ty' of
+          --       -- t1 -> t2 => t1 -> patTy -> t2
+          --       A.TApp (A.TApp (A.TOp (Arrow _)) t1 _) t2 _ -> t1 `typeToType` patTy `typeToType` t2
+          --       t -> patTy `typeToType` t
+          let resultTy = patTy `typeToType` ty'
+
+          return (patSubst <> s', patEnv <> e', resultTy)
+      )
+      (mempty, mempty, ftv)
+      (reverse patterns) -- XXX: patterns shouldn't affect each other so `reverse` is fine here?
+  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+
+  unifySubst <- lift $ unify ftv exprTy (maybeRangeOf expr)
+
+  let resultSubst = unifySubst <> exprSubst <> patSubst
+  let resultExpr = T.FuncClause patterns typedExpr
+
+  traceM $ show patEnv
+  traceM $ show (pretty (applySubst resultSubst ty))
+
+  return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
+
+checkDuplicateBinders :: [A.Pattern] -> Result ()
+checkDuplicateBinders pats = do
+  foldM_ (\names pat -> aux pat names) [] pats
   where
     aux :: A.Pattern -> [Name] -> Result [Name]
     aux (A.PattLit _) _binders = return []
@@ -452,25 +540,6 @@ checkDuplicateBinders pat = do
         )
         binders
         ps
-
-{-
-  Γ ⊢p p : t ↓ (sp, Γ')
-  sp Γ, Γ' ⊢ e ↑ (se, te)
-  --------------------------------- Case-Clause
-  Γ ⊢cl p : t -> e ↑ (se <> sp, te)
--}
-
-inferClause :: A.Pattern -> A.Expr -> A.Type -> TIMonad (Subst, A.Type, T.CaseClause)
-inferClause pattern expr ty = do
-  lift $ checkDuplicateBinders pattern
-
-  (patSubst, patEnv) <- bindPattern pattern ty
-
-  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
-
-  let resultSubst = exprSubst <> patSubst
-  traceM $ "result: " <> show patEnv
-  return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
 
 {-
 
@@ -533,36 +602,3 @@ bindPattern (A.PattConstructor ctorName pats) ty = do
     toList :: A.Type -> NonEmpty A.Type
     toList (A.TApp (A.TApp (A.TOp (Arrow Nothing)) t1 Nothing) t2 Nothing) = t1 NE.<| toList t2
     toList ty' = ty' NE.:| []
-
-inferTypeOp :: TypeOp -> TIMonad (Subst, A.Type, Op)
-inferTypeOp op = undefined
-
-{-
-  For reference: to infer types of simple recursive equations:
-
-    fresh a
-    Γ, x : a ⊢ e ↑ (s, t)
-    s1 = unify (a, t)
-    ----------------------------
-    Γ ⊢ x = e ↑ (s1 <> s, s1 a)
-
-  fresh a b
-  Γ ⊢p p1 : a ↓ (sp1, Γ1)
-  sp1 Γ, Γ1, f : sp1 a -> b ⊢ e1 : b ↓ se1
-  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) a ↓ (sp2, Γ2)
-  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) a -> (sp2 . se1) b
-      ⊢ e2 : (sp2 . se1) b ↓ se2
-  ------------------------------------------------ Definition
-  Γ ⊢def f p1 = e1 ↑ (se2 . sp2 . se1 . sp1,
-         f p2 = e2    (se2 . sp2 . se1 . sp1) (a -> b))
-
-  Γ ⊢p p1 : ti ↓ (sp1, Γ1)
-  sp1 Γ, Γ1, f : sp1 (ti -> to) ⊢ e1 : sp1 to ↓ se1
-  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) ti ↓ (sp2, Γ2)
-  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) (ti -> to))
-      ⊢ e2 : (sp2 . se1 . sp1) to ↓ se2
-  ------------------------------------------------ Definition-Sig
-  Γ ⊢def f : ti -> to      (se2 . sp2 . se1 . sp1,
-         f p1 = e1     ↑    (se2 . sp2 . se1 . sp1) (ti -> to))
-         f p2 = e2
--}
