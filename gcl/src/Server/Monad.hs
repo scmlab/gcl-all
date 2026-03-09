@@ -43,6 +43,7 @@ import Server.Change
   ( GCLMove,
     LSPMove,
     applyGCLMove,
+    applyGCLMoveToContainerRange,
     applyLSPMovesToToken,
     applyMovesToIntervalMap,
     fromLSPMove,
@@ -419,25 +420,25 @@ translateFileState3 lspMoves fs3 =
 -- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
 translateSpecRange :: [GCLMove] -> Spec -> Maybe Spec
 translateSpecRange moves spec@Specification {specRange = oldRange} = do
-  newRange <- foldM applyGCLMove oldRange moves
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ spec {specRange = newRange}
 
 -- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
 translatePoRange :: [GCLMove] -> PO -> Maybe PO
 translatePoRange moves po@PO {poOrigin} = do
   oldRange <- maybeRangeOf poOrigin
-  newRange <- foldM applyGCLMove oldRange moves
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
 
 -- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
 translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
 translateHoleRange moves hole@Hole {holeRange = oldRange} = do
-  newRange <- foldM applyGCLMove oldRange moves
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ hole {holeRange = newRange}
 
 translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
 translateWarningRange moves (MissingBound oldRange) = do
-  newRange <- foldM applyGCLMove oldRange moves
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ MissingBound newRange
 
 setOriginRange :: Maybe Range -> Origin -> Origin
