@@ -448,7 +448,7 @@ inferCaseClause pattern expr ty = do
   (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
 
   let resultSubst = exprSubst <> patSubst
-  traceM $ "result: " <> show patEnv
+
   return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
 
 {-
@@ -490,7 +490,6 @@ inferFuncClause patterns expr = do
   (patSubst, patEnv, ty) <-
     foldM
       ( \(s', e', ty') pat -> do
-          traceM $ show (pretty pat)
           -- XXX: because the number of arguments is unknown if the signature is not provided
           -- we can only use freshTVar and subst later
           ftv' <- freshTVar
@@ -515,9 +514,6 @@ inferFuncClause patterns expr = do
 
   let resultSubst = unifySubst <> exprSubst <> patSubst
   let resultExpr = T.FuncClause patterns typedExpr
-
-  traceM $ show patEnv
-  traceM $ show (pretty (applySubst resultSubst ty))
 
   return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
 

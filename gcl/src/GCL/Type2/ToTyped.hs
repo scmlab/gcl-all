@@ -34,6 +34,7 @@ import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
+import Data.List (foldl')
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
@@ -49,17 +50,12 @@ type DefnMap = Map A.Definition A.Scheme
 
 -- XXX: is checking duplicate definition required here?
 collectDefnToEnv :: A.Definition -> TIMonad Env
-collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
+collectDefnToEnv (A.TypeDefn name args ctors _range) = do
   let nameTy = A.TData name (maybeRangeOf name)
+  let resultTy = foldl' (\accTy arg -> A.TApp accTy (A.TVar arg Nothing) Nothing) nameTy args
 
-  let kind = foldr (\_ acc -> A.TType `typeToType` acc) A.TType args
+  let kind = foldl' (\acc _ -> A.TType `typeToType` acc) A.TType args
   let kindEnv = Map.singleton name (A.Forall [] kind)
-
-  traceM $ show (pretty kind)
-  -- \* -> *
-
-  -- Left -> forall l r. l -> Either l r
-  -- Either -> * -> * -> *
 
   -- NOTE: we currently do not allow same datatype name and constructor name
   -- because we store both information in the same environment without distinction
@@ -72,7 +68,7 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
           (Map.member ctorName env')
           (throwError $ DuplicatedIdentifiers [ctorName])
 
-        let (tvs, ctorTy) = extractMetaVars nameTy ctorArgs
+        let (tvs, ctorTy) = extractMetaVars resultTy ctorArgs
         let diff = filter (`notElem` args) (nub tvs)
 
         case diff of
@@ -92,6 +88,8 @@ collectDefnToEnv (A.TypeDefn name args ctors _loc) = do
         ([], baseTy)
 collectDefnToEnv (A.ValDefn name sig clauses) = do
   funcTy <- maybe freshTVar return sig
+
+  _ <- typeToKind funcTy
 
   (_, funcTy') <-
     foldM
@@ -171,7 +169,8 @@ toTypedValDefn :: Name -> Maybe A.Type -> [A.FuncClause] -> TIMonad T.Definition
 toTypedValDefn name sig clauses = do
   -- XXX: no `T.ValDefn` is currently available
   -- and i don't want to call `inferFuncClause` twice
-  undefined
+
+  error "\n\n** ACTUALLY SUCCESSFUL **\n"
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do
