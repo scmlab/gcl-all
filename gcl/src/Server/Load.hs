@@ -15,6 +15,8 @@ import Error (Error (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import qualified GCL.Type as TypeChecking
 import qualified GCL.WP as WP
+import qualified Language.LSP.Protocol.Message as LSP
+import qualified Language.LSP.Server as LSP
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -51,6 +53,9 @@ load filePath = do
           logText "Load: no holes, saving directly\n"
           setFileState filePath fs
           sendUpdateNotification filePath fs
+          logText "Load: sending workspace/semanticTokens/refresh\n"
+          _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
+          return ()
         Just (edits, newSource) -> do
           logText "Load: holes dug, setting pending edit\n"
           let pending =
