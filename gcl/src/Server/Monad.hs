@@ -379,15 +379,6 @@ data HoleKind
   | ExprHole
   deriving (Eq, Show)
 
-sendDiagnostics :: FilePath -> [LSP.Diagnostic] -> ServerM ()
-sendDiagnostics filePath diagnostics = do
-  maybeFileState <- loadFileState filePath
-  let maybeVersion = fmap editedVersion maybeFileState
-  LSP.publishDiagnostics
-    100
-    (LSP.toNormalizedUri (LSP.filePathToUri filePath))
-    maybeVersion
-    (LSP.partitionBySource diagnostics)
 
 digHoles :: FilePath -> [(HoleKind, Range)] -> ServerM () -> ServerM ()
 digHoles filePath ranges onFinish = do
