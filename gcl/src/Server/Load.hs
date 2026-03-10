@@ -18,9 +18,9 @@ import qualified GCL.WP as WP
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState3 (..), HoleKind (..), PendingEdit (..), ServerM, editTextsWithVersion, logText, logTextLn, readSourceAndVersion, setFileState3, setPendingEdit)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, editTextsWithVersion, logText, logTextLn, readSourceAndVersion, setFileState, setPendingEdit)
 import Server.Notification.Error (sendErrorNotification)
-import Server.Notification.Update (sendUpdateNotification3)
+import Server.Notification.Update (sendUpdateNotification)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -40,23 +40,23 @@ load filePath = do
   logText "Load: start\n"
   result <- runExceptT $ do
     (source, vfsVersion) <- readSourceOrThrow filePath
-    (maybeDig, fs3) <- loadOrThrow filePath source
-    return (vfsVersion, maybeDig, fs3)
+    (maybeDig, fs) <- loadOrThrow filePath source
+    return (vfsVersion, maybeDig, fs)
   case result of
     Left errs ->
       sendErrorNotification filePath errs
-    Right (vfsVersion, maybeDig, fs3) ->
+    Right (vfsVersion, maybeDig, fs) ->
       case maybeDig of
         Nothing -> do
           logText "Load: no holes, saving directly\n"
-          setFileState3 filePath fs3
-          sendUpdateNotification3 filePath fs3
+          setFileState filePath fs
+          sendUpdateNotification filePath fs
         Just (edits, newSource) -> do
           logText "Load: holes dug, setting pending edit\n"
           let pending =
                 PendingEdit
                   { expectedContent = newSource,
-                    pendingFileState = fs3
+                    pendingFileState = fs
                   }
           setPendingEdit filePath pending
           editTextsWithVersion filePath vfsVersion edits
@@ -72,7 +72,7 @@ readSourceOrThrow filePath = do
       throwE []
     Just x -> return x
 
-loadOrThrow :: FilePath -> Text -> ExceptT [Error] ServerM (Maybe DigResult, FileState3)
+loadOrThrow :: FilePath -> Text -> ExceptT [Error] ServerM (Maybe DigResult, FileState)
 loadOrThrow filePath source = do
   case loadAndDig filePath source of
     Left err -> do
@@ -86,28 +86,28 @@ loadOrThrow filePath source = do
 -- | Full pipeline: parseAndDig → loadConcrete.
 -- Returns Left for errors, Right (Nothing, result) if no holes were found,
 -- Right (Just digResult, result) if holes were dug.
-loadAndDig :: FilePath -> Text -> Either Error (Maybe DigResult, FileState3)
+loadAndDig :: FilePath -> Text -> Either Error (Maybe DigResult, FileState)
 loadAndDig filePath source = do
   (maybeDig, concrete) <- parseAndDig filePath source
   result <- loadConcrete concrete
   return (maybeDig, result)
 
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
-loadConcrete :: C.Program -> Either Error FileState3
+loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
   elaborated <- first TypeError $ TypeChecking.runElaboration abstract mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
-    FileState3
-      { fs3Specifications = specs,
-        fs3Holes = holes,
-        fs3ProofObligations = pos,
-        fs3Warnings = warnings,
-        fs3IdCount = idCount,
-        fs3SemanticTokens = collectHighlighting concrete,
-        fs3DefinitionLinks = collectLocationLinks abstract,
-        fs3HoverInfos = collectHoverInfo elaborated
+    FileState
+      { fsSpecifications = specs,
+        fsHoles = holes,
+        fsProofObligations = pos,
+        fsWarnings = warnings,
+        fsIdCount = idCount,
+        fsSemanticTokens = collectHighlighting concrete,
+        fsDefinitionLinks = collectLocationLinks abstract,
+        fsHoverInfos = collectHoverInfo elaborated
       }
 
 -- | Parse source, and if holes are found, dig them and re-parse.

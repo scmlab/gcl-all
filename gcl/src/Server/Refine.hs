@@ -25,25 +25,25 @@ import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
 import Server.Load (applyEdits, collectHolesFromStatements, diggedText)
 import Server.Monad
-  ( FileState3 (..),
+  ( FileState (..),
     PendingEdit (..),
     ServerM,
     editTextsWithVersion,
-    getFileState3,
+    getFileState,
     logText,
     logTextLn,
     readSourceAndVersion,
     setPendingEdit,
-    translateFileState3,
+    translateFileState,
   )
 import Server.Notification.Error (sendErrorNotification)
 import Server.SrcLoc (toLSPRange)
+import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
-import qualified Syntax.Abstract as A
 import qualified Syntax.Typed as T
 
 --------------------------------------------------------------------------------
@@ -53,31 +53,31 @@ refine :: FilePath -> Pos -> ServerM ()
 refine filePath cursor = do
   logTextLn $ "Refine: cursor: " <> Text.pack (show cursor)
   result <- runExceptT $ do
-    fs3 <- getFileState3OrThrow filePath
+    fs <- getFileStateOrThrow filePath
     (source, vfsVersion) <- readSourceOrThrow filePath
-    spec <- findSpecOrThrow cursor (fs3Specifications fs3)
-    (finalImplText, fragmentFs3) <- refineOrThrow filePath (fs3IdCount fs3) spec source
-    return (fs3, vfsVersion, spec, source, finalImplText, fragmentFs3)
+    spec <- findSpecOrThrow cursor (fsSpecifications fs)
+    (finalImplText, fragmentFs) <- refineOrThrow filePath (fsIdCount fs) spec source
+    return (fs, vfsVersion, spec, source, finalImplText, fragmentFs)
   case result of
     Left errs ->
       sendErrorNotification filePath errs
-    Right (fs3, vfsVersion, spec, source, finalImplText, fragmentFs3) -> do
+    Right (fs, vfsVersion, spec, source, finalImplText, fragmentFs) -> do
       let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-          newFs3 = mergeFileState3 (translateFileState3 [lspMove] fs3) fragmentFs3
+          newFs = mergeFileState (translateFileState [lspMove] fs) fragmentFs
           newSource = applyEdits source [(specRange spec, finalImplText)]
-          pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs3}
+          pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
       setPendingEdit filePath pending
       editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
       sendErrorNotification filePath []
       logText "Refine: edit sent\n"
   where
-    getFileState3OrThrow :: FilePath -> ExceptT [Error] ServerM FileState3
-    getFileState3OrThrow fp = do
+    getFileStateOrThrow :: FilePath -> ExceptT [Error] ServerM FileState
+    getFileStateOrThrow fp = do
       lift $ logText "Refine: getting file state\n"
-      result <- lift (getFileState3 fp)
+      result <- lift (getFileState fp)
       case result of
         Nothing -> throwE [Others "Refine" "File not loaded." Nothing]
-        Just fs3 -> return fs3
+        Just fs -> return fs
 
     readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
     readSourceOrThrow fp = do
@@ -93,7 +93,7 @@ refine filePath cursor = do
         Nothing -> throwE [Others "Refine" "No enclosing spec found." Nothing]
         Just spec -> return spec
 
-    refineOrThrow :: FilePath -> Int -> Spec -> Text -> ExceptT [Error] ServerM (Text, FileState3)
+    refineOrThrow :: FilePath -> Int -> Spec -> Text -> ExceptT [Error] ServerM (Text, FileState)
     refineOrThrow fp idCount spec source =
       case refineAndDig fp idCount spec source of
         Left err -> throwE [err]
@@ -103,7 +103,7 @@ refine filePath cursor = do
 -- Main pipeline
 
 -- | Full pipeline: validate spec → extract impl → parseAndDigFragment → loadConcreteFragment.
-refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, FileState3)
+refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, FileState)
 refineAndDig filePath idCount spec source = do
   let specRng = specRange spec
   when (isSingleLine specRng) $
@@ -119,22 +119,22 @@ refineAndDig filePath idCount spec source = do
   return (finalImplText, result)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
-loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt] -> Either Error FileState3
+loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt] -> Either Error FileState
 loadConcreteFragment typeEnv idCount spec stmts = do
   let abstract = C.runAbstractTransform stmts
   elaborated <- first TypeError $ runElaboration abstract typeEnv
   (pos, specs, holes, warnings, idCount') <-
     first StructError $ sweepFragment idCount spec elaborated
   return
-    FileState3
-      { fs3Specifications = specs,
-        fs3Holes = holes,
-        fs3ProofObligations = pos,
-        fs3Warnings = warnings,
-        fs3IdCount = idCount',
-        fs3SemanticTokens = collectHighlightingFromStmts stmts,
-        fs3DefinitionLinks = mempty, -- TODO: needs scope info from declarations
-        fs3HoverInfos = collectHoverInfoFromStmts elaborated
+    FileState
+      { fsSpecifications = specs,
+        fsHoles = holes,
+        fsProofObligations = pos,
+        fsWarnings = warnings,
+        fsIdCount = idCount',
+        fsSemanticTokens = collectHighlightingFromStmts stmts,
+        fsDefinitionLinks = mempty, -- TODO: needs scope info from declarations
+        fsHoverInfos = collectHoverInfoFromStmts elaborated
       }
 
 -- | Parse fragment and dig holes if needed.
@@ -233,20 +233,20 @@ findEnclosingSpec cursor specs =
       (l1, c1) <= (l, c) && (l, c) <= (l2, c2)
 
 --------------------------------------------------------------------------------
--- Merge FileState3
+-- Merge FileState
 
--- | Merge a fragment FileState3 (from refine) into the already-moved base state.
-mergeFileState3 :: FileState3 -> FileState3 -> FileState3
-mergeFileState3 moved fragment =
-  FileState3
-    { fs3Specifications = fs3Specifications moved ++ fs3Specifications fragment,
-      fs3Holes = fs3Holes moved ++ fs3Holes fragment,
-      fs3ProofObligations = fs3ProofObligations moved ++ fs3ProofObligations fragment,
-      fs3Warnings = fs3Warnings moved ++ fs3Warnings fragment,
-      fs3IdCount = fs3IdCount fragment,
-      fs3SemanticTokens = fs3SemanticTokens moved ++ fs3SemanticTokens fragment,
-      fs3DefinitionLinks = fs3DefinitionLinks moved <> fs3DefinitionLinks fragment,
-      fs3HoverInfos = fs3HoverInfos moved <> fs3HoverInfos fragment
+-- | Merge a fragment FileState (from refine) into the already-moved base state.
+mergeFileState :: FileState -> FileState -> FileState
+mergeFileState moved fragment =
+  FileState
+    { fsSpecifications = fsSpecifications moved ++ fsSpecifications fragment,
+      fsHoles = fsHoles moved ++ fsHoles fragment,
+      fsProofObligations = fsProofObligations moved ++ fsProofObligations fragment,
+      fsWarnings = fsWarnings moved ++ fsWarnings fragment,
+      fsIdCount = fsIdCount fragment,
+      fsSemanticTokens = fsSemanticTokens moved ++ fsSemanticTokens fragment,
+      fsDefinitionLinks = fsDefinitionLinks moved <> fsDefinitionLinks fragment,
+      fsHoverInfos = fsHoverInfos moved <> fsHoverInfos fragment
     }
 
 --------------------------------------------------------------------------------

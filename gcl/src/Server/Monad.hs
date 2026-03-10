@@ -56,24 +56,24 @@ import qualified Server.SrcLoc as SrcLoc
 -- | State shared by all clients and requests
 data GlobalState = GlobalState
   { logChannel :: Chan Text, -- Channel for printing log
-    filesState3 :: IORef (Map FilePath FileState3),
+    filesState :: IORef (Map FilePath FileState),
     pendingEdits :: IORef (Map FilePath PendingEdit)
   }
 
-data FileState3 = FileState3
-  { fs3Specifications :: ![Spec],
-    fs3Holes :: ![Hole],
-    fs3ProofObligations :: ![PO],
-    fs3Warnings :: ![StructWarning],
-    fs3IdCount :: !Int,
-    fs3SemanticTokens :: ![LSP.SemanticTokenAbsolute],
-    fs3DefinitionLinks :: !(IntervalMap OriginTargetRanges),
-    fs3HoverInfos :: !(IntervalMap LSP.Hover)
+data FileState = FileState
+  { fsSpecifications :: ![Spec],
+    fsHoles :: ![Hole],
+    fsProofObligations :: ![PO],
+    fsWarnings :: ![StructWarning],
+    fsIdCount :: !Int,
+    fsSemanticTokens :: ![LSP.SemanticTokenAbsolute],
+    fsDefinitionLinks :: !(IntervalMap OriginTargetRanges),
+    fsHoverInfos :: !(IntervalMap LSP.Hover)
   }
 
 data PendingEdit = PendingEdit
   { expectedContent :: !Text,
-    pendingFileState :: !FileState3
+    pendingFileState :: !FileState
   }
 
 -- | Constructs an initial global state
@@ -117,15 +117,15 @@ logText s = do
 logTextLn :: Text -> ServerM ()
 logTextLn s = logText (s <> "\n")
 
-getFileState3 :: FilePath -> ServerM (Maybe FileState3)
-getFileState3 filePath = do
-  ref <- lift $ asks filesState3
+getFileState :: FilePath -> ServerM (Maybe FileState)
+getFileState filePath = do
+  ref <- lift $ asks filesState
   m <- liftIO $ readIORef ref
   return $ Map.lookup filePath m
 
-setFileState3 :: FilePath -> FileState3 -> ServerM ()
-setFileState3 filePath fs = do
-  ref <- lift $ asks filesState3
+setFileState :: FilePath -> FileState -> ServerM ()
+setFileState filePath fs = do
+  ref <- lift $ asks filesState
   liftIO $ modifyIORef ref (Map.insert filePath fs)
 
 getPendingEdit :: FilePath -> ServerM (Maybe PendingEdit)
@@ -202,19 +202,19 @@ data HoleKind
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
--- FileState3 translation
+-- FileState translation
 
-translateFileState3 :: [LSPMove] -> FileState3 -> FileState3
-translateFileState3 lspMoves fs3 =
+translateFileState :: [LSPMove] -> FileState -> FileState
+translateFileState lspMoves fs =
   let gclMoves = map fromLSPMove lspMoves
-   in fs3
-        { fs3Specifications = mapMaybe (translateSpecRange gclMoves) (fs3Specifications fs3),
-          fs3Holes = mapMaybe (translateHoleRange gclMoves) (fs3Holes fs3),
-          fs3ProofObligations = mapMaybe (translatePoRange gclMoves) (fs3ProofObligations fs3),
-          fs3Warnings = mapMaybe (translateWarningRange gclMoves) (fs3Warnings fs3),
-          fs3SemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fs3SemanticTokens fs3),
-          fs3DefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fs3DefinitionLinks fs3),
-          fs3HoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fs3HoverInfos fs3)
+   in fs
+        { fsSpecifications = mapMaybe (translateSpecRange gclMoves) (fsSpecifications fs),
+          fsHoles = mapMaybe (translateHoleRange gclMoves) (fsHoles fs),
+          fsProofObligations = mapMaybe (translatePoRange gclMoves) (fsProofObligations fs),
+          fsWarnings = mapMaybe (translateWarningRange gclMoves) (fsWarnings fs),
+          fsSemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fsSemanticTokens fs),
+          fsDefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fsDefinitionLinks fs),
+          fsHoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fsHoverInfos fs)
         }
 
 -- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊

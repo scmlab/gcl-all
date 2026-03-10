@@ -11,7 +11,7 @@
 -- The main purpose is to make the conversion from server to client explicit
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
-  ( toFileState3NotificationJSON,
+  ( toFileStateNotificationJSON,
     toErrorNotificationJSON,
     FileStateNotification (..),
     ErrorNotification (..),
@@ -94,20 +94,20 @@ data StructWarning
   = MissingBound {range :: LSP.Range}
   deriving stock (Show, Generic)
 
--- | Convert server-side FileState3 to JSON for client consumption
-toFileState3NotificationJSON :: FilePath -> Server.FileState3 -> JSON.Value
-toFileState3NotificationJSON path fs3 =
-  JSON.toJSON (toFileState3Notification path fs3)
+-- | Convert server-side FileState to JSON for client consumption
+toFileStateNotificationJSON :: FilePath -> Server.FileState -> JSON.Value
+toFileStateNotificationJSON path fs =
+  JSON.toJSON (toFileStateNotification path fs)
 
--- | Convert server-side FileState3 to client-side FileStateNotification
-toFileState3Notification :: FilePath -> Server.FileState3 -> FileStateNotification
-toFileState3Notification path fs3 =
+-- | Convert server-side FileState to client-side FileStateNotification
+toFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
+toFileStateNotification path fs =
   FileStateNotification
     { filePath = path,
-      specs = map convertSpec (Server.fs3Specifications fs3),
-      holes = map convertHole (Server.fs3Holes fs3),
-      pos = map convertPO (Server.fs3ProofObligations fs3),
-      warnings = map convertWarning (Server.fs3Warnings fs3)
+      specs = map convertSpec (Server.fsSpecifications fs),
+      holes = map convertHole (Server.fsHoles fs),
+      pos = map convertPO (Server.fsProofObligations fs),
+      warnings = map convertWarning (Server.fsWarnings fs)
     }
 
 -- | Convert server-side Spec to client-side Specification

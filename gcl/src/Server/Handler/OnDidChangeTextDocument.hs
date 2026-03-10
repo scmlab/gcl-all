@@ -10,8 +10,8 @@ import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
 import Server.Change (mkLSPMoves)
-import Server.Monad (FileState3 (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState3, getPendingEdit, logText, readSource, setFileState3, translateFileState3)
-import Server.Notification.Update (sendUpdateNotification3)
+import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState, translateFileState)
+import Server.Notification.Update (sendUpdateNotification)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
@@ -23,8 +23,8 @@ handler filePath changes = do
       maybeSource <- readSource filePath
       case maybeSource of
         Just src | src == expectedContent -> do
-          setFileState3 filePath pendingFileState
-          sendUpdateNotification3 filePath pendingFileState
+          setFileState filePath pendingFileState
+          sendUpdateNotification filePath pendingFileState
         _ -> applyTranslation
     Nothing -> applyTranslation
   t1 <- liftIO getMonotonicTimeNSec
@@ -32,10 +32,10 @@ handler filePath changes = do
   logText $ "didChange: took " <> Text.pack (showFFloat (Just 3) elapsedMs "") <> " ms\n"
   where
     applyTranslation = do
-      maybeFs3 <- getFileState3 filePath
-      case maybeFs3 of
+      maybeFs <- getFileState filePath
+      case maybeFs of
         Nothing -> return ()
-        Just fs3 -> do
-          let fs3' = translateFileState3 (mkLSPMoves changes) fs3
-          setFileState3 filePath fs3'
-          sendUpdateNotification3 filePath fs3'
+        Just fs -> do
+          let fs' = translateFileState (mkLSPMoves changes) fs
+          setFileState filePath fs'
+          sendUpdateNotification filePath fs'
