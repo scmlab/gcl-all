@@ -11,8 +11,7 @@
 -- The main purpose is to make the conversion from server to client explicit
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
-  ( toFileStateNotificationJSON,
-    toFileState3NotificationJSON,
+  ( toFileState3NotificationJSON,
     toErrorNotificationJSON,
     FileStateNotification (..),
     ErrorNotification (..),
@@ -94,25 +93,6 @@ data POOrigin = POOrigin
 data StructWarning
   = MissingBound {range :: LSP.Range}
   deriving stock (Show, Generic)
-
--- | Convert server-side FileState to JSON for client consumption
--- This function extracts only the fields needed by the client,
--- converts 1-based server ranges to 0-based LSP ranges,
--- and serializes to JSON.
-toFileStateNotificationJSON :: FilePath -> Server.FileState -> JSON.Value
-toFileStateNotificationJSON path serverFileState =
-  JSON.toJSON (toFileStateNotification path serverFileState)
-
--- | Convert server-side FileState to client-side FileStateNotification
-toFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
-toFileStateNotification path serverFileState =
-  FileStateNotification
-    { filePath = path,
-      specs = map (convertSpec . Server.unversioned) (Server.specifications serverFileState),
-      holes = map (convertHole . Server.unversioned) (Server.holes serverFileState),
-      pos = map (convertPO . Server.unversioned) (Server.proofObligations serverFileState),
-      warnings = map (convertWarning . Server.unversioned) (Server.warnings serverFileState)
-    }
 
 -- | Convert server-side FileState3 to JSON for client consumption
 toFileState3NotificationJSON :: FilePath -> Server.FileState3 -> JSON.Value

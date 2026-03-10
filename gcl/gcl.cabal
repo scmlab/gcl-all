@@ -67,7 +67,6 @@ library
       Server.Handler.AutoCompletion
       Server.Handler.GCL.Debug
       Server.Handler.GCL.Load2
-      Server.Handler.GCL.Refine
       Server.Handler.GCL.Refine2
       Server.Handler.GoToDefinition
       Server.Handler.Hover
@@ -77,7 +76,6 @@ library
       Server.Highlighting
       Server.Hover
       Server.IntervalMap
-      Server.Load
       Server.Load2
       Server.Monad
       Server.Notification.Error

@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Server.Refine2 where
@@ -15,13 +16,11 @@ import Error (Error (..))
 import GCL.Common (Index, TypeInfo)
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
-import GCL.Type (runElaboration)
+import GCL.Type (Elab (..), Typed, runElaboration)
 import GCL.WP (collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import Language.Lexer.Applicative (TokenStream (..))
 import Server.Change (mkLSPMove)
--- for Elab [A.Stmt] orphan instance
-import Server.Handler.GCL.Refine ()
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
 import Server.Load2 (applyEdits, collectHolesFromStatements, diggedText)
@@ -44,6 +43,7 @@ import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
+import qualified Syntax.Abstract as A
 import qualified Syntax.Typed as T
 
 --------------------------------------------------------------------------------
@@ -248,3 +248,17 @@ mergeFileState3 moved fragment =
       fs3DefinitionLinks = fs3DefinitionLinks moved <> fs3DefinitionLinks fragment,
       fs3HoverInfos = fs3HoverInfos moved <> fs3HoverInfos fragment
     }
+
+--------------------------------------------------------------------------------
+-- Orphan instance
+
+instance Elab [A.Stmt] where
+  elaborate stmts env = do
+    typed <-
+      mapM
+        ( \stmt -> do
+            (_, typed, _) <- elaborate stmt env
+            return typed
+        )
+        stmts
+    return (Nothing, typed, mempty)
