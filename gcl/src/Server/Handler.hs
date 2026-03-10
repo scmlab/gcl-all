@@ -39,7 +39,6 @@ import qualified Server.Handler.Hover as Hover
 import qualified Server.Handler.Initialized as Initialized
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Server.Handler.SemanticTokens as SemanticTokens
-import Server.Load (load)
 import Server.Load2 (load2)
 import Server.Monad (ServerM, logText)
 
@@ -69,12 +68,8 @@ handlers =
           Just filePath -> OnDidChangeTextDocument.handler filePath changes
         logText "SMethod_TextDocumentDidChange end\n",
       -- "textDocument/didSave" - after save
-      notificationHandler LSP.SMethod_TextDocumentDidSave $ \ntf -> do
+      notificationHandler LSP.SMethod_TextDocumentDidSave $ \_ntf -> do
         logText "SMethod_TextDocumentDidSave start\n"
-        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
-        case LSP.uriToFilePath uri of
-          Nothing -> return ()
-          Just filePath -> load filePath
         logText "SMethod_TextDocumentDidSave end\n",
       -- "textDocument/didClose" - after close
       notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
