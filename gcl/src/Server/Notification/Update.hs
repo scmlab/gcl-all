@@ -4,15 +4,11 @@
 module Server.Notification.Update where
 
 import Data.Proxy (Proxy (Proxy))
-import Server.Monad (ServerM, loadFileState)
+import Server.Monad (FileState, ServerM)
 import qualified Server.Monad as Server
 import qualified Server.ToClient as ToClient
 
-sendUpdateNotification :: FilePath -> ServerM ()
-sendUpdateNotification filePath = do
-  maybeFileState <- loadFileState filePath
-  case maybeFileState of
-    Nothing -> return ()
-    Just fileState -> do
-      let json = ToClient.toFileStateNotificationJSON filePath fileState
-      Server.sendCustomNotification (Proxy @"gcl/update") json
+sendUpdateNotification :: FilePath -> FileState -> ServerM ()
+sendUpdateNotification filePath fs = do
+  let json = ToClient.toFileStateNotificationJSON filePath fs
+  Server.sendCustomNotification (Proxy @"gcl/update") json

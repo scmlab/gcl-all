@@ -11,6 +11,7 @@ module Server.Change
     GCLMove,
     fromLSPMove,
     applyGCLMove,
+    applyGCLMoveToContainerRange,
     applyMovesToIntervalMap,
     updateOriginTargetRanges,
   )
@@ -119,6 +120,29 @@ applyGCLMove (Range oS oE) (GCLMove s e dL dC)
       let !nS = shiftPos oS
           !nE = shiftPos oE
        in Just (mkRange nS nE)
+  | otherwise = Nothing
+  where
+    eL = posLine e
+    shiftPos (Pos l c) =
+      let !nL = l + dL
+          !nC = if l == eL then c + dC else c
+       in mkPos nL nC
+
+-- | Like applyGCLMove, but treats the range as a container: if the change is
+--   entirely inside the range, only the end is shifted (the range expands).
+--   Used for spec and hole ranges, which contain editable content.
+applyGCLMoveToContainerRange :: Range -> GCLMove -> Maybe Range
+applyGCLMoveToContainerRange (Range oS oE) (GCLMove s e dL dC)
+  -- range ends before change starts: unchanged
+  | oE <= s = Just (mkRange oS oE)
+  -- range starts at or after change end: shift both
+  | oS >= e =
+      let !nS = shiftPos oS
+          !nE = shiftPos oE
+       in Just (mkRange nS nE)
+  -- change is strictly inside the range (not touching boundaries): shift end only
+  | s > oS && e < oE = Just (mkRange oS (shiftPos oE))
+  -- change overlaps a boundary: invalidate
   | otherwise = Nothing
   where
     eL = posLine e

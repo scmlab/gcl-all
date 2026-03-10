@@ -4,6 +4,7 @@
 
 module Server.Hover
   ( collectHoverInfo,
+    collectHoverInfoFromStmts,
   )
 where
 
@@ -20,6 +21,9 @@ import Syntax.Typed as Typed
 
 collectHoverInfo :: Typed.Program -> IntervalMap J.Hover
 collectHoverInfo = collect
+
+collectHoverInfoFromStmts :: [Typed.Stmt] -> IntervalMap J.Hover
+collectHoverInfoFromStmts = foldMap collect
 
 --------------------------------------------------------------------------------
 -- helper function for annotating some syntax node with its type or kind

@@ -7,7 +7,7 @@ module Server.Handler.Hover where
 
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Server.IntervalMap as IntervalMap
-import Server.Monad (FileState (..), ServerM, loadFileState, logText)
+import Server.Monad (FileState (..), ServerM, getFileState, logText)
 import qualified Server.SrcLoc as SrcLoc
 
 handler :: LSP.Uri -> LSP.Position -> (LSP.Hover LSP.|? LSP.Null -> ServerM ()) -> ServerM ()
@@ -18,14 +18,14 @@ handler uri lspPosition responder = do
       logText "hover: failed - uri not valid\n"
       responder $ LSP.InR LSP.Null
     Just filePath -> do
-      maybeFileState <- loadFileState filePath
+      maybeFileState <- getFileState filePath
       case maybeFileState of
         Nothing -> do
           logText "hover: failed - not loaded yet\n"
           responder $ LSP.InR LSP.Null
-        Just FileState {hoverInfos} -> do
+        Just FileState {fsHoverInfos} -> do
           let pos = SrcLoc.fromLSPPosition lspPosition
-          case IntervalMap.lookup pos hoverInfos of
+          case IntervalMap.lookup pos fsHoverInfos of
             Nothing -> do
               logText "hover: not exist - no information for this position\n"
               responder $ LSP.InR LSP.Null

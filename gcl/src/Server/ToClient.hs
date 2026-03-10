@@ -95,22 +95,19 @@ data StructWarning
   deriving stock (Show, Generic)
 
 -- | Convert server-side FileState to JSON for client consumption
--- This function extracts only the fields needed by the client,
--- converts 1-based server ranges to 0-based LSP ranges,
--- and serializes to JSON.
 toFileStateNotificationJSON :: FilePath -> Server.FileState -> JSON.Value
-toFileStateNotificationJSON path serverFileState =
-  JSON.toJSON (toFileStateNotification path serverFileState)
+toFileStateNotificationJSON path fs =
+  JSON.toJSON (toFileStateNotification path fs)
 
 -- | Convert server-side FileState to client-side FileStateNotification
 toFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
-toFileStateNotification path serverFileState =
+toFileStateNotification path fs =
   FileStateNotification
     { filePath = path,
-      specs = map (convertSpec . Server.unversioned) (Server.specifications serverFileState),
-      holes = map (convertHole . Server.unversioned) (Server.holes serverFileState),
-      pos = map (convertPO . Server.unversioned) (Server.proofObligations serverFileState),
-      warnings = map (convertWarning . Server.unversioned) (Server.warnings serverFileState)
+      specs = map convertSpec (Server.fsSpecifications fs),
+      holes = map convertHole (Server.fsHoles fs),
+      pos = map convertPO (Server.fsProofObligations fs),
+      warnings = map convertWarning (Server.fsWarnings fs)
     }
 
 -- | Convert server-side Spec to client-side Specification
