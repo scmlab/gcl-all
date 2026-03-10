@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Server.Load2 where
+module Server.Load where
 
 import Control.Monad.Trans (lift)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
@@ -35,9 +35,9 @@ type DigResult = ([(Range, Text)], Text)
 --------------------------------------------------------------------------------
 -- ServerM action
 
-load2 :: FilePath -> ServerM ()
-load2 filePath = do
-  logText "Load2: start\n"
+load :: FilePath -> ServerM ()
+load filePath = do
+  logText "Load: start\n"
   result <- runExceptT $ do
     (source, vfsVersion) <- readSourceOrThrow filePath
     (maybeDig, fs3) <- loadOrThrow filePath source
@@ -48,11 +48,11 @@ load2 filePath = do
     Right (vfsVersion, maybeDig, fs3) ->
       case maybeDig of
         Nothing -> do
-          logText "Load2: no holes, saving directly\n"
+          logText "Load: no holes, saving directly\n"
           setFileState3 filePath fs3
           sendUpdateNotification3 filePath fs3
         Just (edits, newSource) -> do
-          logText "Load2: holes dug, setting pending edit\n"
+          logText "Load: holes dug, setting pending edit\n"
           let pending =
                 PendingEdit
                   { expectedContent = newSource,
@@ -60,15 +60,15 @@ load2 filePath = do
                   }
           setPendingEdit filePath pending
           editTextsWithVersion filePath vfsVersion edits
-  logText "Load2: end\n"
+  logText "Load: end\n"
 
 readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
 readSourceOrThrow filePath = do
-  lift $ logText "Load2: reading virtual file\n"
+  lift $ logText "Load: reading virtual file\n"
   result <- lift $ readSourceAndVersion filePath
   case result of
     Nothing -> do
-      lift $ logText "Load2: cannot read virtual file\n"
+      lift $ logText "Load: cannot read virtual file\n"
       throwE []
     Just x -> return x
 
@@ -76,7 +76,7 @@ loadOrThrow :: FilePath -> Text -> ExceptT [Error] ServerM (Maybe DigResult, Fil
 loadOrThrow filePath source = do
   case loadAndDig filePath source of
     Left err -> do
-      lift $ logTextLn "Load2: load error"
+      lift $ logTextLn "Load: load error"
       throwE [err]
     Right result -> return result
 
@@ -122,7 +122,7 @@ parseAndDig filePath source = do
       (concrete2, holes2) <- parseAndCollectHoles filePath newSource
       case holes2 of
         [] -> Right (Just (edits, newSource), concrete2)
-        _ -> Left (Others "Load2" "unexpected holes after digging" Nothing)
+        _ -> Left (Others "Load" "unexpected holes after digging" Nothing)
   where
     parseAndCollectHoles fp src =
       case Parser.scanAndParse Parser.program fp src of

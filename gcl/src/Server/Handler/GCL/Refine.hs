@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Server.Handler.GCL.Refine2 where
+module Server.Handler.GCL.Refine where
 
 import qualified Data.Aeson.Types as JSON
 import GCL.Range (mkPos)
 import GHC.Generics (Generic)
 import Server.Monad (ServerM)
-import Server.Refine2 (refine2)
+import Server.Refine (refine)
 
 data RefineParams = RefineParams
   { filePath :: FilePath,
@@ -22,5 +22,5 @@ instance JSON.ToJSON RefineParams
 
 handler :: RefineParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
 handler RefineParams {filePath, line, character} onFinish _ = do
-  refine2 filePath (mkPos (line + 1) (character + 1))
+  refine filePath (mkPos (line + 1) (character + 1))
   onFinish ()

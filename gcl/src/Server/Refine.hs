@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module Server.Refine2 where
+module Server.Refine where
 
 import Control.Monad (when)
 import Control.Monad.Trans (lift)
@@ -23,7 +23,7 @@ import Language.Lexer.Applicative (TokenStream (..))
 import Server.Change (mkLSPMove)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
-import Server.Load2 (applyEdits, collectHolesFromStatements, diggedText)
+import Server.Load (applyEdits, collectHolesFromStatements, diggedText)
 import Server.Monad
   ( FileState3 (..),
     PendingEdit (..),
@@ -49,9 +49,9 @@ import qualified Syntax.Typed as T
 --------------------------------------------------------------------------------
 -- ServerM action
 
-refine2 :: FilePath -> Pos -> ServerM ()
-refine2 filePath cursor = do
-  logTextLn $ "Refine2: cursor: " <> Text.pack (show cursor)
+refine :: FilePath -> Pos -> ServerM ()
+refine filePath cursor = do
+  logTextLn $ "Refine: cursor: " <> Text.pack (show cursor)
   result <- runExceptT $ do
     fs3 <- getFileState3OrThrow filePath
     (source, vfsVersion) <- readSourceOrThrow filePath
@@ -69,28 +69,28 @@ refine2 filePath cursor = do
       setPendingEdit filePath pending
       editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
       sendErrorNotification filePath []
-      logText "Refine2: edit sent\n"
+      logText "Refine: edit sent\n"
   where
     getFileState3OrThrow :: FilePath -> ExceptT [Error] ServerM FileState3
     getFileState3OrThrow fp = do
-      lift $ logText "Refine2: getting file state\n"
+      lift $ logText "Refine: getting file state\n"
       result <- lift (getFileState3 fp)
       case result of
-        Nothing -> throwE [Others "Refine2" "File not loaded." Nothing]
+        Nothing -> throwE [Others "Refine" "File not loaded." Nothing]
         Just fs3 -> return fs3
 
     readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
     readSourceOrThrow fp = do
-      lift $ logText "Refine2: reading source\n"
+      lift $ logText "Refine: reading source\n"
       result <- lift (readSourceAndVersion fp)
       case result of
-        Nothing -> throwE [Others "Refine2" "Cannot read source." Nothing]
+        Nothing -> throwE [Others "Refine" "Cannot read source." Nothing]
         Just source -> return source
 
     findSpecOrThrow :: Pos -> [Spec] -> ExceptT [Error] ServerM Spec
     findSpecOrThrow cur specs =
       case findEnclosingSpec cur specs of
-        Nothing -> throwE [Others "Refine2" "No enclosing spec found." Nothing]
+        Nothing -> throwE [Others "Refine" "No enclosing spec found." Nothing]
         Just spec -> return spec
 
     refineOrThrow :: FilePath -> Int -> Spec -> Text -> ExceptT [Error] ServerM (Text, FileState3)
@@ -155,7 +155,7 @@ parseAndDigFragment filePath fragmentStart implText = do
       let holes2 = collectHolesFromStatements stmts2
       case holes2 of
         [] -> Right (newImplText, stmts2)
-        _ -> Left (Others "Refine2" "unexpected holes after digging" Nothing)
+        _ -> Left (Others "Refine" "unexpected holes after digging" Nothing)
   where
     parseRelative src = do
       stmts <- parseFragmentStmts filePath (mkPos 1 1) src

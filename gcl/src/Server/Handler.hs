@@ -32,14 +32,14 @@ import Language.LSP.Server
 import qualified Language.LSP.Server as LSP
 import qualified Server.Handler.AutoCompletion as AutoCompletion
 import qualified Server.Handler.GCL.Debug as Debug
-import qualified Server.Handler.GCL.Load2 as Load2
-import qualified Server.Handler.GCL.Refine2 as Refine2
+import qualified Server.Handler.GCL.Load as Load
+import qualified Server.Handler.GCL.Refine as Refine
 import qualified Server.Handler.GoToDefinition as GoToDefinition
 import qualified Server.Handler.Hover as Hover
 import qualified Server.Handler.Initialized as Initialized
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Server.Handler.SemanticTokens as SemanticTokens
-import Server.Load2 (load2)
+import Server.Load (load)
 import Server.Monad (ServerM, logText)
 
 -- handlers of the LSP server
@@ -56,7 +56,7 @@ handlers =
         let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
         case LSP.uriToFilePath uri of
           Nothing -> return ()
-          Just filePath -> load2 filePath
+          Just filePath -> load filePath
         logText "SMethod_TextDocumentDidOpen end\n",
       -- "textDocument/didChange" - after every edition
       notificationHandler LSP.SMethod_TextDocumentDidChange $ \ntf -> do
@@ -113,9 +113,9 @@ handlers =
         let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
         SemanticTokens.handler uri (responder . first Hack.resToTRes),
       -- "gcl/reload" - reload
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Load2.handler,
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Load.handler,
       -- "gcl/refine" - refine
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine2.handler,
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine.handler,
       -- "gcl/debug" - debug FileState
       requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/debug")) $ jsonMiddleware Debug.handler
     ]

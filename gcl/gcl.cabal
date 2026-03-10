@@ -66,8 +66,8 @@ library
       Server.Handler
       Server.Handler.AutoCompletion
       Server.Handler.GCL.Debug
-      Server.Handler.GCL.Load2
-      Server.Handler.GCL.Refine2
+      Server.Handler.GCL.Load
+      Server.Handler.GCL.Refine
       Server.Handler.GoToDefinition
       Server.Handler.Hover
       Server.Handler.Initialized
@@ -76,11 +76,11 @@ library
       Server.Highlighting
       Server.Hover
       Server.IntervalMap
-      Server.Load2
+      Server.Load
       Server.Monad
       Server.Notification.Error
       Server.Notification.Update
-      Server.Refine2
+      Server.Refine
       Server.SrcLoc
       Server.ToClient
       Syntax.Abstract

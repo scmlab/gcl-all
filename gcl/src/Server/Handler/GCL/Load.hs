@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE NamedFieldPuns #-}
 
-module Server.Handler.GCL.Load2 where
+module Server.Handler.GCL.Load where
 
 import qualified Data.Aeson.Types as JSON
 import GHC.Generics (Generic)
-import Server.Load2 (load2)
+import Server.Load (load)
 import Server.Monad (ServerM)
 
 data ReloadParams = ReloadParams {filePath :: FilePath}
@@ -17,5 +17,5 @@ instance JSON.ToJSON ReloadParams
 
 handler :: ReloadParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
 handler ReloadParams {filePath} onResult _ = do
-  load2 filePath
+  load filePath
   onResult ()
