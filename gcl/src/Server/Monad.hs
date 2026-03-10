@@ -137,7 +137,20 @@ getPendingEdit filePath = do
 setPendingEdit :: FilePath -> PendingEdit -> ServerM ()
 setPendingEdit filePath pe = do
   ref <- lift $ asks pendingEdits
-  liftIO $ modifyIORef ref (Map.insert filePath pe)
+  existing <- liftIO $ Map.lookup filePath <$> readIORef ref
+  case existing of
+    Just _ ->
+      error $
+        "setPendingEdit: invariant violated for "
+          <> filePath
+          <> "\n"
+          <> "A pending edit already exists for this file, meaning a previous workspace/applyEdit\n"
+          <> "was sent but its corresponding didChange has not yet been received.\n"
+          <> "Setting a second pending edit would be wrong: the new edit corresponds to a\n"
+          <> "workspace/applyEdit that will fail (version mismatch), so its expectedContent\n"
+          <> "would never match, corrupting the pending edit state."
+    Nothing ->
+      liftIO $ modifyIORef ref (Map.insert filePath pe)
 
 deletePendingEdit :: FilePath -> ServerM ()
 deletePendingEdit filePath = do
