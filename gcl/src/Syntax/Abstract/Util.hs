@@ -94,3 +94,6 @@ baseToName :: TBase -> Name
 baseToName TInt = Name "Int" Nothing
 baseToName TBool = Name "Bool" Nothing
 baseToName TChar = Name "Char" Nothing
+
+nameToVar :: Name -> Expr
+nameToVar name = Var name (maybeRangeOf name)

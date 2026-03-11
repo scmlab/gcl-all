@@ -77,5 +77,9 @@ pickFuncDefn :: Definition -> Maybe (Name, Expr)
 pickFuncDefn (FuncDefn n expr) = Just (n, expr)
 pickFuncDefn _ = Nothing
 
+defnToExpr :: Definition -> Maybe (Name, Expr)
+defnToExpr (TypeDefn _ _ _ _) = Nothing
+defnToExpr (ValDefn n _ 
+
 syntaxSubst :: [Name] -> [Expr] -> Expr -> Expr
 syntaxSubst xs es e = Subst e (zip xs es)
