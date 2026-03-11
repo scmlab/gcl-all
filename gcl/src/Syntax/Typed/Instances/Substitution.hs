@@ -40,7 +40,7 @@ instance (Fresh m) => Substitutable m Expr Expr where
         let x' = fst (head xs)
         return (Lam x' t e' l)
   subst sb (Tuple es) = Tuple <$> mapM (subst sb) es
-  subst sb (OutT i e) = Out i <$> subst sb e
+  subst sb (OutT i e) = OutT i <$> subst sb e
   subst sb (Quant op xs ran body l) = do
     (xs', (ran', body'), _) <- undefined -- SCM, TODO substBinder sb xs (ran, body)
     return $ Quant op xs' ran' body' l

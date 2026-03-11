@@ -17,7 +17,7 @@ data Program
 
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | ValDefn Name Type [FuncClause] (Maybe Range)
+  | ValDefn Name Type Expr
 
   -- | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
   -- | FuncDefn Name Expr
@@ -72,8 +72,8 @@ data Expr
 data CaseClause = CaseClause Pattern Expr
   deriving (Eq, Show)
 
-data FuncClause = FuncClause [Pattern] Expr
-  deriving (Eq, Show)
+-- data FuncClause = FuncClause [Pattern] Expr
+--   deriving (Eq, Show)
 
 data Chain
   = Pure Expr

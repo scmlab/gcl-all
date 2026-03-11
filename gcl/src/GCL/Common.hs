@@ -170,8 +170,8 @@ instance Free Chain where
   freeVars (Pure expr _) = freeVars expr
   freeVars (More chain _op expr _) = freeVars chain <> freeVars expr
 
-instance Free FuncClause where
-  freeVars (FuncClause patterns expr) = freeVars expr \\ Set.unions (map freeVars patterns)
+-- instance Free FuncClause where
+--   freeVars (FuncClause patterns expr) = freeVars expr \\ Set.unions (map freeVars patterns)
 
 instance Free CaseClause where
   freeVars (CaseClause patt expr) = freeVars expr \\ freeVars patt

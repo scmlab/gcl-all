@@ -37,8 +37,8 @@ instance Free Expr where
 instance Free CaseClause where
   freeVars (CaseClause _ expr) = freeVars expr
 
-instance Free FuncClause where
-  freeVars (FuncClause _ expr) = freeVars expr
+-- instance Free FuncClause where
+--   freeVars (FuncClause _ expr) = freeVars expr
 
 instance Free Chain where
   freeVars (Pure expr) = freeVars expr

@@ -89,8 +89,8 @@ instance MaybeRanged Chain where
 instance MaybeRanged CaseClause where
   maybeRangeOf (CaseClause l r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance MaybeRanged FuncClause where
-  maybeRangeOf (FuncClause l r) = maybeRangeOf l <---> maybeRangeOf r
+-- instance MaybeRanged FuncClause where
+--   maybeRangeOf (FuncClause l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Pattern where
   maybeRangeOf (PattLit l) = maybeRangeOf l

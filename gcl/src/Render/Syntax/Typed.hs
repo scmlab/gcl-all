@@ -45,6 +45,10 @@ handleExpr prec (Lam p _ q _) =
         NoContext -> id
         _ -> parensE
    in ifparens $ "λ" <+> render p <+> "→" <+> render q
+handleExpr _ (Tuple ps) =
+  "(" <+> punctuateE "," (map render ps) <+> ")"
+handleExpr n (OutT i e) =
+  parensIf n Nothing ("out" <+> render i <+> renderPrec AppHOLE e)
 handleExpr _ (Quant op xs r t _) =
   "⟨"
     <+> renderQOp op

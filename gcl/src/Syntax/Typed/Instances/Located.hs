@@ -14,7 +14,8 @@ instance MaybeRanged Declaration where
 
 instance MaybeRanged Definition where
   maybeRangeOf (TypeDefn _ _ _ r) = r
-  maybeRangeOf (ValDefn _ _ _ r) = r
+  maybeRangeOf (ValDefn l m rs) =
+    maybeRangeOf l <---> maybeRangeOf m <---> maybeRangeOf rs
 
 instance MaybeRanged TypeDefnCtor where
   maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <---> maybeRangeOf r

@@ -199,8 +199,8 @@ data CaseClause = CaseClause Pattern Expr
   deriving (Eq, Show, Generic)
 
 -- pattern0 pattern1 pattern2 ... -> expr
-data FuncClause = FuncClause [Pattern] Expr
-  deriving (Eq, Show, Generic)
+-- data FuncClause = FuncClause [Pattern] Expr
+--   deriving (Eq, Show, Generic)
 
 data Pattern
   = PattLit Lit
