@@ -6,6 +6,7 @@ import Control.Monad.Except
     runExceptT,
     throwError,
   )
+import Control.Monad.State (evalState)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
@@ -31,7 +32,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
     run = do
       concrete <- ExceptT $ parse filepath source
       -- lift $ print concrete
-      abstract <- ExceptT $ toAbstract concrete
+      abstract <- ExceptT $ evalState (toAbstract concrete) 0
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
       typed2 <- ExceptT $ toTyped2 abstract

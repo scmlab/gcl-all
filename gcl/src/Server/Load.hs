@@ -10,6 +10,7 @@ module Server.Load where
 
 import Control.Monad.Except (ExceptT (ExceptT), runExceptT)
 import Control.Monad.Trans (lift)
+import Control.Monad.State (evalState)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
@@ -112,7 +113,7 @@ load filePath = do
     reportHolesOrToAbstract concrete filePath =
       case collectHoles concrete of
         [] -> do
-          let abstract = C.toAbstract concrete
+          let abstract = evalState (C.toAbstract concrete) 0
           logText "  all holes digged\n"
           logText "  abstract program generated\n"
           return $ Right abstract

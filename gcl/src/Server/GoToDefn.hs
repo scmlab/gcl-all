@@ -206,6 +206,7 @@ instance Collect TargetRanges OriginTargetRanges Expr where
     App a b _ -> collect a >> collect b
     Lam _ b _ -> collect b
     Tuple as -> mapM_ collect as
+    OutT _ e -> collect e
     Quant op args c d _ -> do
       collect op
       localScope (scopeFromLocalBinders args) $ do
@@ -243,8 +244,8 @@ instance Collect TargetRanges OriginTargetRanges Chain where
   collect (Pure expr _) = collect expr
   collect (More ch' op expr _) = collect ch' >> collect op >> collect expr
 
-instance Collect TargetRanges OriginTargetRanges FuncClause where
-  collect _ = return ()
+-- instance Collect TargetRanges OriginTargetRanges FuncClause where
+--   collect _ = return ()
 
 instance Collect TargetRanges OriginTargetRanges QuantOp' where
   collect (Left op) = collect op
