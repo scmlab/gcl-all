@@ -1,12 +1,30 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
-module Server.Monad where
+module Server.Monad
+  ( module Server.FileState,
+    GlobalState (..),
+    ServerM,
+    initGlobalEnv,
+    runServerM,
+    runServerMLogError,
+    logText,
+    logTextLn,
+    getFileState,
+    setFileState,
+    getPendingEdit,
+    setPendingEdit,
+    deletePendingEdit,
+    readSource,
+    readSourceAndVersion,
+    editTextsWithVersion,
+    sendCustomNotification,
+    sendDebugMessage,
+  )
+where
 
 import Control.Concurrent
   ( Chan,
@@ -15,7 +33,6 @@ import Control.Concurrent
     writeChan,
   )
 import Control.Exception (SomeException, catch, displayException, throwIO)
-import Control.Monad (foldM)
 import Control.Monad.Reader
 import qualified Data.Aeson as JSON
 import Data.IORef
@@ -26,31 +43,16 @@ import Data.IORef
   )
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (mapMaybe)
 import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text as Text
-import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
-import GCL.Range (MaybeRanged (..), Range, posCol, rangeStart)
-import GCL.WP.Types (StructWarning (..))
+import GCL.Range (Range)
 import GHC.TypeLits (KnownSymbol)
-import qualified Language.LSP.Diagnostics as LSP
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
-import Server.Change
-  ( GCLMove,
-    LSPMove,
-    applyGCLMove,
-    applyGCLMoveToContainerRange,
-    applyLSPMovesToToken,
-    applyMovesToIntervalMap,
-    fromLSPMove,
-    updateOriginTargetRanges,
-  )
-import Server.GoToDefn (OriginTargetRanges)
-import Server.IntervalMap (IntervalMap)
+import Server.FileState
 import qualified Server.SrcLoc as SrcLoc
 
 -- | State shared by all clients and requests
@@ -58,22 +60,6 @@ data GlobalState = GlobalState
   { logChannel :: Chan Text, -- Channel for printing log
     filesState :: IORef (Map FilePath FileState),
     pendingEdits :: IORef (Map FilePath PendingEdit)
-  }
-
-data FileState = FileState
-  { fsSpecifications :: ![Spec],
-    fsHoles :: ![Hole],
-    fsProofObligations :: ![PO],
-    fsWarnings :: ![StructWarning],
-    fsIdCount :: !Int,
-    fsSemanticTokens :: ![LSP.SemanticTokenAbsolute],
-    fsDefinitionLinks :: !(IntervalMap OriginTargetRanges),
-    fsHoverInfos :: !(IntervalMap LSP.Hover)
-  }
-
-data PendingEdit = PendingEdit
-  { expectedContent :: !Text,
-    pendingFileState :: !FileState
   }
 
 -- | Constructs an initial global state
@@ -208,62 +194,6 @@ editTextsWithVersion filepath version rangeTextPairs = do
 
 sendCustomNotification :: (KnownSymbol s) => Proxy s -> JSON.Value -> ServerM ()
 sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomMethod methodId) (json)
-
-data HoleKind
-  = StmtHole
-  | ExprHole
-  deriving (Eq, Show)
-
---------------------------------------------------------------------------------
--- FileState translation
-
-translateFileState :: [LSPMove] -> FileState -> FileState
-translateFileState lspMoves fs =
-  let gclMoves = map fromLSPMove lspMoves
-   in fs
-        { fsSpecifications = mapMaybe (translateSpecRange gclMoves) (fsSpecifications fs),
-          fsHoles = mapMaybe (translateHoleRange gclMoves) (fsHoles fs),
-          fsProofObligations = mapMaybe (translatePoRange gclMoves) (fsProofObligations fs),
-          fsWarnings = mapMaybe (translateWarningRange gclMoves) (fsWarnings fs),
-          fsSemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fsSemanticTokens fs),
-          fsDefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fsDefinitionLinks fs),
-          fsHoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fsHoverInfos fs)
-        }
-
--- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
-translateSpecRange :: [GCLMove] -> Spec -> Maybe Spec
-translateSpecRange moves spec@Specification {specRange = oldRange} = do
-  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
-  return $ spec {specRange = newRange}
-
--- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
-translatePoRange :: [GCLMove] -> PO -> Maybe PO
-translatePoRange moves po@PO {poOrigin} = do
-  oldRange <- maybeRangeOf poOrigin
-  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
-  return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
-
--- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
-translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
-translateHoleRange moves hole@Hole {holeRange = oldRange} = do
-  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
-  return $ hole {holeRange = newRange}
-
-translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
-translateWarningRange moves (MissingBound oldRange) = do
-  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
-  return $ MissingBound newRange
-
-setOriginRange :: Maybe Range -> Origin -> Origin
-setOriginRange l (AtAbort _) = AtAbort l
-setOriginRange l (AtSkip _) = AtSkip l
-setOriginRange l (AtSpec _) = AtSpec l
-setOriginRange l (AtAssignment _) = AtAssignment l
-setOriginRange l (AtAssertion _) = AtAssertion l
-setOriginRange l (AtIf _) = AtIf l
-setOriginRange l (AtLoop _) = AtLoop l
-setOriginRange l (AtTermination _) = AtTermination l
-setOriginRange l (Explain h e i p _) = Explain h e i p l
 
 --------------------------------------------------------------------------------
 

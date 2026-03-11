@@ -20,7 +20,6 @@ import GCL.Type (Elab (..), Typed, runElaboration)
 import GCL.WP (collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import Language.Lexer.Applicative (TokenStream (..))
-import Server.Change (mkLSPMove)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
 import Server.Load (applyEdits, collectHolesFromStatements, diggedText)
@@ -34,8 +33,8 @@ import Server.Monad
     logTextLn,
     readSourceAndVersion,
     setPendingEdit,
-    translateFileState,
   )
+import Server.Move (applyMovesToFileState, mkLSPMove)
 import Server.Notification.Error (sendErrorNotification)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Abstract as A
@@ -63,7 +62,7 @@ refine filePath cursor = do
       sendErrorNotification filePath errs
     Right (fs, vfsVersion, spec, source, finalImplText, fragmentFs) -> do
       let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-          newFs = mergeFileState (translateFileState [lspMove] fs) fragmentFs
+          newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
           newSource = applyEdits source [(specRange spec, finalImplText)]
           pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
       setPendingEdit filePath pending
