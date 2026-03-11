@@ -10,7 +10,7 @@ import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
 import Server.Monad (PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
-import Server.Move (mkLSPMoves, translateFileState)
+import Server.Move (applyMovesToFileState, mkLSPMoves)
 import Server.Notification.Update (sendUpdateNotification)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
@@ -36,6 +36,6 @@ handler filePath changes = do
       case maybeFs of
         Nothing -> return ()
         Just fs -> do
-          let fs' = translateFileState (mkLSPMoves changes) fs
+          let fs' = applyMovesToFileState (mkLSPMoves changes) fs
           setFileState filePath fs'
           sendUpdateNotification filePath fs'

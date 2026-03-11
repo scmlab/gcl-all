@@ -34,7 +34,7 @@ import Server.Monad
     readSourceAndVersion,
     setPendingEdit,
   )
-import Server.Move (mkLSPMove, translateFileState)
+import Server.Move (applyMovesToFileState, mkLSPMove)
 import Server.Notification.Error (sendErrorNotification)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Abstract as A
@@ -62,7 +62,7 @@ refine filePath cursor = do
       sendErrorNotification filePath errs
     Right (fs, vfsVersion, spec, source, finalImplText, fragmentFs) -> do
       let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-          newFs = mergeFileState (translateFileState [lspMove] fs) fragmentFs
+          newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
           newSource = applyEdits source [(specRange spec, finalImplText)]
           pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
       setPendingEdit filePath pending

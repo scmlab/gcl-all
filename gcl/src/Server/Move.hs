@@ -15,7 +15,7 @@ module Server.Move
     applyGCLMoveToContainerRange,
     applyMovesToIntervalMap,
     updateOriginTargetRanges,
-    translateFileState,
+    applyMovesToFileState,
   )
 where
 
@@ -208,40 +208,40 @@ applyLSPMovesToToken moves (LSP.SemanticTokenAbsolute tLine tChar tLen tType tMo
 -- FileState translation
 --------------------------------------------------------------------------------
 
-translateFileState :: [LSPMove] -> FileState -> FileState
-translateFileState lspMoves fs =
+applyMovesToFileState :: [LSPMove] -> FileState -> FileState
+applyMovesToFileState lspMoves fs =
   let gclMoves = map fromLSPMove lspMoves
    in fs
-        { fsSpecifications = mapMaybe (translateSpecRange gclMoves) (fsSpecifications fs),
-          fsHoles = mapMaybe (translateHoleRange gclMoves) (fsHoles fs),
-          fsProofObligations = mapMaybe (translatePoRange gclMoves) (fsProofObligations fs),
-          fsWarnings = mapMaybe (translateWarningRange gclMoves) (fsWarnings fs),
+        { fsSpecifications = mapMaybe (applyMovesToSpec gclMoves) (fsSpecifications fs),
+          fsHoles = mapMaybe (applyMovesToHole gclMoves) (fsHoles fs),
+          fsProofObligations = mapMaybe (applyMovesToPO gclMoves) (fsProofObligations fs),
+          fsWarnings = mapMaybe (applyMovesToWarning gclMoves) (fsWarnings fs),
           fsSemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fsSemanticTokens fs),
           fsDefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fsDefinitionLinks fs),
           fsHoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fsHoverInfos fs)
         }
 
 -- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
-translateSpecRange :: [GCLMove] -> Spec -> Maybe Spec
-translateSpecRange moves spec@Specification {specRange = oldRange} = do
+applyMovesToSpec :: [GCLMove] -> Spec -> Maybe Spec
+applyMovesToSpec moves spec@Specification {specRange = oldRange} = do
   newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ spec {specRange = newRange}
 
 -- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
-translatePoRange :: [GCLMove] -> PO -> Maybe PO
-translatePoRange moves po@PO {poOrigin} = do
+applyMovesToPO :: [GCLMove] -> PO -> Maybe PO
+applyMovesToPO moves po@PO {poOrigin} = do
   oldRange <- maybeRangeOf poOrigin
   newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
 
 -- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
-translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
-translateHoleRange moves hole@Hole {holeRange = oldRange} = do
+applyMovesToHole :: [GCLMove] -> Hole -> Maybe Hole
+applyMovesToHole moves hole@Hole {holeRange = oldRange} = do
   newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ hole {holeRange = newRange}
 
-translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
-translateWarningRange moves (MissingBound oldRange) = do
+applyMovesToWarning :: [GCLMove] -> StructWarning -> Maybe StructWarning
+applyMovesToWarning moves (MissingBound oldRange) = do
   newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ MissingBound newRange
 
