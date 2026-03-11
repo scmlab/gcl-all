@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.Change where
+module Test.Move where
 
 import Control.Exception (ErrorCall, evaluate, try)
 import qualified Data.Text as T
 import qualified Language.LSP.Protocol.Types as LSP
-import Server.Change
+import Server.Move
 import Test.Tasty
 import Test.Tasty.HUnit
 

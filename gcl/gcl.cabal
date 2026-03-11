@@ -61,7 +61,7 @@ library
       Render.Syntax.Common
       Render.Syntax.Typed
       Server
-      Server.Change
+      Server.FileState
       Server.GoToDefn
       Server.Handler
       Server.Handler.AutoCompletion
@@ -78,6 +78,7 @@ library
       Server.IntervalMap
       Server.Load
       Server.Monad
+      Server.Move
       Server.Notification.Error
       Server.Notification.Update
       Server.Refine
@@ -181,7 +182,7 @@ test-suite gcl-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
-      Test.Change
+      Test.Move
       Test.Parser
       Test.Render
       Test.SrcLoc

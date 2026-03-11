@@ -20,7 +20,6 @@ import GCL.Type (Elab (..), Typed, runElaboration)
 import GCL.WP (collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import Language.Lexer.Applicative (TokenStream (..))
-import Server.Change (mkLSPMove)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
 import Server.Load (applyEdits, collectHolesFromStatements, diggedText)
@@ -34,8 +33,8 @@ import Server.Monad
     logTextLn,
     readSourceAndVersion,
     setPendingEdit,
-    translateFileState,
   )
+import Server.Move (mkLSPMove, translateFileState)
 import Server.Notification.Error (sendErrorNotification)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Abstract as A

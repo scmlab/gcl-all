@@ -1,8 +1,9 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Server.Change
+module Server.Move
   ( LSPMove (..),
     mkLSPMove,
     mkLSPMoves,
@@ -14,15 +15,19 @@ module Server.Change
     applyGCLMoveToContainerRange,
     applyMovesToIntervalMap,
     updateOriginTargetRanges,
+    translateFileState,
   )
 where
 
 import Control.Monad (foldM)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
-import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posLine, posOrd, rangeEnd, rangeStart)
+import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
+import GCL.Range (MaybeRanged (..), Pos (Pos), Range (Range), mkPos, mkRange, posLine, posOrd, rangeEnd, rangeStart)
+import GCL.WP.Types (StructWarning (..))
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as LSP
+import Server.FileState (FileState (..))
 import Server.GoToDefn (OriginTargetRanges (..))
 import Server.IntervalMap (IntervalMap)
 import qualified Server.IntervalMap as IntervalMap
@@ -198,3 +203,55 @@ applyLSPMovesToToken moves (LSP.SemanticTokenAbsolute tLine tChar tLen tType tMo
   let tokenRange = LSP.Range (LSP.Position tLine tChar) (LSP.Position tLine (tChar + tLen))
   LSP.Range (LSP.Position nL nC) _ <- foldM applyLSPMove tokenRange moves
   Just (LSP.SemanticTokenAbsolute nL nC tLen tType tMods)
+
+--------------------------------------------------------------------------------
+-- FileState translation
+--------------------------------------------------------------------------------
+
+translateFileState :: [LSPMove] -> FileState -> FileState
+translateFileState lspMoves fs =
+  let gclMoves = map fromLSPMove lspMoves
+   in fs
+        { fsSpecifications = mapMaybe (translateSpecRange gclMoves) (fsSpecifications fs),
+          fsHoles = mapMaybe (translateHoleRange gclMoves) (fsHoles fs),
+          fsProofObligations = mapMaybe (translatePoRange gclMoves) (fsProofObligations fs),
+          fsWarnings = mapMaybe (translateWarningRange gclMoves) (fsWarnings fs),
+          fsSemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fsSemanticTokens fs),
+          fsDefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fsDefinitionLinks fs),
+          fsHoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fsHoverInfos fs)
+        }
+
+-- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
+translateSpecRange :: [GCLMove] -> Spec -> Maybe Spec
+translateSpecRange moves spec@Specification {specRange = oldRange} = do
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
+  return $ spec {specRange = newRange}
+
+-- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
+translatePoRange :: [GCLMove] -> PO -> Maybe PO
+translatePoRange moves po@PO {poOrigin} = do
+  oldRange <- maybeRangeOf poOrigin
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
+  return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
+
+-- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
+translateHoleRange :: [GCLMove] -> Hole -> Maybe Hole
+translateHoleRange moves hole@Hole {holeRange = oldRange} = do
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
+  return $ hole {holeRange = newRange}
+
+translateWarningRange :: [GCLMove] -> StructWarning -> Maybe StructWarning
+translateWarningRange moves (MissingBound oldRange) = do
+  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
+  return $ MissingBound newRange
+
+setOriginRange :: Maybe Range -> Origin -> Origin
+setOriginRange l (AtAbort _) = AtAbort l
+setOriginRange l (AtSkip _) = AtSkip l
+setOriginRange l (AtSpec _) = AtSpec l
+setOriginRange l (AtAssignment _) = AtAssignment l
+setOriginRange l (AtAssertion _) = AtAssertion l
+setOriginRange l (AtIf _) = AtIf l
+setOriginRange l (AtLoop _) = AtLoop l
+setOriginRange l (AtTermination _) = AtTermination l
+setOriginRange l (Explain h e i p _) = Explain h e i p l

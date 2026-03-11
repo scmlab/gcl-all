@@ -9,8 +9,8 @@ import qualified Data.Text as Text
 import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
-import Server.Change (mkLSPMoves)
-import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState, translateFileState)
+import Server.Monad (PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
+import Server.Move (mkLSPMoves, translateFileState)
 import Server.Notification.Update (sendUpdateNotification)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
