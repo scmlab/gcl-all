@@ -353,7 +353,7 @@ kindFromArity n = KFunc (KStar Nothing) (kindFromArity $ n - 1) Nothing
 inferKind :: KindEnv -> Type -> ElaboratorM (Kind, KindEnv)
 inferKind env (TBase _ loc) = return (KStar loc, env)
 inferKind env (TArray _ _ loc) = return (KStar loc, env)
-inferKind env (TTuple int) = return (kindFromArity int, env)
+inferKind env (TTuple int) = undefined -- SCM: obsolete -- return (kindFromArity int, env)
 inferKind env (TFunc _ _ loc) = return (KStar loc, env)
 inferKind env (TOp (Arrow loc)) = return (KFunc (KStar loc) (KFunc (KStar loc) (KStar loc) loc) loc, env)
 inferKind env (TData name _) =
@@ -521,7 +521,7 @@ toKinded env ty = do
       (kind, kindedTy) <- toKinded env ty'
       _ <- unifyKind (toKindEnv env) kind (KStar loc) (loc)
       return (KStar loc, T.TArray int kindedTy loc)
-    TTuple n -> return (kindFromArity n, T.TTuple n (kindFromArity n))
+    TTuple n -> undefined -- SCM: obsolete -- return (kindFromArity n, T.TTuple n (kindFromArity n))
     TFunc l r loc -> do
       (lKind, kindedL) <- toKinded env l
       (rKind, kindedR) <- toKinded env r
@@ -801,6 +801,7 @@ freeMetaVars TType = mempty
 -- Γ ⊢ e : t ↓ (v . s)
 
 instance Elab Expr where
+  elaborate _ _ = undefined -- SCM: obsolete 
   elaborate (Lit lit loc) _ = let ty = litTypes lit loc in return (Just ty, T.Lit lit ty loc, mempty)
   -- x : t ∈ Γ
   -- t ⊑ u
@@ -958,6 +959,7 @@ instance Elab Expr where
                 return (mempty, sub)
               PattBinder na -> return ([(Index na, ConstTypeInfo ty)], mempty)
               PattWildcard _ -> return mempty
+              PattTuple _ -> undefined -- SCM: obsolete
               PattConstructor patName subpats -> do
                 case find (\(name, _, _) -> name == patName) patInfos of
                   Nothing -> throwError $ NotInScope patName
@@ -1155,8 +1157,7 @@ instance Substitutable (Subs Type) T.Expr where
   subst s (T.ArrUpd arr index expr loc) = T.ArrUpd (subst s arr) (subst s index) (subst s expr) loc
   subst s (T.Case expr clauses loc) = T.Case (subst s expr) (subst s <$> clauses) loc
   subst s (T.Subst expr pairs) = T.Subst (subst s expr) (subst s <$> pairs)
-  -- ChAoS: Is this the correct behavior for hole?
-  subst _ e@T.EHole {} = e
+  subst s _ = undefined -- SCM: obsolete
 
 instance Substitutable (Subs Type) T.CaseClause where
   subst s (T.CaseClause pat expr) = T.CaseClause pat (subst s expr)

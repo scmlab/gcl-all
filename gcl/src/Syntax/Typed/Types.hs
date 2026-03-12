@@ -18,9 +18,10 @@ data Program
 
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
-  | FuncDefnSig' Name Type (Maybe Range)
-  | FuncDefn Name Expr
+  | ValDefn Name KindedType Expr
+
+  -- | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
+  -- | FuncDefn Name Expr
   deriving (Eq, Show)
 
 data TypeDefnCtor = TypeDefnCtor Name [Type]
@@ -61,6 +62,8 @@ data Expr
   | Chain Chain
   | App Expr Expr (Maybe Range)
   | Lam Name Type Expr (Maybe Range)
+  | Tuple [Expr] -- for internal use
+  | OutT Int Expr -- for internal use
   | Quant Expr [Name] Expr Expr (Maybe Range)
   | ArrIdx Expr Expr (Maybe Range)
   | ArrUpd Expr Expr Expr (Maybe Range)
@@ -72,8 +75,8 @@ data Expr
 data CaseClause = CaseClause Pattern Expr
   deriving (Eq, Show)
 
-data FuncClause = FuncClause [Pattern] Expr
-  deriving (Eq, Show)
+-- data FuncClause = FuncClause [Pattern] Expr
+--   deriving (Eq, Show)
 
 data Chain
   = Pure Expr
@@ -83,7 +86,7 @@ data Chain
 data KindedType
   = TBase TBase Kind (Maybe Range)
   | TArray Interval KindedType (Maybe Range)
-  | TTuple Int Kind
+  | TTuple [KindedType]
   | TFunc KindedType KindedType (Maybe Range)
   | TOp TypeOp Kind
   | TData Name Kind (Maybe Range)

@@ -157,6 +157,7 @@ instance Free Expr where
   freeVars (App e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (Lam x e _) = freeVars e \\ Set.singleton x
   freeVars (Tuple xs) = Set.unions (map freeVars xs)
+  freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
     (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList xs
   freeVars (RedexKernel _ _ fv _) = fv
@@ -170,8 +171,8 @@ instance Free Chain where
   freeVars (Pure expr _) = freeVars expr
   freeVars (More chain _op expr _) = freeVars chain <> freeVars expr
 
-instance Free FuncClause where
-  freeVars (FuncClause patterns expr) = freeVars expr \\ Set.unions (map freeVars patterns)
+-- instance Free FuncClause where
+--   freeVars (FuncClause patterns expr) = freeVars expr \\ Set.unions (map freeVars patterns)
 
 instance Free CaseClause where
   freeVars (CaseClause patt expr) = freeVars expr \\ freeVars patt
@@ -179,6 +180,7 @@ instance Free CaseClause where
 instance Free Pattern where
   freeVars (PattLit _) = mempty
   freeVars (PattBinder n) = Set.singleton n
+  freeVars (PattTuple ps) = foldMap freeVars ps
   freeVars (PattWildcard _) = mempty
   freeVars (PattConstructor _ ps) = foldMap freeVars ps
 

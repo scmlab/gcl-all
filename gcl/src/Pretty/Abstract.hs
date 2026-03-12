@@ -52,19 +52,12 @@ instance Pretty Definition where
       <> "= "
       <> hsep
         (punctuate "| " (map pretty qdcons))
-  pretty (ValDefn name Nothing clauses) =
-    vsep $ map (prettyDefnClause name) clauses
-  pretty (ValDefn name (Just ty) clauses) =
-    vsep $
-      ( pretty name <+> ":" <+> align (pretty ty)
-          : map (prettyDefnClause name) clauses
-      )
-
-prettyDefnClause name (FuncClause ptns expr) =
-  pretty name
-    <+> sep (map (prettyPrec AppHOLE) ptns)
-    <+> "="
-    <+> align (pretty expr)
+  pretty (ValDefn name Nothing expr) =
+    pretty name <+> "=" <+> align (pretty expr)
+  pretty (ValDefn name (Just ty) expr) =
+    vsep $ [ pretty name <+> ":" <+> align (pretty ty)
+           , pretty name <+> "=" <+> align (pretty expr)
+           ]
 
 instance Pretty TypeDefnCtor where
   pretty (TypeDefnCtor cn ts) = pretty cn <+> hsep (pretty <$> ts)

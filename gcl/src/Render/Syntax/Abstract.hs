@@ -65,6 +65,8 @@ handleExpr prec (Lam p q _) =
    in ifparens $ "λ" <+> render p <+> "→" <+> render q
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
+handleExpr n (OutT i e) =
+  parensIf n Nothing ("out" <+> render i <+> renderPrec AppHOLE e)
 handleExpr _ (Quant op xs r t _) =
   "⟨"
     <+> renderQOp op
@@ -140,6 +142,7 @@ instance Render Pattern where
   render (PattLit a) = render a
   render (PattBinder a) = render a
   render (PattWildcard _) = "_"
+  render (PattTuple ps) = "(" <+> punctuateE "," (map render ps)  <+> ")"
   render (PattConstructor ctor patterns) =
     render ctor <+> horzE (map render patterns)
 

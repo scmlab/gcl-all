@@ -74,6 +74,7 @@ instance MaybeRanged Expr where
   maybeRangeOf (App _ _ l) = l
   maybeRangeOf (Lam _ _ l) = l
   maybeRangeOf (Tuple _) = Nothing
+  maybeRangeOf (OutT _ _) = Nothing
   maybeRangeOf (Quant _ _ _ _ l) = l
   maybeRangeOf (RedexKernel es _ _ _) = maybeRangeOf es
   maybeRangeOf (RedexShell _ x) = maybeRangeOf x
@@ -89,13 +90,14 @@ instance MaybeRanged Chain where
 instance MaybeRanged CaseClause where
   maybeRangeOf (CaseClause l r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance MaybeRanged FuncClause where
-  maybeRangeOf (FuncClause l r) = maybeRangeOf l <---> maybeRangeOf r
+-- instance MaybeRanged FuncClause where
+--   maybeRangeOf (FuncClause l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Pattern where
   maybeRangeOf (PattLit l) = maybeRangeOf l
   maybeRangeOf (PattBinder l) = maybeRangeOf l
   maybeRangeOf (PattWildcard l) = Just l
+  maybeRangeOf (PattTuple _) = Nothing
   maybeRangeOf (PattConstructor l r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Lit where

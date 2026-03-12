@@ -9,6 +9,7 @@
 
 module Server.Handler.GCL.Refine where
 
+import Control.Monad.State (evalState)
 import qualified Data.Aeson as JSON
 import Data.Bifunctor (second)
 import Data.List (find)
@@ -303,7 +304,7 @@ parseFragment filePath fragmentStart fragment = do
     translateTokStream _ (TsError e) = TsError e
 
 toAbstractFragment :: [C.Stmt] -> [A.Stmt]
-toAbstractFragment = C.runAbstractTransform
+toAbstractFragment = flip evalState 0 . C.toAbstract
 
 elaborateFragment :: (Elab a) => [(Index, TypeInfo)] -> a -> Either TypeError (Typed a)
 elaborateFragment typeEnv abstractFragment = do

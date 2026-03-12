@@ -41,11 +41,12 @@ data Program
 -- | Definition (the functional language part)
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | -- data T a b = C1 a | C2 b
-    ValDefn Name (Maybe Type) [FuncClause]
-  -- f :: a -> b
-  -- f p1 = e1
-  -- f p2 = e2
+    -- data T a b = C1 a | C2 b
+  | ValDefn Name (Maybe Type) Expr
+    -- f :: a -> b               f :: a -> b
+    -- f p1 p2 = e1        ==>   f = \x1 x2 -> case (x1, x2) of
+    -- f p3 p4 = e2                      (p1, p2) -> e1
+    --                                   (p3, p4) -> e2
 
   deriving (Eq, Show)
 
@@ -121,7 +122,7 @@ data Type
   = TBase TBase (Maybe Range)
   | TArray Interval Type (Maybe Range) -- TODO: Make this a higher-kinded type.
   -- TTuple has no srcloc info because it has no conrete syntax at the moment
-  | TTuple Int -- `Int` represents the arity of the tuple.
+  | TTuple [Type] -- a list of types, for internal use
   | TFunc Type Type (Maybe Range)
   | TOp TypeOp
   | TData Name (Maybe Range)
@@ -170,7 +171,8 @@ data Expr
   | App Expr Expr (Maybe Range)
   | Lam Name Expr (Maybe Range)
   | -- Tuple has no srcloc info because it has no conrete syntax at the moment
-    Tuple [Expr]
+    Tuple [Expr] --- for internal use
+  | OutT Int Expr --- OutT i (Tuple [x1,x2..]) = xi. For internal use.
   | Quant Expr [Name] Expr Expr (Maybe Range)
   | -- The innermost part of a Redex
     -- should look something like `P [ x \ a ] [ y \ b ]`
@@ -210,13 +212,14 @@ data CaseClause = CaseClause Pattern Expr
   deriving (Eq, Show, Generic)
 
 -- pattern0 pattern1 pattern2 ... -> expr
-data FuncClause = FuncClause [Pattern] Expr
-  deriving (Eq, Show, Generic)
+-- data FuncClause = FuncClause [Pattern] Expr
+--   deriving (Eq, Show, Generic)
 
 data Pattern
   = PattLit Lit
   | PattBinder Name -- binder
   | PattWildcard Range -- matches anything
+  | PattTuple [Pattern]
   | PattConstructor Name [Pattern] -- destructs a constructor
   deriving (Eq, Show, Generic)
 
@@ -224,6 +227,7 @@ extractBinder :: Pattern -> [Name]
 extractBinder (PattLit _) = []
 extractBinder (PattBinder x) = [x]
 extractBinder (PattWildcard _) = []
+extractBinder (PattTuple xs) = xs >>= extractBinder
 extractBinder (PattConstructor _ xs) = xs >>= extractBinder
 
 ----------------------------------------------------------------
