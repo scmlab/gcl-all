@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { retrieveMainEditor } from './utils'
 import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
 import { GclPanel } from './gclPanel';
-import { ISpecification } from './data/FileState';
+import { IHole, ISpecification } from './data/FileState';
 import { ClientState } from './data/ClientState';
 import path from 'path';
 
@@ -22,11 +22,13 @@ export async function activate(context: vscode.ExtensionContext) {
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
 				const clientState: ClientState | undefined = context.workspaceState.get(filePath);
-				const specs: ISpecification[] = clientState? clientState.specs : [];
 
-				const inlayHints = specs.flatMap((spec: ISpecification) => {
-					let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
-					let end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character);
+				if (clientState === undefined)
+					return [];
+
+				const inlayHints = clientState.specs.flatMap((spec: ISpecification) => {
+					const start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
+					const end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character);
 					if (visableRange.contains(start) || visableRange.contains(end)) {
 						const preConditionHint = new vscode.InlayHint(start.translate(0, 2), `${spec.preCondition}`);
 						preConditionHint.paddingLeft = true;
@@ -36,6 +38,20 @@ export async function activate(context: vscode.ExtensionContext) {
 					}
 					return [];
 				});
+
+				inlayHints.push(...clientState.holes.flatMap((hole: IHole) => {
+					const holeRange = hole.holeRange;
+					const start = new vscode.Position(holeRange.start.line, holeRange.start.character);
+					const end = new vscode.Position(holeRange.end.line, holeRange.end.character);
+					if (visableRange.contains(start) || visableRange.contains(end)) {
+						const preConditionHint = new vscode.InlayHint(start.translate(0, 2), `${hole.holeID}`);
+						preConditionHint.paddingLeft = true;
+						return [ preConditionHint ];
+					}
+					
+					return [];
+				}));
+
 				return inlayHints;
 			}
 		}
