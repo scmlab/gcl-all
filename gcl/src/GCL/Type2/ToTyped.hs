@@ -1,5 +1,6 @@
 {-# LANGUAGE FunctionalDependencies #-}
 {-# HLINT ignore "Use tuple-section" #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -116,6 +117,54 @@ collectDefnToEnv defn@(A.ValDefn name sig expr) = do
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
+
+instance ToTyped ([[A.Definition]], A.Program) T.Program where
+  toTyped (defns, A.Program _ decls exprs stmts range) = do
+    traceM $ "defns: " <> show (pretty defns)
+    traceM $ "decls: " <> show (pretty decls)
+    traceM $ "exprs: " <> show (pretty exprs)
+    traceM $ "stmts: " <> show (pretty stmts)
+    env <- ask
+    declEnv <-
+      foldM
+        ( \env' decl -> do
+            declEnv' <- collectDeclToEnv decl
+            let dups = declEnv' `Map.intersection` env'
+            unless
+              (null dups)
+              (throwError $ DuplicatedIdentifiers (Map.keys dups))
+            return $ declEnv' <> env'
+        )
+        env
+        decls
+    defnEnv <-
+      foldM
+        ( \env' defn -> do
+            -- NOTE: definitions have to be in order
+            defnEnv <- local (const env') (collectDefnToEnv defn)
+            return $ defnEnv <> env'
+        )
+        declEnv
+        (concat defns)
+
+    let newEnv = defnEnv <> declEnv
+    traceM $ show newEnv
+    typedDefns <-
+      mapM
+        ( \defn -> do
+            -- TODO: check array interval type is int
+            local (const newEnv) (toTyped defn)
+        )
+        (concat defns)
+    typedDecls <-
+      mapM
+        ( \decl -> do
+            local (const newEnv) (toTyped decl)
+        )
+        decls
+    typedExprs <- local (const newEnv) (mapM toTyped exprs)
+    typedStmts <- local (const newEnv) (mapM toTyped stmts)
+    return $ T.Program typedDefns typedDecls typedExprs typedStmts range
 
 instance ToTyped A.Program T.Program where
   toTyped (A.Program defns decls exprs stmts range) = do

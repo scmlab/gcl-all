@@ -38,7 +38,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
       deps <- ExceptT $ toDeps abstract
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
-      typed2 <- ExceptT $ toTyped2 abstract
+      typed2 <- ExceptT $ toTyped2 deps abstract
       -- lift $ print typed
       return ()
     handler err =
@@ -71,9 +71,9 @@ simpleLoad filepath source = runExceptT $ catchError run handler
           return $ Left (TypeError err)
         Right typed -> return $ Right typed
 
-    toTyped2 :: A.Program -> IO (Either Error T.Program)
-    toTyped2 abstract =
-      case Type2.runToTyped abstract mempty of
+    toTyped2 :: [[A.Definition]] -> A.Program -> IO (Either Error T.Program)
+    toTyped2 defns abstract =
+      case Type2.runToTyped (defns, abstract) mempty of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError $ Hack.toOldError err)

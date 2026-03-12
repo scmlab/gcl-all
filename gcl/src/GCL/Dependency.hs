@@ -109,26 +109,21 @@ resolveTypeDefinitions typeDeps def@(A.TypeDefn name _ ctors _) = do
 resolveTypeDefinitions typeDeps _ = return typeDeps
 
 resolveTermDefinitions :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
-resolveTermDefinitions termDeps def@(A.FuncDefnSig name _ expr _) = do
+resolveTermDefinitions termDeps def@(A.ValDefn name _ clauses) = do
   termDeps' <- registerDependency name def termDeps
-  foldM (resolveExpr name) termDeps' expr
-resolveTermDefinitions termDeps def@(A.FuncDefn name expr) = do
-  termDeps' <- registerDependency name def termDeps
-  resolveExpr name termDeps' expr
+  foldM resolveFuncClause termDeps' clauses
+  where
+    resolveFuncClause :: UnresolvedDepMap -> A.FuncClause -> DepMonad UnresolvedDepMap
+    resolveFuncClause termDeps' clause = do
+      let vars = freeVars clause
+      typeDefs <- get
+      foldM (\deps' var ->
+        if Data.Map.member var typeDefs then
+          return deps'
+        else
+          return $ addDependency var name deps'
+        ) termDeps' vars
 resolveTermDefinitions termDeps _ = return termDeps
-
-resolveExpr :: C.Name -> UnresolvedDepMap -> A.Expr -> DepMonad UnresolvedDepMap
-resolveExpr name deps expr = do
-  let vars = freeVars expr
-  typeDefs <- get
-  -- If this free variable is a constructor, then ignore it, otherwise,
-  -- consider this as a function and add dependency to its entry
-  foldM (\deps' var ->
-    if Data.Map.member var typeDefs then
-      return deps'
-    else
-      return $ addDependency var name deps'
-    ) deps vars
 
 resolveType :: C.Name -> UnresolvedDepMap -> A.Type -> DepMonad UnresolvedDepMap
 resolveType name deps (A.TArray _ typ _) =
@@ -150,7 +145,7 @@ registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad Unr
 registerDependency name def deps = do
   -- ChAoS: Later accommodate to the refactored definitions
   case (Data.Map.lookup name deps, def) of
-    (Just (Just def'@(A.FuncDefnSig {}), _, _), A.FuncDefnSig {}) ->
+    (Just (Just def'@(A.ValDefn {}), _, _), A.ValDefn {}) ->
       reportDuplicate (definitionToName def') name
     (Just (Just def'@(A.TypeDefn {}), _, _), A.TypeDefn {}) ->
       reportDuplicate (definitionToName def') name
@@ -220,5 +215,4 @@ formatNode (CyclicSCC defs) =
 
 definitionToName :: A.Definition -> C.Name
 definitionToName (A.TypeDefn name _ _ _) = name
-definitionToName (A.FuncDefnSig name _ _ _) = name
-definitionToName (A.FuncDefn name _) = name
+definitionToName (A.ValDefn name _ _) = name
