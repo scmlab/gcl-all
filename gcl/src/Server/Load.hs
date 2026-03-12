@@ -2,10 +2,7 @@
 
 module Server.Load where
 
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Bifunctor (first)
-import Data.Int (Int32)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
 import Data.Ord (comparing)
@@ -27,6 +24,7 @@ import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
+import Syntax.Parser.Error (ParseError)
 
 --------------------------------------------------------------------------------
 -- Types
@@ -40,62 +38,57 @@ type DigResult = ([(Range, Text)], Text)
 load :: FilePath -> ServerM ()
 load filePath = do
   logText "Load: start\n"
-  result <- runExceptT $ do
-    (source, vfsVersion) <- readSourceOrThrow filePath
-    (maybeDig, fs) <- loadOrThrow filePath source
-    return (vfsVersion, maybeDig, fs)
-  case result of
-    Left errs ->
-      sendErrorNotification filePath errs
-    Right (vfsVersion, maybeDig, fs) ->
-      case maybeDig of
-        Nothing -> do
-          logText "Load: no holes, saving directly\n"
-          setFileState filePath fs
-          sendUpdateNotification filePath fs
-          logText "Load: sending workspace/semanticTokens/refresh\n"
-          _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
-          return ()
-        Just (edits, newSource) -> do
-          logText "Load: holes dug, setting pending edit\n"
-          let pending =
-                PendingEdit
-                  { expectedContent = newSource,
-                    pendingFileState = fs
-                  }
-          setPendingEdit filePath pending
-          editTextsWithVersion filePath vfsVersion edits
+  logText "Load: reading virtual file\n"
+  maybeSource <- readSourceAndVersion filePath
+  case maybeSource of
+    Nothing ->
+      logText "Load: cannot read virtual file\n"
+    Just (source, vfsVersion) -> case loadAndDig filePath source of
+      Left parseErr -> do
+        logTextLn "Load: parse error"
+        sendErrorNotification filePath [ParseError parseErr]
+      Right (maybeDig, eitherFs) -> do
+        -- Send edits if holes were dug (independent of rest errors)
+        case maybeDig of
+          Nothing -> logText "Load: no holes\n"
+          Just (edits, _newSource) -> do
+            logText "Load: holes dug, sending edit\n"
+            editTextsWithVersion filePath vfsVersion edits
+        -- Handle rest result
+        case eitherFs of
+          Left err -> do
+            logTextLn "Load: type/struct error"
+            sendErrorNotification filePath [err]
+          Right fs -> do
+            case maybeDig of
+              Nothing -> do
+                logText "Load: no holes, setting file state directly\n"
+                setFileState filePath fs
+                sendUpdateNotification filePath fs
+                logText "Load: sending workspace/semanticTokens/refresh\n"
+                _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
+                return ()
+              Just (_, newSource) -> do
+                logText "Load: setting pending edit\n"
+                let pending =
+                      PendingEdit
+                        { expectedContent = newSource,
+                          pendingFileState = fs
+                        }
+                setPendingEdit filePath pending
   logText "Load: end\n"
-
-readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
-readSourceOrThrow filePath = do
-  lift $ logText "Load: reading virtual file\n"
-  result <- lift $ readSourceAndVersion filePath
-  case result of
-    Nothing -> do
-      lift $ logText "Load: cannot read virtual file\n"
-      throwE []
-    Just x -> return x
-
-loadOrThrow :: FilePath -> Text -> ExceptT [Error] ServerM (Maybe DigResult, FileState)
-loadOrThrow filePath source = do
-  case loadAndDig filePath source of
-    Left err -> do
-      lift $ logTextLn "Load: load error"
-      throwE [err]
-    Right result -> return result
 
 --------------------------------------------------------------------------------
 -- Main pipeline
 
 -- | Full pipeline: parseAndDig → loadConcrete.
--- Returns Left for errors, Right (Nothing, result) if no holes were found,
--- Right (Just digResult, result) if holes were dug.
-loadAndDig :: FilePath -> Text -> Either Error (Maybe DigResult, FileState)
+-- Outer Either: parse error (before edit decision).
+-- Inner Either: type/struct error (after edit decision).
+-- The DigResult and the FileState are independent — a type error does not block edits.
+loadAndDig :: FilePath -> Text -> Either ParseError (Maybe DigResult, Either Error FileState)
 loadAndDig filePath source = do
   (maybeDig, concrete) <- parseAndDig filePath source
-  result <- loadConcrete concrete
-  return (maybeDig, result)
+  return (maybeDig, loadConcrete concrete)
 
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
 loadConcrete :: C.Program -> Either Error FileState
@@ -117,7 +110,7 @@ loadConcrete concrete = do
 
 -- | Parse source, and if holes are found, dig them and re-parse.
 -- Returns (if holes were dug) the DigResult, and the clean concrete AST.
-parseAndDig :: FilePath -> Text -> Either Error (Maybe DigResult, C.Program)
+parseAndDig :: FilePath -> Text -> Either ParseError (Maybe DigResult, C.Program)
 parseAndDig filePath source = do
   (concrete1, holes1) <- parseAndCollectHoles filePath source
   case holes1 of
@@ -127,11 +120,11 @@ parseAndDig filePath source = do
       (concrete2, holes2) <- parseAndCollectHoles filePath newSource
       case holes2 of
         [] -> Right (Just (edits, newSource), concrete2)
-        _ -> Left (Others "Load" "unexpected holes after digging" Nothing)
+        _ -> error "unexpected holes after digging"
   where
     parseAndCollectHoles fp src =
       case Parser.scanAndParse Parser.program fp src of
-        Left err -> Left (ParseError err)
+        Left err -> Left err
         Right concrete -> Right (concrete, collectHoles concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
