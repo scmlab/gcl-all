@@ -24,7 +24,7 @@ import Server.Monad
   ( FileState (..),
     PendingEdit (..),
     ServerM,
-    editTextsWithVersion,
+    sendEditTextsWithVersion,
     getFileState,
     logText,
     logTextLn,
@@ -59,7 +59,7 @@ refine filePath cursor = do
   case result of
     Left errs -> sendErrorNotification filePath errs
     Right (fs, source, vfsVersion, spec, finalImplText, eitherFs) -> do
-      editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
+      sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
       logText "Refine: edit sent\n"
       case eitherFs of
         Left err -> sendErrorNotification filePath [err]
