@@ -22,7 +22,7 @@ module Server.Monad
     readSourceAndVersion,
     sendEditTextsWithVersion,
     sendCustomNotification,
-    sendDebugMessage,
+    sendWindowShowMessage,
     sendSemanticTokensRefresh,
   )
 where
@@ -196,8 +196,8 @@ sendEditTextsWithVersion filepath version rangeTextPairs = do
 sendCustomNotification :: (KnownSymbol s) => Proxy s -> JSON.Value -> ServerM ()
 sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomMethod methodId) (json)
 
-sendDebugMessage :: Text -> ServerM ()
-sendDebugMessage message' = do
+sendWindowShowMessage :: Text -> ServerM ()
+sendWindowShowMessage message' = do
   let requestParams =
         LSP.ShowMessageRequestParams
           LSP.MessageType_Info
