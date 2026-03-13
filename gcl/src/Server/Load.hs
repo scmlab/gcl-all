@@ -43,40 +43,45 @@ load filePath = do
   case maybeSource of
     Nothing ->
       logText "Load: cannot read virtual file\n"
-    Just (source, vfsVersion) -> case loadAndDig filePath source of
-      Left parseErr -> do
-        logTextLn "Load: parse error"
-        sendErrorNotification filePath [ParseError parseErr]
-      Right (maybeDig, eitherFs) -> do
-        -- Send edits if holes were dug (independent of rest errors)
-        case maybeDig of
-          Nothing -> logText "Load: no holes\n"
-          Just (edits, _newSource) -> do
-            logText "Load: holes dug, sending edit\n"
-            editTextsWithVersion filePath vfsVersion edits
-        -- Handle rest result
-        case eitherFs of
-          Left err -> do
-            logTextLn "Load: type/struct error"
-            sendErrorNotification filePath [err]
-          Right fs -> do
-            case maybeDig of
-              Nothing -> do
-                logText "Load: no holes, setting file state directly\n"
-                setFileState filePath fs
-                sendUpdateNotification filePath fs
-                logText "Load: sending workspace/semanticTokens/refresh\n"
-                _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
-                return ()
-              Just (_, newSource) -> do
-                logText "Load: setting pending edit\n"
-                let pending =
-                      PendingEdit
-                        { expectedContent = newSource,
-                          pendingFileState = fs
-                        }
-                setPendingEdit filePath pending
+    Just (source, vfsVersion) ->
+      case loadAndDig filePath source of
+        Left parseErr -> do
+          logTextLn "Load: parse error"
+          sendErrorNotification filePath [ParseError parseErr]
+        Right (maybeDig, eitherFs) -> do
+          sendDigEdits vfsVersion maybeDig
+          handleLoadResult maybeDig eitherFs
   logText "Load: end\n"
+  where
+    sendDigEdits vfsVersion maybeDig =
+      case maybeDig of
+        Nothing -> logText "Load: no holes\n"
+        Just (edits, _newSource) -> do
+          logText "Load: holes dug, sending edit\n"
+          editTextsWithVersion filePath vfsVersion edits
+
+    handleLoadResult maybeDig eitherFs =
+      case eitherFs of
+        Left err -> do
+          logTextLn "Load: type/struct error"
+          sendErrorNotification filePath [err]
+        Right fs ->
+          case maybeDig of
+            Nothing -> do
+              logText "Load: no holes, setting file state directly\n"
+              setFileState filePath fs
+              sendUpdateNotification filePath fs
+              logText "Load: sending workspace/semanticTokens/refresh\n"
+              _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
+              return ()
+            Just (_, newSource) -> do
+              logText "Load: setting pending edit\n"
+              let pending =
+                    PendingEdit
+                      { expectedContent = newSource,
+                        pendingFileState = fs
+                      }
+              setPendingEdit filePath pending
 
 --------------------------------------------------------------------------------
 -- Main pipeline
