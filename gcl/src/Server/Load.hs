@@ -158,32 +158,6 @@ applyEdits source edits =
               <> go e rest
    in go 0 sorted
 
--- | Same as applyEdits but uses a line-column cursor instead of offset conversion.
--- Avoids the line-ending ambiguity of toOffset.
-applyEdits2 :: Text -> [(Range, Text)] -> Text
-applyEdits2 source edits =
-  Text.concat $ go (1, 1) source (sortBy (comparing (rangeStart . fst)) edits)
-  where
-    go _ src [] = [src]
-    go cur src all@((range, repl) : rest) =
-      case Text.uncons src of
-        Nothing -> []
-        Just (c, cs)
-          | curAt cur (rangeStart range) -> repl : skipTo (rangeEnd range) cur src rest
-          | otherwise -> Text.singleton c : go (step c cur) cs all
-
-    skipTo endPos cur src rest =
-      case Text.uncons src of
-        Nothing -> go cur Text.empty rest
-        Just (c, cs)
-          | curAt cur endPos -> go cur src rest
-          | otherwise -> skipTo endPos (step c cur) cs rest
-
-    curAt (l, col) pos = l == posLine pos && col == posCol pos
-
-    step '\n' (l, _) = (l + 1, 1)
-    step _ (l, col) = (l, col + 1)
-
 --------------------------------------------------------------------------------
 -- Collecting holes from concrete syntax
 
