@@ -12,7 +12,7 @@ import Test.Tasty.HUnit
 tests :: TestTree
 tests =
   testGroup
-    "Change"
+    "Move"
     [ mkLSPMoveTests,
       mkLSPMovesTests,
       applyLSPMoveTests,
