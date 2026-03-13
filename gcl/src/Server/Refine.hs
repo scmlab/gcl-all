@@ -48,36 +48,28 @@ import qualified Syntax.Typed as T
 refine :: FilePath -> Pos -> ServerM ()
 refine filePath cursor = do
   logTextLn $ "Refine: cursor: " <> Text.pack (show cursor)
-  logText "Refine: getting file state\n"
   maybeFs <- getFileState filePath
-  case maybeFs of
-    Nothing -> sendErrorNotification filePath [Others "Refine" "File not loaded." Nothing]
-    Just fs -> do
-      logText "Refine: reading source\n"
-      maybeSource <- readSourceAndVersion filePath
-      case maybeSource of
-        Nothing -> sendErrorNotification filePath [Others "Refine" "Cannot read source." Nothing]
-        Just (source, vfsVersion) ->
-          case findEnclosingSpec cursor (fsSpecifications fs) of
-            Nothing -> sendErrorNotification filePath [Others "Refine" "No enclosing spec found." Nothing]
-            Just spec -> case refineAndDig filePath (fsIdCount fs) spec source of
-              Left err ->
-                sendErrorNotification filePath [err]
-              Right (finalImplText, eitherFragmentFs) -> do
-                -- Always send the edit (independent of type/struct errors)
-                editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
-                logText "Refine: edit sent\n"
-                -- Handle the rest result
-                case eitherFragmentFs of
-                  Left err ->
-                    sendErrorNotification filePath [err]
-                  Right fragmentFs -> do
-                    let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-                        newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
-                        newSource = applyEdits source [(specRange spec, finalImplText)]
-                        pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
-                    setPendingEdit filePath pending
-                    sendErrorNotification filePath []
+  maybeSource <- readSourceAndVersion filePath
+  let result = do
+        fs <- maybe (Left [Others "Refine" "File not loaded." Nothing]) Right maybeFs
+        (source, vfsVersion) <- maybe (Left [Others "Refine" "Cannot read source." Nothing]) Right maybeSource
+        spec <- maybe (Left [Others "Refine" "No enclosing spec found." Nothing]) Right (findEnclosingSpec cursor (fsSpecifications fs))
+        (finalImplText, eitherFs) <- first pure $ refineAndDig filePath (fsIdCount fs) spec source
+        return (fs, source, vfsVersion, spec, finalImplText, eitherFs)
+  case result of
+    Left errs -> sendErrorNotification filePath errs
+    Right (fs, source, vfsVersion, spec, finalImplText, eitherFs) -> do
+      editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
+      logText "Refine: edit sent\n"
+      case eitherFs of
+        Left err -> sendErrorNotification filePath [err]
+        Right fragmentFs -> do
+          let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+              newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
+              newSource = applyEdits source [(specRange spec, finalImplText)]
+              pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+          setPendingEdit filePath pending
+          sendErrorNotification filePath []
 
 --------------------------------------------------------------------------------
 -- Main pipeline
