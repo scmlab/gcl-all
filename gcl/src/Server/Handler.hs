@@ -98,10 +98,12 @@ handlers =
         logText "SMethod_TextDocumentDefinition is called.\n"
         let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
         let position = req ^. (LSP.params . LSP.position)
-        -- FIXME: go to definition doesn't work here?
-        -- original code, I think it returns an empty list regardless
-        -- GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . LSP.List)
-        GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InR . (const LSP.Null))
+        -- responder takes an
+        -- Either (TResponseError 'Method_TextDocumentDefinition) (Definition |? ([DefinitionLink] |? Null))
+        --                                                  Right ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        --                                                                   InR ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        --                                                                    InL ^^^^^^^^^^^^^^^^
+        GoToDefinition.handler uri position (responder . Right . LSP.InR . LSP.InL . fmap LSP.DefinitionLink)
         logText "SMethod_TextDocumentDefinition is finished.\n",
       -- "textDocument/hover" - get hover information
       requestHandler LSP.SMethod_TextDocumentHover $ \req responder -> do
