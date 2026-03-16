@@ -24,7 +24,7 @@ applySubst :: Subst -> A.Type -> A.Type
 applySubst _ ty@A.TBase {} = ty
 applySubst subst (A.TArray interval ty range) =
   A.TArray interval (applySubst subst ty) range
-applySubst _ (A.TTuple _) = undefined
+applySubst subst (A.TTuple tys) = A.TTuple $ map (applySubst subst) tys
 applySubst subst (A.TFunc e1 e2 range) =
   A.TFunc (applySubst subst e1) (applySubst subst e2) range
 applySubst _ ty@A.TOp {} = ty
@@ -58,6 +58,8 @@ applySubstExpr subst (T.Op op ty) = T.Op op (applySubst subst ty)
 applySubstExpr subst (T.Chain chain) = T.Chain (applySubstChain subst chain)
 applySubstExpr subst (T.App e1 e2 range) = T.App (applySubstExpr subst e1) (applySubstExpr subst e2) range
 applySubstExpr subst (T.Lam param ty body range) = T.Lam param (applySubst subst ty) (applySubstExpr subst body) range
+applySubstExpr subst (T.Tuple ts) = T.Tuple (map (applySubstExpr subst) ts)
+applySubstExpr subst (T.OutT i expr) = T.OutT i (applySubstExpr subst expr)
 applySubstExpr subst (T.Quant _ _ _ _ _) = undefined
 applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst arr) (applySubstExpr subst index) range
 applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range

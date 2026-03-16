@@ -45,8 +45,10 @@ typeOf (App e0 _ _) = case typeOf e0 of
 typeOf (Lam _ t0 e _) = A.TFunc t0 (typeOf e) Nothing
 typeOf (Tuple es) = A.TTuple (map typeOf es)
 typeOf (OutT i e) = case typeOf e of
-  A.TTuple ts -> if i < length ts then ts !! i
-                 else error "tuple too short"
+  A.TTuple ts ->
+    if i < length ts
+      then ts !! i
+      else error "tuple too short"
   _ -> error "outT applied a non-tuple"
 typeOf (Quant _ _ _ body _) = typeOf body
 typeOf (ArrIdx arr _ _) = case typeOf arr of

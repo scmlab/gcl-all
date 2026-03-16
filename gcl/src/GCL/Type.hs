@@ -801,7 +801,7 @@ freeMetaVars TType = mempty
 -- Γ ⊢ e : t ↓ (v . s)
 
 instance Elab Expr where
-  elaborate _ _ = undefined -- SCM: obsolete 
+  elaborate _ _ = undefined -- SCM: obsolete
   elaborate (Lit lit loc) _ = let ty = litTypes lit loc in return (Just ty, T.Lit lit ty loc, mempty)
   -- x : t ∈ Γ
   -- t ⊑ u

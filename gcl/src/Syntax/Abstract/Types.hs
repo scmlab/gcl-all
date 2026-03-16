@@ -41,12 +41,12 @@ data Program
 -- | Definition (the functional language part)
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-    -- data T a b = C1 a | C2 b
-  | ValDefn Name (Maybe Type) Expr
-    -- f :: a -> b               f :: a -> b
-    -- f p1 p2 = e1        ==>   f = \x1 x2 -> case (x1, x2) of
-    -- f p3 p4 = e2                      (p1, p2) -> e1
-    --                                   (p3, p4) -> e2
+  | -- data T a b = C1 a | C2 b
+    ValDefn Name (Maybe Type) Expr
+  -- f :: a -> b               f :: a -> b
+  -- f p1 p2 = e1        ==>   f = \x1 x2 -> case (x1, x2) of
+  -- f p3 p4 = e2                      (p1, p2) -> e1
+  --                                   (p3, p4) -> e2
 
   deriving (Eq, Show)
 

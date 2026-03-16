@@ -70,16 +70,16 @@ unkind (Typed.TApp ty1 ty2 loc) = UnTyped.TApp (unkind ty1) (unkind ty2) loc
 unkind (Typed.TVar name _ loc) = UnTyped.TVar name loc
 unkind (Typed.TMetaVar name _ loc) = UnTyped.TMetaVar name loc
 
-instance Collect a => Collect [a] where
+instance (Collect a) => Collect [a] where
   collect [] = mempty
-  collect (x:xs) = collect x <> collect xs
-  
+  collect (x : xs) = collect x <> collect xs
+
 instance Collect Typed.Definition where
   collect (Typed.TypeDefn _ _ ctors _) = foldMap collect ctors
   collect (Typed.ValDefn name kinded e) =
-    annotateType name (unkind kinded) <>
-    collect kinded <>
-    collect e  -- SCM: is this right?
+    annotateType name (unkind kinded)
+      <> collect kinded
+      <> collect e -- SCM: is this right?
 
 instance Collect Typed.TypeDefnCtor where
   collect (Typed.TypeDefnCtor _name _tys) = mempty
@@ -136,6 +136,8 @@ instance Collect Typed.Expr where
   collect (Typed.Chain ch) = collect ch
   collect (Typed.App expr1 expr2 _) = collect expr1 <> collect expr2
   collect (Typed.Lam name ty expr _) = annotateType name ty <> collect expr
+  collect (Typed.Tuple es) = collect es
+  collect (Typed.OutT _ e) = collect e
   collect (Typed.Quant quantifier _bound restriction inner _) = collect quantifier <> collect restriction <> collect inner
   collect (Typed.ArrIdx expr1 expr2 _) = collect expr1 <> collect expr2
   collect (Typed.ArrUpd arr index expr _) = collect arr <> collect index <> collect expr

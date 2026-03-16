@@ -55,9 +55,10 @@ instance Pretty Definition where
   pretty (ValDefn name Nothing expr) =
     pretty name <+> "=" <+> align (pretty expr)
   pretty (ValDefn name (Just ty) expr) =
-    vsep $ [ pretty name <+> ":" <+> align (pretty ty)
-           , pretty name <+> "=" <+> align (pretty expr)
-           ]
+    vsep $
+      [ pretty name <+> ":" <+> align (pretty ty),
+        pretty name <+> "=" <+> align (pretty expr)
+      ]
 
 instance Pretty TypeDefnCtor where
   pretty (TypeDefnCtor cn ts) = pretty cn <+> hsep (pretty <$> ts)

@@ -32,7 +32,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
     run = do
       concrete <- ExceptT $ parse filepath source
       -- lift $ print concrete
-      abstract <- ExceptT $ evalState (toAbstract concrete) 0
+      abstract <- ExceptT $ toAbstract concrete
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
       typed2 <- ExceptT $ toTyped2 abstract

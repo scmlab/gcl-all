@@ -142,7 +142,7 @@ instance Render Pattern where
   render (PattLit a) = render a
   render (PattBinder a) = render a
   render (PattWildcard _) = "_"
-  render (PattTuple ps) = "(" <+> punctuateE "," (map render ps)  <+> ")"
+  render (PattTuple ps) = "(" <+> punctuateE "," (map render ps) <+> ")"
   render (PattConstructor ctor patterns) =
     render ctor <+> horzE (map render patterns)
 

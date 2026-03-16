@@ -1,5 +1,6 @@
 module GCL.Type2.Unify where
 
+import Control.Monad (foldM)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Common (occurs)
@@ -24,6 +25,15 @@ unify (A.TArray _i t1 _) (A.TApp (A.TApp (A.TOp (Arrow _)) i _) t2 _) r = do
   s1 <- unify i typeInt r
   s2 <- unify t1 t2 r
   return (s2 <> s1)
+unify (A.TTuple exprs1) (A.TTuple exprs2) r
+  | length exprs1 == length exprs2 =
+      foldM
+        ( \acc (e1, e2) -> do
+            s <- unify e1 e2 r
+            return (s <> acc)
+        )
+        mempty
+        (zip exprs1 exprs2)
 unify (A.TOp (Arrow _)) (A.TOp (Arrow _)) _ = return mempty
 unify t1@(A.TData n1 _) t2@(A.TData n2 _) r =
   if n1 == n2

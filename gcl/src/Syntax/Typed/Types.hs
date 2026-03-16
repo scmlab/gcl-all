@@ -19,10 +19,12 @@ data Program
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
   | ValDefn Name KindedType Expr
-
-  -- | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
-  -- | FuncDefn Name Expr
-  deriving (Eq, Show)
+  deriving
+    ( -- | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
+      -- | FuncDefn Name Expr
+      Eq,
+      Show
+    )
 
 data TypeDefnCtor = TypeDefnCtor Name [Type]
   deriving (Eq, Show)

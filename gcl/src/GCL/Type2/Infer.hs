@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, foldM_, when)
+import Control.Monad (foldM, foldM_, replicateM, when)
 import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
@@ -153,7 +153,8 @@ infer (A.Chain chain) = do
   return (subst, typeBool, T.Chain chain')
 infer (A.App e1 e2 range) = inferApp e1 e2 range
 infer (A.Lam param body range) = inferLam param body range
-infer (A.Tuple exprs) = undefined
+infer (A.Tuple exprs) = inferTuple exprs
+infer (A.OutT i expr) = inferOutT i expr
 infer (A.Quant op args cond expr range) = inferQuant op args cond expr range
 infer (A.RedexKernel _ _ _ _) = undefined
 infer (A.RedexShell _ _) = undefined
@@ -280,6 +281,30 @@ inferLam param body range = do
   let returnTy = paramTy' `typeToType` bodyTy
 
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody range)
+
+inferTuple :: [A.Expr] -> TIMonad (Subst, A.Type, T.Expr)
+inferTuple exprs = do
+  (exprsSubst, exprsTy, typedExprs) <-
+    foldM
+      ( \(accSubst, accTy, typed) expr -> do
+          (exprSubst, exprTy, typedExpr) <- local (applySubstEnv accSubst) (infer expr)
+          return (exprSubst <> accSubst, exprTy : accTy, typedExpr : typed)
+      )
+      (mempty, [], [])
+      exprs
+
+  let resultTy = A.TTuple (map (applySubst exprsSubst) exprsTy)
+
+  return (exprsSubst, resultTy, T.Tuple typedExprs)
+
+inferOutT :: Int -> A.Expr -> TIMonad (Subst, A.Type, T.Expr)
+inferOutT i expr = do
+  (exprSubst, exprTy, typedExpr) <- infer expr
+  tys <- case exprTy of
+    (A.TTuple tys) -> return tys
+    ty -> throwError $ UnifyFailed ty (A.TTuple []) (maybeRangeOf expr)
+
+  return (exprSubst, tys !! i, T.OutT i typedExpr)
 
 {-
    fresh ti
@@ -481,8 +506,12 @@ inferCaseClause pattern expr ty = do
          f p2 = e2
 -}
 
-inferFuncClause :: [A.Pattern] -> A.Expr -> TIMonad (Subst, A.Type, T.FuncClause)
-inferFuncClause patterns expr = do
+-- XXX: i think this is actually the more generalized version of inferCaseClause
+-- since it single or multiple patterns should be treated as the same?
+-- TODO: i realized this is redundant after implementing the rest of the stuff
+-- is this a better solution? if not remove this
+inferTupleCaseClause :: [A.Pattern] -> A.Expr -> TIMonad (Subst, A.Type, T.CaseClause)
+inferTupleCaseClause patterns expr = do
   lift $ checkDuplicateBinders patterns
 
   ftv <- freshTVar
@@ -513,7 +542,7 @@ inferFuncClause patterns expr = do
   unifySubst <- lift $ unify ftv exprTy (maybeRangeOf expr)
 
   let resultSubst = unifySubst <> exprSubst <> patSubst
-  let resultExpr = T.FuncClause patterns typedExpr
+  let resultExpr = T.CaseClause (A.PattTuple patterns) typedExpr
 
   return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
 
@@ -528,6 +557,14 @@ checkDuplicateBinders pats = do
         then throwError $ DuplicatedIdentifiers [name]
         else return [name]
     aux (A.PattWildcard _) _binders = return []
+    aux (A.PattTuple ps) binders =
+      foldM
+        ( \b' p -> do
+            b'' <- aux p b'
+            return (b'' <> b')
+        )
+        binders
+        ps
     aux (A.PattConstructor _p ps) binders =
       foldM
         ( \b' p' -> do
@@ -567,6 +604,20 @@ bindPattern (A.PattBinder name) ty = do
   let env = Map.singleton name (A.Forall [] ty)
   return (mempty, env)
 bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
+bindPattern (A.PattTuple ps) ty = do
+  tys <- case ty of
+    (A.TTuple tys) -> return tys
+    _ -> error "non-tuple shouldn't exist"
+
+  (patsSubst, patsEnv) <-
+    foldM
+      ( \(s', e') (pat, ty') -> do
+          (s'', e'') <- bindPattern pat ty'
+          return (s'' <> s', e'' <> e')
+      )
+      (mempty, mempty)
+      (zip (reverse ps) tys) -- XXX: why does the pattern order have to be backwards
+  return (patsSubst, patsEnv)
 bindPattern (A.PattConstructor ctorName pats) ty = do
   env <- ask
 

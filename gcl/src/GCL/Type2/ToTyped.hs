@@ -12,8 +12,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
-import GCL.Type2.Infer (checkDuplicateNames, infer, inferFuncClause, instantiate, typeCheck, typeToKind)
-import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
+import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
+import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
     TIMonad,
@@ -85,26 +85,15 @@ collectDefnToEnv (A.TypeDefn name args ctors _range) = do
               ty -> (ftvs, ty `typeToType` argTypes)
         )
         ([], baseTy)
-collectDefnToEnv (A.ValDefn name sig clauses) = do
+collectDefnToEnv defn@(A.ValDefn name sig expr) = do
   funcTy <- maybe freshTVar return sig
-
   _ <- typeToKind funcTy
 
-  (_, funcTy') <-
-    foldM
-      ( \(s', ty')
-         c@(A.FuncClause pats expr) -> do
-            (funcSubst', funcTy', _typedClause) <- inferFuncClause pats expr
+  (_, exprTy, _) <- infer expr
 
-            unifySubst <- lift $ unify ty' funcTy' (maybeRangeOf c)
+  _ <- lift $ unify funcTy exprTy (maybeRangeOf defn)
 
-            let resultSubst = unifySubst <> funcSubst'
-            return (funcSubst' <> s', applySubst resultSubst ty')
-      )
-      (mempty, funcTy)
-      clauses
-
-  return (Map.singleton name (A.Forall [] funcTy'))
+  return (Map.singleton name (A.Forall [] exprTy))
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
@@ -159,15 +148,15 @@ instance ToTyped A.Program T.Program where
 
 instance ToTyped A.Definition T.Definition where
   toTyped (A.TypeDefn name args ctors range) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) range
-  toTyped (A.ValDefn name sig clauses) = toTypedValDefn name sig clauses
+  toTyped (A.ValDefn name sig expr) = toTypedValDefn name sig expr
 
 toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
 toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
 
-toTypedValDefn :: Name -> Maybe A.Type -> [A.FuncClause] -> TIMonad T.Definition
-toTypedValDefn name sig clauses = do
-  -- XXX: no `T.ValDefn` is currently available
-  -- and i don't want to call `inferFuncClause` twice
+toTypedValDefn :: Name -> Maybe A.Type -> A.Expr -> TIMonad T.Definition
+toTypedValDefn name sig expr = do
+  -- XXX: i don't want to call `infer` twice
+  -- is there a way to put `T.Expr` result in the environment or something?
 
   error "\n\n** ACTUALLY SUCCESSFUL **\n"
 
@@ -324,7 +313,7 @@ instance ToTyped A.GdCmd T.GdCmd where
 
 instance ToTyped A.Expr T.Expr where
   toTyped expr = do
-    (subst, ty, typed) <- infer expr
+    (subst, _ty, typed) <- infer expr
     -- NOTE: invariant doesn't hold during the inference
     -- but `applySubstExpr` traverses the entire subtree
     -- so it is probably really inefficient to do so when
