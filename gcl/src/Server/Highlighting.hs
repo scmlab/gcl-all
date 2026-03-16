@@ -6,6 +6,7 @@
 module Server.Highlighting
   ( Highlighting,
     collectHighlighting,
+    collectHighlightingFromStmts,
   )
 where
 
@@ -34,6 +35,10 @@ type Highlighting = J.SemanticTokenAbsolute
 collectHighlighting :: Program -> [Highlighting]
 collectHighlighting program =
   toList $ runM mempty (collect program :: M () Highlighting ())
+
+collectHighlightingFromStmts :: [Stmt] -> [Highlighting]
+collectHighlightingFromStmts stmts =
+  toList $ runM mempty (collect stmts :: M () Highlighting ())
 
 --------------------------------------------------------------------------------
 -- helper function for converting some syntax node to Highlighting

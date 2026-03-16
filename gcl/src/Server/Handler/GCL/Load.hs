@@ -1,19 +1,12 @@
-{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
-module Server.Handler.GCL.Reload where
+module Server.Handler.GCL.Load where
 
 import qualified Data.Aeson.Types as JSON
-import Error (Error)
-import GCL.Predicate (PO, Spec)
 import GHC.Generics (Generic)
 import Server.Load (load)
-import Server.Monad (FileState (..), ServerM, Versioned, sendDebugMessage)
+import Server.Monad (ServerM)
 
 data ReloadParams = ReloadParams {filePath :: FilePath}
   deriving (Eq, Show, Generic)

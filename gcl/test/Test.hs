@@ -1,4 +1,5 @@
 import System.IO (hSetEncoding, stderr, stdin, stdout, utf8)
+import qualified Test.Move as Move
 import qualified Test.Parser as Parser
 import qualified Test.Render as Render
 import qualified Test.SrcLoc as SrcLoc
@@ -20,7 +21,8 @@ tests :: TestTree
 tests =
   testGroup
     "Tests"
-    [ Parser.tests,
+    [ Move.tests,
+      Parser.tests,
       Render.tests,
       SrcLoc.tests
     ]
