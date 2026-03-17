@@ -115,27 +115,28 @@ handlers =
         let uri = req ^. (LSP.params . LSP.textDocument . LSP.uri)
         SemanticTokens.handler uri (responder . first Hack.resToTRes),
       -- "gcl/reload" - reload
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ jsonMiddleware Load.handler,
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/reload")) $ customRequestMiddleware Load.handler,
       -- "gcl/refine" - refine
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ jsonMiddleware Refine.handler,
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/refine")) $ customRequestMiddleware Refine.handler,
       -- "gcl/debug" - debug FileState
-      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/debug")) $ jsonMiddleware Debug.handler
+      requestHandler (LSP.SMethod_CustomMethod (Proxy @"gcl/debug")) $ customRequestMiddleware Debug.handler
     ]
 
--- | A handler type for custom LSP methods.
---   Takes parsed request params, a success callback, and an error callback.
---   Calls one of the callbacks to return a result or error to the client.
-type CustomMethodHandler params result err = params -> (result -> ServerM ()) -> (err -> ServerM ()) -> ServerM ()
-
-{-# ANN jsonMiddleware ("HLint: ignore Redundant lambda" :: String) #-}
--- converts the request JSON object into specific request params (as a Haskell record) for the handler
--- TODO: maybe we don't need an error callback
-jsonMiddleware ::
-  (KnownSymbol s, JSON.FromJSON params, JSON.ToJSON result, JSON.ToJSON err) =>
-  CustomMethodHandler params result err ->
-  -- -> LSP.Handler ServerM (LSP.CustomMethod :: LSP.Method LSP.FromClient LSP.Request)
-  LSP.Handler ServerM (LSP.Method_CustomMethod s :: LSP.Method LSP.ClientToServer LSP.Request)
-jsonMiddleware handler = \req responder -> do
+-- Extracts the common boilerplate shared by custom LSP request handlers.
+-- Each custom method provides its own (params -> ServerM result).
+-- Application-level errors are sent to the client directly by the handler itself,
+-- rather than through the return value. NOTE: could be refactored to return Either.
+{-# ANN customRequestMiddleware ("HLint: ignore Redundant lambda" :: String) #-}
+customRequestMiddleware ::
+  (KnownSymbol s, JSON.FromJSON params, JSON.ToJSON result) =>
+  -- wraps a custom handler
+  (params -> ServerM result) ->
+  -- to a LSP Request Handler (SEE: type family Handler)
+  ( LSP.TRequestMessage (LSP.Method_CustomMethod s) -> -- req
+    (Either (LSP.TResponseError (LSP.Method_CustomMethod s)) JSON.Value -> ServerM ()) -> -- responder
+    ServerM ()
+  )
+customRequestMiddleware customHandler = \req responder -> do
   logText "json: decoding request\n"
   let json = req ^. LSP.params
   logText $ "JSON content: " <> TextLazy.toStrict (JSONText.encodeToLazyText json) <> "\n"
@@ -146,24 +147,14 @@ jsonMiddleware handler = \req responder -> do
       responder (Left $ Hack.resToTRes err)
     Right params -> do
       logText "json: decoding succeeded\n"
-      handler
-        params
-        (responder . Right . JSON.toJSON)
-        (responder . Left . Hack.resToTRes . makeInternalError)
+      result <- customHandler params
+      responder (Right $ JSON.toJSON result)
 
 decodeMessageParams :: forall a. (JSON.FromJSON a) => JSON.Value -> Either LSP.ResponseError a
 decodeMessageParams json = do
   case JSON.fromJSON json :: JSON.Result a of
     JSON.Success params -> Right params
     JSON.Error msg -> Left (makeParseError ("Json decoding failed." <> Text.pack msg))
-
-makeInternalError :: (JSON.ToJSON e) => e -> LSP.ResponseError
-makeInternalError err =
-  LSP.ResponseError
-    { _code = LSP.InR LSP.ErrorCodes_InternalError,
-      _message = "",
-      _xdata = Just (JSON.toJSON err)
-    }
 
 makeParseError :: Text -> LSP.ResponseError
 makeParseError message =

@@ -5,12 +5,12 @@
 
 module Server.Handler.GoToDefinition where
 
+import GCL.Range (mkPos, posCol, posLine)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Server.GoToDefn as GoToDefn
 import qualified Server.IntervalMap as IntervalMap
 import Server.Monad (FileState (..), ServerM, getFileState)
 import qualified Server.SrcLoc as SrcLoc
-import GCL.Range (posCol, posLine, mkPos)
 
 -- | Convert OriginTargetRanges to LSP LocationLink
 -- This is stage 3: convert internal ranges to LSP ranges and fill in the URI

@@ -24,11 +24,11 @@ import Server.Monad
   ( FileState (..),
     PendingEdit (..),
     ServerM,
-    sendEditTextsWithVersion,
     getFileState,
     logText,
     logTextLn,
     readSourceAndVersion,
+    sendEditTextsWithVersion,
     setPendingEdit,
   )
 import Server.Move (applyMovesToFileState, mkLSPMove)

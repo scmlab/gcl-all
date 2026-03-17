@@ -20,8 +20,8 @@ instance JSON.FromJSON DebugParams
 
 instance JSON.ToJSON DebugParams
 
-handler :: DebugParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
-handler DebugParams {filePath} onResult _ = do
+handler :: DebugParams -> ServerM ()
+handler DebugParams {filePath} = do
   logTextLn ">>>> gcl.debug: FileState"
   maybeFs <- getFileState filePath
   case maybeFs of
@@ -39,5 +39,3 @@ handler DebugParams {filePath} onResult _ = do
     Just source -> do
       logTextLn source
   logTextLn "<<< gcl.debug: source"
-
-  onResult ()

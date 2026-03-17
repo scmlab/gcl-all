@@ -15,7 +15,5 @@ instance JSON.FromJSON ReloadParams
 
 instance JSON.ToJSON ReloadParams
 
-handler :: ReloadParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
-handler ReloadParams {filePath} onResult _ = do
-  load filePath
-  onResult ()
+handler :: ReloadParams -> ServerM ()
+handler ReloadParams {filePath} = load filePath
