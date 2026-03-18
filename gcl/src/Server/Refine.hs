@@ -4,10 +4,7 @@
 module Server.Refine where
 
 import Control.Monad (when)
-import Control.Monad.Trans (lift)
-import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Bifunctor (first, second)
-import Data.Int (Int32)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
@@ -51,58 +48,37 @@ import qualified Syntax.Typed as T
 refine :: FilePath -> Pos -> ServerM ()
 refine filePath cursor = do
   logTextLn $ "Refine: cursor: " <> Text.pack (show cursor)
-  result <- runExceptT $ do
-    fs <- getFileStateOrThrow filePath
-    (source, vfsVersion) <- readSourceOrThrow filePath
-    spec <- findSpecOrThrow cursor (fsSpecifications fs)
-    (finalImplText, fragmentFs) <- refineOrThrow filePath (fsIdCount fs) spec source
-    return (fs, vfsVersion, spec, source, finalImplText, fragmentFs)
+  maybeFs <- getFileState filePath
+  maybeSource <- readSourceAndVersion filePath
+  let result = do
+        fs <- maybe (Left [Others "Refine" "File not loaded." Nothing]) Right maybeFs
+        (source, vfsVersion) <- maybe (Left [Others "Refine" "Cannot read source." Nothing]) Right maybeSource
+        spec <- maybe (Left [Others "Refine" "No enclosing spec found." Nothing]) Right (findEnclosingSpec cursor (fsSpecifications fs))
+        (finalImplText, eitherFs) <- first pure $ refineAndDig filePath (fsIdCount fs) spec source
+        return (fs, source, vfsVersion, spec, finalImplText, eitherFs)
   case result of
-    Left errs ->
-      sendErrorNotification filePath errs
-    Right (fs, vfsVersion, spec, source, finalImplText, fragmentFs) -> do
-      let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-          newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
-          newSource = applyEdits source [(specRange spec, finalImplText)]
-          pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
-      setPendingEdit filePath pending
+    Left errs -> sendErrorNotification filePath errs
+    Right (fs, source, vfsVersion, spec, finalImplText, eitherFs) -> do
       editTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
-      sendErrorNotification filePath []
       logText "Refine: edit sent\n"
-  where
-    getFileStateOrThrow :: FilePath -> ExceptT [Error] ServerM FileState
-    getFileStateOrThrow fp = do
-      lift $ logText "Refine: getting file state\n"
-      result <- lift (getFileState fp)
-      case result of
-        Nothing -> throwE [Others "Refine" "File not loaded." Nothing]
-        Just fs -> return fs
-
-    readSourceOrThrow :: FilePath -> ExceptT [Error] ServerM (Text, Int32)
-    readSourceOrThrow fp = do
-      lift $ logText "Refine: reading source\n"
-      result <- lift (readSourceAndVersion fp)
-      case result of
-        Nothing -> throwE [Others "Refine" "Cannot read source." Nothing]
-        Just source -> return source
-
-    findSpecOrThrow :: Pos -> [Spec] -> ExceptT [Error] ServerM Spec
-    findSpecOrThrow cur specs =
-      case findEnclosingSpec cur specs of
-        Nothing -> throwE [Others "Refine" "No enclosing spec found." Nothing]
-        Just spec -> return spec
-
-    refineOrThrow :: FilePath -> Int -> Spec -> Text -> ExceptT [Error] ServerM (Text, FileState)
-    refineOrThrow fp idCount spec source =
-      case refineAndDig fp idCount spec source of
-        Left err -> throwE [err]
-        Right result -> return result
+      case eitherFs of
+        Left err -> sendErrorNotification filePath [err]
+        Right fragmentFs -> do
+          let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+              newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
+              newSource = applyEdits source [(specRange spec, finalImplText)]
+              pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+          setPendingEdit filePath pending
+          sendErrorNotification filePath []
 
 --------------------------------------------------------------------------------
 -- Main pipeline
 
 -- | Full pipeline: validate spec → extract impl → parseAndDigFragment → loadConcreteFragment.
-refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, FileState)
+-- Outer Either: validation/parse error (before edit decision).
+-- Inner Either: type/struct error (after edit decision).
+-- The finalImplText and the FileState are independent — a type error does not block edits.
+refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, Either Error FileState)
 refineAndDig filePath idCount spec source = do
   let specRng = specRange spec
   when (isSingleLine specRng) $
@@ -114,8 +90,7 @@ refineAndDig filePath idCount spec source = do
   let implStart = rangeStart implRange
 
   (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
-  result <- loadConcreteFragment (specTypeEnv spec) idCount spec stmts
-  return (finalImplText, result)
+  return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt] -> Either Error FileState
