@@ -44,7 +44,7 @@ export async function activate(context: vscode.ExtensionContext) {
 					const start = new vscode.Position(holeRange.start.line, holeRange.start.character);
 					const end = new vscode.Position(holeRange.end.line, holeRange.end.character);
 					if (visableRange.contains(start) || visableRange.contains(end)) {
-						const preConditionHint = new vscode.InlayHint(start.translate(0, 2), `${hole.holeID}`);
+						const preConditionHint = new vscode.InlayHint(end.translate(0, -2), `${hole.holeID}`);
 						preConditionHint.paddingLeft = true;
 						return [ preConditionHint ];
 					}
