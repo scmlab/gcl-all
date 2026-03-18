@@ -41,8 +41,13 @@ data Program
 -- | Definition (the functional language part)
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | FuncDefnSig Name Type (Maybe Expr) (Maybe Range)
-  | FuncDefn Name Expr
+  | -- data T a b = C1 a | C2 b
+    ValDefn Name (Maybe Type) Expr
+  -- f :: a -> b               f :: a -> b
+  -- f p1 p2 = e1        ==>   f = \x1 x2 -> case (x1, x2) of
+  -- f p3 p4 = e2                      (p1, p2) -> e1
+  --                                   (p3, p4) -> e2
+
   deriving (Eq, Show)
 
 -- constructor of type definition
@@ -112,12 +117,12 @@ data Interval = Interval Endpoint Endpoint (Maybe Range)
 data TBase = TInt | TBool | TChar
   deriving (Show, Eq, Generic)
 
--- | Types
+-- | Types and Type Scheme
 data Type
   = TBase TBase (Maybe Range)
   | TArray Interval Type (Maybe Range) -- TODO: Make this a higher-kinded type.
   -- TTuple has no srcloc info because it has no conrete syntax at the moment
-  | TTuple Int -- `Int` represents the arity of the tuple.
+  | TTuple [Type] -- a list of types, for internal use
   | TFunc Type Type (Maybe Range)
   | TOp TypeOp
   | TData Name (Maybe Range)
@@ -127,16 +132,32 @@ data Type
   | TType -- "*"
   deriving (Show, Generic)
 
+data Scheme
+  = Forall [Name] Type -- ∀α₁, ..., αₙ. t
+  deriving (Eq, Show)
+
+-- NOTE: i don't want to deal with template haskell right now
+-- but i want to catch incomplete patterns when i add new variants in
 instance Eq Type where
   TBase base1 _ == TBase base2 _ = base1 == base2
+  TBase {} == _ = False
   TArray int1 ty1 _ == TArray int2 ty2 _ = int1 == int2 && ty1 == ty2
+  TArray {} == _ = False
   TTuple i1 == TTuple i2 = i1 == i2
+  TTuple {} == _ = False
+  TFunc {} == _ = False
   TOp op1 == TOp op2 = op1 == op2
+  TOp {} == _ = False
   TData name1 _ == TData name2 _ = name1 == name2
-  TApp left1 right1 _ == TApp left2 right2 _ = left1 == right1 && left2 == right2
+  TData {} == _ = False
+  TApp left1 right1 _ == TApp left2 right2 _ = left1 == left2 && right1 == right2
+  TApp {} == _ = False
   TVar name1 _ == TVar name2 _ = name1 == name2
+  TVar {} == _ = False
   TMetaVar name1 _ == TMetaVar name2 _ = name1 == name2
-  _ == _ = False
+  TMetaVar {} == _ = False
+  TType == TType = True
+  TType == _ = False
 
 --------------------------------------------------------------------------------
 
@@ -149,9 +170,9 @@ data Expr
   | Chain Chain
   | App Expr Expr (Maybe Range)
   | Lam Name Expr (Maybe Range)
-  | Func Name (NonEmpty FuncClause) (Maybe Range)
   | -- Tuple has no srcloc info because it has no conrete syntax at the moment
-    Tuple [Expr]
+    Tuple [Expr] --- for internal use
+  | OutT Int Expr --- OutT i (Tuple [x1,x2..]) = xi. For internal use.
   | Quant Expr [Name] Expr Expr (Maybe Range)
   | -- The innermost part of a Redex
     -- should look something like `P [ x \ a ] [ y \ b ]`
@@ -191,13 +212,14 @@ data CaseClause = CaseClause Pattern Expr
   deriving (Eq, Show, Generic)
 
 -- pattern0 pattern1 pattern2 ... -> expr
-data FuncClause = FuncClause [Pattern] Expr
-  deriving (Eq, Show, Generic)
+-- data FuncClause = FuncClause [Pattern] Expr
+--   deriving (Eq, Show, Generic)
 
 data Pattern
   = PattLit Lit
   | PattBinder Name -- binder
   | PattWildcard Range -- matches anything
+  | PattTuple [Pattern]
   | PattConstructor Name [Pattern] -- destructs a constructor
   deriving (Eq, Show, Generic)
 
@@ -205,6 +227,7 @@ extractBinder :: Pattern -> [Name]
 extractBinder (PattLit _) = []
 extractBinder (PattBinder x) = [x]
 extractBinder (PattWildcard _) = []
+extractBinder (PattTuple xs) = xs >>= extractBinder
 extractBinder (PattConstructor _ xs) = xs >>= extractBinder
 
 ----------------------------------------------------------------

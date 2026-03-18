@@ -11,7 +11,7 @@ import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
-import GCL.Common hiding (Substitutable (subst))
+import GCL.Common
 import GCL.Range (Range)
 import Syntax.Abstract.Types
 import Syntax.Abstract.Util (declaredNames)
@@ -49,9 +49,8 @@ instance (Fresh m) => Substitutable m Expr Expr where
     | otherwise = do
         (xs', e', _) <- substBinderTypeless sb [x] e
         return (Lam (head xs') e' l)
-  subst sb (Func f clauses l) =
-    Func f <$> mapM (subst sb) clauses <*> pure l
   subst sb (Tuple es) = Tuple <$> mapM (subst sb) es
+  subst sb (OutT i e) = OutT i <$> subst sb e
   subst sb (Quant op xs ran body l) = do
     (xs', (ran', body'), _) <- substBinderTypeless sb xs (ran, body)
     return $ Quant op xs' ran' body' l
@@ -83,8 +82,8 @@ instance (Fresh m) => Substitutable m Chain Expr where
   subst sb (Pure expr loc) = Pure <$> subst sb expr <*> pure loc
   subst sb (More ch' op expr loc) = More <$> subst sb ch' <*> pure op <*> subst sb expr <*> pure loc
 
-instance (Fresh m) => Substitutable m FuncClause Expr where
-  subst _ = return
+-- instance (Fresh m) => Substitutable m FuncClause Expr where
+--   subst _ = return
 
 -- SCM: deal with this later.
 

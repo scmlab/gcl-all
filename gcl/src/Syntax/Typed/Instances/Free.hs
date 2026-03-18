@@ -22,6 +22,8 @@ instance Free Expr where
   freeVars Lit {} = mempty
   freeVars (App e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (Lam x _ e _) = freeVars e \\ Set.singleton x
+  freeVars (Tuple es) = Set.unions (map freeVars es)
+  freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
     (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList xs
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
@@ -35,6 +37,9 @@ instance Free Expr where
 
 instance Free CaseClause where
   freeVars (CaseClause _ expr) = freeVars expr
+
+-- instance Free FuncClause where
+--   freeVars (FuncClause _ expr) = freeVars expr
 
 instance Free Chain where
   freeVars (Pure expr) = freeVars expr
@@ -58,6 +63,7 @@ instance Free Stmt where
   freeVars (Do gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (If gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (Spec _ _ _) = mempty
+  freeVars (Spec' _ _ _) = mempty
   freeVars (Proof _ _ _) = mempty
   freeVars (Alloc x es _) =
     Set.singleton x <> Set.unions (map freeVars es)

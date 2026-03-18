@@ -6,39 +6,40 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, when)
-import Data.List (foldl', intercalate, sort)
+import Control.Monad (foldM, foldM_, replicateM, when)
+import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
-import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Set (Set)
 import qualified Data.Set as Set
-import qualified Data.Text as Text
 import Debug.Trace
+import GCL.Common (Free (..))
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
-import GCL.Type (TypeError (..))
-import GCL.Type2.RSE
+import GCL.Type2.Infer.BuiltIn (getArithOpType, getChainOpType)
+import GCL.Type2.Subst (applySubst, applySubstEnv)
+import GCL.Type2.Types
+  ( Env,
+    Result,
+    Subst,
+    TIMonad,
+    TypeError (..),
+    ask,
+    freshTVar,
+    freshTyVar,
+    lift,
+    local,
+    throwError,
+    typeBool,
+    typeInt,
+    typeToType,
+  )
+import GCL.Type2.Unify (unify)
 import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (ArithOp (..), ChainOp (..), Name (Name), Op (..), TypeOp (..))
+import Syntax.Common.Types (ArithOp (..), Name (Name), Op (..), TypeOp (..))
 import qualified Syntax.Typed.Types as T
 import Prelude hiding (EQ, GT, LT)
-
-newtype Inference = Inference
-  { _counter :: Int
-  }
-
-type TyVar = Name
-
-type TmVar = Name
-
-data Scheme
-  = Forall [TyVar] A.Type -- ∀α₁, ..., αₙ. t
-  deriving (Show)
-
-type Env = Map TmVar Scheme
 
 instance {-# OVERLAPPING #-} Show Env where
   show e = intercalate "\n" $ map (\(var, scheme) -> s var <> " :: " <> showScheme scheme) (Map.toList e)
@@ -46,19 +47,8 @@ instance {-# OVERLAPPING #-} Show Env where
       s :: (Pretty a) => a -> String
       s = show . pretty
 
-      showScheme (Forall [] ty) = s ty
-      showScheme (Forall tyParams ty) = "forall " <> unwords (map s tyParams) <> ". " <> s ty
-
-type Subst = Map TyVar A.Type
-
-composeSubst :: Subst -> Subst -> Subst
-s1 `composeSubst` s2 = Map.map (applySubst s1) s2 `Map.union` s1
-
-instance {-# OVERLAPPING #-} Semigroup Subst where
-  (<>) = composeSubst
-
-instance {-# OVERLAPPING #-} Show Subst where
-  show s = intercalate "\n" $ map (\(tv, ty) -> show tv <> ": " <> show ty) (Map.toList s)
+      showScheme (A.Forall [] ty) = s ty
+      showScheme (A.Forall tyParams ty) = "forall " <> unwords (map s tyParams) <> ". " <> s ty
 
 checkDuplicateNames :: [Name] -> Result ()
 checkDuplicateNames names =
@@ -67,156 +57,60 @@ checkDuplicateNames names =
         then Right ()
         else Left $ DuplicatedIdentifiers dups
 
--- checkAssign :: Name -> RSE Env Inference
-
--- prevent infintite types by checking if the type occurs in itself
-checkOccurs :: Name -> A.Type -> Bool
-checkOccurs name ty = Set.member name (freeTypeVars ty)
-
--- TODO: maybe `Subst` type class?
-applySubst :: Subst -> A.Type -> A.Type
-applySubst _ ty@A.TBase {} = ty
-applySubst subst (A.TArray interval ty range) =
-  A.TArray interval (applySubst subst ty) range
-applySubst _ (A.TTuple _) = undefined
-applySubst subst (A.TFunc e1 e2 range) =
-  A.TFunc (applySubst subst e1) (applySubst subst e2) range
-applySubst _ ty@A.TOp {} = ty
-applySubst subst (A.TApp e1 e2 range) =
-  A.TApp (applySubst subst e1) (applySubst subst e2) range
-applySubst _ ty@A.TData {} = ty
-applySubst subst ty@(A.TVar name _) =
-  Map.findWithDefault ty name subst
-applySubst subst ty@(A.TMetaVar name _) =
-  Map.findWithDefault ty name subst
-applySubst _ A.TType = A.TType -- XXX: is this correct or this should error
-
-applySubstScheme :: Subst -> Scheme -> Scheme
-applySubstScheme subst (Forall vars ty) =
-  let -- Subst $ Map.filterWithKey (\k _ -> k `notElem` vars) subst
-      -- is too inefficient i think if `vars` becomes long
-      -- TODO: change to rename here
-      filteredSubst = foldl' (\acc var -> Map.delete var acc) subst vars
-   in Forall vars (applySubst filteredSubst ty)
-
-applySubstEnv :: Subst -> Env -> Env
-applySubstEnv subst = Map.map (applySubstScheme subst)
-
--- NOTE: This operation is potentially expensive as it traverses through the entire subtree
--- and attempt to perform substitution regardless the type has been substituted before
-applySubstExpr :: Subst -> T.Expr -> T.Expr
-applySubstExpr subst (T.Lit lit ty range) = T.Lit lit (applySubst subst ty) range
-applySubstExpr subst (T.Var name ty range) = T.Var name (applySubst subst ty) range
-applySubstExpr subst (T.Const name ty range) = T.Const name (applySubst subst ty) range
-applySubstExpr subst (T.Op op ty) = T.Op op (applySubst subst ty)
-applySubstExpr subst (T.Chain chain) = T.Chain (applySubstChain subst chain)
-applySubstExpr subst (T.App e1 e2 range) = T.App (applySubstExpr subst e1) (applySubstExpr subst e2) range
-applySubstExpr subst (T.Lam param ty body range) = T.Lam param (applySubst subst ty) (applySubstExpr subst body) range
-applySubstExpr subst (T.Quant _ _ _ _ _) = undefined
-applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst arr) (applySubstExpr subst index) range
-applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range
-applySubstExpr subst (T.Case expr clauses range) = T.Case (applySubstExpr subst expr) (map (applySubstClause subst) clauses) range
-applySubstExpr subst (T.Subst _ _) = undefined
-applySubstExpr subst (T.EHole text range ty holeNumber) = T.EHole text range (applySubst subst ty) holeNumber
-
-applySubstChain :: Subst -> T.Chain -> T.Chain
-applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)
-applySubstChain subst (T.More chain op ty expr) = T.More (applySubstChain subst chain) op (applySubst subst ty) (applySubstExpr subst expr)
-
-applySubstClause :: Subst -> T.CaseClause -> T.CaseClause
-applySubstClause subst (T.CaseClause pat expr) = T.CaseClause pat (applySubstExpr subst expr)
-
-freshTyVar :: RSE Env Inference TyVar
-freshTyVar = do
-  n <- gets _counter
-  put $ Inference (n + 1)
-  return $ Name (Text.pack $ "t" <> show n) Nothing
-
-freshTVar :: RSE Env Inference A.Type
-freshTVar = A.TVar <$> freshTyVar <*> pure Nothing
-
 -- assuming forall ONLY exists on the outside
-instantiate :: Scheme -> RSE Env Inference A.Type
-instantiate (Forall tvs ty) = do
+instantiate :: A.Scheme -> TIMonad A.Type
+instantiate (A.Forall tvs ty) = do
   mappings <-
     mapM
       ( \var -> do
-          fresh <- freshTyVar
-          return (var, A.TVar fresh Nothing)
+          fre <- freshTyVar
+          return (var, A.TVar fre Nothing)
       )
       tvs
   let subst = Map.fromList mappings
   return $ applySubst subst ty
 
-generalize :: A.Type -> RSE Env Inference Scheme
+generalize :: A.Type -> TIMonad A.Scheme
 generalize ty = do
   env <- ask
-  let freeVars = freeTypeVars ty `Set.difference` freeTypeVarsEnv env
-  return $ Forall (Set.toAscList freeVars) ty
+  let fVars = freeVars ty `Set.difference` freeVars env
+  return $ A.Forall (Set.toAscList fVars) ty
+
+-- ===============================================
+
+{-
+
+Summary of Algorithmic Typing Rules
+
+ Type Checking:  Γ ⊢ e : t ↓ s
+       pattern:  Γ ⊢p p : t ↓ (s, Γ')
+
+ Type Inference: Γ ⊢ e ↑ (s, t)
+          chain: Γ ⊢ch ch ↑ (s, t)
+       clauses : Γ ⊢cl (p : t) -> e ↑ (s, u)
+    definition : Γ ⊢def d ↑ (s, t)
+-}
+
+{-
+   Γ ⊢ x ↑ (s1, t')
+   s'2 = unify (t, t')
+   -------------------- Checking
+   Γ ⊢ x : t ↓ s2 <> s1
+-}
 
 -- the operation `_ : _ ↓ _`
-typeCheck :: A.Expr -> A.Type -> RSE Env Inference (Subst, T.Expr)
+typeCheck :: A.Expr -> A.Type -> TIMonad (Subst, T.Expr)
 typeCheck expr ty = do
   (s1, exprTy, typedExpr) <- infer expr
   s2 <- lift $ unify exprTy ty (maybeRangeOf expr)
   return (s2 <> s1, typedExpr)
-
-freeTypeVars :: A.Type -> Set TyVar
-freeTypeVars A.TBase {} = mempty
-freeTypeVars (A.TArray _ ty _) = freeTypeVars ty
-freeTypeVars A.TTuple {} = mempty
-freeTypeVars (A.TFunc t1 t2 _) = freeTypeVars t1 <> freeTypeVars t2
-freeTypeVars A.TData {} = mempty
-freeTypeVars A.TOp {} = mempty
-freeTypeVars (A.TApp t1 t2 _) = freeTypeVars t1 <> freeTypeVars t2
-freeTypeVars (A.TVar name _) = Set.singleton name
-freeTypeVars (A.TMetaVar name _) = Set.singleton name
-freeTypeVars A.TType = mempty
-
-freeTypeVarsEnv :: Env -> Set TyVar
-freeTypeVarsEnv env =
-  foldMap freeTypeVarsScheme (Map.elems env)
-
-freeTypeVarsScheme :: Scheme -> Set TyVar
-freeTypeVarsScheme (Forall tvs ty) =
-  freeTypeVars ty `Set.difference` Set.fromList tvs -- remove quantified tyvars
-
-unify :: A.Type -> A.Type -> Maybe Range -> Result Subst
-unify (A.TBase t1 _) (A.TBase t2 _) _ | t1 == t2 = return mempty
-unify (A.TArray _i1 t1 _) (A.TArray _i2 t2 _) l = unify t1 t2 l
-unify (A.TArray _i t1 _) (A.TApp (A.TApp (A.TOp (Arrow _)) i _) t2 _) l = do
-  s1 <- unify i typeInt l
-  s2 <- unify t1 t2 l
-  return (s2 <> s1)
-unify (A.TOp op1) (A.TOp op2) _ | op1 == op2 = return mempty
-unify (A.TData n1 l1) (A.TData n2 l2) _ = undefined
-unify (A.TApp a1 a2 _) (A.TApp b1 b2 _) l = do
-  s1 <- unify a1 b1 l
-  s2 <- unify (applySubst s1 a2) (applySubst s1 b2) l
-  return $ s2 <> s1
-unify (A.TVar name _) ty l = unifyVar name ty l
-unify ty (A.TVar name _) l = unifyVar name ty l
-unify A.TType A.TType _ = return mempty
-unify t1 t2 l =
-  trace
-    (show (pretty t1) <> " != " <> show (pretty t2))
-    throwError
-    $ UnifyFailed t1 t2 l
-
-unifyVar :: Name -> A.Type -> Maybe Range -> Result Subst
-unifyVar name ty range
-  | A.TVar name Nothing == ty = return mempty
-  | checkOccurs name ty = throwError $ RecursiveType name ty range
-  | otherwise =
-      let subst = Map.singleton name ty
-       in return subst
 
 -- (-->) :: a -> b -> (a --> b)
 --
 
 -- * -> *
 
-typeToKind :: A.Type -> RSE Env Inference A.Type
+typeToKind :: A.Type -> TIMonad A.Type
 typeToKind A.TBase {} = return A.TType
 typeToKind A.TArray {} = return $ A.TType `typeToType` A.TType
 typeToKind A.TTuple {} = undefined
@@ -225,39 +119,28 @@ typeToKind (A.TOp (Arrow _)) = return $ A.TType `typeToType` A.TType `typeToType
 typeToKind (A.TData name _) = do
   env <- ask
   case Map.lookup name env of
-    Just (Forall _ k) -> return k
+    Just (A.Forall _ k) -> return k
     Nothing -> throwError $ NotInScope name
-typeToKind (A.TVar name _) = do
-  env <- ask
-  case Map.lookup name env of
-    -- BUG: this probably wrong
-    Just (Forall tyParams _) -> return $ foldr (\_ acc -> A.TType `typeToType` acc) A.TType tyParams -- XXX: is this correct?
-    Nothing -> throwError $ NotInScope name
-typeToKind A.TMetaVar {} = undefined
+typeToKind (A.TVar _ _) = do
+  return A.TType
+typeToKind (A.TMetaVar name range) = typeToKind (A.TVar name range) -- XXX: hack
 typeToKind A.TType = return A.TType
 typeToKind (A.TApp t1 t2 _) = do
   t1Kind <- typeToKind t1
-  -- BUG: this is wrong, didn't even check k2
+  t2Kind <- typeToKind t2
   case t1Kind of
     (A.TApp (A.TApp (A.TOp (Arrow _)) k1 _) k2 _) -> do
-      _ <- lift $ unify t2 k1 (maybeRangeOf t2)
+      _ <- lift $ unify t2Kind k1 (maybeRangeOf t2)
       return k2
-    (A.TApp A.TType _ range) -> throwError $ PatternArityMismatch 2 1 range
-    -- \* *
-    (A.TApp _ (A.TApp _ _ _) range) -> throwError $ PatternArityMismatch 1 2 range -- (* -> *) (* -> *)
+    A.TType -> do
+      -- \* *
+      throwError $ UnifyFailed A.TType t2Kind (maybeRangeOf t1)
     ty' -> do
       traceM $ show ty'
       error "unknown kind"
 
--- typeToKind (TApp f x) = do
---  (k1 -> k2) <- typeToKind f
---  typeToKind x == k1
---  return k2
-
--- (* -> * -> *) (* -> *)
-
 -- we keep `T.Expr` to prevent repeating calculate the same expression
-infer :: A.Expr -> RSE Env Inference (Subst, A.Type, T.Expr)
+infer :: A.Expr -> TIMonad (Subst, A.Type, T.Expr)
 infer (A.Lit lit range) = inferLit lit range
 infer (A.Var name range) = inferVar name range
 infer (A.Const name range) = inferVar name range
@@ -270,8 +153,8 @@ infer (A.Chain chain) = do
   return (subst, typeBool, T.Chain chain')
 infer (A.App e1 e2 range) = inferApp e1 e2 range
 infer (A.Lam param body range) = inferLam param body range
-infer (A.Func name clauses range) = undefined
-infer (A.Tuple exprs) = undefined
+infer (A.Tuple exprs) = inferTuple exprs
+infer (A.OutT i expr) = inferOutT i expr
 infer (A.Quant op args cond expr range) = inferQuant op args cond expr range
 infer (A.RedexKernel _ _ _ _) = undefined
 infer (A.RedexShell _ _) = undefined
@@ -282,12 +165,18 @@ infer (A.EHole text holeNumber range) = do
   ty <- freshTVar
   return (mempty, ty, T.EHole text holeNumber ty range)
 
-inferLit :: A.Lit -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferLit :: A.Lit -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLit lit range =
   let ty = A.TBase (A.baseTypeOfLit lit) range
    in return (mempty, ty, T.Lit lit ty range)
 
-inferVar :: Name -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+{-
+   x : t ∈ Γ
+   -------------- VAR
+   Γ ⊢ x ↑ (∅, t)
+-}
+
+inferVar :: Name -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferVar name range = do
   env <- ask
   case Map.lookup name env of
@@ -297,9 +186,30 @@ inferVar name range = do
     Nothing ->
       throwError $ NotInScope name
 
+{-
+   Γ ⊢ch ch ↑ (s, t)
+   ------------------ Chain-Invoke
+   Γ ⊢ ch ↑ (s, Bool)
+
+   -- if it is assumed that (≼) has type a -> a -> Bool,
+   -- we wouldn't need to check t1 == t2
+
+   (≼) : t ∈ Γ
+   Γ ⊢ e1 ↑ (s1, t1)  s1 Γ ⊢ e2 ↑ (s2, t2)
+   s3 = unify (t, s2 t1 -> t2 -> Bool)
+   --------------------------------------- Chain-Base
+   Γ ⊢ch e1 ≼ e2 ↑ (s3 <> s2 <> s1, s3 t2)
+
+   (≼) : t ∈ Γ
+   Γ ⊢ch ch ↑ (s1, t1)  s1 Γ ⊢ e2 ↑ (s2, t2)
+   s3 = unify (t, s2 t1 -> t2 -> Bool)
+   ----------------------------------------- Chain-Ind
+   Γ ⊢ch ch ≼ e2 ↑ (s3 <> s2 <> s1, s3 t2)
+-}
+
 -- NOTE: the inferred type of `Chain` should always be `typeBool`
 -- because it is a shorthand for chaining comparision operators with `&&`
-inferChain :: A.Chain -> RSE Env Inference (Subst, A.Type, T.Chain)
+inferChain :: A.Chain -> TIMonad (Subst, A.Type, T.Chain)
 inferChain (A.More chain@A.More {} op2 e2 l2) = do
   -- XXX: this also looks similar to `inferApp`
 
@@ -310,11 +220,12 @@ inferChain (A.More chain@A.More {} op2 e2 l2) = do
   (chainSubst, ty1, typedChain) <- inferChain chain
 
   (s2, ty2, typedE2) <- local (applySubstEnv chainSubst) (infer e2)
-
+  --- SCM:  ty1 -> s2 ty1 ?
   s3 <- lift $ unify opTy (ty1 `typeToType` ty2 `typeToType` typeBool) l2
   let resultSubst = s3 <> s2 <> chainSubst
   let typedChain' = T.More typedChain (ChainOp op2) (applySubst s3 opTy) typedE2
 
+  --- SCM: ty2 -> s3 ty2?
   return (resultSubst, ty2, typedChain')
 inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   opTy <- getChainOpType op
@@ -322,6 +233,7 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   (s2, ty2, typedE2) <- local (applySubstEnv s1) (infer e2)
 
   -- i think we should check if `ty1` == `ty2` == `opTy`?
+  --                  SCM:  ty1 -> s2 ty1 ?
   s3 <- lift $ unify opTy (ty1 `typeToType` ty2 `typeToType` typeBool) l2
   let resultSubst = s3 <> s2 <> s1
   let typedChain = T.More (T.Pure typedE1) (ChainOp op) (applySubst s3 opTy) typedE2
@@ -330,9 +242,19 @@ inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   -- it's not actually important what this returns
   -- but i still think this is a bit hacky
   return (resultSubst, ty2, typedChain)
+--- SCM: Should "ty2" be "subst s3 ty2"?
 inferChain _ = error "this cannot happen"
 
-inferApp :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+{-
+   Γ ⊢ e1 ↑ (s1, t1)
+   s1 Γ ⊢ e2 ↑ (s2, t2)
+   fresh ft
+   s3 = unify (s2 t1, t2 -> ft)
+   ----------------------------------- App
+   Γ ⊢ e1 e2 ↑ (s3 <> s2 <> s1, s3 ft)
+-}
+
+inferApp :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferApp e1 e2 range = do
   ftv <- freshTVar
   (s1, ty1, typedE1) <- infer e1
@@ -343,19 +265,66 @@ inferApp e1 e2 range = do
 
   return (resultSubst, applySubst s3 ftv, T.App typedE1 typedE2 range)
 
-inferLam :: Name -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+{-
+   fresh tx
+   Γ, x : tx ⊢ e ↑ (s, tb)
+   -------------------------------- Lam
+   Γ ⊢ (λ x -> e) ↑ (s tx -> tb, s)
+-}
+
+inferLam :: Name -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLam param body range = do
   paramTy <- freshTVar
-  (bodySubst, bodyTy, typedBody) <- local (Map.insert param (Forall [] paramTy)) (infer body)
+  (bodySubst, bodyTy, typedBody) <- local (Map.insert param (A.Forall [] paramTy)) (infer body)
 
   let paramTy' = applySubst bodySubst paramTy
   let returnTy = paramTy' `typeToType` bodyTy
 
   return (bodySubst, returnTy, T.Lam param paramTy' typedBody range)
 
-inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferTuple :: [A.Expr] -> TIMonad (Subst, A.Type, T.Expr)
+inferTuple exprs = do
+  (exprsSubst, exprsTy, typedExprs) <-
+    foldM
+      ( \(accSubst, accTy, typed) expr -> do
+          (exprSubst, exprTy, typedExpr) <- local (applySubstEnv accSubst) (infer expr)
+          return (exprSubst <> accSubst, exprTy : accTy, typedExpr : typed)
+      )
+      (mempty, [], [])
+      exprs
+
+  let resultTy = A.TTuple (map (applySubst exprsSubst) exprsTy)
+
+  return (exprsSubst, resultTy, T.Tuple typedExprs)
+
+inferOutT :: Int -> A.Expr -> TIMonad (Subst, A.Type, T.Expr)
+inferOutT i expr = do
+  (exprSubst, exprTy, typedExpr) <- infer expr
+  tys <- case exprTy of
+    (A.TTuple tys) -> return tys
+    _ -> error "non-tuple shouldn't exist"
+
+  return (exprSubst, tys !! i, T.OutT i typedExpr)
+
+{-
+   fresh ti
+   Γ, i : ti ⊢ R : Bool ↓ s2
+   s2 Γ, i : s2 ti ⊢ B : Bool ↓ s3
+   ---------------------------------------------------- Quant-Count
+   Γ ⊢ ⟨# i : R : B⟩ ↑ (s3 <> s2, Int)
+
+   fresh a
+   Γ ⊢ (⊕) : a -> a -> a ↓ s1
+   fresh ti
+   s1 Γ, i : ti ⊢ R : Bool ↓ s2
+   s2 (s1 Γ), i : s2 ti ⊢ B : s2 (s1 a) ↓ s3
+   ---------------------------------------------------- Quant
+   Γ ⊢ ⟨⊕ i : R : B⟩ ↑ (s3 <> s2 <> s1, s3 (s2 (s1 a)))
+-}
+
+inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferQuant op@(A.Op (Hash _)) bound cond expr range = do
-  -- speical case for `⟨ # bound : cond : expr ⟩`
+  -- special case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
 
   -- introduce new vars
@@ -364,7 +333,7 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
       <$> mapM
         ( \b -> do
             v <- freshTVar
-            return (b, Forall [] v)
+            return (b, A.Forall [] v)
         )
         bound
 
@@ -373,6 +342,7 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
     ( do
         (condSubst, typedCond) <- typeCheck cond typeBool
         (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
+        -- SCM: |applySubst condSubst typeBool)| is always typeBool, right?
 
         let resultSubst = exprSubst <> condSubst
         let typedQuant = T.Quant typedOp bound typedCond typedExpr range
@@ -388,7 +358,7 @@ inferQuant op bound cond expr range = do
       <$> mapM
         ( \b -> do
             v <- freshTVar
-            return (b, Forall [] v)
+            return (b, A.Forall [] v)
         )
         bound
 
@@ -404,7 +374,15 @@ inferQuant op bound cond expr range = do
         return (resultSubst, applySubst resultSubst ftv, typedQuant)
     )
 
-inferArrIdx :: A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+{-
+   fresh a
+   Γ ⊢ arr : Int -> a ↓ sa
+   sa Γ ⊢ e : Int ↓ si
+   ---------------------------------- ArrIdx
+   Γ ⊢ arr[e] ↑ (si <> sa, si (sa a))
+-}
+
+inferArrIdx :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferArrIdx arr index range = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
@@ -416,10 +394,22 @@ inferArrIdx arr index range = do
   (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
 
   let resultSubst = si <> sa
-  return (resultSubst, applySubst si ftv, T.ArrIdx typedArr typedIndex range)
+  return (resultSubst, applySubst resultSubst ftv, T.ArrIdx typedArr typedIndex range)
+
+--- SCM: I think it should be (si (sa ftv))
+
+--
+{-
+   fresh a
+   Γ ⊢ arr : Int -> a ↓ sa
+   sa Γ ⊢ ei : Int ↓ si
+   si (sa Γ) ⊢ ev : si (sa a) ↓ sv
+   ------------------------------------------------------------- ArrUpd
+   Γ ⊢ (arr : ei ↦ ev) ↑ (sv <> si <> sa, Int -> sv (si (sa a)))
+-}
 
 -- TODO: verify this is correct
-inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+inferArrUpd :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferArrUpd arr index expr range = do
   -- NOTE: treating `TArray` as `Int -> t`, which is probably true on a type-level sense
   -- but we ignore the checks on intervals if that's required at all
@@ -431,12 +421,24 @@ inferArrUpd arr index expr range = do
     s2 <- lift $ unify exprTy (typeInt `typeToType` ftv) (maybeRangeOf arr)
     return (s2 <> s1, typedExpr, interval')
   (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
-  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv))
-
+  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv)) -- SCM: I think you need (si (sa ftv))
   let resultSubst = se <> si <> sa
-  return (resultSubst, A.TArray interval (applySubst si ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
+  return (resultSubst, A.TArray interval (applySubst resultSubst ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
 
-inferCase :: A.Expr -> [A.CaseClause] -> Maybe Range -> RSE Env Inference (Subst, A.Type, T.Expr)
+-- SCM: I think you need (se (si (sa ftv)))
+
+{-
+  Γ ⊢ e ↑ (s0, t0)
+  s0 Γ      ⊢cl p1 : t0 -> e1 ↑ (s1, t1)
+  s1 (s0 Γ) ⊢cl p2 : s1 t0 -> e2 ↑ (s2, t2)
+  s = unify (s2 t1, t2)
+  ---------------------------------------- Case
+  Γ ⊢ case e of
+        p1 -> e1   ↑ (s<>s2<>s1<>s0, s t2)
+        p2 -> e2
+-}
+
+inferCase :: A.Expr -> [A.CaseClause] -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferCase expr clauses range = do
   (exprSubst, exprTy, typedExpr) <- infer expr
 
@@ -448,17 +450,105 @@ inferCase expr clauses range = do
   return (resultSubst, clausesTy, T.Case typedExpr (reverse typedClauses) range)
   where
     aux exprTy (accSubst, clauseTy, typedClauses) (A.CaseClause pattern caseExpr) = do
-      (s1, clauseTy', typedClause) <- inferClause pattern caseExpr exprTy
+      (s1, clauseTy', typedClause) <- inferCaseClause pattern caseExpr (applySubst accSubst exprTy)
 
       -- NOTE: pattern type checking in done in `bindPattern` so no need for it here
-      s2 <- lift $ unify clauseTy clauseTy' (maybeRangeOf caseExpr)
+      s2 <- lift $ unify (applySubst s1 clauseTy) clauseTy' (maybeRangeOf caseExpr)
 
       return (s2 <> s1 <> accSubst, applySubst s2 clauseTy', typedClause : typedClauses)
 
-checkDuplicateBinders :: A.Pattern -> Result ()
-checkDuplicateBinders pat = do
-  _ <- aux pat []
-  return ()
+{-
+  Γ ⊢p p : t ↓ (sp, Γ')
+  sp Γ, Γ' ⊢ e ↑ (se, te)
+  --------------------------------- Case-Clause
+  Γ ⊢cl p : t -> e ↑ (se <> sp, te)
+-}
+
+inferCaseClause :: A.Pattern -> A.Expr -> A.Type -> TIMonad (Subst, A.Type, T.CaseClause)
+inferCaseClause pattern expr ty = do
+  lift $ checkDuplicateBinders [pattern]
+
+  (patSubst, patEnv) <- bindPattern pattern ty
+
+  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+
+  let resultSubst = exprSubst <> patSubst
+
+  return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
+
+{-
+  For reference: to infer types of simple recursive equations:
+
+    fresh a
+    Γ, x : a ⊢ e ↑ (s, t)
+    s1 = unify (a, t)
+    ----------------------------
+    Γ ⊢ x = e ↑ (s1 <> s, s1 a)
+
+  fresh a b
+  Γ ⊢p p1 : a ↓ (sp1, Γ1)
+  sp1 Γ, Γ1, f : sp1 a -> b ⊢ e1 : b ↓ se1
+  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) a ↓ (sp2, Γ2)
+  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) a -> (sp2 . se1) b
+      ⊢ e2 : (sp2 . se1) b ↓ se2
+  ------------------------------------------------ Definition
+  Γ ⊢def f p1 = e1 ↑ (se2 . sp2 . se1 . sp1,
+         f p2 = e2    (se2 . sp2 . se1 . sp1) (a -> b))
+
+  Γ ⊢p p1 : ti ↓ (sp1, Γ1)
+  sp1 Γ, Γ1, f : sp1 (ti -> to) ⊢ e1 : sp1 to ↓ se1
+  (se1 . sp1) Γ ⊢p p2 : (se1 . sp1) ti ↓ (sp2, Γ2)
+  (sp2 . se1 . sp1) Γ, Γ2, f : (sp2 . se1 . sp1) (ti -> to))
+      ⊢ e2 : (sp2 . se1 . sp1) to ↓ se2
+  ------------------------------------------------ Definition-Sig
+  Γ ⊢def f : ti -> to      (se2 . sp2 . se1 . sp1,
+         f p1 = e1     ↑    (se2 . sp2 . se1 . sp1) (ti -> to))
+         f p2 = e2
+-}
+
+-- XXX: i think this is actually the more generalized version of inferCaseClause
+-- since it single or multiple patterns should be treated as the same?
+-- TODO: i realized this is redundant after implementing the rest of the stuff
+-- is this a better solution? if not remove this
+inferTupleCaseClause :: [A.Pattern] -> A.Expr -> TIMonad (Subst, A.Type, T.CaseClause)
+inferTupleCaseClause patterns expr = do
+  lift $ checkDuplicateBinders patterns
+
+  ftv <- freshTVar
+
+  (patSubst, patEnv, ty) <-
+    foldM
+      ( \(s', e', ty') pat -> do
+          -- XXX: because the number of arguments is unknown if the signature is not provided
+          -- we can only use freshTVar and subst later
+          ftv' <- freshTVar
+          -- XXX: patterns shouldn't affect each other so `local` is not needed?
+          (patSubst, patEnv) <- bindPattern pat ftv'
+
+          let patTy = applySubst patSubst ftv'
+
+          -- let resultTy = case ty' of
+          --       -- t1 -> t2 => t1 -> patTy -> t2
+          --       A.TApp (A.TApp (A.TOp (Arrow _)) t1 _) t2 _ -> t1 `typeToType` patTy `typeToType` t2
+          --       t -> patTy `typeToType` t
+          let resultTy = patTy `typeToType` ty'
+
+          return (patSubst <> s', patEnv <> e', resultTy)
+      )
+      (mempty, mempty, ftv)
+      (reverse patterns) -- XXX: patterns shouldn't affect each other so `reverse` is fine here?
+  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+
+  unifySubst <- lift $ unify ftv exprTy (maybeRangeOf expr)
+
+  let resultSubst = unifySubst <> exprSubst <> patSubst
+  let resultExpr = T.CaseClause (A.PattTuple patterns) typedExpr
+
+  return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
+
+checkDuplicateBinders :: [A.Pattern] -> Result ()
+checkDuplicateBinders pats = do
+  foldM_ (\names pat -> aux pat names) [] pats
   where
     aux :: A.Pattern -> [Name] -> Result [Name]
     aux (A.PattLit _) _binders = return []
@@ -467,6 +557,14 @@ checkDuplicateBinders pat = do
         then throwError $ DuplicatedIdentifiers [name]
         else return [name]
     aux (A.PattWildcard _) _binders = return []
+    aux (A.PattTuple ps) binders =
+      foldM
+        ( \b' p -> do
+            b'' <- aux p b'
+            return (b'' <> b')
+        )
+        binders
+        ps
     aux (A.PattConstructor _p ps) binders =
       foldM
         ( \b' p' -> do
@@ -476,25 +574,54 @@ checkDuplicateBinders pat = do
         binders
         ps
 
-inferClause :: A.Pattern -> A.Expr -> A.Type -> RSE Env Inference (Subst, A.Type, T.CaseClause)
-inferClause pattern expr ty = do
-  lift $ checkDuplicateBinders pattern
+{-
 
-  (patSubst, patEnv) <- bindPattern pattern ty
+  Γ ⊢p 1 : t ↓ (unify (t, Int), {})
 
-  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+  Γ ⊢p x : t ↓ (∅, {x : t})
 
-  let resultSubst = exprSubst <> patSubst
-  return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
+  Γ ⊢p _ : t ↓ (∅, {})
 
-bindPattern :: A.Pattern -> A.Type -> RSE Env Inference (Subst, Env)
+  C : cu ∈ Γ
+  u1 -> u2 -> u = inst cu
+  s = unify (t, u)
+  s Γ ⊢p p1 : s u1 ↓ (s1, η1)
+  (s1 . s) Γ ⊢p p2 : (s1 . s) u2 ↓ (s2, η2)
+  ----------------------------------------------
+  Γ ⊢p C p1 p2 : t ↓ (s2 . s1 . s, s2 η1 ++ η 2)
+
+  fresh a
+  Γ ⊢p p : a ↓ (s, η)
+  --------------------
+  Γ ⊢p p ↑ (s, s a, η)
+-}
+
+bindPattern :: A.Pattern -> A.Type -> TIMonad (Subst, Env)
 bindPattern (A.PattLit lit) ty = do
   sub <- lift $ unify (A.TBase (A.baseTypeOfLit lit) (maybeRangeOf lit)) ty (maybeRangeOf ty)
   return (sub, mempty)
 bindPattern (A.PattBinder name) ty = do
-  let env = Map.singleton name (Forall [] ty)
+  let env = Map.singleton name (A.Forall [] ty)
   return (mempty, env)
 bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
+bindPattern (A.PattTuple ps) ty = do
+  tys <- case ty of
+    (A.TTuple tys) -> return tys
+    _ -> error "non-tuple shouldn't exist"
+
+  when
+    (length ps /= length tys)
+    (error "tuple length mismatch")
+
+  (patsSubst, patsEnv) <-
+    foldM
+      ( \(s', e') (pat, ty') -> do
+          (s'', e'') <- bindPattern pat ty'
+          return (s'' <> s', e'' <> e')
+      )
+      (mempty, mempty)
+      (zip ps (reverse tys)) -- XXX: why does the pattern order have to be backwards
+  return (patsSubst, patsEnv)
 bindPattern (A.PattConstructor ctorName pats) ty = do
   env <- ask
 
@@ -526,61 +653,3 @@ bindPattern (A.PattConstructor ctorName pats) ty = do
     toList :: A.Type -> NonEmpty A.Type
     toList (A.TApp (A.TApp (A.TOp (Arrow Nothing)) t1 Nothing) t2 Nothing) = t1 NE.<| toList t2
     toList ty' = ty' NE.:| []
-
-getArithOpType :: ArithOp -> RSE Env Inference A.Type
-getArithOpType Implies {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType ImpliesU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType Conj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType ConjU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType Disj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType DisjU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType Neg {} = return (typeBool `typeToType` typeBool)
-getArithOpType NegU {} = return (typeBool `typeToType` typeBool)
-getArithOpType NegNum {} = return (typeInt `typeToType` typeInt)
-getArithOpType Add {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Sub {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Mul {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Div {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Mod {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Max {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Min {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Exp {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType Hash {} = return (typeBool `typeToType` typeInt)
-getArithOpType PointsTo {} = return (typeInt `typeToType` typeInt `typeToType` typeInt)
-getArithOpType SConj {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getArithOpType SImp {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-
-getChainOpType :: ChainOp -> RSE Env Inference A.Type
-getChainOpType EQProp {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getChainOpType EQPropU {} = return (typeBool `typeToType` typeBool `typeToType` typeBool)
-getChainOpType EQ {} = do
-  ftv <- freshTVar
-  return (ftv `typeToType` ftv `typeToType` typeBool)
-getChainOpType NEQ {} = do
-  ftv <- freshTVar
-  return (ftv `typeToType` ftv `typeToType` typeBool)
-getChainOpType NEQU {} = do
-  ftv <- freshTVar
-  return (ftv `typeToType` ftv `typeToType` typeBool)
-getChainOpType LT {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getChainOpType LTE {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getChainOpType LTEU {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getChainOpType GT {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getChainOpType GTE {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-getChainOpType GTEU {} = return (typeInt `typeToType` typeInt `typeToType` typeBool)
-
-inferTypeOp :: TypeOp -> RSE Env Inference (Subst, A.Type, Op)
-inferTypeOp op = undefined
-
-infixr 1 `typeToType`
-
--- | construct a type of `a -> b`
-typeToType :: A.Type -> A.Type -> A.Type
-typeToType t1 t2 = A.TApp (A.TApp (A.TOp (Arrow Nothing)) t1 Nothing) t2 Nothing
-
--- XXX: is including `Loc` relevant here?
-typeInt :: A.Type
-typeInt = A.TBase A.TInt Nothing
-
-typeBool :: A.Type
-typeBool = A.TBase A.TBool Nothing

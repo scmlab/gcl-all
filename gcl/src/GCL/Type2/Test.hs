@@ -6,7 +6,7 @@ import Control.Monad.Except
     runExceptT,
     throwError,
   )
-import Control.Monad.State.Lazy (evalState)
+import Control.Monad.State (evalState)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
@@ -65,5 +65,5 @@ simpleLoad filepath source = runExceptT $ catchError run handler
       case Type2.runToTyped abstract mempty of
         Left err -> do
           -- TODO: more error reporting here
-          return $ Left (TypeError err)
+          return $ Left (TypeError $ Hack.toOldError err)
         Right typed -> return $ Right typed

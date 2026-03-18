@@ -14,7 +14,6 @@ import GCL.Common
   )
 import GCL.Predicate (Pred)
 import GCL.Range (MaybeRanged (..))
-import GCL.Substitution (syntaxSubst)
 import GCL.WP.Types
 import GCL.WP.Util
 import Syntax.Abstract.Operator (tInt)
@@ -43,7 +42,7 @@ import Syntax.Typed.Operator
     sconjunct,
     true,
   )
-import Syntax.Typed.Util (declaredNamesTypes, getGuards)
+import Syntax.Typed.Util (declaredNamesTypes, getGuards, syntaxSubst)
 
 wpFunctions ::
   TstructSegs ->

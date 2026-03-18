@@ -136,8 +136,7 @@ collectProgramHoles (Program defs decls exprs stmts _) =
     <> concatMap collectStmtHoles stmts
   where
     collectDefHoles :: Definition -> [Hole]
-    collectDefHoles (FuncDefnSig _ _ (Just expr) _) = collectExprHoles expr
-    collectDefHoles (FuncDefn _ expr) = collectExprHoles expr
+    collectDefHoles (ValDefn _ _ expr) = collectExprHoles expr
     collectDefHoles _ = []
 
     collectDeclHoles :: Declaration -> [Hole]

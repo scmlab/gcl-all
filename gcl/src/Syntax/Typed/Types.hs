@@ -3,6 +3,7 @@ module Syntax.Typed.Types where
 import Data.Text (Text)
 import GCL.Common (Index, TypeInfo)
 import GCL.Range (Range)
+import GCL.Type2.Types (Env)
 import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
 import Syntax.Common.Types (Name, Op, TypeOp)
 
@@ -17,9 +18,13 @@ data Program
 
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
-  | FuncDefn Name Expr
-  deriving (Eq, Show)
+  | ValDefn Name KindedType Expr
+  deriving
+    ( -- | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
+      -- | FuncDefn Name Expr
+      Eq,
+      Show
+    )
 
 data TypeDefnCtor = TypeDefnCtor Name [Type]
   deriving (Eq, Show)
@@ -39,6 +44,7 @@ data Stmt
   | Do [GdCmd] (Maybe Range)
   | If [GdCmd] (Maybe Range)
   | Spec Text Range [(Index, TypeInfo)]
+  | Spec' Text Range Env
   | Proof Text Text Range
   | Alloc Name [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
   | HLookup Name Expr (Maybe Range) --  x := *e
@@ -58,6 +64,8 @@ data Expr
   | Chain Chain
   | App Expr Expr (Maybe Range)
   | Lam Name Type Expr (Maybe Range)
+  | Tuple [Expr] -- for internal use
+  | OutT Int Expr -- for internal use
   | Quant Expr [Name] Expr Expr (Maybe Range)
   | ArrIdx Expr Expr (Maybe Range)
   | ArrUpd Expr Expr Expr (Maybe Range)
@@ -69,6 +77,9 @@ data Expr
 data CaseClause = CaseClause Pattern Expr
   deriving (Eq, Show)
 
+-- data FuncClause = FuncClause [Pattern] Expr
+--   deriving (Eq, Show)
+
 data Chain
   = Pure Expr
   | More Chain Op Type Expr
@@ -77,7 +88,7 @@ data Chain
 data KindedType
   = TBase TBase Kind (Maybe Range)
   | TArray Interval KindedType (Maybe Range)
-  | TTuple Int Kind
+  | TTuple [KindedType]
   | TFunc KindedType KindedType (Maybe Range)
   | TOp TypeOp Kind
   | TData Name Kind (Maybe Range)
