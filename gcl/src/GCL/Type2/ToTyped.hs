@@ -1,8 +1,8 @@
 {-# LANGUAGE FunctionalDependencies #-}
+{-# HLINT ignore "Use tuple-section" #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
-
-{-# HLINT ignore "Use tuple-section" #-}
 
 module GCL.Type2.ToTyped where
 
@@ -47,7 +47,27 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
 
 type DefnMap = Map A.Definition A.Scheme
 
--- XXX: is checking duplicate definition required here?
+collectMultipleDefns :: [A.Definition] -> TIMonad Env
+collectMultipleDefns defns = do
+  let names = map (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
+
+  stubEnv <-
+    foldM
+      ( \accEnv name -> do
+          ftv <- freshTVar
+          return (Map.singleton name (A.Forall [] ftv) <> accEnv)
+      )
+      mempty
+      names
+
+  foldM
+    ( \accEnv defn -> do
+        env' <- local (const accEnv) (collectDefnToEnv defn)
+        return (env' <> accEnv)
+    )
+    stubEnv
+    defns
+
 collectDefnToEnv :: A.Definition -> TIMonad Env
 collectDefnToEnv (A.TypeDefn name args ctors _range) = do
   let nameTy = A.TData name (maybeRangeOf name)

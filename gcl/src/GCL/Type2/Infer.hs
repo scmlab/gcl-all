@@ -302,7 +302,7 @@ inferOutT i expr = do
   (exprSubst, exprTy, typedExpr) <- infer expr
   tys <- case exprTy of
     (A.TTuple tys) -> return tys
-    ty -> throwError $ UnifyFailed ty (A.TTuple []) (maybeRangeOf expr)
+    _ -> error "non-tuple shouldn't exist"
 
   return (exprSubst, tys !! i, T.OutT i typedExpr)
 
@@ -609,6 +609,10 @@ bindPattern (A.PattTuple ps) ty = do
     (A.TTuple tys) -> return tys
     _ -> error "non-tuple shouldn't exist"
 
+  when
+    (length ps /= length tys)
+    (error "tuple length mismatch")
+
   (patsSubst, patsEnv) <-
     foldM
       ( \(s', e') (pat, ty') -> do
@@ -616,7 +620,7 @@ bindPattern (A.PattTuple ps) ty = do
           return (s'' <> s', e'' <> e')
       )
       (mempty, mempty)
-      (zip (reverse ps) tys) -- XXX: why does the pattern order have to be backwards
+      (zip ps (reverse tys)) -- XXX: why does the pattern order have to be backwards
   return (patsSubst, patsEnv)
 bindPattern (A.PattConstructor ctorName pats) ty = do
   env <- ask
