@@ -6,7 +6,7 @@ module GCL.Exec.ExNondet where
 import Control.Arrow ((***))
 import Control.Monad (MonadPlus, mplus, mzero)
 import Control.Monad.Except
-import Control.Monad.State hiding (guard)
+import Control.Monad.State
 import GCL.Exec.ExecMonad
 import GHC.Base (Alternative (..))
 

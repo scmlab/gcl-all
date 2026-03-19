@@ -5,7 +5,7 @@ module Pretty.Abstract () where
 import Pretty.Common ()
 import Pretty.Util
 import Prettyprinter
-import Render.Class (PrecContext (AppHOLE, NoContext))
+import Render.Class (PrecContext (NoContext))
 import Render.Error ()
 import Render.Predicate ()
 import Render.Syntax.Common ()

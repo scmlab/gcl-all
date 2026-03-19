@@ -5,7 +5,6 @@
 module Server.Handler.GCL.Debug where
 
 import qualified Data.Aeson as JSON
-import qualified Data.Aeson.Types as JSON
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as TextLazy
 import qualified Data.Text.Lazy.Encoding as TextLazy

@@ -29,7 +29,6 @@ import GCL.Type2.Types
     typeToType,
   )
 import GCL.Type2.Unify (unify)
-import Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)

@@ -11,7 +11,6 @@ import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import qualified GCL.Type as TypeChecking
-import GCL.Type2.ToTyped
 import qualified GCL.WP as WP
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Server as LSP

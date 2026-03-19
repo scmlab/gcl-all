@@ -9,7 +9,6 @@ import Control.Monad (forM)
 import Data.Map hiding (map)
 import qualified Data.Map as Map
 import GCL.Common
-import GCL.Range (Range)
 import Syntax.Abstract.Types (Type (..))
 import Syntax.Common
 import Syntax.Substitution

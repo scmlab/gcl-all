@@ -9,7 +9,6 @@ import Control.Monad.RWS
   ( MonadState (..),
     RWST (..),
   )
-import Data.Aeson (ToJSON)
 import Data.IntMap (IntMap)
 import Data.Map (Map)
 import Data.Text (Text)

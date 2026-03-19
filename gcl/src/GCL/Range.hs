@@ -82,8 +82,6 @@ import Data.Aeson
   ( FromJSON (..),
     ToJSON (..),
     object,
-    withObject,
-    (.:),
     (.=),
   )
 import Data.List.NonEmpty (NonEmpty)
