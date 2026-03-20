@@ -1,11 +1,11 @@
 {-# LANGUAGE NamedFieldPuns #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use forM_" #-}
 
 module Server.Handler.GoToDefinition where
 
+import GCL.Range (mkPos, posCol, posLine)
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Server.GoToDefn as GoToDefn
 import qualified Server.IntervalMap as IntervalMap
@@ -33,6 +33,16 @@ handler uri lspPosition responder = do
         Nothing -> responder []
         Just FileState {fsDefinitionLinks} -> do
           let pos = SrcLoc.fromLSPPosition lspPosition
+          -- Try lookup at current position first
           case IntervalMap.lookup pos fsDefinitionLinks of
-            Nothing -> responder []
-            Just otr -> responder [originTargetRangesToLocationLink otr uri]
+            Just otr ->
+              responder [originTargetRangesToLocationLink otr uri]
+            Nothing ->
+              -- Fallback: try lookup at position - 1 (for cases like 'a^' where cursor is at the exclusive end)
+              if posCol pos > 1
+                then
+                  let pos' = mkPos (posLine pos) (posCol pos - 1)
+                   in case IntervalMap.lookup pos' fsDefinitionLinks of
+                        Just otr -> responder [originTargetRangesToLocationLink otr uri]
+                        Nothing -> responder []
+                else responder []

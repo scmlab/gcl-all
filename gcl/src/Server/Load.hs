@@ -18,7 +18,7 @@ import qualified Language.LSP.Server as LSP
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, editTextsWithVersion, logText, logTextLn, readSourceAndVersion, setFileState, setPendingEdit)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, setFileState, setPendingEdit)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
 import qualified Syntax.Concrete as C
@@ -59,7 +59,7 @@ load filePath = do
         Nothing -> logText "Load: no holes\n"
         Just (edits, _newSource) -> do
           logText "Load: holes dug, sending edit\n"
-          editTextsWithVersion filePath vfsVersion edits
+          sendEditTextsWithVersion filePath vfsVersion edits
 
     handleLoadResult maybeDig eitherFs =
       case eitherFs of
@@ -73,8 +73,7 @@ load filePath = do
               setFileState filePath fs
               sendUpdateNotification filePath fs
               logText "Load: sending workspace/semanticTokens/refresh\n"
-              _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
-              return ()
+              sendSemanticTokensRefresh
             Just (_, newSource) -> do
               logText "Load: setting pending edit\n"
               let pending =

@@ -20,9 +20,10 @@ module Server.Monad
     deletePendingEdit,
     readSource,
     readSourceAndVersion,
-    editTextsWithVersion,
+    sendEditTextsWithVersion,
     sendCustomNotification,
-    sendDebugMessage,
+    sendWindowShowMessage,
+    sendSemanticTokensRefresh,
   )
 where
 
@@ -162,8 +163,8 @@ readSourceAndVersion filepath = do
 
 -- | Send edits to client with a specific document version.
 -- The client will reject the edit if the version doesn't match.
-editTextsWithVersion :: FilePath -> LSP.Int32 -> [(Range, Text)] -> ServerM ()
-editTextsWithVersion filepath version rangeTextPairs = do
+sendEditTextsWithVersion :: FilePath -> LSP.Int32 -> [(Range, Text)] -> ServerM ()
+sendEditTextsWithVersion filepath version rangeTextPairs = do
   let requestParams =
         LSP.ApplyWorkspaceEditParams
           { _label = Just "GCL Edit",
@@ -195,14 +196,17 @@ editTextsWithVersion filepath version rangeTextPairs = do
 sendCustomNotification :: (KnownSymbol s) => Proxy s -> JSON.Value -> ServerM ()
 sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomMethod methodId) (json)
 
---------------------------------------------------------------------------------
-
-sendDebugMessage :: Text -> ServerM ()
-sendDebugMessage message' = do
+sendWindowShowMessage :: Text -> ServerM ()
+sendWindowShowMessage message' = do
   let requestParams =
         LSP.ShowMessageRequestParams
           LSP.MessageType_Info
           message'
           Nothing
   _ <- LSP.sendRequest LSP.SMethod_WindowShowMessageRequest requestParams (\_ -> return ())
+  return ()
+
+sendSemanticTokensRefresh :: ServerM ()
+sendSemanticTokensRefresh = do
+  _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
   return ()

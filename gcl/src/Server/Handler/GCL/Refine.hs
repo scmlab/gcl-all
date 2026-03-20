@@ -20,7 +20,6 @@ instance JSON.FromJSON RefineParams
 
 instance JSON.ToJSON RefineParams
 
-handler :: RefineParams -> (() -> ServerM ()) -> (() -> ServerM ()) -> ServerM ()
-handler RefineParams {filePath, line, character} onFinish _ = do
+handler :: RefineParams -> ServerM ()
+handler RefineParams {filePath, line, character} =
   refine filePath (mkPos (line + 1) (character + 1))
-  onFinish ()
