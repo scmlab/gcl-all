@@ -6,7 +6,6 @@ module Render.Syntax.Abstract where
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 
-import Data.Char (chr, ord)
 import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Render.Class

@@ -3,8 +3,6 @@
 module GCL.Predicate where
 
 import Data.Aeson (ToJSON)
-import qualified Data.Aeson as JSON
-import qualified Data.Set as Set
 import Data.Text (Text)
 import GCL.Common (Index, TypeInfo)
 import GCL.Range
@@ -16,7 +14,6 @@ import GCL.Range
 import GHC.Generics (Generic)
 import Render.Element
 import Syntax.Abstract.Types (Type)
-import Syntax.Common (Name)
 import Syntax.Typed (Expr)
 
 -- | A predicate is an expression, whose type happens to be Bool.

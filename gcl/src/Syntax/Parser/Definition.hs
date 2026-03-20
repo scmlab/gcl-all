@@ -3,7 +3,6 @@
 
 module Syntax.Parser.Definition where
 
-import Data.Maybe (maybe)
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
 import Syntax.Parser.Basics

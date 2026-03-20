@@ -2,11 +2,9 @@
 
 module Error where
 
-import qualified Data.Aeson.Types as JSON
 import GCL.Range (Range)
 import GCL.Type (TypeError)
 import GCL.WP.Types (StructError)
-import GHC.Generics
 import Syntax.Common ()
 import Syntax.Parser.Error (ParseError)
 

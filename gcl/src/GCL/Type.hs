@@ -1044,6 +1044,17 @@ instance Elab ArithOp where
 instance Elab TypeOp where
   elaborate (Arrow _) _ = undefined -- We do not have a kind system yet.
 
+instance Elab [Stmt] where
+  elaborate stmts env = do
+    typed <-
+      mapM
+        ( \stmt -> do
+            (_, typed, _) <- elaborate stmt env
+            return typed
+        )
+        stmts
+    return (Nothing, typed, mempty)
+
 --------------------------------------------------------------------------------
 -- Unification
 

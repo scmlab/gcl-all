@@ -5,9 +5,9 @@ module Main where
 
 -- import Server (run)
 
-import GHC.IO.Encoding (setLocaleEncoding, utf8)
+import GHC.IO.Encoding (setLocaleEncoding)
 import Pretty ()
-import Server (runOnPort, runOnStdio)
+import Server (runOnStdio)
 import System.Console.GetOpt
 import System.Environment
 import System.IO

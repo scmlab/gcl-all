@@ -3,8 +3,6 @@
 
 module Render.Syntax.Typed where
 
-import Data.Char (chr, ord)
-import qualified Data.Text as Text
 import Render.Class
 import Render.Element
 import Render.Syntax.Abstract hiding (handleExpr)
