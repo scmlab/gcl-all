@@ -22,13 +22,11 @@ import GCL.Common
   ( Counterous (..),
     Fresh (..),
     Index,
-    TypeEnv,
     TypeInfo,
     freshName',
   )
 import GCL.Predicate
-  ( Hole (Hole),
-    Origin (..),
+  ( Origin (..),
     PO (..),
     Pred,
     Spec (Specification),
@@ -39,8 +37,7 @@ import Numeric (showHex)
 import Pretty (toString)
 import Syntax.Abstract.Types (Type (..))
 import Syntax.Common
-  ( Name (..),
-    nameToText,
+  ( nameToText,
   )
 import Syntax.Typed
 import Syntax.Typed.Operator (disjunct)

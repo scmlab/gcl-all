@@ -5,7 +5,6 @@ import GCL.Range (MaybeRanged (..), (<--->))
 import Syntax.Abstract.Operator (tBool, tFunc, tInt)
 import Syntax.Abstract.Types (Lit (..), Type (..))
 import Syntax.Common
-import Syntax.Typed.Instances.Located
 import Syntax.Typed.Types
 import Syntax.Typed.Util (typeOf)
 import Prelude hiding (Ordering (..))

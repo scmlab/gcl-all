@@ -29,7 +29,6 @@ import Language.LSP.Server
     notificationHandler,
     requestHandler,
   )
-import qualified Language.LSP.Server as LSP
 import qualified Server.Handler.AutoCompletion as AutoCompletion
 import qualified Server.Handler.GCL.Debug as Debug
 import qualified Server.Handler.GCL.Load as Load

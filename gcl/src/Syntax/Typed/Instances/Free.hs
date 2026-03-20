@@ -6,12 +6,10 @@
 module Syntax.Typed.Instances.Free where
 
 import Data.Set
-  ( Set,
-    (\\),
+  ( (\\),
   )
 import qualified Data.Set as Set
 import GCL.Common
-import Syntax.Common
 import Syntax.Typed.Types
 
 instance Free Expr where

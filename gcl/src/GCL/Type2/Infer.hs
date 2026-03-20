@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, foldM_, replicateM, when)
+import Control.Monad (foldM, foldM_, when)
 import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
@@ -34,7 +34,6 @@ import GCL.Type2.Types
     typeToType,
   )
 import GCL.Type2.Unify (unify)
-import qualified Hack
 import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), Name (Name), Op (..), TypeOp (..))
