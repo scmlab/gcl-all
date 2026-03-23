@@ -111,11 +111,11 @@ resolveTypeDefinitions typeDeps _ = return typeDeps
 resolveTermDefinitions :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
 resolveTermDefinitions termDeps def@(A.ValDefn name _ clauses) = do
   termDeps' <- registerDependency name def termDeps
-  foldM resolveFuncClause termDeps' clauses
+  resolveExpr termDeps' clauses
   where
-    resolveFuncClause :: UnresolvedDepMap -> A.FuncClause -> DepMonad UnresolvedDepMap
-    resolveFuncClause termDeps' clause = do
-      let vars = freeVars clause
+    resolveExpr :: UnresolvedDepMap -> A.Expr -> DepMonad UnresolvedDepMap
+    resolveExpr termDeps' expr = do
+      let vars = freeVars expr
       typeDefs <- get
       foldM (\deps' var ->
         if Data.Map.member var typeDefs then
