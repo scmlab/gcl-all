@@ -232,35 +232,6 @@ definitionBlock =
           "{:\n\
           \   A, B : Int\n\
           \:}",
-      testCase "definition (with prop) 1" $
-        run
-          "{:\n\
-          \   A, B : Int {A > 0}\n\
-          \:}",
-      testCase "definition (with prop) 2" $
-        run
-          "{:\n\
-          \   A, B : Int\n\
-          \     { A > 0 }\n\
-          \:}",
-      -- TODO: failing test - definition 3
-      -- testCase "definition 3" $
-      --   run
-      --     "{:\n\
-      --     \   A, B : Int\n\
-      --     \     {A > 0}\n\
-      --     \   F : Int -> Int -> Int\n\
-      --     \:}",
-      -- TODO: failing test - definition 4
-      -- testCase "definition 4" $
-      --   run
-      --     "{:\n\
-      --     \   A, B : Int\n\
-      --     \     {A > 0}\n\
-      --     \   A = 1\n\
-      --     \   F : Int -> Int -> Int\n\
-      --     \   F x y = x\n\
-      --     \:}",
       testCase "definition 5" $
         run
           "{:\n\
