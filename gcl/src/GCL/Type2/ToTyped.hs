@@ -6,10 +6,12 @@
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
+import Data.Graph (flattenSCCs)
 import Data.List (foldl', nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
+import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
 import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
@@ -32,7 +34,6 @@ import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
-import qualified GCL.Dependency as D
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
@@ -46,9 +47,10 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
 
 type DefnMap = Map A.Definition A.Scheme
 
-collectMultipleDefns :: [A.Definition] -> TIMonad Env
+collectMultipleDefns :: (Traversable t) => t A.Definition -> TIMonad Env
 collectMultipleDefns defns = do
-  let names = map (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
+  env <- ask
+  let names = fmap (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
 
   stubEnv <-
     foldM
@@ -64,7 +66,7 @@ collectMultipleDefns defns = do
         env' <- local (const accEnv) (collectDefnToEnv defn)
         return (env' <> accEnv)
     )
-    stubEnv
+    (stubEnv <> env)
     defns
 
 collectDefnToEnv :: A.Definition -> TIMonad Env
@@ -136,36 +138,37 @@ instance ToTyped D.Program T.Program where
         )
         env
         decls
-    -- ChAoS: Accommodate SCC changes here, currently it's not working
-    -- defnEnv <-
-    --   foldM
-    --     ( \env' defn -> do
-    --         -- NOTE: definitions have to be in order
-    --         defnEnv <- local (const env') (collectDefnToEnv defn)
-    --         return $ defnEnv <> env'
-    --     )
-    --     declEnv
-    --     defns
+    defnEnv <-
+      foldM
+        ( \env' defn -> do
+            -- NOTE: definitions have to be in order
+            traceM $ show defn
+            defnEnv <- local (const env') (collectMultipleDefns defn)
+            traceM $ show defnEnv <> "\n"
+            return $ defnEnv <> env'
+        )
+        declEnv
+        defns
 
-    -- let newEnv = defnEnv <> declEnv
-    -- traceM $ show newEnv
-    -- typedDefns <-
-    --   mapM
-    --     ( \defn -> do
-    --         -- TODO: check array interval type is int
-    --         local (const newEnv) (toTyped defn)
-    --     )
-    --     defns
-    -- typedDecls <-
-    --   mapM
-    --     ( \decl -> do
-    --         local (const newEnv) (toTyped decl)
-    --     )
-    --     decls
-    -- typedExprs <- local (const newEnv) (mapM toTyped exprs)
-    -- typedStmts <- local (const newEnv) (mapM toTyped stmts)
-    -- return $ T.Program typedDefns typedDecls typedExprs typedStmts range
-    undefined
+    let newEnv = defnEnv <> declEnv
+    traceM $ show newEnv
+    typedDefns <-
+      flattenSCCs
+        <$> mapM
+          ( \defn -> do
+              -- TODO: check array interval type is int
+              local (const newEnv) (mapM toTyped defn)
+          )
+          defns
+    typedDecls <-
+      mapM
+        ( \decl -> do
+            local (const newEnv) (toTyped decl)
+        )
+        decls
+    typedExprs <- local (const newEnv) (mapM toTyped exprs)
+    typedStmts <- local (const newEnv) (mapM toTyped stmts)
+    return $ T.Program typedDefns typedDecls typedExprs typedStmts range
 
 instance ToTyped A.Program T.Program where
   toTyped (A.Program defns decls exprs stmts range) = do
