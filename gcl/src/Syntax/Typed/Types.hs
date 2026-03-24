@@ -1,7 +1,6 @@
 module Syntax.Typed.Types where
 
 import Data.Text (Text)
-import GCL.Common (Index, TypeInfo)
 import GCL.Range (Range)
 import GCL.Type2.Types (Env)
 import Syntax.Abstract.Types (Interval, Kind, Lit (..), Pattern, TBase (..), Type (..))
@@ -18,7 +17,7 @@ data Program
 
 data Definition
   = TypeDefn Name [Name] [TypeDefnCtor] (Maybe Range)
-  | ValDefn Name KindedType Expr
+  | ValDefn Name Type Expr
   deriving
     ( -- | FuncDefnSig Name KindedType (Maybe Expr) (Maybe Range)
       -- | FuncDefn Name Expr
@@ -43,8 +42,7 @@ data Stmt
   | LoopInvariant Expr Expr (Maybe Range)
   | Do [GdCmd] (Maybe Range)
   | If [GdCmd] (Maybe Range)
-  | Spec Text Range [(Index, TypeInfo)]
-  | Spec' Text Range Env
+  | Spec Text Range Env
   | Proof Text Text Range
   | Alloc Name [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
   | HLookup Name Expr (Maybe Range) --  x := *e

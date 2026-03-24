@@ -4,13 +4,13 @@ module GCL.Predicate where
 
 import Data.Aeson (ToJSON)
 import Data.Text (Text)
-import GCL.Common (Index, TypeInfo)
 import GCL.Range
   ( MaybeRanged (..),
     Range,
     Ranged (rangeOf),
     within,
   )
+import GCL.Type2.Types (Env)
 import GHC.Generics (Generic)
 import Render.Element
 import Syntax.Abstract.Types (Type)
@@ -163,7 +163,7 @@ data Spec = Specification
     specPreCond :: Pred,
     specPostCond :: Pred,
     specRange :: Range,
-    specTypeEnv :: [(Index, TypeInfo)]
+    specTypeEnv :: Env
   }
   deriving (Eq, Show, Generic)
 

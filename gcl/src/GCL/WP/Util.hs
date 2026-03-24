@@ -21,8 +21,6 @@ import qualified Data.Text as Text
 import GCL.Common
   ( Counterous (..),
     Fresh (..),
-    Index,
-    TypeInfo,
     freshName',
   )
 import GCL.Predicate
@@ -32,6 +30,7 @@ import GCL.Predicate
     Spec (Specification),
   )
 import GCL.Range (Range)
+import GCL.Type2.Types (Env)
 import GCL.WP.Types
 import Numeric (showHex)
 import Pretty (toString)
@@ -107,7 +106,7 @@ tellPO p q origin = unless (p == q) $ do
 tellPO' :: Origin -> Pred -> Pred -> WP ()
 tellPO' l p q = tellPO p q l
 
-tellSpec :: Pred -> Pred -> [(Index, TypeInfo)] -> Range -> WP ()
+tellSpec :: Pred -> Pred -> Env -> Range -> WP ()
 tellSpec p q typeEnv l = do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q

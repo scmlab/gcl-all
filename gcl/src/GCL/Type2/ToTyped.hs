@@ -173,11 +173,13 @@ toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
 toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
 
 toTypedValDefn :: Name -> Maybe A.Type -> A.Expr -> TIMonad T.Definition
-toTypedValDefn name sig expr = do
-  -- XXX: i don't want to call `infer` twice
+toTypedValDefn name _sig expr = do
+  -- FIXME: i don't want to call `infer` twice
   -- is there a way to put `T.Expr` result in the environment or something?
 
-  error "\n\n** ACTUALLY SUCCESSFUL **\n"
+  (_, exprTy, typedExpr) <- infer expr
+
+  return (T.ValDefn name exprTy typedExpr)
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do
@@ -206,7 +208,7 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.LoopInvariant e1 e2 range) = toTypedLoopInvariant e1 e2 range
   toTyped (A.Do gds range) = toTypedDo gds range
   toTyped (A.If gds range) = toTypedIf gds range
-  toTyped (A.Spec text range) = T.Spec' text range <$> ask
+  toTyped (A.Spec text range) = T.Spec text range <$> ask
   toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
   toTyped (A.Alloc var exprs range) = toTypedAlloc var exprs range
   toTyped (A.HLookup name expr range) = toTypedHLookup name expr range

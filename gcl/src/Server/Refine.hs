@@ -9,12 +9,13 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Common (Index, TypeInfo)
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
-import GCL.Type (runElaboration)
+import GCL.Type2.ToTyped (runToTyped)
+import GCL.Type2.Types (Env)
 import GCL.WP (collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
+import qualified Hack
 import Language.Lexer.Applicative (TokenStream (..))
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
@@ -91,10 +92,10 @@ refineAndDig filePath idCount spec source = do
   return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
-loadConcreteFragment :: [(Index, TypeInfo)] -> Int -> Spec -> [C.Stmt] -> Either Error FileState
+loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
 loadConcreteFragment typeEnv idCount spec stmts = do
   let abstract = C.runAbstractTransform stmts
-  elaborated <- first TypeError $ runElaboration abstract typeEnv
+  elaborated <- first (TypeError . Hack.toOldError) (mapM (`runToTyped` typeEnv) abstract)
   (pos, specs, holes, warnings, idCount') <-
     first StructError $ sweepFragment idCount spec elaborated
   return

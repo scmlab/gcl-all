@@ -86,7 +86,6 @@ instance Pretty Stmt where
   pretty (If gdCmds _) =
     "if" <> line <> vsep (map (\x -> " |" <+> pretty x <> line) gdCmds) <> "fi"
   pretty (Spec content _ _) = "[!" <> pretty content <> "!]"
-  pretty (Spec' content _ _) = "[!" <> pretty content <> "!]"
   pretty (Proof anchor contents _) =
     -- "{-" <> vsep (map (\x -> pretty x <> line) anchors) <> "-}"
     "{- #" <> pretty anchor <> line <> pretty contents <> line <> "-}"

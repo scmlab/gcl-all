@@ -30,7 +30,6 @@ instance MaybeRanged Stmt where
   maybeRangeOf (Do _ l) = l
   maybeRangeOf (If _ l) = l
   maybeRangeOf (Spec _ r _) = Just r
-  maybeRangeOf (Spec' _ r _) = Just r
   maybeRangeOf (Proof _ _ r) = Just r
   maybeRangeOf (Alloc _ _ l) = l
   maybeRangeOf (HLookup _ _ l) = l
