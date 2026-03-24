@@ -1,6 +1,4 @@
 {-# LANGUAGE FunctionalDependencies #-}
-{-# HLINT ignore "Use tuple-section" #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
@@ -34,6 +32,7 @@ import Pretty
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
+import qualified GCL.Dependency as D
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
@@ -118,9 +117,9 @@ collectDefnToEnv defn@(A.ValDefn name sig expr) = do
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
 
-instance ToTyped ([[A.Definition]], A.Program) T.Program where
-  toTyped (defns, A.Program _ decls exprs stmts range) = do
-    traceM $ "defns: " <> show (pretty defns)
+instance ToTyped D.Program T.Program where
+  toTyped (D.Program defns decls exprs stmts range) = do
+    -- traceM $ "defns: " <> show (pretty defns)
     traceM $ "decls: " <> show (pretty decls)
     traceM $ "exprs: " <> show (pretty exprs)
     traceM $ "stmts: " <> show (pretty stmts)
@@ -137,34 +136,36 @@ instance ToTyped ([[A.Definition]], A.Program) T.Program where
         )
         env
         decls
-    defnEnv <-
-      foldM
-        ( \env' defn -> do
-            -- NOTE: definitions have to be in order
-            defnEnv <- local (const env') (collectDefnToEnv defn)
-            return $ defnEnv <> env'
-        )
-        declEnv
-        (concat defns)
+    -- ChAoS: Accommodate SCC changes here, currently it's not working
+    -- defnEnv <-
+    --   foldM
+    --     ( \env' defn -> do
+    --         -- NOTE: definitions have to be in order
+    --         defnEnv <- local (const env') (collectDefnToEnv defn)
+    --         return $ defnEnv <> env'
+    --     )
+    --     declEnv
+    --     defns
 
-    let newEnv = defnEnv <> declEnv
-    traceM $ show newEnv
-    typedDefns <-
-      mapM
-        ( \defn -> do
-            -- TODO: check array interval type is int
-            local (const newEnv) (toTyped defn)
-        )
-        (concat defns)
-    typedDecls <-
-      mapM
-        ( \decl -> do
-            local (const newEnv) (toTyped decl)
-        )
-        decls
-    typedExprs <- local (const newEnv) (mapM toTyped exprs)
-    typedStmts <- local (const newEnv) (mapM toTyped stmts)
-    return $ T.Program typedDefns typedDecls typedExprs typedStmts range
+    -- let newEnv = defnEnv <> declEnv
+    -- traceM $ show newEnv
+    -- typedDefns <-
+    --   mapM
+    --     ( \defn -> do
+    --         -- TODO: check array interval type is int
+    --         local (const newEnv) (toTyped defn)
+    --     )
+    --     defns
+    -- typedDecls <-
+    --   mapM
+    --     ( \decl -> do
+    --         local (const newEnv) (toTyped decl)
+    --     )
+    --     decls
+    -- typedExprs <- local (const newEnv) (mapM toTyped exprs)
+    -- typedStmts <- local (const newEnv) (mapM toTyped stmts)
+    -- return $ T.Program typedDefns typedDecls typedExprs typedStmts range
+    undefined
 
 instance ToTyped A.Program T.Program where
   toTyped (A.Program defns decls exprs stmts range) = do

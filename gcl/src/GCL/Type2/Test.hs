@@ -19,7 +19,7 @@ import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
-import GCL.Dependency (resolveDependency)
+import GCL.Dependency as D
 import Control.Monad.Trans (lift)
 
 loadFromFile filepath = do
@@ -35,10 +35,10 @@ simpleLoad filepath source = runExceptT $ catchError run handler
       concrete <- ExceptT $ parse filepath source
       -- lift $ print concrete
       abstract <- ExceptT $ toAbstract concrete
-      deps <- ExceptT $ toDeps abstract
+      abstract' <- ExceptT $ toDeps abstract
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
-      typed2 <- ExceptT $ toTyped2 deps abstract
+      typed2 <- ExceptT $ toTyped2 abstract'
       -- lift $ print typed
       return ()
     handler err =
@@ -55,7 +55,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
     toAbstract :: C.Program -> IO (Either Error A.Program)
     toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
 
-    toDeps :: A.Program -> IO (Either Error [[A.Definition]])
+    toDeps :: A.Program -> IO (Either Error D.Program)
     toDeps abstract = do
       case evalState (runExceptT (resolveDependency abstract)) mempty of
         Left err -> do
@@ -71,9 +71,9 @@ simpleLoad filepath source = runExceptT $ catchError run handler
           return $ Left (TypeError err)
         Right typed -> return $ Right typed
 
-    toTyped2 :: [[A.Definition]] -> A.Program -> IO (Either Error T.Program)
-    toTyped2 defns abstract =
-      case Type2.runToTyped (defns, abstract) mempty of
+    toTyped2 :: D.Program -> IO (Either Error T.Program)
+    toTyped2 abstract =
+      case Type2.runToTyped abstract mempty of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError $ Hack.toOldError err)

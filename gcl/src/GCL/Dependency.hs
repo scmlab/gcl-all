@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module GCL.Dependency(resolveDependency) where
+module GCL.Dependency(resolveDependency, GCL.Dependency.Program(Program)) where
 
-import Data.Graph (SCC (..), stronglyConnCompR)
+import Data.Graph (SCC (..), stronglyConnCompR, stronglyConnComp)
 import Data.Map (Map, insert, insertWith, lookup, elems, traverseWithKey, member, lookupIndex, keys)
 import Data.Set (Set, toList, singleton, union)
 import Control.Monad.State.Lazy (State, get, modify)
@@ -18,6 +18,7 @@ import Control.Monad.Trans.Except (ExceptT)
 import Control.Monad.Except (MonadError(throwError))
 import Debug.Trace (traceM)
 import GCL.Common (Free(freeVars))
+import GCL.Range (Range)
 
 {-
   Dependency resolution returns topological-sorted results of dependencies for type and 
@@ -38,6 +39,15 @@ import GCL.Common (Free(freeVars))
   3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
      finally trasnform into `[[Definition]]`.
 -}
+
+data Program
+  = Program
+      [SCC A.Definition] -- definitions (the functional language part)
+      [Declaration] -- constant and variable declarations
+      [Expr] -- global properties
+      [Stmt] -- main program
+      (Maybe Range)
+  deriving (Eq, Show)
 
 -- | DepNode consists of an instance, a key represents the dependant,
 -- and a collection of keys represents the dependencies that depends 
@@ -65,18 +75,17 @@ type TypeDefinitions = Map C.Name C.Name
 
 type DepMonad = ExceptT TypeError (State TypeDefinitions)
 
-resolveDependency :: A.Program -> DepMonad [[A.Definition]]
-resolveDependency program = do
+resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
+resolveDependency program@(A.Program _ decls exprs stmts range) = do
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
-  let depSequence = map degradeSCCNode sccs
-  traceM $ show $ map showDependency depSequence
-  traceM $ renderDepGraph sccs
-  return depSequence
+  -- traceM $ show $ map showDependency depSequence
+  -- traceM $ renderDepGraph sccs
+  return $ GCL.Dependency.Program sccs decls exprs stmts range
   where
-    toTopSortedSCC :: ResolvedDepMap -> [SCC ResolvedDepNode]
-    toTopSortedSCC = reverse . stronglyConnCompR . elems
+    toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
+    toTopSortedSCC = reverse . stronglyConnComp . elems
 
 resolveProgram :: A.Program -> DepMonad [UnresolvedDepMap]
 resolveProgram (A.Program defs _ _ _ _) = do
@@ -172,9 +181,9 @@ validateDependency = traverseWithKey validateEntry
   Graph node transformation
 -}
 
-degradeSCCNode :: SCC ResolvedDepNode -> [A.Definition]
-degradeSCCNode (AcyclicSCC (def, _, _)) = [def]
-degradeSCCNode (CyclicSCC defs) = map (\(def, _, _) -> def) defs
+degradeSCCNode :: SCC ResolvedDepNode -> SCC Definition
+degradeSCCNode (AcyclicSCC (def, _, _)) = AcyclicSCC def
+degradeSCCNode (CyclicSCC defs) = CyclicSCC $ map (\(def, _, _) -> def) defs
 
 showDependency :: [A.Definition] -> Text
 showDependency [] = error "should not be empty"
