@@ -50,6 +50,10 @@ data Definition
 
   deriving (Eq, Show)
 
+definitionToName :: Definition -> Name
+definitionToName (TypeDefn name _ _ _) = name
+definitionToName (ValDefn name _ _) = name
+
 -- constructor of type definition
 data TypeDefnCtor = TypeDefnCtor Name [Type]
   deriving (Eq, Show)
