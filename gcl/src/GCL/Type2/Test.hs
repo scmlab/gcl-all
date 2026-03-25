@@ -7,11 +7,13 @@ import Control.Monad.Except
     throwError,
   )
 import Control.Monad.State (evalState)
+import Control.Monad.Trans (lift)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import Debug.Trace
 import Error (Error (..))
+import GCL.Dependency as D
 import qualified GCL.Type as Type
 import qualified GCL.Type2.ToTyped as Type2
 import qualified Hack
@@ -19,8 +21,6 @@ import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
-import GCL.Dependency as D
-import Control.Monad.Trans (lift)
 
 loadFromFile filepath = do
   source <- TE.decodeUtf8 <$> BS.readFile filepath

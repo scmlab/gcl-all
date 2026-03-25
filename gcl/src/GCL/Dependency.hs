@@ -1,33 +1,28 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
+module GCL.Dependency (resolveDependency, GCL.Dependency.Program (Program)) where
 
-module GCL.Dependency(resolveDependency, GCL.Dependency.Program(Program)) where
-
-import Data.Graph (SCC (..), stronglyConnCompR, stronglyConnComp)
-import Data.Map (Map, insert, insertWith, lookup, elems, traverseWithKey, member, lookupIndex, keys)
-import Data.Set (Set, toList, singleton, union)
+import Control.Applicative ((<|>))
+import Control.Monad (foldM)
+import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State.Lazy (State, get, modify)
+import Control.Monad.Trans.Except (ExceptT)
+import Data.Graph (SCC (..), stronglyConnComp)
+import Data.Map (Map, elems, insert, insertWith, keys, lookup, lookupIndex, member, traverseWithKey)
+import Data.Set (Set, singleton, toList, union)
+import GCL.Common (Free (freeVars))
+import GCL.Range (Range)
+import GCL.Type (TypeError (DuplicatedIdentifiers, NotInScope))
 import Syntax.Abstract as A
 import Syntax.Common as C
-import Control.Applicative ((<|>))
-import GCL.Type (TypeError (NotInScope, DuplicatedIdentifiers))
-import Control.Monad (foldM)
-import Data.Text (Text, intercalate)
-import qualified Data.Text as Text
-import Control.Monad.Trans.Except (ExceptT)
-import Control.Monad.Except (MonadError(throwError))
-import Debug.Trace (traceM)
-import GCL.Common (Free(freeVars))
-import GCL.Range (Range)
 
 {-
-  Dependency resolution returns topological-sorted results of dependencies for type and 
+  Dependency resolution returns topological-sorted results of dependencies for type and
   function definitions, type definitions are guaranteed to be sorted before functions.
 
   Dependency resolution is constructed in the following steps:
-  1. Traverse within AST and construct an unresolved dependency map
+  1. Traverse within AST and construct an unresolved dependency map in 2 passes, which
+     are "type phase" and "term phases".
   1.1 if the relation exists but the dependant is not yet resolved, register it first
-      but validate its existence upon finishing construction of map
+      but validate its existence upon finishing construction of map.
   1.2 otherwise, if the relation exists and the dependant is resolved, register it.
 
   2. Validate the dependency map, if relation exists but the dependant does not exist,
@@ -37,7 +32,8 @@ import GCL.Range (Range)
   After (2), the nodes are namely `ResolvedDepNode`.
 
   3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
-     finally trasnform into `[[Definition]]`.
+     finally trasnform into `SCC Definition` then construct into an intermediate
+     `Program` data for later type checking.
 -}
 
 data Program
@@ -50,26 +46,29 @@ data Program
   deriving (Eq, Show)
 
 -- | DepNode consists of an instance, a key represents the dependant,
--- and a collection of keys represents the dependencies that depends 
+-- and a collection of keys represents the dependencies that depends
 -- on the dependant.
 --
 -- The structure is required by `Data.Graph.stronglyConnCompR`.
 type DepNode val t = (val, C.Name, t C.Name)
+
 type DepMap node = Map C.Name node
 
 type UnresolvedDepNode = DepNode (Maybe A.Definition) Set
+
 type UnresolvedDepMap = DepMap UnresolvedDepNode
 
 type ResolvedDepNode = DepNode A.Definition []
+
 type ResolvedDepMap = DepMap ResolvedDepNode
 
 -- | Maps from TypeDefnCtor's name to the TypeDefn's name
 -- e.g.
 --
 -- data A = B | C
--- 
+--
 -- gives [("B", "A"), ("C", "A")]
--- 
+--
 -- This is used to mask out constructors from function dependency.
 type TypeDefinitions = Map C.Name C.Name
 
@@ -80,8 +79,6 @@ resolveDependency program@(A.Program _ decls exprs stmts range) = do
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
-  -- traceM $ show $ map showDependency depSequence
-  -- traceM $ renderDepGraph sccs
   return $ GCL.Dependency.Program sccs decls exprs stmts range
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
@@ -126,12 +123,16 @@ resolveTermDefinitions termDeps def@(A.ValDefn name _ clauses) = do
     resolveExpr termDeps' expr = do
       let vars = freeVars expr
       typeDefs <- get
-      foldM (\deps' var ->
-        if Data.Map.member var typeDefs then
-          return deps'
-        else
-          return $ addDependency var name deps'
-        ) termDeps' vars
+      foldM
+        ( \deps' var ->
+            if Data.Map.member var typeDefs
+              then
+                return deps'
+              else
+                return $ addDependency var name deps'
+        )
+        termDeps'
+        vars
 resolveTermDefinitions termDeps _ = return termDeps
 
 resolveType :: C.Name -> UnresolvedDepMap -> A.Type -> DepMonad UnresolvedDepMap
@@ -149,7 +150,7 @@ resolveType _ deps _ = return deps
 -- `Nothing` if definition syntax is not yet identified first before
 -- usage.
 -- If the provided definition is `Just` and the existed definition in
--- the map is `Nothing`, then replace it with provided one. 
+-- the map is `Nothing`, then replace it with provided one.
 registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad UnresolvedDepMap
 registerDependency name def deps = do
   -- ChAoS: Later accommodate to the refactored definitions
@@ -167,8 +168,12 @@ registerDependency name def deps = do
 
 addDependency :: C.Name -> C.Name -> UnresolvedDepMap -> UnresolvedDepMap
 addDependency dependant dependency =
-  insertWith (\(_, _, newDeps) (def, depName, oldDeps) ->
-    (def, depName, Data.Set.union newDeps oldDeps)) dependant (Nothing, dependant, Data.Set.singleton dependency)
+  insertWith
+    ( \(_, _, newDeps) (def, depName, oldDeps) ->
+        (def, depName, Data.Set.union newDeps oldDeps)
+    )
+    dependant
+    (Nothing, dependant, Data.Set.singleton dependency)
 
 validateDependency :: UnresolvedDepMap -> DepMonad ResolvedDepMap
 validateDependency = traverseWithKey validateEntry
@@ -176,52 +181,3 @@ validateDependency = traverseWithKey validateEntry
     validateEntry :: C.Name -> UnresolvedDepNode -> DepMonad ResolvedDepNode
     validateEntry name (Nothing, _, _) = throwError $ NotInScope name
     validateEntry _ (Just def, name, deps') = return (def, name, Data.Set.toList deps')
-
-{-
-  Graph node transformation
--}
-
-degradeSCCNode :: SCC ResolvedDepNode -> SCC Definition
-degradeSCCNode (AcyclicSCC (def, _, _)) = AcyclicSCC def
-degradeSCCNode (CyclicSCC defs) = CyclicSCC $ map (\(def, _, _) -> def) defs
-
-showDependency :: [A.Definition] -> Text
-showDependency [] = error "should not be empty"
-showDependency [def] =
-  C.nameToText $ definitionToName def
-showDependency defs =
-  intercalate (Text.pack " <-> ") $ map (C.nameToText . definitionToName) defs
-
-{-
-  Graphviz Rendering
--}
-
-renderDepGraph :: [SCC ResolvedDepNode] -> String
-renderDepGraph nodes =
-  "digraph DependencyGraph {\n" <>
-  "  node [shape=box];\n" <>
-  concatMap formatNode nodes <>
-  "}"
-
-formatNode :: SCC ResolvedDepNode -> String
-formatNode (AcyclicSCC (_, C.Name name _, deps)) =
-  let nodeName = show name
-      label = nodeName <> "[style=filled, fillcolor=lightblue];\n"
-  in "  " <> label <> concatMap (\(C.Name name' _) -> "  " <> nodeName <> " -> " <> show name' <> ";\n") deps
-formatNode (CyclicSCC defs) =
-  let (_, name, _) = head defs
-      nodeName = Text.unpack $ nameToText name
-      labels = concatMap formatNode'' defs
-  in "  subgraph cluster" <> nodeName <> "{\n" <>
-     labels <>
-     "  }\n"
-  where
-    formatNode'' (_, C.Name name _, deps) =
-      let nodeName = show name
-          label = nodeName <> "[style=filled, fillcolor=lightblue];\n"
-      in
-        "    " <> label <> concatMap (\(C.Name name' _) -> "  " <> nodeName <> " -> " <> show name' <> ";\n") deps
-
-definitionToName :: A.Definition -> C.Name
-definitionToName (A.TypeDefn name _ _ _) = name
-definitionToName (A.ValDefn name _ _) = name
