@@ -60,12 +60,12 @@ applySubstExpr subst (T.App e1 e2 range) = T.App (applySubstExpr subst e1) (appl
 applySubstExpr subst (T.Lam param ty body range) = T.Lam param (applySubst subst ty) (applySubstExpr subst body) range
 applySubstExpr subst (T.Tuple ts) = T.Tuple (map (applySubstExpr subst) ts)
 applySubstExpr subst (T.OutT i expr) = T.OutT i (applySubstExpr subst expr)
-applySubstExpr subst (T.Quant _ _ _ _ _) = undefined
+applySubstExpr subst (T.Quant op args cond expr range) = T.Quant (applySubstExpr subst op) args (applySubstExpr subst cond) (applySubstExpr subst expr) range
 applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst arr) (applySubstExpr subst index) range
 applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range
 applySubstExpr subst (T.Case expr clauses range) = T.Case (applySubstExpr subst expr) (map (applySubstClause subst) clauses) range
 applySubstExpr subst (T.Subst _ _) = undefined
-applySubstExpr subst (T.EHole _ _ _ _) = undefined
+applySubstExpr subst (T.EHole text holeNumber ty range) = T.EHole text holeNumber (applySubst subst ty) range
 
 applySubstChain :: Subst -> T.Chain -> T.Chain
 applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)

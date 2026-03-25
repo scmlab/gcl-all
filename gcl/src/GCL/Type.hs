@@ -723,9 +723,7 @@ instance Elab Stmt where
         )
         gds
     return (Nothing, T.If gds' loc, mempty)
-  elaborate (Spec text range) _ = do
-    (_, _, infos, _) <- get
-    return (Nothing, T.Spec text range infos, mempty)
+  elaborate (Spec text range) _ = undefined
   elaborate (Proof text1 text2 range) _ = return (Nothing, T.Proof text1 text2 range, mempty)
   elaborate (Alloc var exprs loc) env = do
     ty <- checkAssign env var
