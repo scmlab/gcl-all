@@ -7,7 +7,6 @@ import Control.Monad.Except
     throwError,
   )
 import Control.Monad.State (evalState)
-import Control.Monad.Trans (lift)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
@@ -57,7 +56,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
 
     toDeps :: A.Program -> IO (Either Error D.Program)
     toDeps abstract = do
-      case evalState (runExceptT (resolveDependency abstract)) mempty of
+      case D.evalDependencyResolution abstract of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError err)

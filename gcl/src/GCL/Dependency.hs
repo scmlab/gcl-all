@@ -1,10 +1,11 @@
-module GCL.Dependency (resolveDependency, GCL.Dependency.Program (Program)) where
+module GCL.Dependency (evalDependencyResolution, GCL.Dependency.Program (Program)) where
 
 import Control.Applicative ((<|>))
 import Control.Monad (foldM)
 import Control.Monad.Except (MonadError (throwError))
+import Control.Monad.State (evalState)
 import Control.Monad.State.Lazy (State, get, modify)
-import Control.Monad.Trans.Except (ExceptT)
+import Control.Monad.Trans.Except (ExceptT, runExceptT)
 import Data.Graph (SCC (..), stronglyConnComp)
 import Data.Map (Map, elems, insert, insertWith, keys, lookup, lookupIndex, member, traverseWithKey)
 import Data.Set (Set, singleton, toList, union)
@@ -73,6 +74,9 @@ type ResolvedDepMap = DepMap ResolvedDepNode
 type TypeDefinitions = Map C.Name C.Name
 
 type DepMonad = ExceptT TypeError (State TypeDefinitions)
+
+evalDependencyResolution :: A.Program -> Either TypeError GCL.Dependency.Program
+evalDependencyResolution abstract = evalState (runExceptT (resolveDependency abstract)) mempty
 
 resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
 resolveDependency program@(A.Program _ decls exprs stmts range) = do
