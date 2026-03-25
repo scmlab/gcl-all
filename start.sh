@@ -34,6 +34,17 @@ if [[ "$1" == "clean" ]]; then
     TEMP_DIR=$(mktemp -d)
     echo "Temporary directory created at: $TEMP_DIR"
     echo
+
+    USER_SETTINGS_DIR="$TEMP_DIR/u/User"
+    mkdir -p "$USER_SETTINGS_DIR"
+
+    cat <<EOF > "$USER_SETTINGS_DIR/settings.json"
+{
+    "extensions.autoUpdate": false,
+    "extensions.autoCheckUpdates": false
+}
+EOF
+
     echo "Pre-installing the Dev Containers extension ..." # to avoid the prompt
     code --user-data-dir "$TEMP_DIR/u" --extensions-dir "$TEMP_DIR/e" --install-extension ms-vscode-remote.remote-containers
     echo
