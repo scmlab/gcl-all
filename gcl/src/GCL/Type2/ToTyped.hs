@@ -171,6 +171,54 @@ instance ToTyped D.Program T.Program where
     typedStmts <- local (const newEnv) (mapM toTyped stmts)
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
 
+instance ToTyped A.Program T.Program where
+  toTyped (A.Program defns decls exprs stmts range) = do
+    traceM $ "defns: " <> show (pretty defns)
+    traceM $ "decls: " <> show (pretty decls)
+    traceM $ "exprs: " <> show (pretty exprs)
+    traceM $ "stmts: " <> show (pretty stmts)
+    env <- ask
+    declEnv <-
+      foldM
+        ( \env' decl -> do
+            declEnv' <- collectDeclToEnv decl
+            let dups = declEnv' `Map.intersection` env'
+            unless
+              (null dups)
+              (throwError $ DuplicatedIdentifiers (Map.keys dups))
+            return $ declEnv' <> env'
+        )
+        env
+        decls
+    defnEnv <-
+      foldM
+        ( \env' defn -> do
+            -- NOTE: definitions have to be in order
+            defnEnv <- local (const env') (collectDefnToEnv defn)
+            return $ defnEnv <> env'
+        )
+        declEnv
+        defns
+
+    let newEnv = defnEnv <> declEnv
+    traceM $ show newEnv
+    typedDefns <-
+      mapM
+        ( \defn -> do
+            -- TODO: check array interval type is int
+            local (const newEnv) (toTyped defn)
+        )
+        defns
+    typedDecls <-
+      mapM
+        ( \decl -> do
+            local (const newEnv) (toTyped decl)
+        )
+        decls
+    typedExprs <- local (const newEnv) (mapM toTyped exprs)
+    typedStmts <- local (const newEnv) (mapM toTyped stmts)
+    return $ T.Program typedDefns typedDecls typedExprs typedStmts range
+
 instance ToTyped A.Definition T.Definition where
   toTyped (A.TypeDefn name args ctors range) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) range
   toTyped (A.ValDefn name sig expr) = toTypedValDefn name sig expr
