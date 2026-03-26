@@ -41,7 +41,8 @@ if [[ "$1" == "clean" ]]; then
     cat <<EOF > "$USER_SETTINGS_DIR/settings.json"
 {
     "extensions.autoUpdate": false,
-    "extensions.autoCheckUpdates": false
+    "extensions.autoCheckUpdates": false,
+    "update.mode": "start"
 }
 EOF
 
