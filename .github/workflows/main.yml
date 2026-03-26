@@ -22,6 +22,9 @@ env:
 
 jobs:
   build-images:
+    # Build two image targets:
+    # - gcl: Lightweight production image (binary only, ~1 GB, suitable for Codespaces prebuilds)
+    # - gcl-dev: Development image (full SDK with prebuilt dependency caches, ~9 GB)
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
     permissions:
