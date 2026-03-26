@@ -42,7 +42,9 @@ if [[ "$1" == "clean" ]]; then
 {
     "extensions.autoUpdate": false,
     "extensions.autoCheckUpdates": false,
-    "update.mode": "start"
+    "update.mode": "start",
+    "window.autoDetectColorScheme": false,
+    "workbench.colorTheme": "VS Code Dark"
 }
 EOF
 
