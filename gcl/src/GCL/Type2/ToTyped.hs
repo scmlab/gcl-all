@@ -177,9 +177,9 @@ toTypedValDefn name _sig expr = do
   -- FIXME: i don't want to call `infer` twice
   -- is there a way to put `T.Expr` result in the environment or something?
 
-  (_, exprTy, typedExpr) <- infer expr
+  (exprSubst, exprTy, typedExpr) <- infer expr
 
-  return (T.ValDefn name exprTy typedExpr)
+  return (T.ValDefn name exprTy (applySubstExpr exprSubst typedExpr))
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do
