@@ -12,6 +12,7 @@ import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import Debug.Trace
 import Error (Error (..))
+import GCL.Dependency as D
 import qualified GCL.Type as Type
 import qualified GCL.Type2.ToTyped as Type2
 import qualified Hack
@@ -33,9 +34,10 @@ simpleLoad filepath source = runExceptT $ catchError run handler
       concrete <- ExceptT $ parse filepath source
       -- lift $ print concrete
       abstract <- ExceptT $ toAbstract concrete
+      abstract' <- ExceptT $ toDeps abstract
       -- lift $ print abstract
       -- typed <- ExceptT $ typecheck abstract
-      typed2 <- ExceptT $ toTyped2 abstract
+      typed2 <- ExceptT $ toTyped2 abstract'
       -- lift $ print typed
       return ()
     handler err =
@@ -52,6 +54,14 @@ simpleLoad filepath source = runExceptT $ catchError run handler
     toAbstract :: C.Program -> IO (Either Error A.Program)
     toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
 
+    toDeps :: A.Program -> IO (Either Error D.Program)
+    toDeps abstract = do
+      case D.evalDependencyResolution abstract of
+        Left err -> do
+          -- TODO: more error reporting here
+          return $ Left (TypeError err)
+        Right typed -> return $ Right typed
+
     toTyped :: A.Program -> IO (Either Error T.Program)
     toTyped abstract = do
       case Type.runElaboration abstract mempty of
@@ -60,7 +70,7 @@ simpleLoad filepath source = runExceptT $ catchError run handler
           return $ Left (TypeError err)
         Right typed -> return $ Right typed
 
-    toTyped2 :: A.Program -> IO (Either Error T.Program)
+    toTyped2 :: D.Program -> IO (Either Error T.Program)
     toTyped2 abstract =
       case Type2.runToTyped abstract mempty of
         Left err -> do
