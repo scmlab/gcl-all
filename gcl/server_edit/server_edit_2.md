@@ -37,32 +37,3 @@ server 送出的 applyEdit 如果成功, 則 server 收到的下一個 didChange
 原因:  
 如果使用者在 extension 處理 applyEdit 前打字, 版本會改變, 導致 applyEdit 因版本不符而失敗. 因此 "applyEdit 成功" => "版本沒改" => "沒有使用者輸入插隊" => "下一個 didChange 必來自此 edit".
 
-### TLA+ 模型驗證 (edit.tla)
-
-用 TLA+ 對 NextDidChange 性質進行 model checking.
-
-**變數:**
-
-| 變數 | 說明 |
-|---|---|
-| `clientVersion` / `serverVersion` | 各端的版本號 |
-| `c2sQueue` | client→server FIFO, 每個訊息帶 `source ∈ {"user","server"}` 和 `version` |
-| `s2cQueue` | server→client FIFO, 每個訊息帶 `version` |
-| `awaitingServerEdit` | applyEdit 成功後設 TRUE, server 收到下一個 didChange 時重設 FALSE |
-
-**動作:**
-
-- `UserEdit`: 使用者編輯 — 增加 clientVersion, 在 c2sQueue 塞入 source="user" 的 didChange
-- `ServerSendApplyEdit`: server 送出 applyEdit(serverVersion) 到 s2cQueue
-- `ClientReceiveApplyEdit`: client 從 s2cQueue 取出 applyEdit, 版本符合則成功 (增加 clientVersion, 在 c2sQueue 塞入 source="server" 的 didChange, 設 awaitingServerEdit=TRUE), 版本不符則丟棄
-- `ServerReceiveDidChange`: server 從 c2sQueue 取出 didChange, 更新 serverVersion, 重設 awaitingServerEdit=FALSE
-
-**不變量 NextDidChange:**
-
-```
-(awaitingServerEdit ∧ c2sQueue ≠ ⟨⟩) ⟹ Head(c2sQueue).source = "server"
-```
-
-即: applyEdit 成功後 (awaitingServerEdit=TRUE), 若 c2sQueue 非空, 其最前面的訊息必為 server-sourced.
-
-**TLC 驗證結果:** MaxVersion=6, MaxQueueLen=3 下, 窮舉 485 個可達狀態, 不變量在所有狀態均成立.
