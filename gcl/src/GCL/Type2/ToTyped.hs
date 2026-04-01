@@ -142,10 +142,7 @@ instance ToTyped D.Program T.Program where
     defnEnv <-
       foldM
         ( \env' defn -> do
-            -- NOTE: definitions have to be in order
-            traceM $ show defn
             defnEnv <- local (const env') (collectMultipleDefns defn)
-            traceM $ show defnEnv <> "\n"
             return $ defnEnv <> env'
         )
         declEnv
@@ -233,12 +230,13 @@ toTypedAssign names exprs range
       typedExprs <-
         mapM
           ( \(name, expr) -> do
-              -- TODO: doesn't account for `AssignToConst`
-              when
-                (Map.notMember name env)
-                (throwError $ NotInScope name)
+              nameTy <- case Map.lookup name env of
+                Just (A.Forall _ ty) -> return ty
+                Nothing -> throwError $ NotInScope name
 
-              toTyped expr
+              (exprSubst, typedExpr) <- typeCheck expr nameTy
+
+              return (applySubstExpr exprSubst typedExpr)
           )
           assignments
       return $ T.Assign names typedExprs range
