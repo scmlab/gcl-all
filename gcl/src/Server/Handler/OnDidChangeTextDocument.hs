@@ -4,12 +4,13 @@
 
 module Server.Handler.OnDidChangeTextDocument where
 
+import Control.Exception (evaluate)
 import Control.Monad.IO.Class (liftIO)
 import qualified Data.Text as Text
 import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
-import Server.Monad (PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
+import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
 import Server.Move (applyMovesToFileState, mkLSPMoves)
 import Server.Notification.Update (sendUpdateNotification)
 
@@ -37,5 +38,26 @@ handler filePath changes = do
         Nothing -> return ()
         Just fs -> do
           let fs' = applyMovesToFileState (mkLSPMoves changes) fs
+          -- Force all list fields now so the work is done within this handler,
+          -- rather than deferred lazily to the next request.
+          (nToks, nSpecs, nHoles, nPOs, nWarnings) <- liftIO $ do
+            a <- evaluate $ length $ fsSemanticTokens fs'
+            b <- evaluate $ length $ fsSpecifications fs'
+            c <- evaluate $ length $ fsHoles fs'
+            d <- evaluate $ length $ fsProofObligations fs'
+            e <- evaluate $ length $ fsWarnings fs'
+            return (a, b, c, d, e)
+          logText $
+            "tokens: "
+              <> Text.pack (show nToks)
+              <> " specs: "
+              <> Text.pack (show nSpecs)
+              <> " holes: "
+              <> Text.pack (show nHoles)
+              <> " POs: "
+              <> Text.pack (show nPOs)
+              <> " warnings: "
+              <> Text.pack (show nWarnings)
+              <> "\n"
           setFileState filePath fs'
           sendUpdateNotification filePath fs'
