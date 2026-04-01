@@ -9,6 +9,7 @@ import Data.Ord (comparing)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
+import GCL.Dependency (evalDependencyResolution)
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
@@ -97,7 +98,8 @@ loadAndDig filePath source = do
 loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
-  elaborated <- first (TypeError . Hack.toOldError) $ runToTyped abstract mempty
+  abstract' <- first TypeError $ evalDependencyResolution abstract
+  elaborated <- first (TypeError . Hack.toOldError) $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
     FileState

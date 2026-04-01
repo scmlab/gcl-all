@@ -21,6 +21,7 @@ library
   exposed-modules:
       Error
       GCL.Common
+      GCL.Dependency
       GCL.Exec
       GCL.Exec.ExecMonad
       GCL.Exec.ExNondet

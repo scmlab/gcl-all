@@ -7,10 +7,12 @@
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, when)
+import Data.Graph (flattenSCCs)
 import Data.List (foldl', nub)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
+import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
 import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
@@ -46,9 +48,10 @@ collectDeclToEnv (A.VarDecl names ty _ _) = do
 
 type DefnMap = Map A.Definition A.Scheme
 
-collectMultipleDefns :: [A.Definition] -> TIMonad Env
+collectMultipleDefns :: (Traversable t) => t A.Definition -> TIMonad Env
 collectMultipleDefns defns = do
-  let names = map (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
+  env <- ask
+  let names = fmap (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
 
   stubEnv <-
     foldM
@@ -64,7 +67,7 @@ collectMultipleDefns defns = do
         env' <- local (const accEnv) (collectDefnToEnv defn)
         return (env' <> accEnv)
     )
-    stubEnv
+    (stubEnv <> env)
     defns
 
 collectDefnToEnv :: A.Definition -> TIMonad Env
@@ -117,9 +120,9 @@ collectDefnToEnv defn@(A.ValDefn name sig expr) = do
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
 
-instance ToTyped A.Program T.Program where
-  toTyped (A.Program defns decls exprs stmts range) = do
-    traceM $ "defns: " <> show (pretty defns)
+instance ToTyped D.Program T.Program where
+  toTyped (D.Program defns decls exprs stmts range) = do
+    -- traceM $ "defns: " <> show (pretty defns)
     traceM $ "decls: " <> show (pretty decls)
     traceM $ "exprs: " <> show (pretty exprs)
     traceM $ "stmts: " <> show (pretty stmts)
@@ -140,7 +143,9 @@ instance ToTyped A.Program T.Program where
       foldM
         ( \env' defn -> do
             -- NOTE: definitions have to be in order
-            defnEnv <- local (const env') (collectDefnToEnv defn)
+            traceM $ show defn
+            defnEnv <- local (const env') (collectMultipleDefns defn)
+            traceM $ show defnEnv <> "\n"
             return $ defnEnv <> env'
         )
         declEnv
@@ -149,12 +154,13 @@ instance ToTyped A.Program T.Program where
     let newEnv = defnEnv <> declEnv
     traceM $ show newEnv
     typedDefns <-
-      mapM
-        ( \defn -> do
-            -- TODO: check array interval type is int
-            local (const newEnv) (toTyped defn)
-        )
-        defns
+      flattenSCCs
+        <$> mapM
+          ( \defn -> do
+              -- TODO: check array interval type is int
+              local (const newEnv) (mapM toTyped defn)
+          )
+          defns
     typedDecls <-
       mapM
         ( \decl -> do
