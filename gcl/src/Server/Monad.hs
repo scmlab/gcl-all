@@ -23,6 +23,7 @@ module Server.Monad
     sendEditTextsWithVersion,
     sendCustomNotification,
     sendWindowShowMessage,
+    sendWindowInfoMessage,
     sendSemanticTokensRefresh,
   )
 where
@@ -205,6 +206,12 @@ sendWindowShowMessage message' = do
           Nothing
   _ <- LSP.sendRequest LSP.SMethod_WindowShowMessageRequest requestParams (\_ -> return ())
   return ()
+
+sendWindowInfoMessage :: Text -> ServerM ()
+sendWindowInfoMessage msg =
+  LSP.sendNotification
+    LSP.SMethod_WindowShowMessage
+    (LSP.ShowMessageParams LSP.MessageType_Info msg)
 
 sendSemanticTokensRefresh :: ServerM ()
 sendSemanticTokensRefresh = do
