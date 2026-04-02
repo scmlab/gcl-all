@@ -298,7 +298,7 @@ instance ToAbstract Expr A.Expr where
         <$> toAbstract expr
         <*> toAbstract cases
         <*> pure (maybeRangeOf x)
-    HoleQM _ -> error "SpecQM should be digged before calling toAbstract"
+    HoleQM _ -> error "HoleQM should be digged before calling toAbstract"
     Syntax.Concrete.Types.Hole l xs r -> do
       holeNumber <- countUp
       let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)

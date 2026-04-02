@@ -1,9 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 
-module GCL.WP (WP, TM, sweep, structStmts, runWP, collectStmtHoles) where
+module GCL.WP (WP, TM, sweep, structStmts, runWP, collectStmtHoles, collectExprHoles) where
 
 import Control.Monad.Except
   ( MonadError (throwError),
@@ -194,6 +193,6 @@ collectExprHoles (Case a _ _) =
 collectExprHoles (Subst a b) =
   collectExprHoles a
     <> concatMap (collectExprHoles . snd) b
-collectExprHoles (EHole _ i ty range) =
-  [Hole i ty range]
+collectExprHoles (EHole _ i ty range env) =
+  [Hole i ty range env]
 collectExprHoles _ = []
