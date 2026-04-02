@@ -2,24 +2,27 @@
 
 module Server.Refine where
 
+import Control.Applicative (Alternative ((<|>)))
 import Control.Monad (when)
-import Data.Bifunctor (first, second)
+import Data.Bifunctor (Bifunctor (bimap), first, second)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
+import Debug.Trace (trace, traceM)
 import Error (Error (..))
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
+import GCL.Type2.Infer (infer, typeCheck)
 import GCL.Type2.ToTyped (runToTyped)
-import GCL.Type2.Types (Env)
-import GCL.WP (collectStmtHoles, runWP, structStmts)
+import GCL.Type2.Types (Env, evalTI)
+import GCL.WP (collectExprHoles, collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
 import Language.Lexer.Applicative (TokenStream (..))
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
-import Server.Load (applyEdits, collectHolesFromStatements, diggedText)
+import Server.Load (applyEdits, collectHolesFromExpr, collectHolesFromStatements, diggedText)
 import Server.Monad
   ( FileState (..),
     PendingEdit (..),
@@ -34,6 +37,7 @@ import Server.Monad
 import Server.Move (applyMovesToFileState, mkLSPMove)
 import Server.Notification.Error (sendErrorNotification)
 import Server.SrcLoc (toLSPRange)
+import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
@@ -52,23 +56,42 @@ refine filePath cursor = do
   let result = do
         fs <- maybe (Left [Others "Refine" "File not loaded." Nothing]) Right maybeFs
         (source, vfsVersion) <- maybe (Left [Others "Refine" "Cannot read source." Nothing]) Right maybeSource
-        spec <- maybe (Left [Others "Refine" "No enclosing spec found." Nothing]) Right (findEnclosingSpec cursor (fsSpecifications fs))
-        (finalImplText, eitherFs) <- first pure $ refineAndDig filePath (fsIdCount fs) spec source
-        return (fs, source, vfsVersion, spec, finalImplText, eitherFs)
+        enclosingTarget <- maybe (Left [Others "Refine" "No enclosing spec or hole found." Nothing]) Right (findSpecOrHole cursor (fsSpecifications fs) (fsHoles fs))
+        return (fs, source, vfsVersion, enclosingTarget)
+
   case result of
     Left errs -> sendErrorNotification filePath errs
-    Right (fs, source, vfsVersion, spec, finalImplText, eitherFs) -> do
-      sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
-      logText "Refine: edit sent\n"
-      case eitherFs of
+    Right (fs, source, vfsVersion, Left spec) -> do
+      case refineAndDig filePath (fsIdCount fs) spec source of
         Left err -> sendErrorNotification filePath [err]
-        Right fragmentFs -> do
-          let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-              newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
-              newSource = applyEdits source [(specRange spec, finalImplText)]
+        Right (finalImplText, eitherFs) -> do
+          sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
+          logText "Refine: spec edit sent\n"
+          case eitherFs of
+            Left err -> sendErrorNotification filePath [err]
+            Right fragmentFs -> do
+              let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+                  newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
+                  newSource = applyEdits source [(specRange spec, finalImplText)]
+                  pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+              setPendingEdit filePath pending
+              sendErrorNotification filePath []
+    Right (fs, source, vfsVersion, Right hole) -> do
+      case refineHoleAndDig filePath hole source of
+        Left err -> sendErrorNotification filePath [err]
+        Right (finalImplText, typedExpr) -> do
+          sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
+          logText "Refine: hole edit sent\n"
+          let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
+              (holes1, holes2) = splitAtFirst hole (fsHoles fs)
+              newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = holes1 <> collectExprHoles typedExpr <> holes2}
+              newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
           setPendingEdit filePath pending
           sendErrorNotification filePath []
+  where
+    splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
+    splitAtFirst x = fmap (drop 1) . break (x ==)
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -91,6 +114,18 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
+-- ChAoS: Had to find out if implText trimming is neccessary or not
+refineHoleAndDig :: FilePath -> Hole -> Text -> Either Error (Text, T.Expr)
+refineHoleAndDig filePath hole source = do
+  let holeRng = holeRange hole
+      implRange = shrinkRange 2 holeRng
+      implText = extractText implRange source
+      implStart = rangeStart implRange
+
+  (finalImplText, expr) <- parseAndDigHoleFragment filePath implStart implText
+  typedExpr <- loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr
+  return (finalImplText, typedExpr)
+
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
 loadConcreteFragment typeEnv idCount spec stmts = do
@@ -109,6 +144,11 @@ loadConcreteFragment typeEnv idCount spec stmts = do
         fsDefinitionLinks = mempty, -- TODO: needs scope info from declarations
         fsHoverInfos = collectHoverInfoFromStmts elaborated
       }
+
+loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Either Error T.Expr
+loadConcreteHoleFragment typeEnv ty expr = do
+  let abstract = C.runAbstractTransform expr
+  bimap (TypeError . Hack.toOldError) snd (evalTI (typeCheck abstract ty) typeEnv 0)
 
 -- | Parse fragment and dig holes if needed.
 -- Internally uses relative positions (1,1) for hole digging,
@@ -133,8 +173,30 @@ parseAndDigFragment filePath fragmentStart implText = do
     parseRelative src = do
       stmts <- parseFragmentStmts filePath (mkPos 1 1) src
       return (stmts, collectHolesFromStatements stmts)
-    parseAbsolute src =
-      parseFragmentStmts filePath fragmentStart src
+    parseAbsolute = parseFragmentStmts filePath fragmentStart
+    digHoles src holeList =
+      let edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
+       in applyEdits src edits
+
+parseAndDigHoleFragment :: FilePath -> Pos -> Text -> Either Error (Text, C.Expr)
+parseAndDigHoleFragment filePath fragmentStart implText = do
+  (_, holes1) <- parseRelative implText
+  case holes1 of
+    [] -> do
+      expr <- parseAbsolute implText
+      Right (implText, expr)
+    _ -> do
+      let newImplText = digHoles implText holes1
+      exprs2 <- parseAbsolute newImplText
+      let holes2 = collectHolesFromExpr exprs2
+      case holes2 of
+        [] -> Right (newImplText, exprs2)
+        _ -> Left (Others "Refine" "unexpected holes after digging" Nothing)
+  where
+    parseRelative src = do
+      expr <- parseFragmentExpr filePath (mkPos 1 1) src
+      return (expr, collectHolesFromExpr expr)
+    parseAbsolute = parseFragmentExpr filePath fragmentStart
     digHoles src holeList =
       let edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
        in applyEdits src edits
@@ -150,6 +212,14 @@ parseFragmentStmts filePath fragmentStart src =
    in case Parser.parse Parser.statements filePath tokens' of
         Left (errors, logMsg) -> Left (ParseError (SyntacticError errors logMsg))
         Right stmts -> Right stmts
+
+parseFragmentExpr :: FilePath -> Pos -> Text -> Either Error C.Expr
+parseFragmentExpr filePath fragmentStart src =
+  let tokens = scan filePath src
+      tokens' = translateTokStream fragmentStart tokens
+   in case Parser.parse Parser.expression filePath tokens' of
+        Left (errors, logMsg) -> Left (ParseError (SyntacticError errors logMsg))
+        Right expr -> Right expr
 
 translateTokStream :: Pos -> TokStream -> TokStream
 translateTokStream start (TsToken (R range x) rest) =
@@ -198,10 +268,13 @@ isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
 --------------------------------------------------------------------------------
 -- Finding enclosing spec
 
-findEnclosingSpec :: Pos -> [Spec] -> Maybe Spec
-findEnclosingSpec cursor specs =
-  find (\spec -> isInRange cursor (shrinkRange 1 (specRange spec))) specs
+findSpecOrHole :: Pos -> [Spec] -> [Hole] -> Maybe (Either Spec Hole)
+findSpecOrHole cursor specs holes = (Left <$> findByCursor specRange specs) <|> (Right <$> findByCursor holeRange holes)
   where
+    findByCursor :: (Foldable t) => (a -> Range) -> t a -> Maybe a
+    findByCursor f = find (isInRange cursor . shrinkRange 1 . f)
+
+    isInRange :: Pos -> Range -> Bool
     isInRange (Pos l c) (Range (Pos l1 c1) (Pos l2 c2)) =
       (l1, c1) <= (l, c) && (l, c) <= (l2, c2)
 

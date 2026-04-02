@@ -162,7 +162,8 @@ infer (A.ArrUpd arr index expr range) = inferArrUpd arr index expr range
 infer (A.Case expr clauses range) = inferCase expr clauses range
 infer (A.EHole text holeNumber range) = do
   ty <- freshTVar
-  return (mempty, ty, T.EHole text holeNumber ty range)
+  env <- ask
+  return (mempty, ty, T.EHole text holeNumber ty range env)
 
 inferLit :: A.Lit -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLit lit range =
