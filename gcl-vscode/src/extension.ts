@@ -167,6 +167,17 @@ export async function activate(context: vscode.ExtensionContext) {
 		gclPanel.rerender(newClientState);
 	});
 	context.subscriptions.push(errorNotificationHandlerDisposable);
+
+	// Bug testing handler
+	const testHandlerDisposable = vscode.commands.registerCommand('gcl.testVersionedEdit', async () => {
+		const editor = retrieveMainEditor();
+		if (editor && editor.document.languageId === 'gcl') {
+			await sendRequest("gcl/testVersionedEdit", {
+				uri: editor.document.uri.toString(),
+			});
+		}
+	});
+	context.subscriptions.push(testHandlerDisposable);
 }
 
 export async function deactivate() {
