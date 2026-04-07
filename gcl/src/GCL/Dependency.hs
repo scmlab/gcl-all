@@ -91,7 +91,7 @@ evalDependencyResolution abstract = evalState (runExceptT (resolveDependency abs
 
 resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
 resolveDependency program@(A.Program _ decls exprs stmts range) = do
-  forM_ decls collectDeclNames
+  forM_ decls checkDeclDuplications
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
@@ -100,12 +100,12 @@ resolveDependency program@(A.Program _ decls exprs stmts range) = do
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
     toTopSortedSCC = reverse . stronglyConnComp . elems
 
-    collectDeclNames :: A.Declaration -> DepMonad ()
-    collectDeclNames (A.ConstDecl names _ _ _) = checkDuplicatedDeclaration names
-    collectDeclNames (A.VarDecl names _ _ _) = checkDuplicatedDeclaration names
+    checkDeclDuplications :: A.Declaration -> DepMonad ()
+    checkDeclDuplications (A.ConstDecl names _ _ _) = checkDeclDuplication names
+    checkDeclDuplications (A.VarDecl names _ _ _) = checkDeclDuplication names
 
-    checkDuplicatedDeclaration :: [C.Name] -> DepMonad ()
-    checkDuplicatedDeclaration names = do
+    checkDeclDuplication :: [C.Name] -> DepMonad ()
+    checkDeclDuplication names = do
       (_, declMap) <- get
       declMap' <-
         foldM
