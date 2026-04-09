@@ -131,27 +131,48 @@ Error 的 range 分兩種處理：
 
 4. **`Server/Move.hs`** — 實作 `applyMovesToError`，加進 `applyMovesToFileState`
 
-5. **`Server/Handler/OnDidChangeTextDocument.hs`** — `applyTranslation` 之後，
-   若 `fsErrors` 非空，重新送 error notification（位置已更新）
+5. **`Server/ToClient.hs`** — `FileStateNotification` 加 `errors :: [Error]`，
+   `toFileStateNotification` 轉換 `fsErrors`；移除 `ErrorNotification`
 
-6. **`Server/Monad.hs`** / **`Server/Notification/Error.hs`** — `sendErrorNotification`
-   改為從 FileState 讀 `fsErrors`，或在 didChange handler 裡直接送
+6. **`Server/Notification/Error.hs`** — 整個刪除
 
-7. **`Server/Refine.hs` `mergeFileState`** — 加上 `fsErrors` 的合併邏輯
-   （refine 成功時保留 base 的 `fsErrors`，fragment 失敗時累加新 error）
+7. **`Server/Load.hs`** — load 失敗改為 `setFileState` + `sendUpdateNotification`
+   （`gcl/update` 本身就帶 errors，不需要另送 `gcl/error`）
+
+8. **`Server/Handler/OnDidChangeTextDocument.hs`** — 移除 `sendErrorNotification` 呼叫；
+   errors 已在 `sendUpdateNotification` 中一併送出
+
+9. **`Server/Refine.hs` `mergeFileState`** — 加上 `fsErrors` 的合併邏輯
+   （refine 成功時保留 base 的 `fsErrors`，fragment 失敗時累加新 error）；
+   外層 `Left errs` 改走 `sendWindowInfoMessage`
+
+10. **`gcl-vscode/src/data/ClientState.ts`** — `FileStateNotification` 加 `errors`，移除 `ErrorNotification`
+
+11. **`gcl-vscode/src/connection.ts`** — 移除 `onErrorNotification`
+
+12. **`gcl-vscode/src/extension.ts`** — 移除 `gcl/error` handler；
+    `gcl/update` handler 從 payload 取 `errors` 存進 `ClientState`
 
 ## 前端
 
-**這次不動前端。** server 繼續透過現有的 `gcl/error` notification 送 errors，
-前端不需要修改。差別只是 `gcl/error` 會在 `didChange` 時也送（帶移動後的位置），
-而不只是在 load 時送。
+`gcl/error` 和 `gcl/update` 兩個 channel 已合併為單一 `gcl/update`。
 
-## Future Direction
+`FileStateNotification`（`gcl/update` payload）新增 `errors` 欄位：
 
-目前 server 和 client 用兩個 channel：
-- `gcl/error` → errors
-- `gcl/update` → specs/holes/POs/warnings
+```typescript
+type FileStateNotification = { filePath: string } & FileState & Errors;
+// FileState: holes, specs, pos, warnings
+// Errors: errors
+```
 
-未來可以統一成一個 `gcl/update`，把 errors 也包進去，
-讓 client state 的結構和 server 的 `FileState` 完全對應。
-這樣 server 是唯一的 source of truth，client 只是鏡像。
+前端 extension 只有一個 notification handler（`gcl/update`），
+直接從 payload 取出 `errors` 存進 `ClientState`，
+不再有獨立的 `gcl/error` handler。
+
+Server 是唯一的 source of truth，client 只是鏡像。
+
+### Refine 外層 operation 錯誤
+
+Refine 的外層 `Either` 失敗（syntax error、找不到 spec、file not loaded 等）
+屬於 operation-level 問題，不是「程式碼有 error」，
+**不存進 `fsErrors`**，改走 `sendWindowInfoMessage` 顯示 toast。

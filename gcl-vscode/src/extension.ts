@@ -2,7 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { retrieveMainEditor } from './utils'
-import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
+import { start, stop, sendRequest, onUpdateNotification } from "./connection";
 import { GclPanel } from './gclPanel';
 import { IHole, ISpecification } from './data/FileState';
 import { ClientState } from './data/ClientState';
@@ -127,9 +127,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(outputChannel);
 
 	// notification gcl/update
-	// Update specs, pos, warnings in clientState, and clear errors
 	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
 		filePath,
+		errors,
 		holes,
 		specs,
 		pos,
@@ -139,8 +139,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
-		// Clear errors when receiving a successful update
-		let newClientState: ClientState = { holes, specs, pos, warnings, errors: [] };
+		let newClientState: ClientState = { errors, holes, specs, pos, warnings };
 
 		await context.workspaceState.update(filePath, newClientState);
 		gclPanel.rerender(newClientState);
@@ -151,22 +150,6 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
-
-	// notification gcl/error
-	// Update errors in clientState
-	const errorNotificationHandlerDisposable = onErrorNotification(async ({
-		filePath,
-		errors
-	}) => {
-		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
-		const newClientState: ClientState =
-			oldClientState
-			? {errors, holes: oldClientState.holes, specs: oldClientState.specs, pos: oldClientState.pos, warnings: oldClientState.warnings}
-			: {errors, holes: [], specs: [], pos: [], warnings: []};
-		await context.workspaceState.update(filePath, newClientState);
-		gclPanel.rerender(newClientState);
-	});
-	context.subscriptions.push(errorNotificationHandlerDisposable);
 }
 
 export async function deactivate() {

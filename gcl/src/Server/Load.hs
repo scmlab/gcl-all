@@ -18,7 +18,6 @@ import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
 import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
-import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -53,8 +52,9 @@ load filePath = do
           case loadAndDig filePath source of
             Left parseErr -> do
               logTextLn "Load: parse error"
-              setFileState filePath (emptyFileStateWithErrors [ParseError parseErr])
-              sendErrorNotification filePath [ParseError parseErr]
+              let fs = emptyFileStateWithErrors [ParseError parseErr]
+              setFileState filePath fs
+              sendUpdateNotification filePath fs
             Right (maybeDig, eitherFs) -> do
               sendDigEdits vfsVersion maybeDig
               handleLoadResult maybeDig eitherFs
@@ -71,8 +71,9 @@ load filePath = do
       case eitherFs of
         Left err -> do
           logTextLn "Load: type/struct error"
-          setFileState filePath (emptyFileStateWithErrors [err])
-          sendErrorNotification filePath [err]
+          let fs = emptyFileStateWithErrors [err]
+          setFileState filePath fs
+          sendUpdateNotification filePath fs
         Right fs ->
           case maybeDig of
             Nothing -> do

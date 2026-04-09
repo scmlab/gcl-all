@@ -12,9 +12,7 @@
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
   ( toFileStateNotificationJSON,
-    toErrorNotificationJSON,
     FileStateNotification (..),
-    ErrorNotification (..),
   )
 where
 
@@ -43,6 +41,7 @@ import qualified Syntax.Parser.Error as Parse
 -- Sent via gcl/update notification
 data FileStateNotification = FileStateNotification
   { filePath :: FilePath,
+    errors :: [Error],
     specs :: [Specification],
     holes :: [Hole],
     pos :: [ProofObligation],
@@ -104,6 +103,7 @@ toFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
 toFileStateNotification path fs =
   FileStateNotification
     { filePath = path,
+      errors = map convertError (Server.fsErrors fs),
       specs = map convertSpec (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = map convertPO (Server.fsProofObligations fs),
@@ -183,15 +183,6 @@ convertName (Common.Name text loc) =
     { symbol = Text.unpack text,
       location = fmap toLSPRange loc
     }
-
--- | Client-side ErrorNotification type (matches TypeScript ErrorNotification)
--- Sent via gcl/error notification
-data ErrorNotification = ErrorNotification
-  { filePath :: FilePath,
-    errors :: [Error]
-  }
-  deriving stock (Show, Generic)
-  deriving anyclass (JSON.ToJSON)
 
 -- | Client-side Error type
 data Error
@@ -337,16 +328,3 @@ convertError (Error.TypeError err) = TypeError (convertTypeError err)
 convertError (Error.StructError err) = StructError (convertStructError err)
 convertError (Error.CannotReadFile fp) = CannotReadFile fp
 convertError (Error.Others t m l) = Others t m (fmap toLSPRange l)
-
--- | Convert server-side errors to ErrorNotification JSON for client
-toErrorNotificationJSON :: FilePath -> [Error.Error] -> JSON.Value
-toErrorNotificationJSON path errs =
-  JSON.toJSON (toErrorNotification path errs)
-
--- | Convert server-side errors to ErrorNotification for client
-toErrorNotification :: FilePath -> [Error.Error] -> ErrorNotification
-toErrorNotification path errs =
-  ErrorNotification
-    { filePath = path,
-      errors = map convertError errs
-    }

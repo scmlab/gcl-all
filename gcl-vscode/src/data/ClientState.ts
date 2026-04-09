@@ -5,8 +5,6 @@ export interface Errors {
     errors: Error[];
 }
 
-export type FileStateNotification = { filePath: string } & FileState;
-
-export type ErrorNotification = { filePath: string } & Errors;
+export type FileStateNotification = { filePath: string } & FileState & Errors;
 
 export type ClientState = FileState & Errors;

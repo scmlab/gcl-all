@@ -17,6 +17,9 @@ import GCL.WP (collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
 import Language.Lexer.Applicative (TokenStream (..))
+import Pretty.Error ()
+import Prettyprinter (layoutCompact, pretty)
+import Prettyprinter.Render.Text (renderStrict)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
 import Server.Load (applyEdits, collectHolesFromStatements, diggedText)
@@ -34,7 +37,6 @@ import Server.Monad
     setPendingEdit,
   )
 import Server.Move (applyMovesToFileState, mkLSPMove)
-import Server.Notification.Error (sendErrorNotification)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -64,7 +66,7 @@ refine filePath cursor = do
             (finalImplText, eitherFs) <- first pure $ refineAndDig filePath (fsIdCount fs) spec source
             return (fs, source, vfsVersion, spec, finalImplText, eitherFs)
       case result of
-        Left errs -> sendErrorNotification filePath errs
+        Left errs -> sendWindowInfoMessage (Text.intercalate "\n" $ map (renderStrict . layoutCompact . pretty) errs)
         Right (fs, source, vfsVersion, spec, finalImplText, eitherFs) -> do
           sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
           logText "Refine: edit sent\n"
