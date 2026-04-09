@@ -17,7 +17,7 @@ import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
 import qualified Syntax.Concrete as C
@@ -53,6 +53,7 @@ load filePath = do
           case loadAndDig filePath source of
             Left parseErr -> do
               logTextLn "Load: parse error"
+              setFileState filePath (emptyFileStateWithErrors [ParseError parseErr])
               sendErrorNotification filePath [ParseError parseErr]
             Right (maybeDig, eitherFs) -> do
               sendDigEdits vfsVersion maybeDig
@@ -70,6 +71,7 @@ load filePath = do
       case eitherFs of
         Left err -> do
           logTextLn "Load: type/struct error"
+          setFileState filePath (emptyFileStateWithErrors [err])
           sendErrorNotification filePath [err]
         Right fs ->
           case maybeDig of
@@ -109,7 +111,8 @@ loadConcrete concrete = do
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
     FileState
-      { fsSpecifications = specs,
+      { fsErrors = [],
+        fsSpecifications = specs,
         fsHoles = holes,
         fsProofObligations = pos,
         fsWarnings = warnings,

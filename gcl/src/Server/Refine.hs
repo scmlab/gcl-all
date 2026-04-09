@@ -68,15 +68,18 @@ refine filePath cursor = do
         Right (fs, source, vfsVersion, spec, finalImplText, eitherFs) -> do
           sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
           logText "Refine: edit sent\n"
+          let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+              movedFs = applyMovesToFileState [lspMove] fs
+              newSource = applyEdits source [(specRange spec, finalImplText)]
           case eitherFs of
-            Left err -> sendErrorNotification filePath [err]
+            Left err -> do
+              let pendingFs = movedFs {fsErrors = fsErrors movedFs ++ [err]}
+                  pending = PendingEdit {expectedContent = newSource, pendingFileState = pendingFs}
+              setPendingEdit filePath pending
             Right fragmentFs -> do
-              let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-                  newFs = mergeFileState (applyMovesToFileState [lspMove] fs) fragmentFs
-                  newSource = applyEdits source [(specRange spec, finalImplText)]
+              let newFs = mergeFileState movedFs fragmentFs
                   pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
               setPendingEdit filePath pending
-              sendErrorNotification filePath []
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -108,7 +111,8 @@ loadConcreteFragment typeEnv idCount spec stmts = do
     first StructError $ sweepFragment idCount spec elaborated
   return
     FileState
-      { fsSpecifications = specs,
+      { fsErrors = [],
+        fsSpecifications = specs,
         fsHoles = holes,
         fsProofObligations = pos,
         fsWarnings = warnings,
@@ -220,7 +224,8 @@ findEnclosingSpec cursor specs =
 mergeFileState :: FileState -> FileState -> FileState
 mergeFileState moved fragment =
   FileState
-    { fsSpecifications = fsSpecifications moved ++ fsSpecifications fragment,
+    { fsErrors = fsErrors moved, -- Keep previous errors
+      fsSpecifications = fsSpecifications moved ++ fsSpecifications fragment,
       fsHoles = fsHoles moved ++ fsHoles fragment,
       fsProofObligations = fsProofObligations moved ++ fsProofObligations fragment,
       fsWarnings = fsWarnings moved ++ fsWarnings fragment,
