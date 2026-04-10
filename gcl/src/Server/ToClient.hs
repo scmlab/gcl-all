@@ -100,7 +100,7 @@ toClientFileStateJSON :: FilePath -> Server.FileState -> JSON.Value
 toClientFileStateJSON path fs =
   case JSON.toJSON (toClientFileState fs) of
     JSON.Object obj -> JSON.Object (KeyMap.insert "filePath" (JSON.toJSON path) obj)
-    v -> v
+    _ -> error "toClientFileStateJSON: ClientFileState must be a JSON Object"
 
 -- | Convert server-side FileState to client-side ClientFileState
 toClientFileState :: Server.FileState -> ClientFileState
