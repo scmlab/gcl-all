@@ -1,9 +1,11 @@
 import { Range } from "vscode-languageclient";
+import { Error } from "./Error";
 
 type Predicate = string;
 type Type = string;
 
-export interface FileState {
+export interface ClientFileState {
+    errors: Error[];
     holes: IHole[];
 	specs: ISpecification[];
 	pos: IProofObligation[];

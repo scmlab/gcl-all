@@ -2,10 +2,9 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { retrieveMainEditor } from './utils'
-import { start, stop, sendRequest, onUpdateNotification } from "./connection";
+import { start, stop, sendRequest, onFileStateNotification } from "./connection";
 import { GclPanel } from './gclPanel';
-import { IHole, ISpecification } from './data/FileState';
-import { ClientState } from './data/ClientState';
+import { IHole, ISpecification, ClientFileState } from './data/FileState';
 import path from 'path';
 
 
@@ -21,7 +20,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		{
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
-				const clientState: ClientState | undefined = context.workspaceState.get(filePath);
+				const clientState: ClientFileState | undefined = context.workspaceState.get(filePath);
 
 				if (clientState === undefined)
 					return [];
@@ -71,7 +70,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
 		if (isFileTab) {
 			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
-			let clientState: ClientState | undefined = context.workspaceState.get(filePath);
+			let clientState: ClientFileState | undefined = context.workspaceState.get(filePath);
 			if (clientState) gclPanel.rerender(clientState);
 		}
 	});
@@ -127,7 +126,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(outputChannel);
 
 	// notification gcl/update
-	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
+	const updateNotificationHandlerDisposable = onFileStateNotification(async ({
 		filePath,
 		errors,
 		holes,
@@ -139,13 +138,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
-		let newClientState: ClientState = { errors, holes, specs, pos, warnings };
+		let newClientFileState: ClientFileState = { errors, holes, specs, pos, warnings };
 
-		await context.workspaceState.update(filePath, newClientState);
-		gclPanel.rerender(newClientState);
-		await updateInlayHints(newClientState);
+		await context.workspaceState.update(filePath, newClientFileState);
+		gclPanel.rerender(newClientFileState);
+		await updateInlayHints(newClientFileState);
 
-		async function updateInlayHints(newClientState: ClientState) {
+		async function updateInlayHints(newClientFileState: ClientFileState) {
 			// TODO: find a way to tell vscode to update inlay hints
 		}
 	});

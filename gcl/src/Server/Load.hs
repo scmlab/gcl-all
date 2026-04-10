@@ -18,7 +18,7 @@ import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
 import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
-import Server.Notification.Update (sendUpdateNotification)
+import Server.Notification.Update (sendFileState)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -54,7 +54,7 @@ load filePath = do
               logTextLn "Load: parse error"
               let fs = emptyFileStateWithErrors [ParseError parseErr]
               setFileState filePath fs
-              sendUpdateNotification filePath fs
+              sendFileState filePath fs
             Right (maybeDig, eitherFs) -> do
               sendDigEdits vfsVersion maybeDig
               handleLoadResult maybeDig eitherFs
@@ -73,13 +73,13 @@ load filePath = do
           logTextLn "Load: type/struct error"
           let fs = emptyFileStateWithErrors [err]
           setFileState filePath fs
-          sendUpdateNotification filePath fs
+          sendFileState filePath fs
         Right fs ->
           case maybeDig of
             Nothing -> do
               logText "Load: no holes, setting file state directly\n"
               setFileState filePath fs
-              sendUpdateNotification filePath fs
+              sendFileState filePath fs
               logText "Load: sending workspace/semanticTokens/refresh\n"
               sendSemanticTokensRefresh
             Just (_, newSource) -> do

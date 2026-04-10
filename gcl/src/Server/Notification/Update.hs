@@ -8,7 +8,7 @@ import Server.Monad (FileState, ServerM)
 import qualified Server.Monad as Server
 import qualified Server.ToClient as ToClient
 
-sendUpdateNotification :: FilePath -> FileState -> ServerM ()
-sendUpdateNotification filePath fs = do
-  let json = ToClient.toFileStateNotificationJSON filePath fs
+sendFileState :: FilePath -> FileState -> ServerM ()
+sendFileState filePath fs = do
+  let json = ToClient.toClientFileStateJSON filePath fs
   Server.sendCustomNotification (Proxy @"gcl/update") json

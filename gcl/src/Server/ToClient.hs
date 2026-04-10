@@ -11,13 +11,14 @@
 -- The main purpose is to make the conversion from server to client explicit
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
-  ( toFileStateNotificationJSON,
-    FileStateNotification (..),
+  ( toClientFileStateJSON,
+    ClientFileState (..),
   )
 where
 
 import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingleConstructors, (.=))
 import qualified Data.Aeson as JSON
+import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List.NonEmpty (toList)
 import qualified Data.Text as Text
 import qualified Error
@@ -37,11 +38,11 @@ import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
 
--- | Client-side FileStateNotification type (matches TypeScript FileStateNotification)
--- Sent via gcl/update notification
-data FileStateNotification = FileStateNotification
-  { filePath :: FilePath,
-    errors :: [Error],
+-- | Client-facing payload for gcl/update notification.
+-- Produced by the server after trimming internal fields (semantic tokens,
+-- definition links, hover infos, etc.). Matches TypeScript ClientFileState.
+data ClientFileState = ClientFileState
+  { errors :: [Error],
     specs :: [Specification],
     holes :: [Hole],
     pos :: [ProofObligation],
@@ -93,17 +94,19 @@ data StructWarning
   = MissingBound {range :: LSP.Range}
   deriving stock (Show, Generic)
 
--- | Convert server-side FileState to JSON for client consumption
-toFileStateNotificationJSON :: FilePath -> Server.FileState -> JSON.Value
-toFileStateNotificationJSON path fs =
-  JSON.toJSON (toFileStateNotification path fs)
+-- | Convert server-side FileState to notification JSON for gcl/update.
+-- Adds filePath routing info alongside the ClientFileState payload.
+toClientFileStateJSON :: FilePath -> Server.FileState -> JSON.Value
+toClientFileStateJSON path fs =
+  case JSON.toJSON (toClientFileState fs) of
+    JSON.Object obj -> JSON.Object (KeyMap.insert "filePath" (JSON.toJSON path) obj)
+    v -> v
 
--- | Convert server-side FileState to client-side FileStateNotification
-toFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
-toFileStateNotification path fs =
-  FileStateNotification
-    { filePath = path,
-      errors = map convertError (Server.fsErrors fs),
+-- | Convert server-side FileState to client-side ClientFileState
+toClientFileState :: Server.FileState -> ClientFileState
+toClientFileState fs =
+  ClientFileState
+    { errors = map convertError (Server.fsErrors fs),
       specs = map convertSpec (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = map convertPO (Server.fsProofObligations fs),
@@ -156,7 +159,7 @@ convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 --------------------------------------------------------------------------------
 -- JSON instances for client types
 
--- Note: FileStateNotification, Specification, ProofObligation,
+-- Note: ClientFileState, Specification, ProofObligation,
 -- and POOrigin use automatic ToJSON deriving with defaultOptions via 'deriving anyclass'.
 -- StructWarning requires a custom instance due to unwrapUnaryRecords = True.
 
