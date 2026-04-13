@@ -17,8 +17,8 @@ import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
-import Server.Notification.Update (sendFileState)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendWindowInfoMessage, setFileState, setPendingEdit)
+import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -61,12 +61,13 @@ load filePath = do
                     Nothing -> do
                       logText "Load: no holes, setting file state directly\n"
                       setFileState filePath fs
-                      sendFileState filePath fs
                       case eitherFs of
                         Right _ -> do
-                          logText "Load: sending workspace/semanticTokens/refresh\n"
-                          sendSemanticTokensRefresh
-                        Left _ -> logTextLn "Load: type/struct error"
+                          logText "Load: sending refresh\n"
+                          sendFileStateWithRefresh filePath fs
+                        Left _ -> do
+                          logTextLn "Load: type/struct error"
+                          sendFileState filePath fs
                     Just (edits, newSource) -> do
                       logText "Load: holes dug, sending edit\n"
                       sendEditTextsWithVersion filePath vfsVersion edits
