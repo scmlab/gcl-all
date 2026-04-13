@@ -90,7 +90,7 @@ refine filePath cursor = do
           logText "Refine: hole edit sent\n"
           let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
               (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-              newHoles = collectExprHoles typedExpr
+              newHoles = justifyHoleRanges hole (collectExprHoles typedExpr)
               newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = updateHoleIds (holes1 <> newHoles <> holes2)}
               newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
@@ -100,7 +100,14 @@ refine filePath cursor = do
     splitAtFirst x = fmap (drop 1) . break (x ==)
 
     updateHoleIds :: [Hole] -> [Hole]
-    updateHoleIds = zipWith (\ idx hole -> hole {holeID = idx}) [0..]
+    updateHoleIds = zipWith (\idx hole -> hole {holeID = idx}) [0..]
+
+    -- | Justifies ranges for expanded holes from the original hole,
+    -- only the holes on the start line of original hole will be offseted
+    -- by 2 columns backward.
+    justifyHoleRanges :: Hole -> [Hole] -> [Hole]
+    justifyHoleRanges (Hole _ _ (Range (Pos ol _) _) _) = 
+      map (\hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) -> if l1 == ol then hole {holeRange = mkRange (mkPos l1 (c1 - 2)) (mkPos l2 (c2 - 2))} else hole)
 
 --------------------------------------------------------------------------------
 -- Main pipeline
