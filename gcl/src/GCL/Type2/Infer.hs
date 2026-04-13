@@ -16,7 +16,7 @@ import Debug.Trace
 import GCL.Common (Free (..))
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type2.Infer.BuiltIn (getArithOpType, getChainOpType)
-import GCL.Type2.Subst (applySubst, applySubstEnv)
+import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
     Result,
@@ -103,6 +103,11 @@ typeCheck expr ty = do
   (s1, exprTy, typedExpr) <- infer expr
   s2 <- lift $ unify exprTy ty (maybeRangeOf expr)
   return (s2 <> s1, typedExpr)
+
+typeCheck' :: A.Expr -> A.Type -> TIMonad (Subst, T.Expr)
+typeCheck' expr ty = do
+  (s, typedExpr) <- typeCheck expr ty
+  return (s, applySubstExpr s typedExpr)
 
 -- (-->) :: a -> b -> (a --> b)
 --
