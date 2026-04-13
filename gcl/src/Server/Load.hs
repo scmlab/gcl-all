@@ -55,41 +55,29 @@ load filePath = do
               let fs = emptyFileStateWithErrors [ParseError parseErr]
               setFileState filePath fs
               sendFileState filePath fs
-            Right (maybeDig, eitherFs) -> do
-              sendDigEdits vfsVersion maybeDig
-              handleLoadResult maybeDig eitherFs
+            Right (maybeDig, eitherFs) ->
+              let fs = either (emptyFileStateWithErrors . pure) id eitherFs
+               in case maybeDig of
+                    Nothing -> do
+                      logText "Load: no holes, setting file state directly\n"
+                      setFileState filePath fs
+                      sendFileState filePath fs
+                      case eitherFs of
+                        Right _ -> do
+                          logText "Load: sending workspace/semanticTokens/refresh\n"
+                          sendSemanticTokensRefresh
+                        Left _ -> logTextLn "Load: type/struct error"
+                    Just (edits, newSource) -> do
+                      logText "Load: holes dug, sending edit\n"
+                      sendEditTextsWithVersion filePath vfsVersion edits
+                      logText "Load: setting pending edit\n"
+                      setPendingEdit
+                        filePath
+                        PendingEdit
+                          { expectedContent = newSource,
+                            pendingFileState = fs
+                          }
       logText "Load: end\n"
-  where
-    sendDigEdits vfsVersion maybeDig =
-      case maybeDig of
-        Nothing -> logText "Load: no holes\n"
-        Just (edits, _newSource) -> do
-          logText "Load: holes dug, sending edit\n"
-          sendEditTextsWithVersion filePath vfsVersion edits
-
-    handleLoadResult maybeDig eitherFs =
-      case eitherFs of
-        Left err -> do
-          logTextLn "Load: type/struct error"
-          let fs = emptyFileStateWithErrors [err]
-          setFileState filePath fs
-          sendFileState filePath fs
-        Right fs ->
-          case maybeDig of
-            Nothing -> do
-              logText "Load: no holes, setting file state directly\n"
-              setFileState filePath fs
-              sendFileState filePath fs
-              logText "Load: sending workspace/semanticTokens/refresh\n"
-              sendSemanticTokensRefresh
-            Just (_, newSource) -> do
-              logText "Load: setting pending edit\n"
-              let pending =
-                    PendingEdit
-                      { expectedContent = newSource,
-                        pendingFileState = fs
-                      }
-              setPendingEdit filePath pending
 
 --------------------------------------------------------------------------------
 -- Main pipeline
