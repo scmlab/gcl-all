@@ -15,9 +15,11 @@ export async function activate(context: vscode.ExtensionContext) {
 	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
+	const inlayHintsEmitter = new vscode.EventEmitter<void>();
 	const inlayHintsDisposable = vscode.languages.registerInlayHintsProvider(
 		{ scheme: 'file', language: 'gcl' },
 		{
+			onDidChangeInlayHints: inlayHintsEmitter.event,
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
 				const clientState: ClientFileState | undefined = context.workspaceState.get(filePath);
@@ -145,7 +147,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		await updateInlayHints(newClientFileState);
 
 		async function updateInlayHints(newClientFileState: ClientFileState) {
-			// TODO: find a way to tell vscode to update inlay hints
+			inlayHintsEmitter.fire();
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
