@@ -123,12 +123,11 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
--- ChAoS: Had to find out if implText trimming is neccessary or not
 refineHoleAndDig :: FilePath -> Hole -> Text -> Either Error (Text, T.Expr)
 refineHoleAndDig filePath hole source = do
   let holeRng = holeRange hole
       implRange = shrinkRange 2 holeRng
-      implText = extractText implRange source
+      implText = Text.strip $ extractText implRange source
       implStart = rangeStart implRange
 
   (finalImplText, expr) <- parseAndDigHoleFragment filePath implStart implText
