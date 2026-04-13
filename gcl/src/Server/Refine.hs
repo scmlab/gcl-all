@@ -9,11 +9,10 @@ import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
-import Debug.Trace (trace, traceM)
 import Error (Error (..))
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
-import GCL.Type2.Infer (infer, typeCheck)
+import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, evalTI)
 import GCL.WP (collectExprHoles, collectStmtHoles, runWP, structStmts)
@@ -91,13 +90,17 @@ refine filePath cursor = do
           logText "Refine: hole edit sent\n"
           let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
               (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-              newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = holes1 <> collectExprHoles typedExpr <> holes2}
+              newHoles = collectExprHoles typedExpr
+              newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = updateHoleIds (holes1 <> newHoles <> holes2)}
               newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
           setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
     splitAtFirst x = fmap (drop 1) . break (x ==)
+
+    updateHoleIds :: [Hole] -> [Hole]
+    updateHoleIds = zipWith (\ idx hole -> hole {holeID = idx}) [0..]
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -155,7 +158,7 @@ loadConcreteFragment typeEnv idCount spec stmts = do
 loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Either Error T.Expr
 loadConcreteHoleFragment typeEnv ty expr = do
   let abstract = C.runAbstractTransform expr
-  bimap (TypeError . Hack.toOldError) snd (evalTI (typeCheck abstract ty) typeEnv 0)
+  bimap (TypeError . Hack.toOldError) snd (evalTI (typeCheck' abstract ty) typeEnv 0)
 
 -- | Parse fragment and dig holes if needed.
 -- Internally uses relative positions (1,1) for hole digging,
