@@ -14,6 +14,7 @@ data FileState = FileState
     fsHoles :: ![Hole],
     fsProofObligations :: ![PO],
     fsWarnings :: ![StructWarning],
+    fsMetaVarIdCount :: !Int,
     fsIdCount :: !Int,
     fsSemanticTokens :: ![LSP.SemanticTokenAbsolute],
     fsDefinitionLinks :: !(IntervalMap OriginTargetRanges),

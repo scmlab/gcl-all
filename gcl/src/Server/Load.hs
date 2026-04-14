@@ -24,6 +24,7 @@ import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
+import GCL.Type2.Types (Inference(..))
 
 --------------------------------------------------------------------------------
 -- Types
@@ -97,7 +98,7 @@ loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
   abstract' <- first TypeError $ evalDependencyResolution abstract
-  elaborated <- first (TypeError . Hack.toOldError) $ runToTyped abstract' mempty
+  (elaborated, Inference c) <- first (TypeError . Hack.toOldError) $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
     FileState
@@ -107,6 +108,7 @@ loadConcrete concrete = do
         fsProofObligations = pos,
         fsWarnings = warnings,
         fsIdCount = idCount,
+        fsMetaVarIdCount = c,
         fsSemanticTokens = collectHighlighting concrete,
         fsDefinitionLinks = collectLocationLinks abstract,
         fsHoverInfos = collectHoverInfo elaborated

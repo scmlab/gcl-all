@@ -28,7 +28,7 @@ import GCL.Type2.Types
     throwError,
     typeBool,
     typeInt,
-    typeToType,
+    typeToType, Inference (..), runTI,
   )
 import GCL.Type2.Unify (unify)
 import Pretty
@@ -339,5 +339,5 @@ instance ToTyped A.Expr T.Expr where
 
     return typed'
 
-runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t
-runToTyped a env = evalTI (toTyped a) env 0
+runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError (t, Inference)
+runToTyped a env = runTI (toTyped a) env (Inference 0)
