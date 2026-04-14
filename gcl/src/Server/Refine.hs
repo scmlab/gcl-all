@@ -3,7 +3,7 @@
 module Server.Refine where
 
 import Control.Applicative (Alternative ((<|>)))
-import Control.Monad (when)
+import Control.Monad (unless, when)
 import Data.Bifunctor (Bifunctor (bimap), first, second)
 import Data.List (find)
 import qualified Data.Map as Map
@@ -11,7 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
-import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
+import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart, within)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference (Inference), runTI)
@@ -90,8 +90,13 @@ refine filePath cursor = do
           logText "Refine: hole edit sent\n"
           let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
               (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-              newHoles = justifyHoleRanges (collectExprHoles typedExpr)
-              newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = updateHoleIds (holes1 <> newHoles <> holes2), fsMetaVarIdCount = c}
+              newHoles = justifyExpHoleRanges $ collectExprHoles typedExpr
+              holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
+              newFs =
+                (applyMovesToFileState [lspMove] fs)
+                  { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
+                    fsMetaVarIdCount = c
+                  }
               newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
           setPendingEdit filePath pending
@@ -116,7 +121,7 @@ refineAndDig filePath idCount spec source = do
     Left (Others "Refine" "Spec should have more than one line." (Just specRng))
   let implRange = shrinkRange 2 specRng
       implText = extractText implRange source
-  when (not (isFirstLineBlank implText)) $
+  unless (isFirstLineBlank implText) $
     Left (Others "Refine" "The first line in the spec must be blank." (Just implRange))
   let implStart = rangeStart implRange
 
@@ -126,7 +131,9 @@ refineAndDig filePath idCount spec source = do
 refineHoleAndDig :: FilePath -> Hole -> Text -> Int -> Either Error (Text, (T.Expr, Inference))
 refineHoleAndDig filePath hole source c = do
   let holeRng = holeRange hole
-      implRange = shrinkRange 2 holeRng
+  unless (isSingleLine holeRng) $
+    Left (Others "Refine" "Hole should have exact one line." (Just holeRng))
+  let implRange = shrinkRange 2 holeRng
       implText = Text.strip $ extractText implRange source
       implStart = rangeStart implRange
 
@@ -272,8 +279,8 @@ sweepFragment counter (Specification _ pre post _ _) impl =
 isSingleLine :: Range -> Bool
 isSingleLine (Range (Pos l1 _) (Pos l2 _)) = l1 == l2
 
-startOnSameLine :: Range -> Range -> Bool
-startOnSameLine (Range (Pos l1 _) _) (Range (Pos l2 _) _) = l1 == l2
+onSameLine :: Range -> Range -> Bool
+onSameLine (Range (Pos l1 _) (Pos l2 _)) (Range (Pos l3 _) (Pos l4 _)) = l1 == l3 && l2 == l4
 
 shrinkRange :: Int -> Range -> Range
 shrinkRange diff (Range (Pos l1 c1) (Pos l2 c2)) =
@@ -282,23 +289,15 @@ shrinkRange diff (Range (Pos l1 c1) (Pos l2 c2)) =
 isFirstLineBlank :: Text -> Bool
 isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
 
--- | Justifies ranges for expanded holes from the original hole,
--- only the holes on the start line of original hole will be offseted
--- by 2 columns backward.
--- ChAoS: Do we need to consider multi-line scenario?
-justifyHoleRanges :: [Hole] -> [Hole]
-justifyHoleRanges holes =
-  let (firstLineHoles, tails) = unconsHoles holes
-      justifiedHoles = map (\hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) -> hole {holeRange = mkRange (mkPos l1 (c1 - 2)) (mkPos l2 (c2 - 2))}) firstLineHoles
-   in justifiedHoles <> tails
-  where
-    -- groups holes by whether the holes are on the first line of
-    -- original hole after whitespaces are trimmed
-    unconsHoles :: [Hole] -> ([Hole], [Hole])
-    unconsHoles [] = mempty
-    unconsHoles holes'@(h : _) =
-      let firstRange = holeRange h
-       in span (startOnSameLine firstRange . holeRange) holes'
+justifyExpHoleRanges :: [Hole] -> [Hole]
+justifyExpHoleRanges = map (justifyHoleRange (-2))
+
+justifyRearHoleRanges :: Int -> Range -> [Hole] -> [Hole]
+justifyRearHoleRanges expDiff r = map (\hole@(Hole _ _ hr _) -> if onSameLine r hr then justifyHoleRange (expDiff * 4 - 1) hole else hole)
+
+justifyHoleRange :: Int -> Hole -> Hole
+justifyHoleRange diff hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) =
+  hole {holeRange = mkRange (mkPos l1 (c1 + diff)) (mkPos l2 (c2 + diff))}
 
 --------------------------------------------------------------------------------
 -- Finding enclosing spec
