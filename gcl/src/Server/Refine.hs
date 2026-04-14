@@ -47,6 +47,8 @@ import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
 import qualified Syntax.Typed as T
+import Data.List (groupBy)
+import Data.List (uncons)
 
 --------------------------------------------------------------------------------
 -- ServerM action
@@ -90,7 +92,7 @@ refine filePath cursor = do
           logText "Refine: hole edit sent\n"
           let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
               (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-              newHoles = justifyHoleRanges hole (collectExprHoles typedExpr)
+              newHoles = justifyHoleRanges (collectExprHoles typedExpr)
               newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = updateHoleIds (holes1 <> newHoles <> holes2)}
               newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
@@ -101,13 +103,6 @@ refine filePath cursor = do
 
     updateHoleIds :: [Hole] -> [Hole]
     updateHoleIds = zipWith (\idx hole -> hole {holeID = idx}) [0..]
-
-    -- | Justifies ranges for expanded holes from the original hole,
-    -- only the holes on the start line of original hole will be offseted
-    -- by 2 columns backward.
-    justifyHoleRanges :: Hole -> [Hole] -> [Hole]
-    justifyHoleRanges (Hole _ _ (Range (Pos ol _) _) _) = 
-      map (\hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) -> if l1 == ol then hole {holeRange = mkRange (mkPos l1 (c1 - 2)) (mkPos l2 (c2 - 2))} else hole)
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -274,12 +269,33 @@ sweepFragment counter (Specification _ pre post _ _) impl =
 isSingleLine :: Range -> Bool
 isSingleLine (Range (Pos l1 _) (Pos l2 _)) = l1 == l2
 
+startOnSameLine :: Range -> Range -> Bool
+startOnSameLine (Range (Pos l1 _) _) (Range (Pos l2 _) _) = l1 == l2
+
 shrinkRange :: Int -> Range -> Range
 shrinkRange diff (Range (Pos l1 c1) (Pos l2 c2)) =
   mkRange (mkPos l1 (c1 + diff)) (mkPos l2 (c2 - diff))
 
 isFirstLineBlank :: Text -> Bool
 isFirstLineBlank = Text.null . Text.strip . Text.takeWhile (/= '\n')
+
+-- | Justifies ranges for expanded holes from the original hole,
+-- only the holes on the start line of original hole will be offseted
+-- by 2 columns backward.
+-- ChAoS: Do we need to consider multi-line scenario?
+justifyHoleRanges :: [Hole] -> [Hole]
+justifyHoleRanges holes =
+  let (firstLineHoles, tails) = unconsHoles holes
+      justifiedHoles = map (\hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) -> hole {holeRange = mkRange (mkPos l1 (c1 - 2)) (mkPos l2 (c2 - 2))}) firstLineHoles
+  in justifiedHoles <> tails
+  where
+    -- groups holes by whether the holes are on the first line of 
+    -- original hole after whitespaces are trimmed
+    unconsHoles :: [Hole] -> ([Hole], [Hole])
+    unconsHoles [] = mempty
+    unconsHoles holes'@(h : _) =
+      let firstRange = holeRange h
+      in span (startOnSameLine firstRange . holeRange) holes'
 
 --------------------------------------------------------------------------------
 -- Finding enclosing spec
