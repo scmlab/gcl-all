@@ -5,6 +5,7 @@ module Server.Refine where
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad (when)
 import Data.Bifunctor (Bifunctor (bimap), first, second)
+import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -13,7 +14,7 @@ import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
-import GCL.Type2.Types (Env, evalTI, Inference (Inference), runTI)
+import GCL.Type2.Types (Env, Inference (Inference), runTI)
 import GCL.WP (collectExprHoles, collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
@@ -46,7 +47,6 @@ import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
 import qualified Syntax.Typed as T
-import Data.List (find)
 
 --------------------------------------------------------------------------------
 -- ServerM action
@@ -100,7 +100,7 @@ refine filePath cursor = do
     splitAtFirst x = fmap (drop 1) . break (x ==)
 
     updateHoleIds :: [Hole] -> [Hole]
-    updateHoleIds = zipWith (\idx hole -> hole {holeID = idx}) [0..]
+    updateHoleIds = zipWith (\idx hole -> hole {holeID = idx}) [0 ..]
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -290,15 +290,15 @@ justifyHoleRanges :: [Hole] -> [Hole]
 justifyHoleRanges holes =
   let (firstLineHoles, tails) = unconsHoles holes
       justifiedHoles = map (\hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) -> hole {holeRange = mkRange (mkPos l1 (c1 - 2)) (mkPos l2 (c2 - 2))}) firstLineHoles
-  in justifiedHoles <> tails
+   in justifiedHoles <> tails
   where
-    -- groups holes by whether the holes are on the first line of 
+    -- groups holes by whether the holes are on the first line of
     -- original hole after whitespaces are trimmed
     unconsHoles :: [Hole] -> ([Hole], [Hole])
     unconsHoles [] = mempty
     unconsHoles holes'@(h : _) =
       let firstRange = holeRange h
-      in span (startOnSameLine firstRange . holeRange) holes'
+       in span (startOnSameLine firstRange . holeRange) holes'
 
 --------------------------------------------------------------------------------
 -- Finding enclosing spec

@@ -18,6 +18,7 @@ import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, type
 import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
+    Inference (..),
     TIMonad,
     TypeError (..),
     ask,
@@ -25,10 +26,11 @@ import GCL.Type2.Types
     freshTVar,
     lift,
     local,
+    runTI,
     throwError,
     typeBool,
     typeInt,
-    typeToType, Inference (..), runTI,
+    typeToType,
   )
 import GCL.Type2.Unify (unify)
 import Pretty

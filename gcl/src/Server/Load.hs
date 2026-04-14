@@ -12,6 +12,7 @@ import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
+import GCL.Type2.Types (Inference (..))
 import qualified GCL.WP as WP
 import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
@@ -24,7 +25,6 @@ import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
-import GCL.Type2.Types (Inference(..))
 
 --------------------------------------------------------------------------------
 -- Types
