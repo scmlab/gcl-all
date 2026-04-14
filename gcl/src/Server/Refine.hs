@@ -13,7 +13,7 @@ import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
-import GCL.Type2.Types (Env, evalTI, Inference (Inference))
+import GCL.Type2.Types (Env, evalTI, Inference (Inference), runTI)
 import GCL.WP (collectExprHoles, collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
@@ -85,13 +85,13 @@ refine filePath cursor = do
     Right (fs, source, vfsVersion, Right hole) -> do
       case refineHoleAndDig filePath hole source (fsMetaVarIdCount fs) of
         Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
-        Right (finalImplText, typedExpr) -> do
+        Right (finalImplText, (typedExpr, Inference c)) -> do
           sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
           logText "Refine: hole edit sent\n"
           let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
               (holes1, holes2) = splitAtFirst hole (fsHoles fs)
               newHoles = justifyHoleRanges (collectExprHoles typedExpr)
-              newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = updateHoleIds (holes1 <> newHoles <> holes2)}
+              newFs = (applyMovesToFileState [lspMove] fs) {fsHoles = updateHoleIds (holes1 <> newHoles <> holes2), fsMetaVarIdCount = c}
               newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
           setPendingEdit filePath pending
@@ -123,7 +123,7 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Int -> Either Error (Text, T.Expr)
+refineHoleAndDig :: FilePath -> Hole -> Text -> Int -> Either Error (Text, (T.Expr, Inference))
 refineHoleAndDig filePath hole source c = do
   let holeRng = holeRange hole
       implRange = shrinkRange 2 holeRng
@@ -159,10 +159,10 @@ loadConcreteFragment typeEnv idCount spec stmts = do
     foldTIResult :: [(T.Stmt, Inference)] -> ([T.Stmt], Inference)
     foldTIResult = second maximum . unzip
 
-loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Int -> Either Error T.Expr
+loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Int -> Either Error (T.Expr, Inference)
 loadConcreteHoleFragment typeEnv ty expr c = do
   let abstract = C.runAbstractTransform expr
-  bimap (TypeError . Hack.toOldError) snd (evalTI (typeCheck' abstract ty) typeEnv (Inference c))
+  bimap (TypeError . Hack.toOldError) (first snd) (runTI (typeCheck' abstract ty) typeEnv (Inference c))
 
 -- | Parse fragment and dig holes if needed.
 -- Internally uses relative positions (1,1) for hole digging,
