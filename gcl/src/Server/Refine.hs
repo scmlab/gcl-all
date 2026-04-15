@@ -90,21 +90,28 @@ refine filePath cursor = do
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
             Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
-            Right (finalImplText, (typedExpr, state)) -> do
+            Right (finalImplText, eitherResult) -> do
               sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
               logText "Refine: hole edit sent\n"
               let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
-                  (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-                  newHoles = justifyExpHoleRanges $ collectExprHoles typedExpr
-                  holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
-                  newFs =
-                    (applyMovesToFileState [lspMove] fs)
-                      { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
-                        fsTIState = state
-                      }
+                  movedFs = applyMovesToFileState [lspMove] fs
                   newSource = applyEdits source [(holeRange hole, finalImplText)]
-                  pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
-              setPendingEdit filePath pending
+              case eitherResult of
+                Left err -> do
+                  let pendingFs = movedFs {fsErrors = fsErrors movedFs ++ [err]}
+                      pending = PendingEdit {expectedContent = newSource, pendingFileState = pendingFs}
+                  setPendingEdit filePath pending
+                Right (typedExpr, state) -> do
+                  let (holes1, holes2) = splitAtFirst hole (fsHoles fs)
+                      newHoles = justifyExpHoleRanges $ collectExprHoles typedExpr
+                      holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
+                      newFs =
+                        movedFs
+                          { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
+                            fsTIState = state
+                          }
+                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+                  setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
     splitAtFirst x = fmap (drop 1) . break (x ==)
@@ -133,7 +140,7 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, (T.Expr, Inference))
+refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, Either Error (T.Expr, Inference))
 refineHoleAndDig filePath hole source state = do
   let holeRng = holeRange hole
   unless (isSingleLine holeRng) $
@@ -143,8 +150,7 @@ refineHoleAndDig filePath hole source state = do
       implStart = rangeStart implRange
 
   (finalImplText, expr) <- parseAndDigHoleFragment filePath implStart implText
-  typedExpr <- loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr state
-  return (finalImplText, typedExpr)
+  return (finalImplText, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr state)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
