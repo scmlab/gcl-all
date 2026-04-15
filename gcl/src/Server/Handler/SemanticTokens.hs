@@ -19,7 +19,9 @@ handler fileUri responder = do
     Just filePath -> do
       maybeFileState <- getFileState filePath
       case maybeFileState of
-        Nothing -> respondError (LSP.ResponseError (LSP.InR LSP.ErrorCodes_ServerNotInitialized) "Please reload before requesting for semantic tokens." Nothing)
+        Nothing -> do
+          logText "semantic token: file state not initialized, returning null\n"
+          responder (Right $ LSP.InR LSP.Null)
         Just (FileState {fsSemanticTokens}) ->
           do
             let legend =
