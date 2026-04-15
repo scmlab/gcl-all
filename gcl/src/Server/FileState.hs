@@ -3,6 +3,7 @@ module Server.FileState where
 import Data.Text (Text)
 import Error (Error)
 import GCL.Predicate (Hole, PO, Spec)
+import GCL.Type2.Types (Inference, mkInference)
 import GCL.WP.Types (StructWarning)
 import qualified Language.LSP.Protocol.Types as LSP
 import Server.GoToDefn (OriginTargetRanges)
@@ -14,6 +15,7 @@ data FileState = FileState
     fsHoles :: ![Hole],
     fsProofObligations :: ![PO],
     fsWarnings :: ![StructWarning],
+    fsTIState :: !Inference,
     fsIdCount :: !Int,
     fsSemanticTokens :: ![LSP.SemanticTokenAbsolute],
     fsDefinitionLinks :: !(IntervalMap OriginTargetRanges),
@@ -28,6 +30,7 @@ emptyFileStateWithErrors errs =
       fsHoles = [],
       fsProofObligations = [],
       fsWarnings = [],
+      fsTIState = mkInference,
       fsIdCount = 0,
       fsSemanticTokens = [],
       fsDefinitionLinks = mempty,

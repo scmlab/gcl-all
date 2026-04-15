@@ -7,8 +7,11 @@ module GCL.Type2.Types
     Env,
     TyVar,
     Subst,
+    Inference,
+    mkInference,
     -- TIMonad
     evalTI,
+    runTI,
     -- Reader
     reader,
     ask,
@@ -91,11 +94,18 @@ execRSE m r s = snd <$> runRSE m r s
 newtype Inference = Inference
   { _counter :: Int
   }
+  deriving (Ord, Eq)
+
+mkInference :: Inference
+mkInference = Inference 0
 
 type TIMonad = RSE Env Inference
 
-evalTI :: TIMonad a -> Env -> Int -> Result a
-evalTI m env c = evalRSE m env (Inference c)
+runTI :: TIMonad a -> Env -> Inference -> Result (a, Inference)
+runTI = runRSE
+
+evalTI :: TIMonad a -> Env -> Inference -> Result a
+evalTI = evalRSE
 
 instance Counterous TIMonad where
   countUp = do
