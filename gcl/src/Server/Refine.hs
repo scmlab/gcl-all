@@ -67,45 +67,44 @@ refine filePath cursor = do
             (source, vfsVersion) <- maybe (Left [Others "Refine" "Cannot read source." Nothing]) Right maybeSource
             enclosingTarget <- maybe (Left [Others "Refine" "No enclosing spec or hole found." Nothing]) Right (findSpecOrHole cursor (fsSpecifications fs) (fsHoles fs))
             return (fs, source, vfsVersion, enclosingTarget)
-
-  case result of
-    Left errs -> sendWindowInfoMessage (Text.intercalate "\n" $ map (renderStrict . layoutCompact . pretty) errs)
-    Right (fs, source, vfsVersion, Left spec) -> do
-      case refineAndDig filePath (fsIdCount fs) spec source of
-        Left errs -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) errs])
-        Right (finalImplText, eitherFs) -> do
-          sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
-          logText "Refine: spec edit sent\n"
-          let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-              movedFs = applyMovesToFileState [lspMove] fs
-              newSource = applyEdits source [(specRange spec, finalImplText)]
-          case eitherFs of
-            Left err -> do
-              let pendingFs = movedFs {fsErrors = fsErrors movedFs ++ [err]}
-                  pending = PendingEdit {expectedContent = newSource, pendingFileState = pendingFs}
-              setPendingEdit filePath pending
-            Right fragmentFs -> do
-              let newFs = mergeFileState movedFs fragmentFs
+      case result of
+        Left errs -> sendWindowInfoMessage (Text.intercalate "\n" $ map (renderStrict . layoutCompact . pretty) errs)
+        Right (fs, source, vfsVersion, Left spec) -> do
+          case refineAndDig filePath (fsIdCount fs) spec source of
+            Left errs -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) errs])
+            Right (finalImplText, eitherFs) -> do
+              sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
+              logText "Refine: spec edit sent\n"
+              let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+                  movedFs = applyMovesToFileState [lspMove] fs
+                  newSource = applyEdits source [(specRange spec, finalImplText)]
+              case eitherFs of
+                Left err -> do
+                  let pendingFs = movedFs {fsErrors = fsErrors movedFs ++ [err]}
+                      pending = PendingEdit {expectedContent = newSource, pendingFileState = pendingFs}
+                  setPendingEdit filePath pending
+                Right fragmentFs -> do
+                  let newFs = mergeFileState movedFs fragmentFs
+                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+                  setPendingEdit filePath pending
+        Right (fs, source, vfsVersion, Right hole) -> do
+          case refineHoleAndDig filePath hole source (fsTIState fs) of
+            Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
+            Right (finalImplText, (typedExpr, state)) -> do
+              sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
+              logText "Refine: hole edit sent\n"
+              let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
+                  (holes1, holes2) = splitAtFirst hole (fsHoles fs)
+                  newHoles = justifyExpHoleRanges $ collectExprHoles typedExpr
+                  holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
+                  newFs =
+                    (applyMovesToFileState [lspMove] fs)
+                      { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
+                        fsTIState = state
+                      }
+                  newSource = applyEdits source [(holeRange hole, finalImplText)]
                   pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
               setPendingEdit filePath pending
-    Right (fs, source, vfsVersion, Right hole) -> do
-      case refineHoleAndDig filePath hole source (fsMetaVarIdCount fs) of
-        Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
-        Right (finalImplText, (typedExpr, state)) -> do
-          sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
-          logText "Refine: hole edit sent\n"
-          let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
-              (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-              newHoles = justifyExpHoleRanges $ collectExprHoles typedExpr
-              holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
-              newFs =
-                (applyMovesToFileState [lspMove] fs)
-                  { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
-                    fsTIState = state
-                  }
-              newSource = applyEdits source [(holeRange hole, finalImplText)]
-              pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
-          setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
     splitAtFirst x = fmap (drop 1) . break (x ==)
