@@ -131,7 +131,7 @@ parseAndDig filePath source = do
     parseAndCollectHoles fp src =
       case Parser.scanAndParse Parser.program fp src of
         Left err -> Left err
-        Right concrete -> Right (concrete, collectHoles concrete)
+        Right concrete -> Right (concrete, collectHole concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
         edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
@@ -167,44 +167,50 @@ applyEdits source edits =
 --------------------------------------------------------------------------------
 -- Collecting holes from concrete syntax
 
-collectHoles :: C.Program -> [(HoleKind, Range)]
-collectHoles (C.Program _ statements) = concatMap collectHolesFromStatement statements
+class CollectHole a where
+  collectHole :: a -> [(HoleKind, Range)]
 
-collectHolesFromStatement :: C.Stmt -> [(HoleKind, Range)]
-collectHolesFromStatement (C.SpecQM range) = [(StmtHole, range)]
-collectHolesFromStatement (C.Assign _ _ exprs) = concat $ mapSepBy collectHolesFromExpr exprs
-collectHolesFromStatement (C.AAssign _ _ a _ _ b) = collectHolesFromExpr a <> collectHolesFromExpr b
-collectHolesFromStatement (C.Assert _ a _) = collectHolesFromExpr a
-collectHolesFromStatement (C.LoopInvariant _ a _ _ _ b _) = collectHolesFromExpr a <> collectHolesFromExpr b
-collectHolesFromStatement (C.Do _ ss _) = concat $ mapSepBy collectHolesFromGdCmd ss
-collectHolesFromStatement (C.If _ ss _) = concat $ mapSepBy collectHolesFromGdCmd ss
-collectHolesFromStatement (C.Alloc _ _ _ _ es _) = concat $ mapSepBy collectHolesFromExpr es
-collectHolesFromStatement (C.HLookup _ _ _ a) = collectHolesFromExpr a
-collectHolesFromStatement (C.HMutate _ a _ b) = collectHolesFromExpr a <> collectHolesFromExpr b
-collectHolesFromStatement (C.Dispose _ a) = collectHolesFromExpr a
-collectHolesFromStatement (C.Block _ program _) = collectHoles program
-collectHolesFromStatement _ = []
+instance CollectHole C.Program where
+  collectHole (C.Program _ statements) = collectHole statements
 
-collectHolesFromGdCmd :: C.GdCmd -> [(HoleKind, Range)]
-collectHolesFromGdCmd (GdCmd expr _ stmts) = collectHolesFromExpr expr <> concatMap collectHolesFromStatement stmts
+instance (CollectHole a) => CollectHole [a] where
+  collectHole = concatMap collectHole
 
-collectHolesFromExpr :: C.Expr -> [(HoleKind, Range)]
-collectHolesFromExpr (C.HoleQM range) = [(ExprHole, range)]
-collectHolesFromExpr (C.Paren _ expr _) = collectHolesFromExpr expr
-collectHolesFromExpr (C.Arr a _ b _) = collectHolesFromExpr a <> collectHolesFromExpr b
-collectHolesFromExpr (C.App a b) = collectHolesFromExpr a <> collectHolesFromExpr b
-collectHolesFromExpr (C.Quant _ _ _ _ a _ b _) = collectHolesFromExpr a <> collectHolesFromExpr b
-collectHolesFromExpr (C.Case _ a _ clauses) = collectHolesFromExpr a <> concatMap collectHolesFromClauses clauses
-collectHolesFromExpr (C.Chain chain) = collectHolesFromChain chain
-collectHolesFromExpr _ = []
+instance (CollectHole a) => CollectHole (SepBy s a) where
+  collectHole (Head c) = collectHole c
+  collectHole (Delim c _ cs) = collectHole c <> collectHole cs
 
-collectHolesFromClauses :: C.CaseClause -> [(HoleKind, Range)]
-collectHolesFromClauses (C.CaseClause _ _ expr) = collectHolesFromExpr expr
+instance CollectHole C.Stmt where
+  collectHole (C.SpecQM range) = [(StmtHole, range)]
+  collectHole (C.Assign _ _ exprs) = collectHole exprs
+  collectHole (C.AAssign _ _ a _ _ b) = collectHole a <> collectHole b
+  collectHole (C.Assert _ a _) = collectHole a
+  collectHole (C.LoopInvariant _ a _ _ _ b _) = collectHole a <> collectHole b
+  collectHole (C.Do _ ss _) = collectHole ss
+  collectHole (C.If _ ss _) = collectHole ss
+  collectHole (C.Alloc _ _ _ _ es _) = collectHole es
+  collectHole (C.HLookup _ _ _ a) = collectHole a
+  collectHole (C.HMutate _ a _ b) = collectHole a <> collectHole b
+  collectHole (C.Dispose _ a) = collectHole a
+  collectHole (C.Block _ program _) = collectHole program
+  collectHole _ = []
 
-collectHolesFromChain :: C.Chain -> [(HoleKind, Range)]
-collectHolesFromChain (C.Pure expr) = collectHolesFromExpr expr
-collectHolesFromChain (C.More c _ expr) = collectHolesFromChain c <> collectHolesFromExpr expr
+instance CollectHole C.GdCmd where
+  collectHole (GdCmd expr _ stmts) = collectHole expr <> collectHole stmts
 
-mapSepBy :: (a -> b) -> SepBy s a -> [b]
-mapSepBy f (Head c) = [f c]
-mapSepBy f (Delim c _ cs) = f c : mapSepBy f cs
+instance CollectHole C.Expr where
+  collectHole (C.HoleQM range) = [(ExprHole, range)]
+  collectHole (C.Paren _ expr _) = collectHole expr
+  collectHole (C.Arr a _ b _) = collectHole a <> collectHole b
+  collectHole (C.App a b) = collectHole a <> collectHole b
+  collectHole (C.Quant _ _ _ _ a _ b _) = collectHole a <> collectHole b
+  collectHole (C.Case _ a _ clauses) = collectHole a <> collectHole clauses
+  collectHole (C.Chain chain) = collectHole chain
+  collectHole _ = []
+
+instance CollectHole C.CaseClause where
+  collectHole (C.CaseClause _ _ expr) = collectHole expr
+
+instance CollectHole C.Chain where
+  collectHole (C.Pure expr) = collectHole expr
+  collectHole (C.More c _ expr) = collectHole c <> collectHole expr
