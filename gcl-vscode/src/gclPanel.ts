@@ -1,6 +1,6 @@
 
 import * as vscode from 'vscode';
-import { ClientState } from './data/ClientState';
+import { ClientFileState } from './data/FileState';
 import renderError from './components/FileState/ErrorSection';
 import renderProofObligation from './components/FileState/ProofObligation';
 import renderWarning from './components/FileState/WarningSection';
@@ -25,8 +25,8 @@ export class GclPanel {
 	show(html: string): void {
 		this.panel.webview.html = html
 	}
-	rerender(clientState: ClientState): void {
-		this.panel.webview.html = renderClientState(clientState);
+	rerender(clientState: ClientFileState): void {
+		this.panel.webview.html = renderClientFileState(clientState);
 	}
 	// Show either the welcome page or sections (likely from the LSP server).
 	showLoading(extPath: string): void {
@@ -54,7 +54,7 @@ function renderLoading(extPath: string): string {
 	`
 }
 
-function renderClientState(clientState: ClientState): string {
+function renderClientFileState(clientState: ClientFileState): string {
 	return /* html */`
     	<!DOCTYPE html>
         <html lang="en">

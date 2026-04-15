@@ -17,9 +17,8 @@ import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
-import Server.Notification.Error (sendErrorNotification)
-import Server.Notification.Update (sendUpdateNotification)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendWindowInfoMessage, setFileState, setPendingEdit)
+import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -53,40 +52,33 @@ load filePath = do
           case loadAndDig filePath source of
             Left parseErr -> do
               logTextLn "Load: parse error"
-              sendErrorNotification filePath [ParseError parseErr]
-            Right (maybeDig, eitherFs) -> do
-              sendDigEdits vfsVersion maybeDig
-              handleLoadResult maybeDig eitherFs
-      logText "Load: end\n"
-  where
-    sendDigEdits vfsVersion maybeDig =
-      case maybeDig of
-        Nothing -> logText "Load: no holes\n"
-        Just (edits, _newSource) -> do
-          logText "Load: holes dug, sending edit\n"
-          sendEditTextsWithVersion filePath vfsVersion edits
-
-    handleLoadResult maybeDig eitherFs =
-      case eitherFs of
-        Left err -> do
-          logTextLn "Load: type/struct error"
-          sendErrorNotification filePath [err]
-        Right fs ->
-          case maybeDig of
-            Nothing -> do
-              logText "Load: no holes, setting file state directly\n"
+              let fs = emptyFileStateWithErrors [ParseError parseErr]
               setFileState filePath fs
-              sendUpdateNotification filePath fs
-              logText "Load: sending workspace/semanticTokens/refresh\n"
-              sendSemanticTokensRefresh
-            Just (_, newSource) -> do
-              logText "Load: setting pending edit\n"
-              let pending =
-                    PendingEdit
-                      { expectedContent = newSource,
-                        pendingFileState = fs
-                      }
-              setPendingEdit filePath pending
+              sendFileState filePath fs
+            Right (maybeDig, eitherFs) ->
+              let fs = either (emptyFileStateWithErrors . pure) id eitherFs
+               in case maybeDig of
+                    Nothing -> do
+                      logText "Load: no holes, setting file state directly\n"
+                      setFileState filePath fs
+                      case eitherFs of
+                        Right _ -> do
+                          logText "Load: sending refresh\n"
+                          sendFileStateWithRefresh filePath fs
+                        Left _ -> do
+                          logTextLn "Load: type/struct error"
+                          sendFileState filePath fs
+                    Just (edits, newSource) -> do
+                      logText "Load: holes dug, sending edit\n"
+                      sendEditTextsWithVersion filePath vfsVersion edits
+                      logText "Load: setting pending edit\n"
+                      setPendingEdit
+                        filePath
+                        PendingEdit
+                          { expectedContent = newSource,
+                            pendingFileState = fs
+                          }
+      logText "Load: end\n"
 
 --------------------------------------------------------------------------------
 -- Main pipeline
@@ -109,7 +101,8 @@ loadConcrete concrete = do
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
     FileState
-      { fsSpecifications = specs,
+      { fsErrors = [],
+        fsSpecifications = specs,
         fsHoles = holes,
         fsProofObligations = pos,
         fsWarnings = warnings,

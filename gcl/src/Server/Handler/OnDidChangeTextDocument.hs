@@ -12,7 +12,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
 import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
 import Server.Move (applyMovesToFileState, mkLSPMoves)
-import Server.Notification.Update (sendUpdateNotification)
+import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
@@ -25,7 +25,7 @@ handler filePath changes = do
       case maybeSource of
         Just src | src == expectedContent -> do
           setFileState filePath pendingFileState
-          sendUpdateNotification filePath pendingFileState
+          sendFileStateWithRefresh filePath pendingFileState
         _ -> applyTranslation
     Nothing -> applyTranslation
   t1 <- liftIO getMonotonicTimeNSec
@@ -40,15 +40,18 @@ handler filePath changes = do
           let fs' = applyMovesToFileState (mkLSPMoves changes) fs
           -- Force all list fields now so the work is done within this handler,
           -- rather than deferred lazily to the next request.
-          (nToks, nSpecs, nHoles, nPOs, nWarnings) <- liftIO $ do
-            a <- evaluate $ length $ fsSemanticTokens fs'
-            b <- evaluate $ length $ fsSpecifications fs'
-            c <- evaluate $ length $ fsHoles fs'
-            d <- evaluate $ length $ fsProofObligations fs'
-            e <- evaluate $ length $ fsWarnings fs'
-            return (a, b, c, d, e)
+          (nErrs, nToks, nSpecs, nHoles, nPOs, nWarnings) <- liftIO $ do
+            a <- evaluate $ length $ fsErrors fs'
+            b <- evaluate $ length $ fsSemanticTokens fs'
+            c <- evaluate $ length $ fsSpecifications fs'
+            d <- evaluate $ length $ fsHoles fs'
+            e <- evaluate $ length $ fsProofObligations fs'
+            f <- evaluate $ length $ fsWarnings fs'
+            return (a, b, c, d, e, f)
           logText $
-            "tokens: "
+            "errors: "
+              <> Text.pack (show nErrs)
+              <> " tokens: "
               <> Text.pack (show nToks)
               <> " specs: "
               <> Text.pack (show nSpecs)
@@ -60,4 +63,4 @@ handler filePath changes = do
               <> Text.pack (show nWarnings)
               <> "\n"
           setFileState filePath fs'
-          sendUpdateNotification filePath fs'
+          sendFileState filePath fs'

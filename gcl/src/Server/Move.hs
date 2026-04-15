@@ -22,9 +22,11 @@ where
 import Control.Monad (foldM)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
+import Error (Error (..))
 import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
-import GCL.Range (MaybeRanged (..), Pos (Pos), Range (Range), mkPos, mkRange, posLine, posOrd, rangeEnd, rangeStart)
-import GCL.WP.Types (StructWarning (..))
+import GCL.Range (MaybeRanged (..), Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine, posOrd, rangeEnd, rangeStart)
+import GCL.Type (TypeError (..))
+import GCL.WP.Types (StructError (..), StructWarning (..))
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as LSP
 import Server.FileState (FileState (..))
@@ -32,6 +34,8 @@ import Server.GoToDefn (OriginTargetRanges (..))
 import Server.IntervalMap (IntervalMap)
 import qualified Server.IntervalMap as IntervalMap
 import Server.SrcLoc (fromLSPRange)
+import Syntax.Common (Name (..))
+import Syntax.Parser.Error (ParseError (..))
 
 -- | Pre-computed info for moving existing LSP Ranges after an edit.
 --   Contains only positional displacement, not the replacement text.
@@ -212,7 +216,8 @@ applyMovesToFileState :: [LSPMove] -> FileState -> FileState
 applyMovesToFileState lspMoves fs =
   let gclMoves = map fromLSPMove lspMoves
    in fs
-        { fsSpecifications = mapMaybe (applyMovesToSpec gclMoves) (fsSpecifications fs),
+        { fsErrors = map (applyMovesToError gclMoves) (fsErrors fs),
+          fsSpecifications = mapMaybe (applyMovesToSpec gclMoves) (fsSpecifications fs),
           fsHoles = mapMaybe (applyMovesToHole gclMoves) (fsHoles fs),
           fsProofObligations = mapMaybe (applyMovesToPO gclMoves) (fsProofObligations fs),
           fsWarnings = mapMaybe (applyMovesToWarning gclMoves) (fsWarnings fs),
@@ -220,6 +225,68 @@ applyMovesToFileState lspMoves fs =
           fsDefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fsDefinitionLinks fs),
           fsHoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fsHoverInfos fs)
         }
+
+--------------------------------------------------------------------------------
+-- Error translation
+--------------------------------------------------------------------------------
+
+-- | Shift a Range through moves. If the edit overlaps the range (invalidated),
+-- freeze: return the original range unchanged.
+-- Errors are never dropped on didChange; only load can clear them.
+shiftRangeOrFreeze :: [GCLMove] -> Range -> Range
+shiftRangeOrFreeze moves r = maybe r id (foldM applyGCLMove r moves)
+
+shiftContainerRangeOrFreeze :: [GCLMove] -> Range -> Range
+shiftContainerRangeOrFreeze moves r = maybe r id (foldM applyGCLMoveToContainerRange r moves)
+
+shiftMaybeRangeOrFreeze :: [GCLMove] -> Maybe Range -> Maybe Range
+shiftMaybeRangeOrFreeze _ Nothing = Nothing
+shiftMaybeRangeOrFreeze moves (Just r) = Just (shiftRangeOrFreeze moves r)
+
+shiftContainerMaybeRangeOrFreeze :: [GCLMove] -> Maybe Range -> Maybe Range
+shiftContainerMaybeRangeOrFreeze _ Nothing = Nothing
+shiftContainerMaybeRangeOrFreeze moves (Just r) = Just (shiftContainerRangeOrFreeze moves r)
+
+shiftName :: [GCLMove] -> Name -> Name
+shiftName moves (Name text loc) = Name text (shiftMaybeRangeOrFreeze moves loc)
+
+applyMovesToParseError :: [GCLMove] -> ParseError -> ParseError
+applyMovesToParseError moves (LexicalError pos) =
+  let r = mkRange pos (mkPos (posLine pos) (posCol pos + 1))
+   in LexicalError (rangeStart (shiftRangeOrFreeze moves r))
+applyMovesToParseError moves (SyntacticError errs logMsg) =
+  let updateEntry (mr, s) = (shiftMaybeRangeOrFreeze moves mr, s)
+   in SyntacticError (fmap updateEntry errs) logMsg
+
+applyMovesToTypeError :: [GCLMove] -> TypeError -> TypeError
+applyMovesToTypeError moves (NotInScope n) = NotInScope (shiftName moves n)
+applyMovesToTypeError moves (UnifyFailed t1 t2 mr) = UnifyFailed t1 t2 (shiftMaybeRangeOrFreeze moves mr)
+applyMovesToTypeError moves (KindUnifyFailed k1 k2 mr) = KindUnifyFailed k1 k2 (shiftMaybeRangeOrFreeze moves mr)
+applyMovesToTypeError moves (RecursiveType n t mr) = RecursiveType n t (shiftMaybeRangeOrFreeze moves mr)
+applyMovesToTypeError moves (AssignToConst n) = AssignToConst (shiftName moves n)
+applyMovesToTypeError moves (UndefinedType n) = UndefinedType (shiftName moves n)
+applyMovesToTypeError moves (DuplicatedIdentifiers ns) = DuplicatedIdentifiers (map (shiftName moves) ns)
+applyMovesToTypeError moves (RedundantNames ns) = RedundantNames (map (shiftName moves) ns)
+applyMovesToTypeError _ (RedundantExprs exprs) = RedundantExprs exprs
+applyMovesToTypeError moves (MissingArguments ns) = MissingArguments (map (shiftName moves) ns)
+applyMovesToTypeError moves (PatternArityMismatch expected actual mr) =
+  PatternArityMismatch expected actual (shiftMaybeRangeOrFreeze moves mr)
+
+applyMovesToStructError :: [GCLMove] -> StructError -> StructError
+applyMovesToStructError moves (MissingAssertion mr) = MissingAssertion (shiftContainerMaybeRangeOrFreeze moves mr)
+applyMovesToStructError moves (MissingPostcondition mr) = MissingPostcondition (shiftMaybeRangeOrFreeze moves mr)
+applyMovesToStructError moves (MultiDimArrayAsgnNotImp mr) = MultiDimArrayAsgnNotImp (shiftMaybeRangeOrFreeze moves mr)
+applyMovesToStructError moves (LocalVarExceedScope mr) = LocalVarExceedScope (shiftMaybeRangeOrFreeze moves mr)
+
+-- | Apply moves to an Error. Errors are never dropped: if the edit overlaps
+-- the error's range, the range is frozen at its current position until the
+-- next load clears it.
+applyMovesToError :: [GCLMove] -> Error -> Error
+applyMovesToError moves (ParseError pe) = ParseError (applyMovesToParseError moves pe)
+applyMovesToError moves (TypeError te) = TypeError (applyMovesToTypeError moves te)
+applyMovesToError moves (StructError se) = StructError (applyMovesToStructError moves se)
+applyMovesToError moves (Others title msg mr) = Others title msg (shiftMaybeRangeOrFreeze moves mr)
+applyMovesToError _ e = e
 
 -- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
 applyMovesToSpec :: [GCLMove] -> Spec -> Maybe Spec
