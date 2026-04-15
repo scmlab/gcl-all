@@ -11,7 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
-import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart, within)
+import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference (Inference), runTI)
@@ -85,7 +85,7 @@ refine filePath cursor = do
     Right (fs, source, vfsVersion, Right hole) -> do
       case refineHoleAndDig filePath hole source (fsMetaVarIdCount fs) of
         Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
-        Right (finalImplText, (typedExpr, Inference c)) -> do
+        Right (finalImplText, (typedExpr, state)) -> do
           sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
           logText "Refine: hole edit sent\n"
           let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
@@ -95,7 +95,7 @@ refine filePath cursor = do
               newFs =
                 (applyMovesToFileState [lspMove] fs)
                   { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
-                    fsMetaVarIdCount = c
+                    fsTIState = state
                   }
               newSource = applyEdits source [(holeRange hole, finalImplText)]
               pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
@@ -128,8 +128,8 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Int -> Either Error (Text, (T.Expr, Inference))
-refineHoleAndDig filePath hole source c = do
+refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, (T.Expr, Inference))
+refineHoleAndDig filePath hole source state = do
   let holeRng = holeRange hole
   unless (isSingleLine holeRng) $
     Left (Others "Refine" "Hole should have exact one line." (Just holeRng))
@@ -138,7 +138,7 @@ refineHoleAndDig filePath hole source c = do
       implStart = rangeStart implRange
 
   (finalImplText, expr) <- parseAndDigHoleFragment filePath implStart implText
-  typedExpr <- loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr c
+  typedExpr <- loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr state
   return (finalImplText, typedExpr)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
@@ -146,7 +146,7 @@ loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
 loadConcreteFragment typeEnv idCount spec stmts = do
   let abstract = C.runAbstractTransform stmts
   result <- first (TypeError . Hack.toOldError) (mapM (`runToTyped` typeEnv) abstract)
-  let (elaborated, Inference c) = foldTIResult result
+  let (elaborated, state) = foldTIResult result
   (pos, specs, holes, warnings, idCount') <-
     first StructError $ sweepFragment idCount spec elaborated
   return
@@ -157,7 +157,7 @@ loadConcreteFragment typeEnv idCount spec stmts = do
         fsProofObligations = pos,
         fsWarnings = warnings,
         fsIdCount = idCount',
-        fsMetaVarIdCount = c,
+        fsTIState = state,
         fsSemanticTokens = collectHighlightingFromStmts stmts,
         fsDefinitionLinks = mempty, -- TODO: needs scope info from declarations
         fsHoverInfos = collectHoverInfoFromStmts elaborated
@@ -166,10 +166,10 @@ loadConcreteFragment typeEnv idCount spec stmts = do
     foldTIResult :: [(T.Stmt, Inference)] -> ([T.Stmt], Inference)
     foldTIResult = second maximum . unzip
 
-loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Int -> Either Error (T.Expr, Inference)
-loadConcreteHoleFragment typeEnv ty expr c = do
+loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Inference -> Either Error (T.Expr, Inference)
+loadConcreteHoleFragment typeEnv ty expr state = do
   let abstract = C.runAbstractTransform expr
-  bimap (TypeError . Hack.toOldError) (first snd) (runTI (typeCheck' abstract ty) typeEnv (Inference c))
+  bimap (TypeError . Hack.toOldError) (first snd) (runTI (typeCheck' abstract ty) typeEnv state)
 
 -- | Parse fragment and dig holes if needed.
 -- Internally uses relative positions (1,1) for hole digging,
@@ -325,7 +325,7 @@ mergeFileState moved fragment =
       fsProofObligations = fsProofObligations moved ++ fsProofObligations fragment,
       fsWarnings = fsWarnings moved ++ fsWarnings fragment,
       fsIdCount = fsIdCount fragment,
-      fsMetaVarIdCount = max (fsMetaVarIdCount moved) (fsMetaVarIdCount fragment),
+      fsTIState = max (fsTIState moved) (fsTIState fragment),
       fsSemanticTokens = fsSemanticTokens moved ++ fsSemanticTokens fragment,
       fsDefinitionLinks = fsDefinitionLinks moved <> fsDefinitionLinks fragment,
       fsHoverInfos = fsHoverInfos moved <> fsHoverInfos fragment

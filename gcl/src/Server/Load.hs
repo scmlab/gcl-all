@@ -98,7 +98,7 @@ loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
   abstract' <- first TypeError $ evalDependencyResolution abstract
-  (elaborated, Inference c) <- first (TypeError . Hack.toOldError) $ runToTyped abstract' mempty
+  (elaborated, state) <- first (TypeError . Hack.toOldError) $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
     FileState
@@ -108,7 +108,7 @@ loadConcrete concrete = do
         fsProofObligations = pos,
         fsWarnings = warnings,
         fsIdCount = idCount,
-        fsMetaVarIdCount = c,
+        fsTIState = state,
         fsSemanticTokens = collectHighlighting concrete,
         fsDefinitionLinks = collectLocationLinks abstract,
         fsHoverInfos = collectHoverInfo elaborated
