@@ -17,7 +17,7 @@ import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, setFileState, setPendingEdit)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendSemanticTokensRefresh, sendWindowInfoMessage, setFileState, setPendingEdit)
 import Server.Notification.Error (sendErrorNotification)
 import Server.Notification.Update (sendUpdateNotification)
 import qualified Syntax.Concrete as C
@@ -37,21 +37,27 @@ type DigResult = ([(Range, Text)], Text)
 
 load :: FilePath -> ServerM ()
 load filePath = do
-  logText "Load: start\n"
-  logText "Load: reading virtual file\n"
-  maybeSource <- readSourceAndVersion filePath
-  case maybeSource of
-    Nothing ->
-      logText "Load: cannot read virtual file\n"
-    Just (source, vfsVersion) ->
-      case loadAndDig filePath source of
-        Left parseErr -> do
-          logTextLn "Load: parse error"
-          sendErrorNotification filePath [ParseError parseErr]
-        Right (maybeDig, eitherFs) -> do
-          sendDigEdits vfsVersion maybeDig
-          handleLoadResult maybeDig eitherFs
-  logText "Load: end\n"
+  maybePending <- getPendingEdit filePath
+  case maybePending of
+    Just _ -> do
+      logTextLn "Load: pending edit exists, skipping"
+      sendWindowInfoMessage "GCL: busy, please retry"
+    Nothing -> do
+      logText "Load: start\n"
+      logText "Load: reading virtual file\n"
+      maybeSource <- readSourceAndVersion filePath
+      case maybeSource of
+        Nothing ->
+          logText "Load: cannot read virtual file\n"
+        Just (source, vfsVersion) ->
+          case loadAndDig filePath source of
+            Left parseErr -> do
+              logTextLn "Load: parse error"
+              sendErrorNotification filePath [ParseError parseErr]
+            Right (maybeDig, eitherFs) -> do
+              sendDigEdits vfsVersion maybeDig
+              handleLoadResult maybeDig eitherFs
+      logText "Load: end\n"
   where
     sendDigEdits vfsVersion maybeDig =
       case maybeDig of

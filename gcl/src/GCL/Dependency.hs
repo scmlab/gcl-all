@@ -1,14 +1,15 @@
 module GCL.Dependency (evalDependencyResolution, GCL.Dependency.Program (Program)) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (foldM)
+import Control.Monad (foldM, forM_)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (evalState)
 import Control.Monad.State.Lazy (State, get, modify)
 import Control.Monad.Trans.Except (ExceptT, runExceptT)
+import Data.Bifunctor (Bifunctor (..))
 import Data.Graph (SCC (..), stronglyConnComp)
-import Data.Map (Map, elems, insert, insertWith, keys, lookup, lookupIndex, member, traverseWithKey)
-import Data.Set (Set, singleton, toList, union)
+import Data.Map (Map, elemAt, elems, insert, insertWith, lookup, lookupIndex, member, traverseWithKey)
+import Data.Set (Set, elemAt, insert, lookupIndex, member, singleton, toList, union)
 import GCL.Common (Free (freeVars))
 import GCL.Range (Range)
 import GCL.Type (TypeError (DuplicatedIdentifiers, NotInScope))
@@ -35,6 +36,13 @@ import Syntax.Common as C
   3. Construct the SCCs from `[ResolvedDepNode]`, revserse the result sequence, then
      finally trasnform into `SCC Definition` then construct into an intermediate
      `Program` data for later type checking.
+
+  This pass is responsible for checking:
+  1. Duplications of Declarations
+  2. Duplications of Type Definition Constructor
+  3. Duplications of Definitions
+  4. Validity of free variables in term, whether referring to declarations, type
+     definition constructor, or other definitions
 -}
 
 data Program
@@ -73,13 +81,17 @@ type ResolvedDepMap = DepMap ResolvedDepNode
 -- This is used to mask out constructors from function dependency.
 type TypeDefinitions = Map C.Name C.Name
 
-type DepMonad = ExceptT TypeError (State TypeDefinitions)
+-- | Maps declarations' names into a set
+type DeclarationMap = Set C.Name
+
+type DepMonad = ExceptT TypeError (State (TypeDefinitions, DeclarationMap))
 
 evalDependencyResolution :: A.Program -> Either TypeError GCL.Dependency.Program
 evalDependencyResolution abstract = evalState (runExceptT (resolveDependency abstract)) mempty
 
 resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
 resolveDependency program@(A.Program _ decls exprs stmts range) = do
+  forM_ decls checkDeclDuplications
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
@@ -87,6 +99,26 @@ resolveDependency program@(A.Program _ decls exprs stmts range) = do
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
     toTopSortedSCC = reverse . stronglyConnComp . elems
+
+    checkDeclDuplications :: A.Declaration -> DepMonad ()
+    checkDeclDuplications (A.ConstDecl names _ _ _) = checkDeclDuplication names
+    checkDeclDuplications (A.VarDecl names _ _ _) = checkDeclDuplication names
+
+    checkDeclDuplication :: [C.Name] -> DepMonad ()
+    checkDeclDuplication names = do
+      (_, declMap) <- get
+      declMap' <-
+        foldM
+          ( \declMap' name -> do
+              case Data.Set.lookupIndex name declMap' of
+                Just idx -> do
+                  let originalName = Data.Set.elemAt idx declMap'
+                  throwError $ DuplicatedIdentifiers [originalName, name]
+                Nothing -> return $ Data.Set.insert name declMap'
+          )
+          declMap
+          names
+      modify $ second $ const declMap'
 
 resolveProgram :: A.Program -> DepMonad [UnresolvedDepMap]
 resolveProgram (A.Program defs _ _ _ _) = do
@@ -103,18 +135,17 @@ resolveTypeDefinitions typeDeps def@(A.TypeDefn name _ ctors _) = do
   where
     resolveTypeDefnCtor :: UnresolvedDepMap -> A.TypeDefnCtor -> DepMonad UnresolvedDepMap
     resolveTypeDefnCtor deps' (A.TypeDefnCtor ctorName types) = do
-      typeDefs <- get
-      -- ChAoS: Should we care about the duplication here?
+      (typeDefs, _) <- get
       -- Checks if type definition constructor has duplicated names
       -- e.g.
       -- data A = B
       -- data C = B
       case Data.Map.lookupIndex ctorName typeDefs of
         Just idx -> do
-          let previousCtorName = Data.Map.keys typeDefs !! idx
+          let previousCtorName = snd $ Data.Map.elemAt idx typeDefs
           throwError $ DuplicatedIdentifiers [previousCtorName, ctorName]
         Nothing ->
-          modify $ Data.Map.insert ctorName name
+          modify $ first $ Data.Map.insert ctorName name
       foldM (resolveType name) deps' types
 resolveTypeDefinitions typeDeps _ = return typeDeps
 
@@ -126,10 +157,10 @@ resolveTermDefinitions termDeps def@(A.ValDefn name _ clauses) = do
     resolveExpr :: UnresolvedDepMap -> A.Expr -> DepMonad UnresolvedDepMap
     resolveExpr termDeps' expr = do
       let vars = freeVars expr
-      typeDefs <- get
+      (typeDefs, decls) <- get
       foldM
         ( \deps' var ->
-            if Data.Map.member var typeDefs
+            if Data.Map.member var typeDefs || Data.Set.member var decls
               then
                 return deps'
               else
@@ -150,14 +181,9 @@ resolveType name deps (A.TApp typA typB _) =
   foldM (resolveType name) deps [typA, typB]
 resolveType _ deps _ = return deps
 
--- | Registers a dependency graph node to the map, definition may be
--- `Nothing` if definition syntax is not yet identified first before
--- usage.
--- If the provided definition is `Just` and the existed definition in
--- the map is `Nothing`, then replace it with provided one.
+-- | Registers a dependency graph node to the map.
 registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad UnresolvedDepMap
 registerDependency name def deps = do
-  -- ChAoS: Later accommodate to the refactored definitions
   case (Data.Map.lookup name deps, def) of
     (Just (Just def'@(A.ValDefn {}), _, _), A.ValDefn {}) ->
       reportDuplicate (definitionToName def') name

@@ -6,7 +6,7 @@
 
 module GCL.Type2.ToTyped where
 
-import Control.Monad (foldM, unless, when)
+import Control.Monad (foldM, when)
 import Data.Graph (flattenSCCs)
 import Data.List (foldl', nub)
 import Data.Map (Map)
@@ -38,11 +38,9 @@ import qualified Syntax.Typed.Types as T
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
 collectDeclToEnv (A.ConstDecl names ty _ _) = do
-  lift $ checkDuplicateNames names
   _ <- typeToKind ty
   return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
 collectDeclToEnv (A.VarDecl names ty _ _) = do
-  lift $ checkDuplicateNames names
   _ <- typeToKind ty
   return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
 
@@ -129,10 +127,6 @@ instance ToTyped D.Program T.Program where
       foldM
         ( \env' decl -> do
             declEnv' <- collectDeclToEnv decl
-            let dups = declEnv' `Map.intersection` env'
-            unless
-              (null dups)
-              (throwError $ DuplicatedIdentifiers (Map.keys dups))
             return $ declEnv' <> env'
         )
         env
