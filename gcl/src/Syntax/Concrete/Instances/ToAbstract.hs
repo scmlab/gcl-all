@@ -254,7 +254,7 @@ instance ToAbstract Type A.Type where
         <$> toAbstract l
         <*> toAbstract r
         <*> pure (maybeRangeOf l <---> maybeRangeOf r)
-    (TMetaVar a _) -> return $ A.TMetaVar a (maybeRangeOf t)
+    (TMetaVar a _) -> return $ A.TVar a (maybeRangeOf t)
     (TParen _ a _) -> do
       t' <- toAbstract a
       case t' of
