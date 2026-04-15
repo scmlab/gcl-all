@@ -15,7 +15,7 @@ import Debug.Trace
 import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
-import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
+import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
     TIMonad,
@@ -107,15 +107,13 @@ collectDefnToEnv (A.TypeDefn name args ctors _range) = do
               ty -> (ftvs, ty `typeToType` argTypes)
         )
         ([], baseTy)
-collectDefnToEnv defn@(A.ValDefn name sig expr) = do
+collectDefnToEnv (A.ValDefn name sig expr) = do
   funcTy <- maybe freshTVar return sig
   _ <- typeToKind funcTy
 
-  (_, exprTy, _) <- infer expr
+  (s, _) <- typeCheck expr funcTy
 
-  _ <- lift $ unify funcTy exprTy (maybeRangeOf defn)
-
-  return (Map.singleton name (A.Forall [] exprTy))
+  return (Map.singleton name (A.Forall [] (applySubst s funcTy)))
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
