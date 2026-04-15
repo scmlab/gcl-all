@@ -30,9 +30,10 @@ BASE_NAME=$(basename $(pwd))
 FILE_URI="vscode-remote://dev-container+$HEX_LOCAL_WORKSPACE_FOLDER/workspaces/$BASE_NAME/gcl-all.code-workspace"
 
 if [[ "$1" == "clean" ]]; then
-    echo "Creating temporary VS Code user data and extensions dirs..."
-    TEMP_DIR=$(mktemp -d)
-    echo "Temporary directory created at: $TEMP_DIR"
+    TEMP_DIR="$(pwd)/.vscode-clean-start"
+    echo "Cleaning up previous temporary VS Code user data and extensions dirs..."
+    rm -rf "$TEMP_DIR"
+    echo "Creating temporary VS Code user data and extensions dirs at: $TEMP_DIR"
     echo
 
     USER_SETTINGS_DIR="$TEMP_DIR/u/User"
