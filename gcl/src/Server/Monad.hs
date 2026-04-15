@@ -25,6 +25,7 @@ module Server.Monad
     sendWindowShowMessage,
     sendWindowInfoMessage,
     sendSemanticTokensRefresh,
+    sendInlayHintRefresh,
   )
 where
 
@@ -216,4 +217,9 @@ sendWindowInfoMessage msg =
 sendSemanticTokensRefresh :: ServerM ()
 sendSemanticTokensRefresh = do
   _ <- LSP.sendRequest LSP.SMethod_WorkspaceSemanticTokensRefresh Nothing (\_ -> return ())
+  return ()
+
+sendInlayHintRefresh :: ServerM ()
+sendInlayHintRefresh = do
+  _ <- LSP.sendRequest LSP.SMethod_WorkspaceInlayHintRefresh Nothing (\_ -> return ())
   return ()
