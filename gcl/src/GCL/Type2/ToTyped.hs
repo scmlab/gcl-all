@@ -15,16 +15,18 @@ import Debug.Trace
 import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
-import GCL.Type2.Subst (applySubstEnv, applySubstExpr)
+import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
+    Inference,
     TIMonad,
     TypeError (..),
     ask,
-    evalTI,
     freshTVar,
     lift,
     local,
+    mkInference,
+    runTI,
     throwError,
     typeBool,
     typeInt,
@@ -105,15 +107,13 @@ collectDefnToEnv (A.TypeDefn name args ctors _range) = do
               ty -> (ftvs, ty `typeToType` argTypes)
         )
         ([], baseTy)
-collectDefnToEnv defn@(A.ValDefn name sig expr) = do
+collectDefnToEnv (A.ValDefn name sig expr) = do
   funcTy <- maybe freshTVar return sig
   _ <- typeToKind funcTy
 
-  (_, exprTy, _) <- infer expr
+  (s, _) <- typeCheck expr funcTy
 
-  _ <- lift $ unify funcTy exprTy (maybeRangeOf defn)
-
-  return (Map.singleton name (A.Forall [] exprTy))
+  return (Map.singleton name (A.Forall [] (applySubst s funcTy)))
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
@@ -341,5 +341,5 @@ instance ToTyped A.Expr T.Expr where
 
     return typed'
 
-runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError t
-runToTyped a env = evalTI (toTyped a) env 0
+runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError (t, Inference)
+runToTyped a env = runTI (toTyped a) env mkInference
