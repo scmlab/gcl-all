@@ -176,12 +176,13 @@ instance Ranged Spec where
 data Hole = Hole
   { holeID :: Int,
     holeType :: Type,
-    holeRange :: Range
+    holeRange :: Range,
+    holeTypeEnv :: Env
   }
   deriving (Eq, Show, Generic)
 
 instance MaybeRanged Hole where
-  maybeRangeOf (Hole _ _ r) = Just r
+  maybeRangeOf (Hole _ _ r _) = Just r
 
 instance Ranged Hole where
-  rangeOf (Hole _ _ r) = r
+  rangeOf (Hole _ _ r _) = r

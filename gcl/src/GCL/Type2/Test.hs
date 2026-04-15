@@ -76,4 +76,4 @@ simpleLoad filepath source = runExceptT $ catchError run handler
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError $ Hack.toOldError err)
-        Right typed -> return $ Right typed
+        Right (typed, _) -> return $ Right typed
