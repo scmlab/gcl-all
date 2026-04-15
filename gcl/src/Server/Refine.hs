@@ -24,7 +24,7 @@ import Prettyprinter (layoutCompact, pretty)
 import Prettyprinter.Render.Text (renderStrict)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
-import Server.Load (applyEdits, collectHolesFromExpr, collectHolesFromStatements, diggedText)
+import Server.Load (applyEdits, collectHole, diggedText)
 import Server.Monad
   ( FileState (..),
     PendingEdit (..),
@@ -197,14 +197,14 @@ parseAndDigFragment filePath fragmentStart implText = do
     _ -> do
       let newImplText = digHoles implText holes1
       stmts2 <- parseAbsolute newImplText
-      let holes2 = collectHolesFromStatements stmts2
+      let holes2 = collectHole stmts2
       case holes2 of
         [] -> Right (newImplText, stmts2)
         _ -> Left (Others "Refine" "unexpected holes after digging" Nothing)
   where
     parseRelative src = do
       stmts <- parseFragmentStmts filePath (mkPos 1 1) src
-      return (stmts, collectHolesFromStatements stmts)
+      return (stmts, collectHole stmts)
     parseAbsolute = parseFragmentStmts filePath fragmentStart
     digHoles src holeList =
       let edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
@@ -220,14 +220,14 @@ parseAndDigHoleFragment filePath fragmentStart implText = do
     _ -> do
       let newImplText = digHoles implText holes1
       exprs2 <- parseAbsolute newImplText
-      let holes2 = collectHolesFromExpr exprs2
+      let holes2 = collectHole exprs2
       case holes2 of
         [] -> Right (newImplText, exprs2)
         _ -> Left (Others "Refine" "unexpected holes after digging" Nothing)
   where
     parseRelative src = do
       expr <- parseFragmentExpr filePath (mkPos 1 1) src
-      return (expr, collectHolesFromExpr expr)
+      return (expr, collectHole expr)
     parseAbsolute = parseFragmentExpr filePath fragmentStart
     digHoles src holeList =
       let edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
