@@ -136,10 +136,7 @@ instance ToTyped D.Program T.Program where
     defnEnv <-
       foldM
         ( \env' defn -> do
-            -- NOTE: definitions have to be in order
-            traceM $ show defn
             defnEnv <- local (const env') (collectMultipleDefns defn)
-            traceM $ show defnEnv <> "\n"
             return $ defnEnv <> env'
         )
         declEnv
@@ -177,9 +174,9 @@ toTypedValDefn name _sig expr = do
   -- FIXME: i don't want to call `infer` twice
   -- is there a way to put `T.Expr` result in the environment or something?
 
-  (_, exprTy, typedExpr) <- infer expr
+  (exprSubst, exprTy, typedExpr) <- infer expr
 
-  return (T.ValDefn name exprTy typedExpr)
+  return (T.ValDefn name exprTy (applySubstExpr exprSubst typedExpr))
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do
@@ -227,12 +224,13 @@ toTypedAssign names exprs range
       typedExprs <-
         mapM
           ( \(name, expr) -> do
-              -- TODO: doesn't account for `AssignToConst`
-              when
-                (Map.notMember name env)
-                (throwError $ NotInScope name)
+              nameTy <- case Map.lookup name env of
+                Just (A.Forall _ ty) -> return ty
+                Nothing -> throwError $ NotInScope name
 
-              toTyped expr
+              (exprSubst, typedExpr) <- typeCheck expr nameTy
+
+              return (applySubstExpr exprSubst typedExpr)
           )
           assignments
       return $ T.Assign names typedExprs range
