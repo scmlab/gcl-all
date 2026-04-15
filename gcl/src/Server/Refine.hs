@@ -53,14 +53,20 @@ import qualified Syntax.Typed as T
 
 refine :: FilePath -> Pos -> ServerM ()
 refine filePath cursor = do
-  logTextLn $ "Refine: cursor: " <> Text.pack (show cursor)
-  maybeFs <- getFileState filePath
-  maybeSource <- readSourceAndVersion filePath
-  let result = do
-        fs <- maybe (Left [Others "Refine" "File not loaded." Nothing]) Right maybeFs
-        (source, vfsVersion) <- maybe (Left [Others "Refine" "Cannot read source." Nothing]) Right maybeSource
-        enclosingTarget <- maybe (Left [Others "Refine" "No enclosing spec or hole found." Nothing]) Right (findSpecOrHole cursor (fsSpecifications fs) (fsHoles fs))
-        return (fs, source, vfsVersion, enclosingTarget)
+  maybePending <- getPendingEdit filePath
+  case maybePending of
+    Just _ -> do
+      logTextLn "Refine: pending edit exists, skipping"
+      sendWindowInfoMessage "GCL: busy, please retry"
+    Nothing -> do
+      logTextLn $ "Refine: cursor: " <> Text.pack (show cursor)
+      maybeFs <- getFileState filePath
+      maybeSource <- readSourceAndVersion filePath
+      let result = do
+            fs <- maybe (Left [Others "Refine" "File not loaded." Nothing]) Right maybeFs
+            (source, vfsVersion) <- maybe (Left [Others "Refine" "Cannot read source." Nothing]) Right maybeSource
+            enclosingTarget <- maybe (Left [Others "Refine" "No enclosing spec or hole found." Nothing]) Right (findSpecOrHole cursor (fsSpecifications fs) (fsHoles fs))
+            return (fs, source, vfsVersion, enclosingTarget)
 
   case result of
     Left errs -> sendWindowInfoMessage (Text.intercalate "\n" $ map (renderStrict . layoutCompact . pretty) errs)
