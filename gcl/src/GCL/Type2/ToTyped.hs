@@ -18,14 +18,14 @@ import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, type
 import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
-    Inference (..),
+    Inference,
     TIMonad,
     TypeError (..),
     ask,
-    evalTI,
     freshTVar,
     lift,
     local,
+    mkInference,
     runTI,
     throwError,
     typeBool,
@@ -342,4 +342,4 @@ instance ToTyped A.Expr T.Expr where
     return typed'
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError (t, Inference)
-runToTyped a env = runTI (toTyped a) env (Inference 0)
+runToTyped a env = runTI (toTyped a) env mkInference

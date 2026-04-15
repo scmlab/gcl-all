@@ -14,7 +14,7 @@ import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
-import GCL.Type2.Types (Env, Inference (Inference), runTI)
+import GCL.Type2.Types (Env, Inference, runTI)
 import GCL.WP (collectExprHoles, collectStmtHoles, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack

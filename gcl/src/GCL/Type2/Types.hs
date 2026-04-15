@@ -7,7 +7,8 @@ module GCL.Type2.Types
     Env,
     TyVar,
     Subst,
-    Inference (Inference),
+    Inference,
+    mkInference,
     -- TIMonad
     evalTI,
     runTI,
@@ -94,6 +95,9 @@ newtype Inference = Inference
   { _counter :: Int
   }
   deriving (Ord, Eq)
+
+mkInference :: Inference
+mkInference = Inference 0
 
 type TIMonad = RSE Env Inference
 
