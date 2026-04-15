@@ -11,6 +11,10 @@ import path from 'path';
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('activating gcl-vscode');
 
+	// Persists for the extension lifetime (activate is called once per session).
+	// Keyed by filePath; entries are added/updated on gcl/update notifications.
+	const fileStateMap = new Map<string, ClientFileState>();
+
 
 	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
@@ -22,7 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			onDidChangeInlayHints: inlayHintsEmitter.event,
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
-				const clientState: ClientFileState | undefined = context.workspaceState.get(filePath);
+				const clientState: ClientFileState | undefined = fileStateMap.get(filePath);
 
 				if (clientState === undefined)
 					return [];
@@ -72,11 +76,16 @@ export async function activate(context: vscode.ExtensionContext) {
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
 		if (isFileTab) {
 			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
-			let clientState: ClientFileState | undefined = context.workspaceState.get(filePath);
+			let clientState: ClientFileState | undefined = fileStateMap.get(filePath);
 			if (clientState) gclPanel.rerender(clientState);
 		}
 	});
 	context.subscriptions.push(changeTabDisposable);
+
+	const closeDocDisposable = vscode.workspace.onDidCloseTextDocument((document) => {
+		fileStateMap.delete(document.uri.fsPath);
+	});
+	context.subscriptions.push(closeDocDisposable);
 
 	// request gcl/reload
 	const reloadDisposable = vscode.commands.registerCommand('gcl.reload', async () => {
@@ -142,7 +151,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
 		let newClientFileState: ClientFileState = { errors, holes, specs, pos, warnings };
 
-		await context.workspaceState.update(filePath, newClientFileState);
+		fileStateMap.set(filePath, newClientFileState);
 		gclPanel.rerender(newClientFileState);
 		await updateInlayHints(newClientFileState);
 
