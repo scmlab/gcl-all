@@ -15,7 +15,7 @@ import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, ran
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference, runTI)
-import GCL.WP (runWP, structStmts, collectTypedHole)
+import GCL.WP (collectTypedHole, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
 import Language.Lexer.Applicative (TokenStream (..))

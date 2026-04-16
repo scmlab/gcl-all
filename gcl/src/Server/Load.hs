@@ -13,7 +13,6 @@ import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
-import GCL.Type2.Types (Inference (..))
 import qualified GCL.WP as WP
 import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
@@ -185,36 +184,44 @@ instance CollectHole C.DefinitionBlock where
   collectHole (C.DefinitionBlock _ defs _) = collectHole defs
 
 instance CollectHole C.Definition where
+  collectHole (C.TypeDefn {}) = mempty
+  collectHole (C.ValDefnSig {}) = mempty
   collectHole (C.ValDefn _ _ _ expr) = collectHole expr
-  collectHole _ = mempty
 
 instance CollectHole C.Stmt where
-  collectHole (C.SpecQM range) = [(StmtHole, range)]
+  collectHole (C.Skip {}) = mempty
+  collectHole (C.Abort {}) = mempty
   collectHole (C.Assign _ _ exprs) = collectHole exprs
   collectHole (C.AAssign _ _ a _ _ b) = collectHole a <> collectHole b
   collectHole (C.Assert _ a _) = collectHole a
   collectHole (C.LoopInvariant _ a _ _ _ b _) = collectHole a <> collectHole b
   collectHole (C.Do _ ss _) = collectHole ss
   collectHole (C.If _ ss _) = collectHole ss
+  collectHole (C.SpecQM range) = [(StmtHole, range)]
+  collectHole (C.Spec {}) = mempty
+  collectHole (C.Proof {}) = mempty
   collectHole (C.Alloc _ _ _ _ es _) = collectHole es
   collectHole (C.HLookup _ _ _ a) = collectHole a
   collectHole (C.HMutate _ a _ b) = collectHole a <> collectHole b
   collectHole (C.Dispose _ a) = collectHole a
   collectHole (C.Block _ program _) = collectHole program
-  collectHole _ = mempty
 
 instance CollectHole C.GdCmd where
   collectHole (GdCmd expr _ stmts) = collectHole expr <> collectHole stmts
 
 instance CollectHole C.Expr where
-  collectHole (C.HoleQM range) = [(ExprHole, range)]
   collectHole (C.Paren _ expr _) = collectHole expr
+  collectHole (C.Lit {}) = mempty
+  collectHole (C.Var {}) = mempty
+  collectHole (C.Const {}) = mempty
+  collectHole (C.Op {}) = mempty
+  collectHole (C.Chain chain) = collectHole chain
   collectHole (C.Arr a _ b _) = collectHole a <> collectHole b
   collectHole (C.App a b) = collectHole a <> collectHole b
   collectHole (C.Quant _ _ _ _ a _ b _) = collectHole a <> collectHole b
   collectHole (C.Case _ a _ clauses) = collectHole a <> collectHole clauses
-  collectHole (C.Chain chain) = collectHole chain
-  collectHole _ = mempty
+  collectHole (C.HoleQM range) = [(ExprHole, range)]
+  collectHole (C.Hole {}) = mempty
 
 instance CollectHole C.CaseClause where
   collectHole (C.CaseClause _ _ expr) = collectHole expr
