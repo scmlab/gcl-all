@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 
-module GCL.WP (WP, TM, sweep, structStmts, runWP, collectStmtHoles, collectExprHoles) where
+module GCL.WP (WP, TM, sweep, structStmts, runWP, collectTypedHole) where
 
 import Control.Monad.Except
   ( MonadError (throwError),
@@ -51,7 +51,7 @@ sweep program@(Program _ decs _props stmts _) = do
   (_, counter, (pos, specs, warnings, redexes)) <-
     runWP (structProgram stmts) (decls, dnames) 0
   -- collect holes from expressions
-  let holes = collectProgramHoles program
+  let holes = collectTypedHole program
   -- update Proof Obligations with corresponding Proof Anchors
   let proofAnchors =
         stmts >>= \case
@@ -127,72 +127,70 @@ structStmts = this
     (wpSegs, wpSStmts, wp) = wpFunctions structSegs
     spSStmts = spFunctions (structSegs, struct)
 
-collectProgramHoles :: Program -> [Hole]
-collectProgramHoles (Program defs decls exprs stmts _) =
-  concatMap collectDefHoles defs
-    <> concatMap collectDeclHoles decls
-    <> concatMap collectExprHoles exprs
-    <> concatMap collectStmtHoles stmts
-  where
-    collectDefHoles :: Definition -> [Hole]
-    collectDefHoles (ValDefn _ _ expr) = collectExprHoles expr
-    collectDefHoles _ = []
+-- Hole collection
 
-    collectDeclHoles :: Declaration -> [Hole]
-    collectDeclHoles (ConstDecl _ _ (Just expr) _) = collectExprHoles expr
-    collectDeclHoles (VarDecl _ _ (Just expr) _) = collectExprHoles expr
-    collectDeclHoles _ = []
+class CollectTypedHole a where
+  collectTypedHole :: a -> [Hole]
 
-collectStmtHoles :: Stmt -> [Hole]
-collectStmtHoles (Assign _ exprs _) = concatMap collectExprHoles exprs
-collectStmtHoles (AAssign a b c _) =
-  collectExprHoles a
-    <> collectExprHoles b
-    <> collectExprHoles c
-collectStmtHoles (If guards _) = concatMap collectGdCmdHoles guards
-collectStmtHoles (Do guards _) = concatMap collectGdCmdHoles guards
-collectStmtHoles (Block program _) = collectProgramHoles program
-collectStmtHoles (Alloc _ exprs _) = concatMap collectExprHoles exprs
-collectStmtHoles (HLookup _ expr _) = collectExprHoles expr
-collectStmtHoles (HMutate _ expr _) = collectExprHoles expr
-collectStmtHoles (Dispose expr _) = collectExprHoles expr
-collectStmtHoles _ = []
+instance (CollectTypedHole a) => CollectTypedHole [a] where
+  collectTypedHole = concatMap collectTypedHole
 
-collectGdCmdHoles :: GdCmd -> [Hole]
-collectGdCmdHoles (GdCmd guard body _) =
-  collectExprHoles guard
-    <> concatMap collectStmtHoles body
+instance (CollectTypedHole a) => CollectTypedHole (Maybe a) where
+  collectTypedHole (Just a) = collectTypedHole a
+  collectTypedHole Nothing = mempty
 
-collectExprHoles :: Expr -> [Hole]
-collectExprHoles (Chain ch) = collectChainHoles ch
-  where
-    collectChainHoles :: Chain -> [Hole]
-    collectChainHoles (Pure a) =
-      collectExprHoles a
-    collectChainHoles (More c _ _ a) =
-      collectChainHoles c
-        <> collectExprHoles a
-collectExprHoles (App a b _) =
-  collectExprHoles a
-    <> collectExprHoles b
-collectExprHoles (Lam _ _ a _) =
-  collectExprHoles a
-collectExprHoles (Quant a _ b c _) =
-  collectExprHoles a
-    <> collectExprHoles b
-    <> collectExprHoles c
-collectExprHoles (ArrIdx a b _) =
-  collectExprHoles a
-    <> collectExprHoles b
-collectExprHoles (ArrUpd a b c _) =
-  collectExprHoles a
-    <> collectExprHoles b
-    <> collectExprHoles c
-collectExprHoles (Case a _ _) =
-  collectExprHoles a
-collectExprHoles (Subst a b) =
-  collectExprHoles a
-    <> concatMap (collectExprHoles . snd) b
-collectExprHoles (EHole _ i ty range env) =
-  [Hole i ty range env]
-collectExprHoles _ = []
+instance CollectTypedHole Program where
+  collectTypedHole (Program defs decls exprs stmts _) =
+    collectTypedHole defs <> collectTypedHole decls <> collectTypedHole exprs <> collectTypedHole stmts
+
+instance CollectTypedHole Definition where
+  collectTypedHole (TypeDefn {}) = mempty
+  collectTypedHole (ValDefn _ _ expr) = collectTypedHole expr
+
+instance CollectTypedHole Declaration where
+  collectTypedHole (ConstDecl _ _ expr _) = collectTypedHole expr
+  collectTypedHole (VarDecl _ _ expr _) = collectTypedHole expr
+
+instance CollectTypedHole Stmt where
+  collectTypedHole (Skip {}) = mempty
+  collectTypedHole (Abort {}) = mempty
+  collectTypedHole (Assign _ exprs _) = collectTypedHole exprs
+  collectTypedHole (AAssign a b c _) = collectTypedHole a <> collectTypedHole b <> collectTypedHole c
+  collectTypedHole (Assert expr _) = collectTypedHole expr
+  collectTypedHole (LoopInvariant a b _) = collectTypedHole a <> collectTypedHole b
+  collectTypedHole (Do guards _) = collectTypedHole guards
+  collectTypedHole (If guards _) = collectTypedHole guards
+  collectTypedHole (Spec {}) = mempty
+  collectTypedHole (Proof {}) = mempty
+  collectTypedHole (Alloc _ exprs _) = collectTypedHole exprs
+  collectTypedHole (HLookup _ expr _) = collectTypedHole expr
+  collectTypedHole (HMutate _ expr _) = collectTypedHole expr
+  collectTypedHole (Dispose expr _) = collectTypedHole expr
+  collectTypedHole (Block program _) = collectTypedHole program
+
+instance CollectTypedHole GdCmd where
+  collectTypedHole (GdCmd guard body _) = collectTypedHole guard <> collectTypedHole body
+
+instance CollectTypedHole Expr where
+  collectTypedHole (Lit {}) = mempty
+  collectTypedHole (Var {}) = mempty
+  collectTypedHole (Const {}) = mempty
+  collectTypedHole (Op {}) = mempty
+  collectTypedHole (Chain chain) = collectTypedHole chain
+  collectTypedHole (App a b _) = collectTypedHole a <> collectTypedHole b
+  collectTypedHole (Lam _ _ expr _) = collectTypedHole expr
+  collectTypedHole (Tuple exprs) = collectTypedHole exprs
+  collectTypedHole (OutT _ expr) = collectTypedHole expr
+  collectTypedHole (Quant a _ b c _) = collectTypedHole a <> collectTypedHole b <> collectTypedHole c
+  collectTypedHole (ArrIdx a b _) = collectTypedHole a <> collectTypedHole b
+  collectTypedHole (ArrUpd a b c _) = collectTypedHole a <> collectTypedHole b <> collectTypedHole c
+  collectTypedHole (Case expr clauses _) = collectTypedHole expr <> collectTypedHole clauses
+  collectTypedHole (Subst expr substs) = collectTypedHole expr <> (collectTypedHole . map snd) substs
+  collectTypedHole (EHole _ i ty range env) = [Hole i ty range env]
+
+instance CollectTypedHole CaseClause where
+  collectTypedHole (CaseClause _ expr) = collectTypedHole expr
+
+instance CollectTypedHole Chain where
+  collectTypedHole (Pure expr) = collectTypedHole expr
+  collectTypedHole (More c _ _ expr) = collectTypedHole c <> collectTypedHole expr

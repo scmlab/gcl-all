@@ -15,7 +15,7 @@ import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, ran
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference, runTI)
-import GCL.WP (collectExprHoles, collectStmtHoles, runWP, structStmts)
+import GCL.WP (runWP, structStmts, collectTypedHole)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
 import Language.Lexer.Applicative (TokenStream (..))
@@ -103,7 +103,7 @@ refine filePath cursor = do
                   setPendingEdit filePath pending
                 Right (typedExpr, state) -> do
                   let (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-                      newHoles = justifyExpHoleRanges $ collectExprHoles typedExpr
+                      newHoles = justifyExpHoleRanges $ collectTypedHole typedExpr
                       holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
                       newFs =
                         movedFs
@@ -277,7 +277,7 @@ sweepFragment :: Int -> Spec -> [T.Stmt] -> Either StructError ([PO], [Spec], [H
 sweepFragment counter (Specification _ pre post _ _) impl =
   second
     ( \(_, counter', (pos, specs, sws, _redexes)) ->
-        (pos, specs, concatMap collectStmtHoles impl, sws, counter')
+        (pos, specs, collectTypedHole impl, sws, counter')
     )
     $ runWP
       (structStmts Primary (pre, Nothing) impl post)
