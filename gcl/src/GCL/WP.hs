@@ -140,8 +140,10 @@ instance (CollectTypedHole a) => CollectTypedHole (Maybe a) where
   collectTypedHole Nothing = mempty
 
 instance CollectTypedHole Program where
+  -- Deduplicates the list of holes since declaration might gives duplication result.
   collectTypedHole (Program defs decls exprs stmts _) =
-    collectTypedHole defs <> collectTypedHole decls <> collectTypedHole exprs <> collectTypedHole stmts
+    List.nub $
+      collectTypedHole defs <> collectTypedHole decls <> collectTypedHole exprs <> collectTypedHole stmts
 
 instance CollectTypedHole Definition where
   collectTypedHole (TypeDefn {}) = mempty

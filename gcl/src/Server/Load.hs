@@ -173,15 +173,32 @@ class CollectHole a where
 instance (CollectHole a) => CollectHole [a] where
   collectHole = concatMap collectHole
 
+instance (CollectHole a) => CollectHole (Maybe a) where
+  collectHole (Just a) = collectHole a
+  collectHole Nothing = mempty
+
+instance (CollectHole a, CollectHole b) => CollectHole (Either a b) where
+  collectHole = either collectHole collectHole
+
 instance (CollectHole a) => CollectHole (SepBy s a) where
   collectHole (Head c) = collectHole c
   collectHole (Delim c _ cs) = collectHole c <> collectHole cs
 
 instance CollectHole C.Program where
-  collectHole (C.Program decls stmts) = (collectHole . rights) decls <> collectHole stmts
+  collectHole (C.Program decls stmts) = collectHole decls <> collectHole stmts
 
 instance CollectHole C.DefinitionBlock where
   collectHole (C.DefinitionBlock _ defs _) = collectHole defs
+
+instance CollectHole C.Declaration where
+  collectHole (C.ConstDecl _ decl) = collectHole decl
+  collectHole (C.VarDecl _ decl) = collectHole decl
+
+instance CollectHole C.DeclType where
+  collectHole (C.DeclType _ prop) = collectHole prop
+
+instance CollectHole C.DeclProp where
+  collectHole (C.DeclProp _ expr _) = collectHole expr
 
 instance CollectHole C.Definition where
   collectHole (C.TypeDefn {}) = mempty
