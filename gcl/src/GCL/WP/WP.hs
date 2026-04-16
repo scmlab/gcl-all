@@ -42,7 +42,7 @@ import Syntax.Typed.Operator
     sconjunct,
     true,
   )
-import Syntax.Typed.Util (declaredNamesTypes, getGuards, syntaxSubst)
+import Syntax.Typed.Util (declaredNamesTypes, getGuards, syntaxSubst, syntaxSubst')
 
 wpFunctions ::
   TstructSegs ->
@@ -91,7 +91,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
     wp :: Stmt -> Pred -> WP Pred
     wp (Abort _) _ = return false
     wp (Skip _) post = return post
-    wp (Assign xs es _) post = return $ syntaxSubst xs es post
+    wp (Assign xs es _) post = return $ syntaxSubst' xs es post
     wp (AAssign (Var x t _) i e _) post =
       return $ syntaxSubst [x] [ArrUpd (nameVar x t) i e Nothing] post
     wp (AAssign _ _ _ l) _ = throwError (MultiDimArrayAsgnNotImp l)

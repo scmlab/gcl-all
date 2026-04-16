@@ -11,6 +11,7 @@ module Server.Highlighting
 where
 
 import Control.Monad.RWS
+import Data.Either (lefts)
 import Data.Foldable (toList)
 import GCL.Range
   ( MaybeRanged (maybeRangeOf),
@@ -140,7 +141,7 @@ instance Collect () Highlighting Stmt where
     Skip x -> addHighlighting J.SemanticTokenTypes_Keyword [] x
     Abort x -> addHighlighting J.SemanticTokenTypes_Keyword [] x
     Assign as tok bs -> do
-      collect (fmap AsVariable as)
+      -- collect (fmap AsVariable as)
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
       collect bs
     AAssign a _ b _ tok c -> do
@@ -237,10 +238,7 @@ instance Collect () Highlighting Expr where
       collect expr
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
       collect cases
-    HoleQM _ -> return ()
-    Hole tokA _ tokB -> do
-      addHighlighting J.SemanticTokenTypes_Keyword [] tokA
-      addHighlighting J.SemanticTokenTypes_Keyword [] tokB
+    EHole h -> collect h
 
 instance Collect () Highlighting CaseClause where
   collect (CaseClause _ arrow body) = do
@@ -248,7 +246,13 @@ instance Collect () Highlighting CaseClause where
     collect body
 
 instance Collect () Highlighting Lit where
-  collect x = addHighlighting J.SemanticTokenTypes_Number [] x
+  collect = addHighlighting J.SemanticTokenTypes_Number []
+
+instance Collect () Highlighting Hole where
+  collect (HoleQM _) = return ()
+  collect (Hole tokA _ tokB) = do
+    addHighlighting J.SemanticTokenTypes_Keyword [] tokA
+    addHighlighting J.SemanticTokenTypes_Keyword [] tokB
 
 --------------------------------------------------------------------------------
 

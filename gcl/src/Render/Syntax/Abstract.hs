@@ -36,7 +36,7 @@ instance Render Lit where
 
 -- | Expr
 instance Render Expr where
-  renderPrec prec expr = handleExpr prec expr
+  renderPrec = handleExpr
 
 handleExpr :: PrecContext -> Expr -> Inlines
 handleExpr _ (Var x l) = tempHandleMaybeRange l $ render x
@@ -100,25 +100,7 @@ handleExpr _ (ArrUpd e1 e2 e3 _) =
 -- SCM: need to print parenthesis around e1 when necessary.
 handleExpr _ (Case expr cases _) =
   "case" <+> render expr <+> "of" <+> vertE (map render cases)
-handleExpr _ (EHole text num _) = "{!" <> textE text <> "!}" <> subscriptNumber num
-  where
-    -- Transform number to its subscript form by convert it to ascii value then adds to
-    -- the unicode subscript number section.
-    subscriptNumber :: Int -> Inlines
-    subscriptNumber = render . map digitToSubscript . show
-
-    digitToSubscript :: Char -> Char
-    digitToSubscript '0' = '₀'
-    digitToSubscript '1' = '₁'
-    digitToSubscript '2' = '₂'
-    digitToSubscript '3' = '₃'
-    digitToSubscript '4' = '₄'
-    digitToSubscript '5' = '₅'
-    digitToSubscript '6' = '₆'
-    digitToSubscript '7' = '₇'
-    digitToSubscript '8' = '₈'
-    digitToSubscript '9' = '₉'
-    digitToSubscript c = c
+handleExpr _ (EHole hole) = render hole
 
 instance Render Chain where -- Hopefully this is correct.
   render (Pure expr _) = render expr
@@ -131,6 +113,27 @@ instance Render Mapping where
     where
       vars = punctuateE "," $ map render $ Map.keys env
       exprs = punctuateE "," $ map render $ Map.elems env
+
+instance Render Hole where
+  render (Hole text num _) = "{!" <> textE text <> "!}" <> subscriptNumber num
+    where
+      -- Transform number to its subscript form by convert it to ascii value then adds to
+      -- the unicode subscript number section.
+      subscriptNumber :: Int -> Inlines
+      subscriptNumber = render . map digitToSubscript . show
+
+      digitToSubscript :: Char -> Char
+      digitToSubscript '0' = '₀'
+      digitToSubscript '1' = '₁'
+      digitToSubscript '2' = '₂'
+      digitToSubscript '3' = '₃'
+      digitToSubscript '4' = '₄'
+      digitToSubscript '5' = '₅'
+      digitToSubscript '6' = '₆'
+      digitToSubscript '7' = '₇'
+      digitToSubscript '8' = '₈'
+      digitToSubscript '9' = '₉'
+      digitToSubscript c = c
 
 --------------------------------------------------------------------------------
 
