@@ -3,6 +3,7 @@
 module Server.Load where
 
 import Data.Bifunctor (first)
+import Data.Either (rights)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
 import Data.Ord (comparing)
@@ -170,15 +171,22 @@ applyEdits source edits =
 class CollectHole a where
   collectHole :: a -> [(HoleKind, Range)]
 
-instance CollectHole C.Program where
-  collectHole (C.Program _ statements) = collectHole statements
-
 instance (CollectHole a) => CollectHole [a] where
   collectHole = concatMap collectHole
 
 instance (CollectHole a) => CollectHole (SepBy s a) where
   collectHole (Head c) = collectHole c
   collectHole (Delim c _ cs) = collectHole c <> collectHole cs
+
+instance CollectHole C.Program where
+  collectHole (C.Program decls stmts) = (collectHole . rights) decls <> collectHole stmts
+
+instance CollectHole C.DefinitionBlock where
+  collectHole (C.DefinitionBlock _ defs _) = collectHole defs
+
+instance CollectHole C.Definition where
+  collectHole (C.ValDefn _ _ _ expr) = collectHole expr
+  collectHole _ = mempty
 
 instance CollectHole C.Stmt where
   collectHole (C.SpecQM range) = [(StmtHole, range)]
@@ -193,7 +201,7 @@ instance CollectHole C.Stmt where
   collectHole (C.HMutate _ a _ b) = collectHole a <> collectHole b
   collectHole (C.Dispose _ a) = collectHole a
   collectHole (C.Block _ program _) = collectHole program
-  collectHole _ = []
+  collectHole _ = mempty
 
 instance CollectHole C.GdCmd where
   collectHole (GdCmd expr _ stmts) = collectHole expr <> collectHole stmts
@@ -206,7 +214,7 @@ instance CollectHole C.Expr where
   collectHole (C.Quant _ _ _ _ a _ b _) = collectHole a <> collectHole b
   collectHole (C.Case _ a _ clauses) = collectHole a <> collectHole clauses
   collectHole (C.Chain chain) = collectHole chain
-  collectHole _ = []
+  collectHole _ = mempty
 
 instance CollectHole C.CaseClause where
   collectHole (C.CaseClause _ _ expr) = collectHole expr
