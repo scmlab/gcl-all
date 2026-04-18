@@ -472,7 +472,7 @@ inferCaseClause pattern expr ty = do
 
   (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
 
-  let resultSubst = patSubst <> exprSubst
+  let resultSubst = exprSubst <> patSubst
 
   return (resultSubst, exprTy, T.CaseClause pattern typedExpr)
 

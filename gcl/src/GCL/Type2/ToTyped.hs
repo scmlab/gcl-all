@@ -109,9 +109,19 @@ collectDefnToEnv (A.ValDefn name sig expr) = do
   funcTy <- maybe freshTVar return sig
   _ <- typeToKind funcTy
 
-  (s, _) <- typeCheck expr funcTy
+  -- XXX: how does this even work?
+  (s1, exprTy, typedExpr) <- infer expr
+  s2 <- lift $ unify exprTy funcTy (maybeRangeOf expr)
 
-  return (Map.singleton name (A.Forall [] (applySubst s funcTy)))
+  env <- ask
+  let ty = case Map.lookup name env of
+        Just (A.Forall _ ty') -> applySubst s1 ty'
+        Nothing -> undefined
+
+  s <- lift $ unify exprTy ty Nothing
+  traceM $ show s
+
+  return (Map.singleton name (A.Forall [] (applySubst s exprTy)))
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
