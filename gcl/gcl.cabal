@@ -81,7 +81,6 @@ library
       Server.Load
       Server.Monad
       Server.Move
-      Server.Notification.Error
       Server.Notification.Update
       Server.Refine
       Server.SrcLoc
