@@ -40,7 +40,7 @@ prepareEditsTests =
         -- Edit range in original: (1,3)-(1,6)  i.e. "abc"
         -- New text: "pqrst"
         -- In new coords: start (1,3), end (1,8)
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         ers
           @?= [ EditRegion
                   { erOrigStart = p 1 3,
@@ -57,8 +57,8 @@ prepareEditsTests =
         -- New:     AAXXXBBYCCC (conceptually)
         let ers =
               prepareEdits
-                [ Edit (r 1 3 1 5) "XXX",
-                  Edit (r 1 7 1 9) "Y"
+                [ (r 1 3 1 5, "XXX"),
+                  (r 1 7 1 9, "Y")
                 ]
         length ers @?= 2
         -- First edit: no prior delta, so newStart = origStart
@@ -71,7 +71,7 @@ prepareEditsTests =
         -- Original line 1: "hello world" (cols 1-11)
         -- Edit: replace (1,6)-(1,7) with "\nX\n"  (replace " " with newline-X-newline)
         -- New text has 2 newlines, so new end is line 3, col 1
-        let ers = prepareEdits [Edit (r 1 6 1 7) "\nX\n"]
+        let ers = prepareEdits [(r 1 6 1 7, "\nX\n")]
         erNewStart (head ers) @?= p 1 6
         erNewEnd (head ers) @?= p 3 1
     ]
@@ -89,24 +89,24 @@ convertStartTests =
         -- New:      12pqrst3456
         -- Edit: (1,3)-(1,6) -> "pqrst", new region (1,3)-(1,8)
         -- Position (1,2) is in the "12" part, before the edit. No change.
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideStart ers (p 1 2) @?= p 1 2,
       testCase "after edit: shifted back" $ do
         -- Position (1,9) in new coords is the "4" in "12pqrst3456"
         -- The edit added 2 columns (5-3=2), so original position is 9-2 = 7
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideStart ers (p 1 9) @?= p 1 7,
       testCase "inside edit: expand to original start" $ do
         -- Position (1,5) is inside "pqrst" in new coords
         -- Start expands to the original edit start: (1,3)
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideStart ers (p 1 5) @?= p 1 3,
       testCase "at edit start boundary: expand to original start" $ do
         -- Position (1,3) is the first char of "pqrst"
         -- For SideStart, pos == newStart means inside, expand to origStart
         -- (Actually pos < newStart is false, so it goes to the "inside" branch)
         -- This is correct: start at beginning of edit = expand
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideStart ers (p 1 3) @?= p 1 3 -- happens to be same value
     ]
 
@@ -119,29 +119,29 @@ convertEndTests =
   testGroup
     "convertPos SideEnd"
     [ testCase "before edit: unchanged" $ do
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideEnd ers (p 1 2) @?= p 1 2,
       testCase "after edit: shifted back" $ do
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideEnd ers (p 1 9) @?= p 1 7,
       testCase "at edit new-start (end-exclusive doesn't touch edit content): no change" $ do
         -- End-exclusive position (1,3) = "p" position in new coords.
         -- But end-exclusive means the range stops BEFORE "p", so it doesn't
         -- actually include any edited content. Should map as if before the edit.
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideEnd ers (p 1 3) @?= p 1 3,
       testCase "inside edit (after first char): expand to original end" $ do
         -- End-exclusive position (1,5) is inside "pqrst" (past "p").
         -- This means the range includes some edited content.
         -- Expand to original edit end: (1,6)
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideEnd ers (p 1 5) @?= p 1 6,
       testCase "at edit new-end: shifted (not inside edit)" $ do
         -- End-exclusive position (1,8) = newEnd of the edit.
         -- Range covers the entire edit content. This position equals newEnd,
         -- so it's NOT inside the edit (the loop condition pos < newEnd is false).
         -- It gets shifted: 8 - 2 = 6, which equals origEnd.
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertPos SideEnd ers (p 1 8) @?= p 1 6
     ]
 
@@ -155,11 +155,11 @@ convertRangeTests =
     "convertRange"
     [ testCase "range entirely before edit: unchanged" $ do
         -- Range (1,1)-(1,3) is "12" in both old and new
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertRange ers (r 1 1 1 3) @?= r 1 1 1 3,
       testCase "range entirely after edit: shifted" $ do
         -- Range (1,8)-(1,10) in new coords -> (1,6)-(1,8) in orig
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertRange ers (r 1 8 1 10) @?= r 1 6 1 8,
       testCase "range spanning from before into edit: start unchanged, end expanded" $ do
         -- Original: 12abc3456
@@ -168,21 +168,21 @@ convertRangeTests =
         -- Start (1,1): before edit -> (1,1)
         -- End (1,5): inside edit -> expand to origEnd (1,6)
         -- Result: (1,1)-(1,6)
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertRange ers (r 1 1 1 5) @?= r 1 1 1 6,
       testCase "range spanning from edit into after: start expanded, end shifted" $ do
         -- Range (1,5)-(1,10) in new coords
         -- Start (1,5): inside edit -> expand to origStart (1,3)
         -- End (1,10): after edit -> shift by -2 -> (1,8)
         -- Result: (1,3)-(1,8)
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertRange ers (r 1 5 1 10) @?= r 1 3 1 8,
       testCase "range entirely inside edit: expanded to full original edit range" $ do
         -- Range (1,4)-(1,6) in new coords = "qrs" (inside "pqrst")
         -- Start: inside edit -> origStart (1,3)
         -- End (1,6): inside edit -> origEnd (1,6)
         -- Result: (1,3)-(1,6) = the entire original edit range
-        let ers = prepareEdits [Edit (r 1 3 1 6) "pqrst"]
+        let ers = prepareEdits [(r 1 3 1 6, "pqrst")]
         convertRange ers (r 1 4 1 6) @?= r 1 3 1 6
     ]
 
@@ -207,8 +207,8 @@ multiEditTests =
         -- Should map back to original (1,6)-(1,7) (undo the +1 from edit 1)
         let ers =
               prepareEdits
-                [ Edit (r 1 3 1 5) "XXX",
-                  Edit (r 1 7 1 9) "Y"
+                [ (r 1 3 1 5, "XXX"),
+                  (r 1 7 1 9, "Y")
                 ]
         -- Position in B region: between edit 1 and edit 2 in new coords
         -- In new coords, B is at cols 7-8 (original 5-6, shifted +1 by edit1's +1 delta)
@@ -234,8 +234,8 @@ multiEditTests =
         -- so (1,9) -> (1,9). And origEnd2 is also (1,9). Consistent.
         let ers =
               prepareEdits
-                [ Edit (r 1 3 1 5) "XXX",
-                  Edit (r 1 7 1 9) "Y"
+                [ (r 1 3 1 5, "XXX"),
+                  (r 1 7 1 9, "Y")
                 ]
         convertRange ers (r 1 4 1 9) @?= r 1 3 1 9,
       testCase "multi-line edit: error after newline insertion" $ do
@@ -246,7 +246,7 @@ multiEditTests =
         --   line 2: "CD"
         -- Error at new (2,1)-(2,3) = "CD" on line 2
         -- In original coords that's (1,4)-(1,6)
-        let ers = prepareEdits [Edit (r 1 3 1 4) "\n"]
+        let ers = prepareEdits [(r 1 3 1 4, "\n")]
         -- erNewEnd should be (2,1)
         erNewEnd (head ers) @?= p 2 1
         -- The error on line 2 should map back to line 1
@@ -374,9 +374,9 @@ manualTest =
     ]
   where
     edits =
-      [ Edit (r 3 6 3 7) "{! !}",
-        Edit (r 4 1 4 2) "[!\n\n!]",
-        Edit (r 5 6 5 7) "{! !}",
-        Edit (r 6 1 6 2) "[!\n\n!]",
-        Edit (r 7 6 7 7) "{! !}"
+      [ (r 3 6 3 7, "{! !}"),
+        (r 4 1 4 2, "[!\n\n!]"),
+        (r 5 6 5 7, "{! !}"),
+        (r 6 1 6 2, "[!\n\n!]"),
+        (r 7 6 7 7, "{! !}")
       ]

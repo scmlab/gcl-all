@@ -11,8 +11,7 @@
 -- the entire original edit range, since the exact position within the
 -- edited text has no meaningful original coordinate.
 module Server.OrigCoord
-  ( Edit (..),
-    EditRegion (..),
+  ( EditRegion (..),
     prepareEdits,
     convertRange,
     convertPos,
@@ -23,14 +22,6 @@ where
 import Data.Text (Text)
 import qualified Data.Text as T
 import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine)
-
--- | An edit in original coordinates: the range to be replaced, and the new text.
---   Edits must be non-overlapping and ordered by position.
-data Edit = Edit
-  { editRange :: !Range,
-    editText :: !Text
-  }
-  deriving (Show)
 
 -- | Pre-computed region info for one edit, with both original and new coordinates.
 data EditRegion = EditRegion
@@ -64,17 +55,17 @@ data ConvertSide
 --
 --   The input edits must be in document order and non-overlapping (in original
 --   coordinates).
-prepareEdits :: [Edit] -> [EditRegion]
+prepareEdits :: [(Range, Text)] -> [EditRegion]
 prepareEdits [] = []
 prepareEdits (e0 : rest) =
   let er0 = mkFirstRegion e0
    in er0 : go er0 rest
   where
-    mkFirstRegion (Edit (Range origS origE) text) =
+    mkFirstRegion (Range origS origE, text) =
       EditRegion origS origE origS (advancePos origS text)
 
     go _ [] = []
-    go prev (Edit (Range origS origE) text : es) =
+    go prev ((Range origS origE, text) : es) =
       let !newS = shiftAfter (erOrigEnd prev) (erNewEnd prev) origS
           !newE = advancePos newS text
           !er = EditRegion origS origE newS newE
