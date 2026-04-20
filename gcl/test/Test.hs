@@ -1,5 +1,6 @@
 import System.IO (hSetEncoding, stderr, stdin, stdout, utf8)
 import qualified Test.Move as Move
+import qualified Test.OrigCoord as OrigCoord
 import qualified Test.Parser as Parser
 import qualified Test.Render as Render
 import qualified Test.SrcLoc as SrcLoc
@@ -22,6 +23,7 @@ tests =
   testGroup
     "Tests"
     [ Move.tests,
+      OrigCoord.tests,
       Parser.tests,
       Render.tests,
       SrcLoc.tests
