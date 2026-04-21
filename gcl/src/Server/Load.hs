@@ -20,6 +20,7 @@ import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
 import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendWindowInfoMessage, setFileState, setPendingEdit)
 import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
+import Server.OrigCoord (convertError, prepareEdits)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -69,16 +70,25 @@ load filePath = do
                         Left _ -> do
                           logTextLn "Load: type/struct error"
                           sendFileState filePath fs
-                    Just (edits, newSource) -> do
-                      logText "Load: holes dug, sending edit\n"
-                      sendEditTextsWithVersion filePath vfsVersion edits
-                      logText "Load: setting pending edit\n"
-                      setPendingEdit
-                        filePath
-                        PendingEdit
-                          { expectedContent = newSource,
-                            pendingFileState = fs
-                          }
+                    Just (edits, newSource) ->
+                      case eitherFs of
+                        Left err -> do
+                          logTextLn "Load: holes dug but error found, not sending edit"
+                          let ers = prepareEdits edits
+                              convertedErr = convertError ers err
+                              errFs = emptyFileStateWithErrors [convertedErr]
+                          setFileState filePath errFs
+                          sendFileState filePath errFs
+                        Right _ -> do
+                          logText "Load: holes dug, sending edit\n"
+                          sendEditTextsWithVersion filePath vfsVersion edits
+                          logText "Load: setting pending edit\n"
+                          setPendingEdit
+                            filePath
+                            PendingEdit
+                              { expectedContent = newSource,
+                                pendingFileState = fs
+                              }
       logText "Load: end\n"
 
 --------------------------------------------------------------------------------

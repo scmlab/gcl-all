@@ -16,12 +16,18 @@ module Server.OrigCoord
     convertRange,
     convertPos,
     ConvertSide (..),
+    convertError,
   )
 where
 
 import Data.Text (Text)
 import qualified Data.Text as T
+import Error (Error (..))
 import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine)
+import GCL.Type (TypeError (..))
+import GCL.WP.Types (StructError (..))
+import Syntax.Common.Types (Name (..))
+import Syntax.Parser.Error (ParseError (..))
 
 -- | Pre-computed region info for one edit, with both original and new coordinates.
 data EditRegion = EditRegion
@@ -139,3 +145,45 @@ convertPos side = go Nothing
 convertRange :: [EditRegion] -> Range -> Range
 convertRange ers (Range s e) =
   mkRange (convertPos SideStart ers s) (convertPos SideEnd ers e)
+
+--------------------------------------------------------------------------------
+-- Converting Error ranges from post-edit to pre-edit coordinates
+
+convertMaybeRange :: [EditRegion] -> Maybe Range -> Maybe Range
+convertMaybeRange ers = fmap (convertRange ers)
+
+convertName :: [EditRegion] -> Name -> Name
+convertName ers (Name text mr) = Name text (convertMaybeRange ers mr)
+
+convertParseError :: [EditRegion] -> ParseError -> ParseError
+convertParseError ers (LexicalError pos) = LexicalError (convertPos SideStart ers pos)
+convertParseError ers (SyntacticError errs logMsg) =
+  SyntacticError (fmap (\(mr, s) -> (convertMaybeRange ers mr, s)) errs) logMsg
+
+convertTypeError :: [EditRegion] -> TypeError -> TypeError
+convertTypeError ers (NotInScope n) = NotInScope (convertName ers n)
+convertTypeError ers (UnifyFailed t1 t2 mr) = UnifyFailed t1 t2 (convertMaybeRange ers mr)
+convertTypeError ers (KindUnifyFailed k1 k2 mr) = KindUnifyFailed k1 k2 (convertMaybeRange ers mr)
+convertTypeError ers (RecursiveType n t mr) = RecursiveType n t (convertMaybeRange ers mr)
+convertTypeError ers (AssignToConst n) = AssignToConst (convertName ers n)
+convertTypeError ers (UndefinedType n) = UndefinedType (convertName ers n)
+convertTypeError ers (DuplicatedIdentifiers ns) = DuplicatedIdentifiers (map (convertName ers) ns)
+convertTypeError ers (RedundantNames ns) = RedundantNames (map (convertName ers) ns)
+convertTypeError _ (RedundantExprs exprs) = RedundantExprs exprs
+convertTypeError ers (MissingArguments ns) = MissingArguments (map (convertName ers) ns)
+convertTypeError ers (PatternArityMismatch expected actual mr) =
+  PatternArityMismatch expected actual (convertMaybeRange ers mr)
+
+convertStructError :: [EditRegion] -> StructError -> StructError
+convertStructError ers (MissingAssertion mr) = MissingAssertion (convertMaybeRange ers mr)
+convertStructError ers (MissingPostcondition mr) = MissingPostcondition (convertMaybeRange ers mr)
+convertStructError ers (MultiDimArrayAsgnNotImp mr) = MultiDimArrayAsgnNotImp (convertMaybeRange ers mr)
+convertStructError ers (LocalVarExceedScope mr) = LocalVarExceedScope (convertMaybeRange ers mr)
+
+-- | Convert all ranges in an Error from post-edit to pre-edit coordinates.
+convertError :: [EditRegion] -> Error -> Error
+convertError ers (ParseError pe) = ParseError (convertParseError ers pe)
+convertError ers (TypeError te) = TypeError (convertTypeError ers te)
+convertError ers (StructError se) = StructError (convertStructError ers se)
+convertError ers (Others title msg mr) = Others title msg (convertMaybeRange ers mr)
+convertError _ e = e
