@@ -36,9 +36,12 @@ import Server.Monad
     readSourceAndVersion,
     sendEditTextsWithVersion,
     sendWindowInfoMessage,
+    setFileState,
     setPendingEdit,
   )
 import Server.Move (applyMovesToFileState, mkLSPMove)
+import Server.Notification.Update (sendFileState)
+import Server.OrigCoord (convertError, prepareEdits)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
@@ -73,36 +76,44 @@ refine filePath cursor = do
           case refineAndDig filePath (fsIdCount fs) spec source of
             Left errs -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) errs])
             Right (finalImplText, eitherFs) -> do
-              sendEditTextsWithVersion filePath vfsVersion [(specRange spec, finalImplText)]
-              logText "Refine: spec edit sent\n"
-              let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
-                  movedFs = applyMovesToFileState [lspMove] fs
-                  newSource = applyEdits source [(specRange spec, finalImplText)]
+              let edits = [(specRange spec, finalImplText)]
               case eitherFs of
                 Left err -> do
-                  let pendingFs = movedFs {fsErrors = fsErrors movedFs ++ [err]}
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = pendingFs}
-                  setPendingEdit filePath pending
+                  logTextLn "Refine: spec error, not sending edit"
+                  let ers = prepareEdits edits
+                      convertedErr = convertError ers err
+                      newFs = fs {fsErrors = fsErrors fs ++ [convertedErr]}
+                  setFileState filePath newFs
+                  sendFileState filePath newFs
                 Right fragmentFs -> do
-                  let newFs = mergeFileState movedFs fragmentFs
+                  sendEditTextsWithVersion filePath vfsVersion edits
+                  logText "Refine: spec edit sent\n"
+                  let lspMove = mkLSPMove (toLSPRange (specRange spec)) finalImplText
+                      movedFs = applyMovesToFileState [lspMove] fs
+                      newSource = applyEdits source edits
+                      newFs = mergeFileState movedFs fragmentFs
                       pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
                   setPendingEdit filePath pending
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
             Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
             Right (finalImplText, eitherResult) -> do
-              sendEditTextsWithVersion filePath vfsVersion [(holeRange hole, finalImplText)]
-              logText "Refine: hole edit sent\n"
-              let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
-                  movedFs = applyMovesToFileState [lspMove] fs
-                  newSource = applyEdits source [(holeRange hole, finalImplText)]
+              let edits = [(holeRange hole, finalImplText)]
               case eitherResult of
                 Left err -> do
-                  let pendingFs = movedFs {fsErrors = fsErrors movedFs ++ [err]}
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = pendingFs}
-                  setPendingEdit filePath pending
+                  logTextLn "Refine: hole error, not sending edit"
+                  let ers = prepareEdits edits
+                      convertedErr = convertError ers err
+                      newFs = fs {fsErrors = fsErrors fs ++ [convertedErr]}
+                  setFileState filePath newFs
+                  sendFileState filePath newFs
                 Right (typedExpr, state) -> do
-                  let (holes1, holes2) = splitAtFirst hole (fsHoles fs)
+                  sendEditTextsWithVersion filePath vfsVersion edits
+                  logText "Refine: hole edit sent\n"
+                  let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
+                      movedFs = applyMovesToFileState [lspMove] fs
+                      newSource = applyEdits source edits
+                      (holes1, holes2) = splitAtFirst hole (fsHoles fs)
                       newHoles = justifyExpHoleRanges $ collectTypedHole typedExpr
                       holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
                       newFs =

@@ -20,10 +20,12 @@ module Server.OrigCoord
   )
 where
 
+import Data.List (sortBy)
+import Data.Ord (comparing)
 import Data.Text (Text)
 import qualified Data.Text as T
 import Error (Error (..))
-import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine)
+import GCL.Range (Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine, rangeStart)
 import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
 import Syntax.Common.Types (Name (..))
@@ -59,13 +61,14 @@ data ConvertSide
 --   can compute each edit's new-coordinate start by "walking" from the previous
 --   edit's end.  The new-coordinate end is then determined by the replacement text.
 --
---   The input edits must be in document order and non-overlapping (in original
---   coordinates).
+--   The input edits must be non-overlapping (in original coordinates).
+--   They will be sorted by start position internally.
 prepareEdits :: [(Range, Text)] -> [EditRegion]
-prepareEdits [] = []
-prepareEdits (e0 : rest) =
-  let er0 = mkFirstRegion e0
-   in er0 : go er0 rest
+prepareEdits edits = case sortBy (comparing (rangeStart . fst)) edits of
+  [] -> []
+  (e0 : rest) ->
+    let er0 = mkFirstRegion e0
+     in er0 : go er0 rest
   where
     mkFirstRegion (Range origS origE, text) =
       EditRegion origS origE origS (advancePos origS text)
