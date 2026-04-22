@@ -6,11 +6,10 @@
 
 module GCL.Type2.ToTyped where
 
-import Control.Monad (foldM, when)
+import Control.Monad (foldM, void, when)
 import Data.Graph (SCC)
 import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
 import qualified GCL.Dependency as D
@@ -37,15 +36,47 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
-collectDeclToEnv :: A.Declaration -> TIMonad Env
-collectDeclToEnv (A.ConstDecl names ty _ _) = do
-  _ <- typeToKind ty
-  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
-collectDeclToEnv (A.VarDecl names ty _ _) = do
-  _ <- typeToKind ty
-  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+collectDeclToEnv :: A.Declaration -> TIMonad (Env, T.Declaration)
+collectDeclToEnv (A.ConstDecl names ty prop range) = do
+  case ty of
+    (A.TArray interval _ _) -> validateInterval interval
+    _ -> return ()
 
-type DefnMap = Map A.Definition A.Scheme
+  _ <- typeToKind ty
+
+  let resultEnv = Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+
+  resultDecl <-
+    case prop of
+      Just p -> do
+        p' <- toTyped p
+        return $ T.ConstDecl names ty (Just p') range
+      Nothing ->
+        return $ T.ConstDecl names ty Nothing range
+  return (resultEnv, resultDecl)
+collectDeclToEnv (A.VarDecl names ty prop range) = do
+  case ty of
+    (A.TArray interval _ _) -> validateInterval interval
+    _ -> return ()
+
+  _ <- typeToKind ty
+
+  let resultEnv = Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+
+  resultDecl <-
+    case prop of
+      Just p -> do
+        p' <- toTyped p
+        return $ T.VarDecl names ty (Just p') range
+      Nothing ->
+        return $ T.VarDecl names ty Nothing range
+  return (resultEnv, resultDecl)
+
+validateInterval :: A.Interval -> TIMonad ()
+validateInterval (A.Interval begin end _) = validateEndpoint begin >> validateEndpoint end
+  where
+    validateEndpoint (A.Including expr) = void (typeCheck expr (A.TBase A.TInt Nothing))
+    validateEndpoint (A.Excluding expr) = void (typeCheck expr (A.TBase A.TInt Nothing))
 
 collectSccDefns :: SCC A.Definition -> TIMonad (Env, [T.Definition])
 collectSccDefns defns = do
@@ -158,13 +189,13 @@ instance ToTyped D.Program T.Program where
     traceM $ "exprs: " <> show (pretty exprs)
     traceM $ "stmts: " <> show (pretty stmts)
     env <- ask
-    declEnv <-
+    (declEnv, typedDecls) <-
       foldM
-        ( \env' decl -> do
-            declEnv' <- collectDeclToEnv decl
-            return $ declEnv' <> env'
+        ( \(env', typedDecls') decl -> do
+            (declEnv', typedDecl) <- collectDeclToEnv decl
+            return (declEnv' <> env', typedDecl : typedDecls')
         )
-        env
+        (env, [])
         decls
     -- NOTE: since we need to `infer` functions in order to get their types
     -- we also get their typed variants in the same pass
@@ -180,29 +211,10 @@ instance ToTyped D.Program T.Program where
     let newEnv = defnEnv <> declEnv
     traceM $ show newEnv
 
-    typedDecls <- local (const newEnv) (mapM toTyped decls)
     typedExprs <- local (const newEnv) (mapM toTyped exprs)
     typedStmts <- local (const newEnv) (mapM toTyped stmts)
 
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
-
-instance ToTyped A.Declaration T.Declaration where
-  toTyped (A.ConstDecl names ty prop range) = do
-    -- TODO: some kind stuff
-    case prop of
-      Just p -> do
-        p' <- toTyped p
-        return $ T.ConstDecl names ty (Just p') range
-      Nothing ->
-        return $ T.ConstDecl names ty Nothing range
-  toTyped (A.VarDecl names ty prop range) = do
-    -- TODO: some kind stuff
-    case prop of
-      Just p -> do
-        p' <- toTyped p
-        return $ T.VarDecl names ty (Just p') range
-      Nothing ->
-        return $ T.VarDecl names ty Nothing range
 
 instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Skip range) = return (T.Skip range)
