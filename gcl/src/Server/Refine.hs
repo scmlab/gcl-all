@@ -82,7 +82,7 @@ refine filePath cursor = do
                   logTextLn "Refine: spec error, not sending edit"
                   let ers = prepareEdits edits
                       convertedErr = convertError ers err
-                      newFs = fs {fsErrors = fsErrors fs ++ [convertedErr]}
+                      newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
                 Right fragmentFs -> do
@@ -104,7 +104,7 @@ refine filePath cursor = do
                   logTextLn "Refine: hole error, not sending edit"
                   let ers = prepareEdits edits
                       convertedErr = convertError ers err
-                      newFs = fs {fsErrors = fsErrors fs ++ [convertedErr]}
+                      newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
                 Right (typedExpr, state) -> do
@@ -118,7 +118,8 @@ refine filePath cursor = do
                       holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
                       newFs =
                         movedFs
-                          { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
+                          { fsErrors = [],
+                            fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
                             fsTIState = state
                           }
                       pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
@@ -341,7 +342,7 @@ findSpecOrHole cursor specs holes = (Left <$> findByCursor specRange specs) <|> 
 mergeFileState :: FileState -> FileState -> FileState
 mergeFileState moved fragment =
   FileState
-    { fsErrors = fsErrors moved, -- Keep previous errors
+    { fsErrors = [], -- Refine success: clear previous errors
       fsSpecifications = fsSpecifications moved ++ fsSpecifications fragment,
       fsHoles = fsHoles moved ++ fsHoles fragment,
       fsProofObligations = fsProofObligations moved ++ fsProofObligations fragment,
