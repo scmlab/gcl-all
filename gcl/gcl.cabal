@@ -82,6 +82,7 @@ library
       Server.Monad
       Server.Move
       Server.Notification.Update
+      Server.OrigCoord
       Server.Refine
       Server.SrcLoc
       Server.ToClient
@@ -184,6 +185,7 @@ test-suite gcl-test
   main-is: Test.hs
   other-modules:
       Test.Move
+      Test.OrigCoord
       Test.Parser
       Test.Render
       Test.SrcLoc
