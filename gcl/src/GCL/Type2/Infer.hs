@@ -481,7 +481,7 @@ inferCaseClause pattern expr ty = do
 
     fresh a
     Γ, x : a ⊢ e ↑ (s, t)
-    s1 = unify (a, t)
+    s1 = unify (s a, t)
     ----------------------------
     Γ ⊢ x = e ↑ (s1 <> s, s1 a)
 

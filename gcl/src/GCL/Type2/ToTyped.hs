@@ -117,16 +117,26 @@ collectDefnToEnv (A.TypeDefn name args ctors range) = do
         )
         ([], baseTy)
 collectDefnToEnv (A.ValDefn name sig expr) = do
+  -- NOTE: this part handles recursive functions, consider:
+  -- ```
+  -- foldr f e Nil = e
+  -- foldr f e (Cons x xs) = f x (foldr f e xs)
+  -- ```
+  -- `foldr : t1` is in the env from `collectSccDefns`
+  -- after `infer`-ing the RHS we get substitutions for `t1` and the RHS
+  -- `t1` tells us how the function was called in itself as an arbitrary function
+  -- (say we change `foldr` in the function body to `g`)
+  -- the type of the RHS tells us the actual type of the function body is
+  -- and finally we unify the two to get the correct recursive function type
   funcTy <- maybe freshTVar return sig
   _ <- typeToKind funcTy
 
-  -- XXX: how does this even work?
   (s1, typedExpr) <- typeCheck expr funcTy
 
   env <- ask
   let ty = case Map.lookup name env of
         Just (A.Forall _ ty') -> applySubst s1 ty'
-        Nothing -> undefined
+        Nothing -> error "impossible"
 
   let funcTy' = applySubst s1 funcTy
 
