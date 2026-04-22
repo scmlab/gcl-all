@@ -15,6 +15,7 @@ module Server.Monad
     logTextLn,
     getFileState,
     setFileState,
+    deleteFileState,
     getPendingEdit,
     setPendingEdit,
     deletePendingEdit,
@@ -116,6 +117,11 @@ setFileState :: FilePath -> FileState -> ServerM ()
 setFileState filePath fs = do
   ref <- lift $ asks filesState
   liftIO $ modifyIORef ref (Map.insert filePath fs)
+
+deleteFileState :: FilePath -> ServerM ()
+deleteFileState filePath = do
+  ref <- lift $ asks filesState
+  liftIO $ modifyIORef ref (Map.delete filePath)
 
 getPendingEdit :: FilePath -> ServerM (Maybe PendingEdit)
 getPendingEdit filePath = do

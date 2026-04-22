@@ -16,7 +16,7 @@ import Debug.Trace
 import GCL.Common (Free (..))
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
 import GCL.Type2.Infer.BuiltIn (getArithOpType, getChainOpType)
-import GCL.Type2.Subst (applySubst, applySubstEnv)
+import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
     Result,
@@ -104,6 +104,11 @@ typeCheck expr ty = do
   s2 <- lift $ unify exprTy ty (maybeRangeOf expr)
   return (s2 <> s1, typedExpr)
 
+typeCheck' :: A.Expr -> A.Type -> TIMonad (Subst, T.Expr)
+typeCheck' expr ty = do
+  (s, typedExpr) <- typeCheck expr ty
+  return (s, applySubstExpr s typedExpr)
+
 -- (-->) :: a -> b -> (a --> b)
 --
 
@@ -162,7 +167,8 @@ infer (A.ArrUpd arr index expr range) = inferArrUpd arr index expr range
 infer (A.Case expr clauses range) = inferCase expr clauses range
 infer (A.EHole text holeNumber range) = do
   ty <- freshTVar
-  return (mempty, ty, T.EHole text holeNumber ty range)
+  env <- ask
+  return (mempty, ty, T.EHole text holeNumber ty range env)
 
 inferLit :: A.Lit -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLit lit range =

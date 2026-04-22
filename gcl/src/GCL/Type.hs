@@ -971,9 +971,9 @@ instance Elab Expr where
                         list <- zipWithM patBind subpats (subst sub outputs')
                         let (envs, subs) = unzip list
                         return (mconcat envs, mconcat (sub : subs))
-  elaborate (EHole text holeNumber range) _ = do
+  elaborate (EHole text holeNumber range) env = do
     tv <- freshVar
-    return (Just tv, T.EHole text holeNumber tv range, mempty)
+    return (Just tv, T.EHole text holeNumber tv range undefined, mempty)
 
 instance Elab Chain where -- TODO: Make sure the below implementation is correct.
   elaborate (More (More ch' op1 e1 loc1) op2 e2 loc2) env = do

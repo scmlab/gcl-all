@@ -72,7 +72,7 @@ handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"
 -- SCM: need to print parenthesis around e1 when necessary.
 handleExpr _ (Case e cs _) = "case" <+> render e <+> "of" <+> renderManySepByComma cs -- TODO: Use semicolon instead of comma
-handleExpr _ (EHole t holeNumber _ _) = "{!" <+> render t <+> "!}" <> subscriptNumber holeNumber
+handleExpr _ (EHole t holeNumber _ _ _) = "{!" <+> render t <+> "!}" <> subscriptNumber holeNumber
   where
     -- Transform number to its subscript form by convert it to ascii value then adds to
     -- the unicode subscript number section.

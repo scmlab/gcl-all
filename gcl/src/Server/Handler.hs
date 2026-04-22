@@ -39,7 +39,7 @@ import qualified Server.Handler.Initialized as Initialized
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Server.Handler.SemanticTokens as SemanticTokens
 import Server.Load (load)
-import Server.Monad (ServerM, logText)
+import Server.Monad (ServerM, deleteFileState, deletePendingEdit, logText)
 
 -- handlers of the LSP server
 handlers :: Handlers ServerM
@@ -71,12 +71,14 @@ handlers =
         logText "SMethod_TextDocumentDidSave start\n"
         logText "SMethod_TextDocumentDidSave end\n",
       -- "textDocument/didClose" - after close
-      notificationHandler LSP.SMethod_TextDocumentDidClose $ \_ntf -> do
+      notificationHandler LSP.SMethod_TextDocumentDidClose $ \ntf -> do
         logText "SMethod_TextDocumentDidClose start\n"
-
-        -- TODO: this handler is only a stub because VSCode complains
-        -- maybe add something here in the future
-
+        let uri = ntf ^. (LSP.params . LSP.textDocument . LSP.uri)
+        case LSP.uriToFilePath uri of
+          Nothing -> return ()
+          Just filePath -> do
+            deleteFileState filePath
+            deletePendingEdit filePath
         logText "SMethod_TextDocumentDidClose end\n",
       -- "workspace/didChangeConfiguration"
       notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> do
