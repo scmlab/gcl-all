@@ -452,6 +452,7 @@ inferCase expr clauses range = do
   (clausesSubst, clausesTy, typedClauses) <- foldM (aux exprTy) (mempty, caseFtv, []) clauses
 
   let resultSubst = clausesSubst <> exprSubst
+  -- XXX: do we need `applySubst exprSubst clausesTy` here? things seem to work for now
   return (resultSubst, clausesTy, T.Case typedExpr (reverse typedClauses) range)
   where
     aux exprTy (accSubst, clauseTy, typedClauses) (A.CaseClause pattern caseExpr) = do
@@ -486,7 +487,7 @@ inferCaseClause pattern expr ty = do
 
     fresh a
     Γ, x : a ⊢ e ↑ (s, t)
-    s1 = unify (a, t)
+    s1 = unify (s a, t)
     ----------------------------
     Γ ⊢ x = e ↑ (s1 <> s, s1 a)
 

@@ -1,15 +1,15 @@
-{-# LANGUAGE FunctionalDependencies #-}
 {-# HLINT ignore "Use tuple-section" #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 module GCL.Type2.ToTyped where
 
-import Control.Monad (foldM, when)
-import Data.Graph (flattenSCCs)
+import Control.Monad (foldM, void, when)
+import Data.Graph (SCC)
+import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
-import Data.Map (Map)
 import qualified Data.Map as Map
 import Debug.Trace
 import qualified GCL.Dependency as D
@@ -38,18 +38,50 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
-collectDeclToEnv :: A.Declaration -> TIMonad Env
-collectDeclToEnv (A.ConstDecl names ty _ _) = do
-  _ <- typeToKind ty
-  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
-collectDeclToEnv (A.VarDecl names ty _ _) = do
-  _ <- typeToKind ty
-  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+collectDeclToEnv :: A.Declaration -> TIMonad (Env, T.Declaration)
+collectDeclToEnv (A.ConstDecl names ty prop range) = do
+  case ty of
+    (A.TArray interval _ _) -> validateInterval interval
+    _ -> return ()
 
-type DefnMap = Map A.Definition A.Scheme
+  _ <- typeToKind ty
 
-collectMultipleDefns :: (Traversable t) => t A.Definition -> TIMonad Env
-collectMultipleDefns defns = do
+  let resultEnv = Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+
+  resultDecl <-
+    case prop of
+      Just p -> do
+        p' <- toTyped p
+        return $ T.ConstDecl names ty (Just p') range
+      Nothing ->
+        return $ T.ConstDecl names ty Nothing range
+  return (resultEnv, resultDecl)
+collectDeclToEnv (A.VarDecl names ty prop range) = do
+  case ty of
+    (A.TArray interval _ _) -> validateInterval interval
+    _ -> return ()
+
+  _ <- typeToKind ty
+
+  let resultEnv = Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+
+  resultDecl <-
+    case prop of
+      Just p -> do
+        p' <- toTyped p
+        return $ T.VarDecl names ty (Just p') range
+      Nothing ->
+        return $ T.VarDecl names ty Nothing range
+  return (resultEnv, resultDecl)
+
+validateInterval :: A.Interval -> TIMonad ()
+validateInterval (A.Interval begin end _) = validateEndpoint begin >> validateEndpoint end
+  where
+    validateEndpoint (A.Including expr) = void (typeCheck expr (A.TBase A.TInt Nothing))
+    validateEndpoint (A.Excluding expr) = void (typeCheck expr (A.TBase A.TInt Nothing))
+
+collectSccDefns :: SCC A.Definition -> TIMonad (Env, [T.Definition])
+collectSccDefns defns = do
   env <- ask
   let names = fmap (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
 
@@ -63,15 +95,15 @@ collectMultipleDefns defns = do
       names
 
   foldM
-    ( \accEnv defn -> do
-        env' <- local (const accEnv) (collectDefnToEnv defn)
-        return (env' <> accEnv)
+    ( \(accEnv, accDefns) defn -> do
+        (env', typedDefn) <- local (const accEnv) (collectDefnToEnv defn)
+        return (env' <> accEnv, typedDefn : accDefns)
     )
-    (stubEnv <> env)
+    (stubEnv <> env, [])
     defns
 
-collectDefnToEnv :: A.Definition -> TIMonad Env
-collectDefnToEnv (A.TypeDefn name args ctors _range) = do
+collectDefnToEnv :: A.Definition -> TIMonad (Env, T.Definition)
+collectDefnToEnv (A.TypeDefn name args ctors range) = do
   let nameTy = A.TData name (maybeRangeOf name)
   let resultTy = foldl' (\accTy arg -> A.TApp accTy (A.TVar arg Nothing) Nothing) nameTy args
 
@@ -83,21 +115,31 @@ collectDefnToEnv (A.TypeDefn name args ctors _range) = do
   -- e.g.
   -- `data D a = D a` is not allowed and
   -- `data D a = C a` is allowed
-  foldM
-    ( \env' (A.TypeDefnCtor ctorName ctorArgs) -> do
-        when
-          (Map.member ctorName env')
-          (throwError $ DuplicatedIdentifiers [ctorName])
+  env <-
+    foldM
+      ( \env' (A.TypeDefnCtor ctorName ctorArgs) -> do
+          when
+            (Map.member ctorName env')
+            (throwError $ DuplicatedIdentifiers [ctorName])
 
-        let (tvs, ctorTy) = extractMetaVars resultTy ctorArgs
-        let diff = filter (`notElem` args) (nub tvs)
+          let (tvs, ctorTy) = extractMetaVars resultTy ctorArgs
+          let diff = filter (`notElem` args) (nub tvs)
 
-        case diff of
-          [] -> return $ Map.insert ctorName (A.Forall args ctorTy) env'
-          (x : _) -> throwError $ NotInScope x
-    )
-    kindEnv
-    ctors
+          case diff of
+            [] -> return $ Map.insert ctorName (A.Forall args ctorTy) env'
+            (x : _) -> throwError $ NotInScope x
+      )
+      kindEnv
+      ctors
+
+  let resultDefn =
+        T.TypeDefn
+          name
+          args
+          (map (\(A.TypeDefnCtor name' args') -> T.TypeDefnCtor name' args') ctors)
+          range
+
+  return (env, resultDefn)
   where
     extractMetaVars baseTy =
       foldr
@@ -108,93 +150,73 @@ collectDefnToEnv (A.TypeDefn name args ctors _range) = do
         )
         ([], baseTy)
 collectDefnToEnv (A.ValDefn name sig expr) = do
+  -- NOTE: this part handles recursive functions, consider:
+  -- ```
+  -- foldr f e Nil = e
+  -- foldr f e (Cons x xs) = f x (foldr f e xs)
+  -- ```
+  -- `foldr : t1` is in the env from `collectSccDefns`
+  -- after `infer`-ing the RHS we get substitutions for `t1` and the RHS
+  -- `t1` tells us how the function was called in itself as an arbitrary function
+  -- (say we change `foldr` in the function body to `g`)
+  -- the type of the RHS tells us the actual type of the function body is
+  -- and finally we unify the two to get the correct recursive function type
   funcTy <- maybe freshTVar return sig
   _ <- typeToKind funcTy
 
-  (s, _) <- typeCheck expr funcTy
+  (s1, typedExpr) <- typeCheck expr funcTy
 
-  return (Map.singleton name (A.Forall [] (applySubst s funcTy)))
+  env <- ask
+  let ty = case Map.lookup name env of
+        Just (A.Forall _ ty') -> applySubst s1 ty'
+        Nothing -> error "impossible"
+
+  let funcTy' = applySubst s1 funcTy
+
+  s2 <- lift $ unify funcTy' ty Nothing
+
+  let resultSubst = s2 <> s1
+  let resultTy = applySubst s2 funcTy'
+  let resultDefn = T.ValDefn name resultTy (applySubstExpr resultSubst typedExpr)
+
+  return (Map.singleton name (A.Forall [] resultTy), resultDefn)
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
 
 instance ToTyped D.Program T.Program where
   toTyped (D.Program defns decls exprs stmts range) = do
-    -- traceM $ "defns: " <> show (pretty defns)
+    traceM $ "defns: " <> show (pretty (Graph.flattenSCCs defns))
     traceM $ "decls: " <> show (pretty decls)
     traceM $ "exprs: " <> show (pretty exprs)
     traceM $ "stmts: " <> show (pretty stmts)
     env <- ask
-    declEnv <-
+    (declEnv, typedDecls) <-
       foldM
-        ( \env' decl -> do
-            declEnv' <- collectDeclToEnv decl
-            return $ declEnv' <> env'
+        ( \(env', typedDecls') decl -> do
+            (declEnv', typedDecl) <- collectDeclToEnv decl
+            return (declEnv' <> env', typedDecl : typedDecls')
         )
-        env
+        (env, [])
         decls
-    defnEnv <-
+    -- NOTE: since we need to `infer` functions in order to get their types
+    -- we also get their typed variants in the same pass
+    (defnEnv, typedDefns) <-
       foldM
-        ( \env' defn -> do
-            defnEnv <- local (const env') (collectMultipleDefns defn)
-            return $ defnEnv <> env'
+        ( \(env', typedDefns') defn -> do
+            (defnEnv, typedDefns) <- local (const env') (collectSccDefns defn)
+            return (defnEnv <> env', typedDefns ++ typedDefns')
         )
-        declEnv
+        (declEnv, [])
         defns
 
     let newEnv = defnEnv <> declEnv
     traceM $ show newEnv
-    typedDefns <-
-      flattenSCCs
-        <$> mapM
-          ( \defn -> do
-              -- TODO: check array interval type is int
-              local (const newEnv) (mapM toTyped defn)
-          )
-          defns
-    typedDecls <-
-      mapM
-        ( \decl -> do
-            local (const newEnv) (toTyped decl)
-        )
-        decls
+
     typedExprs <- local (const newEnv) (mapM toTyped exprs)
     typedStmts <- local (const newEnv) (mapM toTyped stmts)
+
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
-
-instance ToTyped A.Definition T.Definition where
-  toTyped (A.TypeDefn name args ctors range) = return $ T.TypeDefn name args (map toTypedTypeDefnCtor ctors) range
-  toTyped (A.ValDefn name sig expr) = toTypedValDefn name sig expr
-
-toTypedTypeDefnCtor :: A.TypeDefnCtor -> T.TypeDefnCtor
-toTypedTypeDefnCtor (A.TypeDefnCtor name args) = T.TypeDefnCtor name args
-
-toTypedValDefn :: Name -> Maybe A.Type -> A.Expr -> TIMonad T.Definition
-toTypedValDefn name _sig expr = do
-  -- FIXME: i don't want to call `infer` twice
-  -- is there a way to put `T.Expr` result in the environment or something?
-
-  (exprSubst, exprTy, typedExpr) <- infer expr
-
-  return (T.ValDefn name exprTy (applySubstExpr exprSubst typedExpr))
-
-instance ToTyped A.Declaration T.Declaration where
-  toTyped (A.ConstDecl names ty prop range) = do
-    -- TODO: some kind stuff
-    case prop of
-      Just p -> do
-        p' <- toTyped p
-        return $ T.ConstDecl names ty (Just p') range
-      Nothing ->
-        return $ T.ConstDecl names ty Nothing range
-  toTyped (A.VarDecl names ty prop range) = do
-    -- TODO: some kind stuff
-    case prop of
-      Just p -> do
-        p' <- toTyped p
-        return $ T.VarDecl names ty (Just p') range
-      Nothing ->
-        return $ T.VarDecl names ty Nothing range
 
 instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Skip range) = return (T.Skip range)
