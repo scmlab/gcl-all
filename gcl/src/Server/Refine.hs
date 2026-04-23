@@ -5,13 +5,14 @@ module Server.Refine where
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad (unless, when)
 import Data.Bifunctor (Bifunctor (bimap), first, second)
+import Data.Char (isSpace)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
-import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, rangeStart)
+import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference, runTI)
@@ -75,14 +76,14 @@ refine filePath cursor = do
         Right (fs, source, vfsVersion, Left spec) -> do
           case refineAndDig filePath (fsIdCount fs) spec source of
             Left errs -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) errs])
-            Right (finalImplText, eitherFs) -> do
+            Right (finalImplText, innerEditsRel, eitherFs) -> do
               let edits = [(specRange spec, finalImplText)]
               case eitherFs of
                 Left err -> do
                   logTextLn "Refine: spec error, not sending edit"
-                  let ers = prepareEdits edits
+                  let ers = prepareEdits (decomposeSpecEdits (specRange spec) innerEditsRel)
                       convertedErr = convertError ers err
-                      newFs = fs {fsErrors = fsErrors fs ++ [convertedErr]}
+                      newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
                 Right fragmentFs -> do
@@ -97,14 +98,15 @@ refine filePath cursor = do
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
             Left err -> sendWindowInfoMessage (Text.intercalate "\n" [(renderStrict . layoutCompact . pretty) err])
-            Right (finalImplText, eitherResult) -> do
+            Right (finalImplText, innerEditsRel, eitherResult) -> do
               let edits = [(holeRange hole, finalImplText)]
               case eitherResult of
                 Left err -> do
                   logTextLn "Refine: hole error, not sending edit"
-                  let ers = prepareEdits edits
+                  let origContent = extractText (shrinkRange 2 (holeRange hole)) source
+                      ers = prepareEdits (decomposeHoleEdits (holeRange hole) origContent innerEditsRel)
                       convertedErr = convertError ers err
-                      newFs = fs {fsErrors = fsErrors fs ++ [convertedErr]}
+                      newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
                 Right (typedExpr, state) -> do
@@ -118,7 +120,8 @@ refine filePath cursor = do
                       holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
                       newFs =
                         movedFs
-                          { fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
+                          { fsErrors = [],
+                            fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
                             fsTIState = state
                           }
                       pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
@@ -137,7 +140,10 @@ refine filePath cursor = do
 -- Outer Either: validation/parse error (before edit decision).
 -- Inner Either: type/struct error (after edit decision).
 -- The finalImplText and the FileState are independent — a type error does not block edits.
-refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, Either Error FileState)
+-- innerEditsRel: hole-digging edits in (1,1)-based coords relative to implText;
+-- used (combined with marker-removal edits) to convert post-edit error ranges back
+-- to pre-edit source coordinates.
+refineAndDig :: FilePath -> Int -> Spec -> Text -> Either Error (Text, [(Range, Text)], Either Error FileState)
 refineAndDig filePath idCount spec source = do
   let specRng = specRange spec
   when (isSingleLine specRng) $
@@ -148,10 +154,10 @@ refineAndDig filePath idCount spec source = do
     Left (Others "Refine" "The first line in the spec must be blank." (Just implRange))
   let implStart = rangeStart implRange
 
-  (finalImplText, stmts) <- parseAndDigFragment filePath implStart implText
-  return (finalImplText, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
+  (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath implStart implText
+  return (finalImplText, innerEditsRel, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, Either Error (T.Expr, Inference))
+refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error (T.Expr, Inference))
 refineHoleAndDig filePath hole source state = do
   let holeRng = holeRange hole
   unless (isSingleLine holeRng) $
@@ -160,8 +166,8 @@ refineHoleAndDig filePath hole source state = do
       implText = Text.strip $ extractText implRange source
       implStart = rangeStart implRange
 
-  (finalImplText, expr) <- parseAndDigHoleFragment filePath implStart implText
-  return (finalImplText, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr state)
+  (finalImplText, innerEditsRel, expr) <- parseAndDigHoleFragment filePath implStart implText
+  return (finalImplText, innerEditsRel, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr state)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
@@ -196,53 +202,50 @@ loadConcreteHoleFragment typeEnv ty expr state = do
 -- | Parse fragment and dig holes if needed.
 -- Internally uses relative positions (1,1) for hole digging,
 -- then absolute positions (fragmentStart) for the returned stmts.
--- Returns (finalImplText, stmts).
-parseAndDigFragment :: FilePath -> Pos -> Text -> Either Error (Text, [C.Stmt])
+-- Returns (finalImplText, innerEditsRel, stmts), where innerEditsRel are the
+-- hole-digging edits in (1,1)-based coordinates relative to implText.
+parseAndDigFragment :: FilePath -> Pos -> Text -> Either Error (Text, [(Range, Text)], [C.Stmt])
 parseAndDigFragment filePath fragmentStart implText = do
   -- TODO: reduce parsing
   (_, holes1) <- parseRelative implText
+  let innerEditsRel = map (\(kind, range) -> (range, diggedText kind range)) holes1
   case holes1 of
     [] -> do
       stmts <- parseAbsolute implText
-      Right (implText, stmts)
+      Right (implText, [], stmts)
     _ -> do
-      let newImplText = digHoles implText holes1
+      let newImplText = applyEdits implText innerEditsRel
       stmts2 <- parseAbsolute newImplText
       let holes2 = collectHole stmts2
       case holes2 of
-        [] -> Right (newImplText, stmts2)
+        [] -> Right (newImplText, innerEditsRel, stmts2)
         _ -> Left (Others "Refine" "unexpected holes after digging" Nothing)
   where
     parseRelative src = do
       stmts <- parseFragmentStmts filePath (mkPos 1 1) src
       return (stmts, collectHole stmts)
     parseAbsolute = parseFragmentStmts filePath fragmentStart
-    digHoles src holeList =
-      let edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
-       in applyEdits src edits
 
-parseAndDigHoleFragment :: FilePath -> Pos -> Text -> Either Error (Text, C.Expr)
+parseAndDigHoleFragment :: FilePath -> Pos -> Text -> Either Error (Text, [(Range, Text)], C.Expr)
 parseAndDigHoleFragment filePath fragmentStart implText = do
   (_, holes1) <- parseRelative implText
+  let innerEditsRel = map (\(kind, range) -> (range, diggedText kind range)) holes1
   case holes1 of
     [] -> do
       expr <- parseAbsolute implText
-      Right (implText, expr)
+      Right (implText, [], expr)
     _ -> do
-      let newImplText = digHoles implText holes1
+      let newImplText = applyEdits implText innerEditsRel
       exprs2 <- parseAbsolute newImplText
       let holes2 = collectHole exprs2
       case holes2 of
-        [] -> Right (newImplText, exprs2)
+        [] -> Right (newImplText, innerEditsRel, exprs2)
         _ -> Left (Others "Refine" "unexpected holes after digging" Nothing)
   where
     parseRelative src = do
       expr <- parseFragmentExpr filePath (mkPos 1 1) src
       return (expr, collectHole expr)
     parseAbsolute = parseFragmentExpr filePath fragmentStart
-    digHoles src holeList =
-      let edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
-       in applyEdits src edits
 
 --------------------------------------------------------------------------------
 -- Fragment parsing
@@ -322,6 +325,71 @@ justifyHoleRange diff hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) =
   hole {holeRange = mkRange (mkPos l1 (c1 + diff)) (mkPos l2 (c2 + diff))}
 
 --------------------------------------------------------------------------------
+-- Decompose a refine edit into fine-grained edits for error coordinate conversion
+
+-- | Decompose the single "replace specRange with finalImplText" edit into:
+--   [remove open marker] ++ inner hole-digging edits ++ [remove close marker].
+--   Used for converting post-edit error ranges back to pre-edit coordinates.
+--   The spec's open marker "[!" and close marker "!]" are each 2 chars.
+--
+--   Example. Given source:
+--     1: var x : Int
+--     2: [!
+--     3:   x := 3 + ?
+--     4: !]
+--   with specRng = (2,1)-(4,3) and
+--        innerEditsRel = [((2,12)-(2,13), "{! !}")]  -- relative to implText
+--   this produces:
+--     [ ((2,1)-(2,3),   "")        -- remove "[!"
+--     , ((3,12)-(3,13), "{! !}")   -- ? translated to absolute coords
+--     , ((4,1)-(4,3),   "")        -- remove "!]"
+--     ]
+--   Compared with the original single big edit over (2,1)-(4,3): if post-edit
+--   analysis reports an error near "3 + {! !}", fine-grained edits let the
+--   unchanged "3 + " part map back cleanly, whereas a single big edit would
+--   expand the error to cover the whole spec.
+decomposeSpecEdits :: Range -> [(Range, Text)] -> [(Range, Text)]
+decomposeSpecEdits specRng innerEditsRel =
+  let specStart = rangeStart specRng
+      specEnd = rangeEnd specRng
+      openMarkerEnd = mkPos (posLine specStart) (posCol specStart + 2)
+      closeMarkerStart = mkPos (posLine specEnd) (posCol specEnd - 2)
+      openRange = mkRange specStart openMarkerEnd
+      closeRange = mkRange closeMarkerStart specEnd
+      innerEditsAbs = map (\(r, t) -> (translateTokenRange openMarkerEnd r, t)) innerEditsRel
+   in [(openRange, "")] ++ innerEditsAbs ++ [(closeRange, "")]
+
+-- | Like decomposeSpecEdits but for a hole refine. Hole is single-line;
+--   the open and close edits also absorb the leading/trailing whitespace that
+--   is stripped before parsing. The hole's open marker "{!" and close marker "!}"
+--   are each 2 chars.
+--
+--   The open edit uses a 2-char placeholder (not empty) as its replacement so
+--   that the resulting post-edit column for stripped content matches what the
+--   parser uses as its anchor: parseFragmentExpr is called with fragmentStart =
+--   rangeStart implRange (= holeStart + 2 cols, right after "{!"), but the text
+--   it parses is the stripped content. So in the parser's view, the stripped
+--   content starts at holeStart + 2, regardless of leadingWs. The 2-char
+--   placeholder makes our EditRegion.newEnd align with this.
+--
+--   Inner hole edits keep their origRange in original source coords (using
+--   openOrigEnd = holeStart + 2 + leadingWs as the translation anchor), so
+--   they correctly describe where the "?" actually lives in the source.
+decomposeHoleEdits :: Range -> Text -> [(Range, Text)] -> [(Range, Text)]
+decomposeHoleEdits holeRng origContent innerEditsRel =
+  let holeStart = rangeStart holeRng
+      holeEnd = rangeEnd holeRng
+      leadingWs = Text.length (Text.takeWhile isSpace origContent)
+      trailingWs = Text.length origContent - leadingWs - Text.length (Text.strip origContent)
+      openOrigEnd = mkPos (posLine holeStart) (posCol holeStart + 2 + leadingWs)
+      closeOrigStart = mkPos (posLine holeEnd) (posCol holeEnd - 2 - trailingWs)
+      openRange = mkRange holeStart openOrigEnd
+      closeRange = mkRange closeOrigStart holeEnd
+      openPlaceholder = Text.replicate 2 " "
+      innerEditsAbs = map (\(r, t) -> (translateTokenRange openOrigEnd r, t)) innerEditsRel
+   in [(openRange, openPlaceholder)] ++ innerEditsAbs ++ [(closeRange, "")]
+
+--------------------------------------------------------------------------------
 -- Finding enclosing spec
 
 findSpecOrHole :: Pos -> [Spec] -> [Hole] -> Maybe (Either Spec Hole)
@@ -341,7 +409,7 @@ findSpecOrHole cursor specs holes = (Left <$> findByCursor specRange specs) <|> 
 mergeFileState :: FileState -> FileState -> FileState
 mergeFileState moved fragment =
   FileState
-    { fsErrors = fsErrors moved, -- Keep previous errors
+    { fsErrors = [], -- Refine success: clear previous errors
       fsSpecifications = fsSpecifications moved ++ fsSpecifications fragment,
       fsHoles = fsHoles moved ++ fsHoles fragment,
       fsProofObligations = fsProofObligations moved ++ fsProofObligations fragment,
