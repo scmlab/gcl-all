@@ -1,7 +1,7 @@
 module GCL.Dependency (evalDependencyResolution, GCL.Dependency.Program (Program)) where
 
 import Control.Applicative ((<|>))
-import Control.Monad (foldM, forM_)
+import Control.Monad (foldM, forM_, unless)
 import Control.Monad.Except (MonadError (throwError))
 import Control.Monad.State (evalState)
 import Control.Monad.State.Lazy (State, get, modify)
@@ -92,41 +92,22 @@ evalDependencyResolution abstract = evalState (runExceptT (resolveDependency abs
 resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
 resolveDependency program@(A.Program _ decls exprs stmts range) = do
   forM_ decls checkDeclDuplications
-  unresolvedDeps <- resolveProgram program
-  resolvedDeps <- mapM validateDependency unresolvedDeps
+  (unresolvedTypeDeps, unresolvedTermDeps) <- resolveProgram program
+  forM_ decls (checkDeclDependency unresolvedTypeDeps)
+  resolvedDeps <- mapM validateDependency [unresolvedTypeDeps, unresolvedTermDeps]
   let sccs = concatMap toTopSortedSCC resolvedDeps
   return $ GCL.Dependency.Program sccs decls exprs stmts range
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
     toTopSortedSCC = reverse . stronglyConnComp . elems
 
-    checkDeclDuplications :: A.Declaration -> DepMonad ()
-    checkDeclDuplications (A.ConstDecl names _ _ _) = checkDeclDuplication names
-    checkDeclDuplications (A.VarDecl names _ _ _) = checkDeclDuplication names
-
-    checkDeclDuplication :: [C.Name] -> DepMonad ()
-    checkDeclDuplication names = do
-      (_, declMap) <- get
-      declMap' <-
-        foldM
-          ( \declMap' name -> do
-              case Data.Set.lookupIndex name declMap' of
-                Just idx -> do
-                  let originalName = Data.Set.elemAt idx declMap'
-                  throwError $ DuplicatedIdentifiers [originalName, name]
-                Nothing -> return $ Data.Set.insert name declMap'
-          )
-          declMap
-          names
-      modify $ second $ const declMap'
-
-resolveProgram :: A.Program -> DepMonad [UnresolvedDepMap]
+resolveProgram :: A.Program -> DepMonad (UnresolvedDepMap, UnresolvedDepMap)
 resolveProgram (A.Program defs _ _ _ _) = do
   -- Do this in 2 pass, as TypeDefnCtor must be collected first in type resolution pass
   -- then we can distinguish them in term resolution pass.
   typeDeps <- foldM resolveTypeDefinitions mempty defs
   termDeps <- foldM resolveTermDefinitions mempty defs
-  return [typeDeps, termDeps]
+  return (typeDeps, termDeps)
 
 resolveTypeDefinitions :: UnresolvedDepMap -> A.Definition -> DepMonad UnresolvedDepMap
 resolveTypeDefinitions typeDeps def@(A.TypeDefn name _ ctors _) = do
@@ -180,6 +161,42 @@ resolveType name deps (A.TData dataName _) =
 resolveType name deps (A.TApp typA typB _) =
   foldM (resolveType name) deps [typA, typB]
 resolveType _ deps _ = return deps
+
+-- | Declaration checking
+checkDeclDuplications :: A.Declaration -> DepMonad ()
+checkDeclDuplications (A.ConstDecl names _ _ _) = checkDeclDuplication names
+checkDeclDuplications (A.VarDecl names _ _ _) = checkDeclDuplication names
+
+checkDeclDuplication :: [C.Name] -> DepMonad ()
+checkDeclDuplication names = do
+  (_, declMap) <- get
+  declMap' <-
+    foldM
+      ( \declMap' name -> do
+          case Data.Set.lookupIndex name declMap' of
+            Just idx -> do
+              let originalName = Data.Set.elemAt idx declMap'
+              throwError $ DuplicatedIdentifiers [originalName, name]
+            Nothing -> return $ Data.Set.insert name declMap'
+      )
+      declMap
+      names
+  modify $ second $ const declMap'
+
+checkDeclDependency :: UnresolvedDepMap -> A.Declaration -> DepMonad ()
+checkDeclDependency typeDeps (A.ConstDecl _ typ _ _) = checkType typeDeps typ
+checkDeclDependency typeDeps (A.VarDecl _ typ _ _) = checkType typeDeps typ
+
+checkType :: UnresolvedDepMap -> A.Type -> DepMonad ()
+checkType deps (A.TArray _ typ _) = do
+  checkType deps typ
+checkType deps (A.TFunc typA typB _) =
+  forM_ [typA, typB] (checkType deps)
+checkType deps (A.TData dataName _) = do
+  unless (Data.Map.member dataName deps) (throwError $ NotInScope dataName)
+checkType deps (A.TApp typA typB _) = do
+  forM_ [typA, typB] (checkType deps)
+checkType _ _ = return ()
 
 -- | Registers a dependency graph node to the map.
 registerDependency :: C.Name -> A.Definition -> UnresolvedDepMap -> DepMonad UnresolvedDepMap
