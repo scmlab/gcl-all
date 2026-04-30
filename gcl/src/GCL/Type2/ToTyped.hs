@@ -38,41 +38,33 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name)
 import qualified Syntax.Typed.Types as T
 
-collectDeclToEnv :: A.Declaration -> TIMonad (Env, T.Declaration)
-collectDeclToEnv (A.ConstDecl names ty prop range) = do
-  case ty of
-    (A.TArray interval _ _) -> validateInterval interval
-    _ -> return ()
+collectDeclToEnv :: A.Declaration -> TIMonad Env
+collectDeclToEnv (A.ConstDecl names ty _prop _range) = do
+  validateType ty
 
   _ <- typeToKind ty
 
-  let resultEnv = Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
-
-  resultDecl <-
-    case prop of
-      Just p -> do
-        p' <- toTyped p
-        return $ T.ConstDecl names ty (Just p') range
-      Nothing ->
-        return $ T.ConstDecl names ty Nothing range
-  return (resultEnv, resultDecl)
-collectDeclToEnv (A.VarDecl names ty prop range) = do
-  case ty of
-    (A.TArray interval _ _) -> validateInterval interval
-    _ -> return ()
+  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+collectDeclToEnv (A.VarDecl names ty _prop _range) = do
+  validateType ty
 
   _ <- typeToKind ty
 
-  let resultEnv = Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
+  return $ Map.fromList $ map (\name -> (name, A.Forall [] ty)) names
 
-  resultDecl <-
-    case prop of
-      Just p -> do
-        p' <- toTyped p
-        return $ T.VarDecl names ty (Just p') range
-      Nothing ->
-        return $ T.VarDecl names ty Nothing range
-  return (resultEnv, resultDecl)
+validateType :: A.Type -> TIMonad ()
+validateType (A.TArray interval ty _) = validateInterval interval *> validateType ty
+validateType (A.TData name _) = findName name
+validateType (A.TApp t1 t2 _) = validateType t1 *> validateType t2
+validateType _ = return ()
+
+findName :: Name -> TIMonad ()
+findName name = do
+  env <- ask
+  traceM $ show env
+  case Map.lookup name env of
+    Just _ -> return ()
+    Nothing -> throwError $ NotInScope name
 
 validateInterval :: A.Interval -> TIMonad ()
 validateInterval (A.Interval begin end _) = validateEndpoint begin >> validateEndpoint end
@@ -191,13 +183,19 @@ instance ToTyped D.Program T.Program where
     traceM $ "exprs: " <> show (pretty exprs)
     traceM $ "stmts: " <> show (pretty stmts)
     env <- ask
-    (declEnv, typedDecls) <-
+
+    -- NOTE: we split getting decls into two parts:
+    -- con N : Int { ... }
+    -- {: ... :}
+    -- we get the `con N : Int` part first, then the {: ... :}, finally the { ... } part
+    -- this is because the assertion part could reference functions defined in the FP part
+    declEnv <-
       foldM
-        ( \(env', typedDecls') decl -> do
-            (declEnv', typedDecl) <- collectDeclToEnv decl
-            return (declEnv' <> env', typedDecl : typedDecls')
+        ( \env' decl -> do
+            declEnv' <- local (const env') (collectDeclToEnv decl)
+            return (declEnv' <> env')
         )
-        (env, [])
+        env
         decls
     -- NOTE: since we need to `infer` functions in order to get their types
     -- we also get their typed variants in the same pass
@@ -213,10 +211,19 @@ instance ToTyped D.Program T.Program where
     let newEnv = defnEnv <> declEnv
     traceM $ show newEnv
 
+    typedDecls <- local (const newEnv) (mapM toTyped decls)
     typedExprs <- local (const newEnv) (mapM toTyped exprs)
     typedStmts <- local (const newEnv) (mapM toTyped stmts)
 
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
+
+instance ToTyped A.Declaration T.Declaration where
+  toTyped (A.ConstDecl names ty prop range) = do
+    prop' <- mapM toTyped prop
+    return $ T.ConstDecl names ty prop' range
+  toTyped (A.VarDecl names ty prop range) = do
+    prop' <- mapM toTyped prop
+    return $ T.VarDecl names ty prop' range
 
 instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Skip range) = return (T.Skip range)
