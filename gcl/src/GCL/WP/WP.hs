@@ -5,7 +5,6 @@ module GCL.WP.WP where
 import Control.Arrow (first, second)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
-import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common
   ( Fresh (..),
@@ -150,10 +149,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
         (xs ++ (map (nameToText . fst . snd) ys))
         (wpStmts stmts' post)
       where
-        -- if any (`member` (fv pre)) (declaredNames decls)
-        --   then throwError (LocalVarExceedScope l)
-        --   else return pre
-        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
+        toSubst = map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
 
 calcLocalRenaming :: [Text] -> [(Name, Type)] -> WP ([Text], [(Text, (Name, Type))])
 calcLocalRenaming _ [] = return ([], [])

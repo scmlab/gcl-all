@@ -6,14 +6,11 @@
 module Syntax.Abstract.Instances.Substitution where
 
 import Control.Monad (forM)
-import Data.Map hiding (map)
-import qualified Data.Map as Map
 import GCL.Common
 import Syntax.Abstract.Types
 import Syntax.Abstract.Util (declaredNames)
 import Syntax.Common
 import Syntax.Substitution
-import Prelude hiding (Ordering (..), lookup)
 
 instance Variableous Expr () where
   isVar (Var x _) = Just (x, ())

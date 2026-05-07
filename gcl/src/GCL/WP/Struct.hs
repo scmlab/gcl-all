@@ -4,7 +4,6 @@ module GCL.WP.Struct where
 
 import Control.Arrow (first, second)
 import Control.Monad (forM_)
-import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common (freshName)
 import GCL.Predicate
@@ -174,7 +173,7 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
         (xs ++ map (nameToText . fst . snd) ys)
         (structStmts Primary (pre, Nothing) stmts' post)
       where
-        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
+        toSubst = map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
 
 calcLocalRenaming :: [Text] -> [(Name, Type)] -> WP ([Text], [(Text, (Name, Type))])
 calcLocalRenaming _ [] = return ([], [])

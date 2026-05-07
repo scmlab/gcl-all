@@ -6,16 +6,14 @@
 
 module Syntax.Substitution where
 
-import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import GCL.Common
 import GCL.Range (Range)
 import Syntax.Common
-import Prelude hiding (lookup)
 
-type Subst b = Map Text b
+type Subst b = [(Text, b)] -- SCM: I think it's an overkill using Map Text b
 
 class Substitutable m a b where
   subst :: Subst b -> a -> m a
@@ -117,3 +115,24 @@ renameVar sb x = case lookup (nameToText x) sb of
 
 --- SCM: we assume that renameVars always succeed.
 --       Do we need to raise a catchable error?
+
+
+-- list verson of Data.Map methods for Subst
+
+elems :: Subst b -> [b]
+elems = map snd
+
+empty :: Subst b
+empty = []
+
+filterWithKey :: (Text -> b -> Bool) -> Subst b -> Subst b
+filterWithKey p = filter (uncurry p)
+
+restrictKeys :: Subst b -> Set Text -> Subst b
+restrictKeys sb ns = filter ((`Set.member` ns) . fst) sb
+
+insert :: Text -> b -> Subst b -> Subst b
+insert n e = ((n, e):)
+
+keys :: Subst b -> [Text]
+keys = map fst
