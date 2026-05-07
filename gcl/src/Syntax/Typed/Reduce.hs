@@ -1,0 +1,119 @@
+module Syntax.Typed.Reduce where
+
+import GCL.Common (Fresh(..))
+import Control.Arrow ((***))
+import Syntax.Typed.Types
+import Syntax.Common.Types (Name, Op, TypeOp, nameToText)
+import Syntax.Substitution
+import Syntax.Typed.Instances.Substitution
+
+
+type Redex = [Int]  -- path to a redex
+
+redexes :: Expr -> [Redex]
+redexes (Lit _ _ _ ) = []
+redexes (Var _ _ _) = []
+redexes (Const _ _ _) = []
+redexes (Op _ _) = []
+redexes (Chain _) = []  -- should look into Chain. Omit for now.
+redexes (App f@(Lam _ _ _ _) e _) = [] : map (0:) (redexes f) ++
+                                       map (1:) (redexes e)
+redexes (App f@(Var _ _ _) e _) = [] : map (1:) (redexes e)
+redexes (App f e _) = map (0:) (redexes f) ++ map (1:) (redexes e)
+redexes (Lam _ _ e _) = map (0:) (redexes e)
+redexes (Tuple es) = redexesExprs 0 es
+redexes (OutT _ t@(Tuple _)) = [] : map (0:) (redexes t)
+redexes (OutT _ _) = []
+redexes (Quant _ _ r b _) = map (0:) (redexes r) ++ map (1:) (redexes b)
+redexes (ArrIdx a i _) = map (0:) (redexes a) ++ map (1:) (redexes i)
+redexes (ArrUpd a i e _) = map (0:) (redexes a) ++ map (1:) (redexes i) ++
+                           map (2:) (redexes e)
+redexes (Case e cls _) = [] : map (0:) (redexes e) ++ redexesExprs 1 (map getClause cls)
+    where getClause (CaseClause _ e) = e
+redexes (Subst e sb) = [] : map (0:) (redexes e) ++ redexesExprs 1 (map snd sb)
+redexes (EHole {}) = []
+
+redexesExprs :: Int -> [Expr] -> [Redex]
+redexesExprs i es =
+  concat (zipWith (\i -> map (i:)) [i..] (map redexes es))
+
+
+type Env = [(Name, Expr)]
+
+
+reduce :: Fresh m => Env -> Expr -> Redex -> m Expr
+reduce env (App (Lam x _ bdy _) e _) [] = betaReduce x bdy e
+reduce env exp@(App (Var f _ _) e r) [] =
+  maybe (return exp)
+    (\rhs -> reduce env (App rhs e r) [])
+    (lookup f env)
+reduce env (App f e r) (0:p) = App <$> reduce env f p <*> pure e <*> pure r
+reduce env (App f e r) (1:p) = App f <$> reduce env e p <*> pure r
+
+reduce env (Lam x t e r) (0:p) = Lam x t <$> reduce env e p <*> pure r
+
+
+reduce env (Tuple es) (n:p) = Tuple <$> reduceNth env n es p
+
+reduce env (OutT i (Tuple es)) [] = return (es !! i)
+reduce env (OutT i (Tuple es)) (n:p) = (OutT i . Tuple) <$> reduceNth env n es p
+
+reduce env (Quant op xs ran bdy r) (0:p) =
+  Quant op xs <$> reduce env ran p <*> pure bdy <*> pure r
+reduce env (Quant op xs ran bdy r) (1:p) =
+  Quant op xs ran <$> reduce env bdy p <*> pure r
+
+reduce env (ArrIdx a i r) (0:p) = ArrIdx <$> reduce env a p <*> pure i <*> pure r
+reduce env (ArrIdx a i r) (1:p) = ArrIdx a <$> reduce env i p <*> pure r
+
+reduce env (ArrUpd a i e r) (0:p) =
+  ArrUpd <$> reduce env a p <*> pure i <*> pure e <*> pure r
+reduce env (ArrUpd a i e r) (1:p) = ArrUpd a <$> reduce env i p <*> pure e <*> pure r
+reduce env (ArrUpd a i e r) (2:p) = ArrUpd a i <$> reduce env e p <*> pure r
+
+reduce env (Case e cls r) [] = undefined -- TODO: pattern matching!
+reduce env (Case e cls r) (0:p) =
+  Case <$> reduce env e p <*> pure cls <*> pure r
+reduce env (Case e cls r) (n:p) =
+       (Case e . zipWith CaseClause (map getPattern cls)) <$>
+         reduceNth env (n-1) (map getClause cls) p <*> pure r
+  where getPattern (CaseClause p _) = p
+        getClause (CaseClause _ e) = e
+
+reduce env (Subst e sb) [] = subst (map (nameToText *** id) sb) e
+reduce env (Subst e sb) (0:p) = Subst <$> reduce env e p <*> pure sb
+reduce env (Subst e sb) (n:p) = (Subst e . zip (map fst sb)) <$>
+                                   reduceNth env (n-1) (map snd sb) p
+
+reduce _ _ _ = error "shouldn't happen" -- a "catch-all" clause
+
+reduceNth :: Fresh m => Env -> Int -> [Expr] -> Redex -> m [Expr]
+reduceNth _ _ [] _ = error "shouldn't happen"
+reduceNth env 0 (e:es) p = (:es) <$> reduce env e p
+reduceNth env n (e:es) p = (e:) <$> reduceNth env (n-1) es p
+
+
+betaReduce :: Fresh m => Name -> Expr -> Expr -> m Expr
+betaReduce x bdy e = subst [(nameToText x, e)] bdy
+
+{-
+
+data Expr
+  = Lit Lit Type (Maybe Range)
+  | Var Name Type (Maybe Range)
+  | Const Name Type (Maybe Range)
+  | Op Op Type
+  | Chain Chain
+  | App Expr Expr (Maybe Range)
+  | Lam Name Type Expr (Maybe Range)
+  | Tuple [Expr] -- for internal use
+  | OutT Int Expr -- for internal use
+  | Quant Expr [Name] Expr Expr (Maybe Range)
+  | ArrIdx Expr Expr (Maybe Range)
+  | ArrUpd Expr Expr Expr (Maybe Range)
+  | Case Expr [CaseClause] (Maybe Range)
+  | Subst Expr [(Name, Expr)]
+  | EHole Text Int Type Range Env
+  deriving (Eq, Show)
+
+-}
