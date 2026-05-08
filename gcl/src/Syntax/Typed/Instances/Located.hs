@@ -14,8 +14,8 @@ instance MaybeRanged Declaration where
 
 instance MaybeRanged Definition where
   maybeRangeOf (TypeDefn _ _ _ r) = r
-  maybeRangeOf (FuncDefnSig _ _ _ r) = r
-  maybeRangeOf (FuncDefn l r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (ValDefn l _ rs) =
+    maybeRangeOf l <---> maybeRangeOf rs
 
 instance MaybeRanged TypeDefnCtor where
   maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <---> maybeRangeOf r
@@ -48,11 +48,14 @@ instance MaybeRanged Expr where
   maybeRangeOf (Chain chain) = maybeRangeOf chain
   maybeRangeOf (App _ _ l) = l
   maybeRangeOf (Lam _ _ _ l) = l
+  maybeRangeOf (Tuple _) = Nothing
+  maybeRangeOf (OutT _ _) = Nothing
   maybeRangeOf (Quant _ _ _ _ l) = l
   maybeRangeOf (ArrIdx _ _ l) = l
   maybeRangeOf (ArrUpd _ _ _ l) = l
   maybeRangeOf (Case _ _ l) = l
   maybeRangeOf (Subst _ _) = Nothing
+  maybeRangeOf (EHole _ _ _ l _) = Just l
 
 instance MaybeRanged Chain where
   maybeRangeOf (Pure e) = maybeRangeOf e

@@ -3,10 +3,10 @@
 
 module Render.Syntax.Abstract where
 
-import Data.Foldable (toList)
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 
+import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Render.Class
 import Render.Element
@@ -62,11 +62,10 @@ handleExpr prec (Lam p q _) =
         NoContext -> id
         _ -> parensE
    in ifparens $ "λ" <+> render p <+> "→" <+> render q
-handleExpr _ (Func name _ _) =
-  -- display only a Func's name
-  render name
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
+handleExpr n (OutT i e) =
+  parensIf n Nothing ("out" <+> render i <+> renderPrec AppHOLE e)
 handleExpr _ (Quant op xs r t _) =
   "⟨"
     <+> renderQOp op
@@ -92,7 +91,7 @@ handleExpr n (RedexKernel name _value _freeVars mappings) =
     mappings' =
       punctuateE
         " "
-        (map render $ filter (not . Map.null) $ reverse $ toList mappings)
+        (map render $ reverse (filter (not . Map.null) (toList mappings)))
 handleExpr n (RedexShell index expr) =
   substE index (renderPrec n expr)
 handleExpr _ (ArrIdx e1 e2 _) = render e1 <> "[" <> render e2 <> "]"
@@ -101,6 +100,25 @@ handleExpr _ (ArrUpd e1 e2 e3 _) =
 -- SCM: need to print parenthesis around e1 when necessary.
 handleExpr _ (Case expr cases _) =
   "case" <+> render expr <+> "of" <+> vertE (map render cases)
+handleExpr _ (EHole text num _) = "{!" <> textE text <> "!}" <> subscriptNumber num
+  where
+    -- Transform number to its subscript form by convert it to ascii value then adds to
+    -- the unicode subscript number section.
+    subscriptNumber :: Int -> Inlines
+    subscriptNumber = render . map digitToSubscript . show
+
+    digitToSubscript :: Char -> Char
+    digitToSubscript '0' = '₀'
+    digitToSubscript '1' = '₁'
+    digitToSubscript '2' = '₂'
+    digitToSubscript '3' = '₃'
+    digitToSubscript '4' = '₄'
+    digitToSubscript '5' = '₅'
+    digitToSubscript '6' = '₆'
+    digitToSubscript '7' = '₇'
+    digitToSubscript '8' = '₈'
+    digitToSubscript '9' = '₉'
+    digitToSubscript c = c
 
 instance Render Chain where -- Hopefully this is correct.
   render (Pure expr _) = render expr
@@ -123,6 +141,7 @@ instance Render Pattern where
   render (PattLit a) = render a
   render (PattBinder a) = render a
   render (PattWildcard _) = "_"
+  render (PattTuple ps) = "(" <+> punctuateE "," (map render ps) <+> ")"
   render (PattConstructor ctor patterns) =
     render ctor <+> horzE (map render patterns)
 
@@ -147,6 +166,7 @@ instance Render Type where
   renderPrec _ (TData n _) = render n
   renderPrec _ (TVar i _) = render i
   renderPrec _ (TMetaVar n _) = render n
+  renderPrec _ TType = "*"
 
 -- | Interval
 instance Render Interval where

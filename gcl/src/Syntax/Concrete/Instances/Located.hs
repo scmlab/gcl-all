@@ -21,6 +21,11 @@ instance (MaybeRanged a, MaybeRanged c) => MaybeRanged (a, b, c) where
 instance MaybeRanged Program where
   maybeRangeOf (Program a b) = maybeRangeOf a <---> maybeRangeOf b
 
+instance MaybeRanged Definition where
+  maybeRangeOf (TypeDefn tdata _ _ _ cons) = maybeRangeOf tdata <---> maybeRangeOf cons
+  maybeRangeOf (ValDefnSig dbase) = maybeRangeOf dbase
+  maybeRangeOf (ValDefn v _ _ e) = maybeRangeOf v <---> maybeRangeOf e
+
 instance MaybeRanged Declaration where
   maybeRangeOf (ConstDecl l r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (VarDecl l r) = maybeRangeOf l <---> maybeRangeOf r
@@ -100,6 +105,8 @@ instance MaybeRanged Expr where
   maybeRangeOf (App x y) = maybeRangeOf x <---> maybeRangeOf y
   maybeRangeOf (Quant l _ _ _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (Case l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (HoleQM r) = Just r
+  maybeRangeOf (Hole l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged Chain where
   maybeRangeOf (Pure expr) = maybeRangeOf expr

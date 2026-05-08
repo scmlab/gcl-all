@@ -4,89 +4,63 @@
 
 module Server.Handler.OnDidChangeTextDocument where
 
-import GCL.Predicate (Origin (..), PO (..), Spec (..))
-import GCL.Range (MaybeRanged (..), Range (..))
-import GCL.WP.Types (StructWarning (MissingBound))
+import Control.Exception (evaluate)
+import Control.Monad.IO.Class (liftIO)
+import qualified Data.Text as Text
+import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
-import Server.Load (load)
-import Server.Monad (FileState (..), ServerM, Versioned, logFileState, logText, modifyFileState, runIfDecreaseDidChangeShouldReload)
-import Server.Notification.Update (sendUpdateNotification)
-import Server.PositionMapping (PositionDelta, applyChange, mkDelta, toCurrentRange')
-import qualified Server.SrcLoc as SrcLoc
+import Numeric (showFFloat)
+import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
+import Server.Move (applyMovesToFileState, mkLSPMoves)
+import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
-  modifyFileState
-    filePath
-    ( \filesState@FileState {positionDelta, editedVersion, specifications, proofObligations, warnings} ->
-        filesState
-          { positionDelta = foldl applyChange positionDelta changes,
-            editedVersion = editedVersion + 1,
-            specifications = translateThroughOneVersion translateSpecRange editedVersion specifications,
-            proofObligations = translateThroughOneVersion translatePoRange editedVersion proofObligations,
-            warnings = translateThroughOneVersion translateWarningRange editedVersion warnings
-          }
-    )
-  logFileState filePath (map (\(version, Specification {specRange}) -> (version, specRange)) . specifications)
-
-  runIfDecreaseDidChangeShouldReload filePath load
-
-  -- send notification to update Specs and POs
-  logText "didChange: fileState modified\n"
-  sendUpdateNotification filePath
-  logText "didChange: upate notification sent\n"
+  t0 <- liftIO getMonotonicTimeNSec
+  maybePending <- getPendingEdit filePath
+  case maybePending of
+    Just PendingEdit {expectedContent, pendingFileState} -> do
+      deletePendingEdit filePath
+      maybeSource <- readSource filePath
+      case maybeSource of
+        Just src | src == expectedContent -> do
+          setFileState filePath pendingFileState
+          sendFileStateWithRefresh filePath pendingFileState
+        _ -> applyTranslation
+    Nothing -> applyTranslation
+  t1 <- liftIO getMonotonicTimeNSec
+  let elapsedMs = fromIntegral (t1 - t0) / 1e6 :: Double
+  logText $ "didChange: took " <> Text.pack (showFFloat (Just 3) elapsedMs "") <> " ms\n"
   where
-    translateThroughOneVersion ::
-      (PositionDelta -> a -> Maybe a) ->
-      LSP.Int32 ->
-      [Versioned a] ->
-      [Versioned a]
-    translateThroughOneVersion translator fromVersion versioned = do
-      (version, a) <- versioned
-      let delta :: PositionDelta = mkDelta changes
-      if fromVersion == version
-        then case translator delta a of
-          Nothing -> []
-          Just spec' -> [(version + 1, spec')]
-        else
-          if fromVersion + 1 == version
-            then
-              [(version, a)]
-            else error "should not happen"
-
--- 目前只維護 specRange，而沒有更新 specPre 和 specPost 裡面的位置資訊
--- 如果未來前端有需要的話，請在這裡維護
-translateSpecRange :: PositionDelta -> Spec -> Maybe Spec
-translateSpecRange delta spec@Specification {specRange = oldRange} = do
-  let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
-  currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset currentLspRange
-  return $ spec {specRange = newRange}
-
--- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
--- 如果未來前端有需要的話，請在這裡維護
-translatePoRange :: PositionDelta -> PO -> Maybe PO
-translatePoRange delta po@PO {poOrigin} = do
-  oldRange :: Range <- maybeRangeOf poOrigin
-  let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
-  currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset currentLspRange
-  return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
-
-translateWarningRange :: PositionDelta -> StructWarning -> Maybe StructWarning
-translateWarningRange delta (MissingBound oldRange) = do
-  let oldLspRange :: LSP.Range = SrcLoc.toLSPRange oldRange
-  currentLspRange :: LSP.Range <- toCurrentRange' delta oldLspRange
-  let newRange = SrcLoc.fromLSPRangeWithoutCharacterOffset currentLspRange
-  return $ MissingBound newRange
-
-setOriginRange :: Maybe Range -> Origin -> Origin
-setOriginRange l (AtAbort _) = AtAbort l
-setOriginRange l (AtSkip _) = AtSkip l
-setOriginRange l (AtSpec _) = AtSpec l
-setOriginRange l (AtAssignment _) = AtAssignment l
-setOriginRange l (AtAssertion _) = AtAssertion l
-setOriginRange l (AtIf _) = AtIf l
-setOriginRange l (AtLoop _) = AtLoop l
-setOriginRange l (AtTermination _) = AtTermination l
-setOriginRange l (Explain h e i p _) = Explain h e i p l
+    applyTranslation = do
+      maybeFs <- getFileState filePath
+      case maybeFs of
+        Nothing -> return ()
+        Just fs -> do
+          let fs' = applyMovesToFileState (mkLSPMoves changes) fs
+          -- Force all list fields now so the work is done within this handler,
+          -- rather than deferred lazily to the next request.
+          (nErrs, nToks, nSpecs, nHoles, nPOs, nWarnings) <- liftIO $ do
+            a <- evaluate $ length $ fsErrors fs'
+            b <- evaluate $ length $ fsSemanticTokens fs'
+            c <- evaluate $ length $ fsSpecifications fs'
+            d <- evaluate $ length $ fsHoles fs'
+            e <- evaluate $ length $ fsProofObligations fs'
+            f <- evaluate $ length $ fsWarnings fs'
+            return (a, b, c, d, e, f)
+          logText $
+            "errors: "
+              <> Text.pack (show nErrs)
+              <> " tokens: "
+              <> Text.pack (show nToks)
+              <> " specs: "
+              <> Text.pack (show nSpecs)
+              <> " holes: "
+              <> Text.pack (show nHoles)
+              <> " POs: "
+              <> Text.pack (show nPOs)
+              <> " warnings: "
+              <> Text.pack (show nWarnings)
+              <> "\n"
+          setFileState filePath fs'
+          sendFileState filePath fs'

@@ -62,9 +62,9 @@ data Definition
   = -- data T a1 a2 ... = K1 v1 v2 ... | K2 u1 u2 ...
     TypeDefn (Token "data") Name [Name] (Token "=") (SepBy "|" TypeDefnCtor)
   | -- f : A -> B { Prop }
-    FuncDefnSig DeclBase (Maybe DeclProp)
+    ValDefnSig DeclBase
   | -- f a = a
-    FuncDefn Name [Name] (Token "=") Expr
+    ValDefn Name [Pattern] (Token "=") Expr
   deriving (Eq, Show)
 
 data TypeDefnCtor = TypeDefnCtor Name [Type] deriving (Eq, Show)
@@ -170,6 +170,8 @@ data Expr
       TokQuantEnds
   | -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
     Case (Token "case") Expr (Token "of") [CaseClause]
+  | HoleQM Range
+  | Hole (Token "{!") [R Tok] (Token "!}")
   deriving (Eq, Show, Generic)
 
 data Chain = Pure Expr | More Chain ChainOp Expr

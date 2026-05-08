@@ -45,6 +45,10 @@ handleExpr prec (Lam p _ q _) =
         NoContext -> id
         _ -> parensE
    in ifparens $ "λ" <+> render p <+> "→" <+> render q
+handleExpr _ (Tuple ps) =
+  "(" <+> punctuateE "," (map render ps) <+> ")"
+handleExpr n (OutT i e) =
+  parensIf n Nothing ("out" <+> render i <+> renderPrec AppHOLE e)
 handleExpr _ (Quant op xs r t _) =
   "⟨"
     <+> renderQOp op
@@ -68,6 +72,25 @@ handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"
 -- SCM: need to print parenthesis around e1 when necessary.
 handleExpr _ (Case e cs _) = "case" <+> render e <+> "of" <+> renderManySepByComma cs -- TODO: Use semicolon instead of comma
+handleExpr _ (EHole t holeNumber _ _ _) = "{!" <+> render t <+> "!}" <> subscriptNumber holeNumber
+  where
+    -- Transform number to its subscript form by convert it to ascii value then adds to
+    -- the unicode subscript number section.
+    subscriptNumber :: Int -> Inlines
+    subscriptNumber = render . map digitToSubscript . show
+
+    digitToSubscript :: Char -> Char
+    digitToSubscript '0' = '₀'
+    digitToSubscript '1' = '₁'
+    digitToSubscript '2' = '₂'
+    digitToSubscript '3' = '₃'
+    digitToSubscript '4' = '₄'
+    digitToSubscript '5' = '₅'
+    digitToSubscript '6' = '₆'
+    digitToSubscript '7' = '₇'
+    digitToSubscript '8' = '₈'
+    digitToSubscript '9' = '₉'
+    digitToSubscript c = c
 handleExpr n (Subst e subs) =
   parensIf n Nothing $
     handleExpr AppHOLE e

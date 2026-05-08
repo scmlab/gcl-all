@@ -76,6 +76,12 @@ tokenSpecOpen = adapt TokSpecOpen "[!"
 tokenSpecClose :: Parser (Token "!]")
 tokenSpecClose = adapt TokSpecClose "!]"
 
+tokenHoleOpen :: Parser (Token "{!")
+tokenHoleOpen = adapt TokHoleOpen "{!"
+
+tokenHoleClose :: Parser (Token "!}")
+tokenHoleClose = adapt TokHoleClose "!}"
+
 -- tokenProofOpen :: Parser (Token "{-")
 -- tokenProofOpen = adapt TokProofOpen "{-"
 

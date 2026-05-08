@@ -11,15 +11,14 @@
 -- The main purpose is to make the conversion from server to client explicit
 -- and handle the differences between server (1-based) and client (0-based) ranges.
 module Server.ToClient
-  ( toFileStateNotificationJSON,
-    toErrorNotificationJSON,
-    FileStateNotification (..),
-    ErrorNotification (..),
+  ( toClientFileStateJSON,
+    ClientFileState (..),
   )
 where
 
 import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingleConstructors, (.=))
 import qualified Data.Aeson as JSON
+import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List.NonEmpty (toList)
 import qualified Data.Text as Text
 import qualified Error
@@ -39,11 +38,13 @@ import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
 
--- | Client-side FileStateNotification type (matches TypeScript FileStateNotification)
--- Sent via gcl/update notification
-data FileStateNotification = FileStateNotification
-  { filePath :: FilePath,
+-- | Client-facing payload for gcl/update notification.
+-- Produced by the server after trimming internal fields (semantic tokens,
+-- definition links, hover infos, etc.). Matches TypeScript ClientFileState.
+data ClientFileState = ClientFileState
+  { errors :: [Error],
     specs :: [Specification],
+    holes :: [Hole],
     pos :: [ProofObligation],
     warnings :: [StructWarning]
   }
@@ -56,6 +57,14 @@ data Specification = Specification
     preCondition :: String,
     postCondition :: String,
     specRange :: LSP.Range
+  }
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
+
+data Hole = Hole
+  { holeID :: String,
+    holeType :: String,
+    holeRange :: LSP.Range
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -85,22 +94,23 @@ data StructWarning
   = MissingBound {range :: LSP.Range}
   deriving stock (Show, Generic)
 
--- | Convert server-side FileState to JSON for client consumption
--- This function extracts only the fields needed by the client,
--- converts 1-based server ranges to 0-based LSP ranges,
--- and serializes to JSON.
-toFileStateNotificationJSON :: FilePath -> Server.FileState -> JSON.Value
-toFileStateNotificationJSON path serverFileState =
-  JSON.toJSON (toFileStateNotification path serverFileState)
+-- | Convert server-side FileState to notification JSON for gcl/update.
+-- Adds filePath routing info alongside the ClientFileState payload.
+toClientFileStateJSON :: FilePath -> Server.FileState -> JSON.Value
+toClientFileStateJSON path fs =
+  case JSON.toJSON (toClientFileState fs) of
+    JSON.Object obj -> JSON.Object (KeyMap.insert "filePath" (JSON.toJSON path) obj)
+    _ -> error "toClientFileStateJSON: ClientFileState must be a JSON Object"
 
--- | Convert server-side FileState to client-side FileStateNotification
-toFileStateNotification :: FilePath -> Server.FileState -> FileStateNotification
-toFileStateNotification path serverFileState =
-  FileStateNotification
-    { filePath = path,
-      specs = map (convertSpec . Server.unversioned) (Server.specifications serverFileState),
-      pos = map (convertPO . Server.unversioned) (Server.proofObligations serverFileState),
-      warnings = map (convertWarning . Server.unversioned) (Server.warnings serverFileState)
+-- | Convert server-side FileState to client-side ClientFileState
+toClientFileState :: Server.FileState -> ClientFileState
+toClientFileState fs =
+  ClientFileState
+    { errors = map convertError (Server.fsErrors fs),
+      specs = map convertSpec (Server.fsSpecifications fs),
+      holes = map convertHole (Server.fsHoles fs),
+      pos = map convertPO (Server.fsProofObligations fs),
+      warnings = map convertWarning (Server.fsWarnings fs)
     }
 
 -- | Convert server-side Spec to client-side Specification
@@ -111,6 +121,14 @@ convertSpec (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, G
       preCondition = show $ pretty specPreCond,
       postCondition = show $ pretty specPostCond,
       specRange = toLSPRange specRange
+    }
+
+convertHole :: GCL.Hole -> Hole
+convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
+  Hole
+    { holeID = show holeID,
+      holeType = show $ pretty holeType,
+      holeRange = toLSPRange holeRange
     }
 
 -- | Convert server-side PO to client-side ProofObligation
@@ -141,7 +159,7 @@ convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
 --------------------------------------------------------------------------------
 -- JSON instances for client types
 
--- Note: FileStateNotification, Specification, ProofObligation,
+-- Note: ClientFileState, Specification, ProofObligation,
 -- and POOrigin use automatic ToJSON deriving with defaultOptions via 'deriving anyclass'.
 -- StructWarning requires a custom instance due to unwrapUnaryRecords = True.
 
@@ -168,15 +186,6 @@ convertName (Common.Name text loc) =
     { symbol = Text.unpack text,
       location = fmap toLSPRange loc
     }
-
--- | Client-side ErrorNotification type (matches TypeScript ErrorNotification)
--- Sent via gcl/error notification
-data ErrorNotification = ErrorNotification
-  { filePath :: FilePath,
-    errors :: [Error]
-  }
-  deriving stock (Show, Generic)
-  deriving anyclass (JSON.ToJSON)
 
 -- | Client-side Error type
 data Error
@@ -322,16 +331,3 @@ convertError (Error.TypeError err) = TypeError (convertTypeError err)
 convertError (Error.StructError err) = StructError (convertStructError err)
 convertError (Error.CannotReadFile fp) = CannotReadFile fp
 convertError (Error.Others t m l) = Others t m (fmap toLSPRange l)
-
--- | Convert server-side errors to ErrorNotification JSON for client
-toErrorNotificationJSON :: FilePath -> [Error.Error] -> JSON.Value
-toErrorNotificationJSON path errs =
-  JSON.toJSON (toErrorNotification path errs)
-
--- | Convert server-side errors to ErrorNotification for client
-toErrorNotification :: FilePath -> [Error.Error] -> ErrorNotification
-toErrorNotification path errs =
-  ErrorNotification
-    { filePath = path,
-      errors = map convertError errs
-    }

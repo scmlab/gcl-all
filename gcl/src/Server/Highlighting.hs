@@ -6,6 +6,7 @@
 module Server.Highlighting
   ( Highlighting,
     collectHighlighting,
+    collectHighlightingFromStmts,
   )
 where
 
@@ -34,6 +35,10 @@ type Highlighting = J.SemanticTokenAbsolute
 collectHighlighting :: Program -> [Highlighting]
 collectHighlighting program =
   toList $ runM mempty (collect program :: M () Highlighting ())
+
+collectHighlightingFromStmts :: [Stmt] -> [Highlighting]
+collectHighlightingFromStmts stmts =
+  toList $ runM mempty (collect stmts :: M () Highlighting ())
 
 --------------------------------------------------------------------------------
 -- helper function for converting some syntax node to Highlighting
@@ -93,13 +98,10 @@ instance Collect () Highlighting Definition where
     addHighlighting J.SemanticTokenTypes_Type [] name
     addHighlighting J.SemanticTokenTypes_Parameter [] binders
     collect bs
-  collect (FuncDefnSig a b) = do
-    collect a
-    collect b
-  collect (FuncDefn a bs _tok c) = do
+  collect (ValDefnSig d) = collect d
+  collect (ValDefn a _t _tokEq e) = do
     addHighlighting J.SemanticTokenTypes_Function [J.SemanticTokenModifiers_Declaration] a
-    collect (fmap AsVariable bs)
-    collect c
+    collect e
 
 --------------------------------------------------------------------------------
 -- Declaration
@@ -235,6 +237,10 @@ instance Collect () Highlighting Expr where
       collect expr
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
       collect cases
+    HoleQM _ -> return ()
+    Hole tokA _ tokB -> do
+      addHighlighting J.SemanticTokenTypes_Keyword [] tokA
+      addHighlighting J.SemanticTokenTypes_Keyword [] tokB
 
 instance Collect () Highlighting CaseClause where
   collect (CaseClause _ arrow body) = do

@@ -3,19 +3,17 @@
 module GCL.Predicate where
 
 import Data.Aeson (ToJSON)
-import qualified Data.Aeson as JSON
-import qualified Data.Set as Set
 import Data.Text (Text)
-import GCL.Common
 import GCL.Range
   ( MaybeRanged (..),
     Range,
     Ranged (rangeOf),
     within,
   )
+import GCL.Type2.Types (Env)
 import GHC.Generics (Generic)
 import Render.Element
-import Syntax.Common (Name)
+import Syntax.Abstract.Types (Type)
 import Syntax.Typed (Expr)
 
 -- | A predicate is an expression, whose type happens to be Bool.
@@ -165,7 +163,7 @@ data Spec = Specification
     specPreCond :: Pred,
     specPostCond :: Pred,
     specRange :: Range,
-    specTypeEnv :: [(Index, TypeInfo)]
+    specTypeEnv :: Env
   }
   deriving (Eq, Show, Generic)
 
@@ -174,3 +172,17 @@ instance MaybeRanged Spec where
 
 instance Ranged Spec where
   rangeOf (Specification _ _ _ r _) = r
+
+data Hole = Hole
+  { holeID :: Int,
+    holeType :: Type,
+    holeRange :: Range,
+    holeTypeEnv :: Env
+  }
+  deriving (Eq, Show, Generic)
+
+instance MaybeRanged Hole where
+  maybeRangeOf (Hole _ _ r _) = Just r
+
+instance Ranged Hole where
+  rangeOf (Hole _ _ r _) = r

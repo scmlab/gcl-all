@@ -1,8 +1,12 @@
 import { Range } from "vscode-languageclient";
+import { Error } from "./Error";
 
 type Predicate = string;
+type Type = string;
 
-export interface FileState {
+export interface ClientFileState {
+    errors: Error[];
+    holes: IHole[];
 	specs: ISpecification[];
 	pos: IProofObligation[];
 	warnings: IStructWarning[];
@@ -14,6 +18,13 @@ export interface ISpecification {
 	postCondition: Predicate;
 	specRange: Range;
 }
+
+export interface IHole {
+    holeID: string;
+    holeType: Type;
+    holeRange: Range;
+}
+
 export interface IProofObligation {
     assumption: Predicate;
     goal: Predicate;

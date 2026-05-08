@@ -20,7 +20,7 @@ instance ToJSON Expr
 
 instance ToJSON Chain
 
-instance ToJSON FuncClause
+-- instance ToJSON FuncClause
 
 instance ToJSON CaseClause
 

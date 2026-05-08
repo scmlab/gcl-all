@@ -4,8 +4,10 @@
 module Main where
 
 -- import Server (run)
+
+import GHC.IO.Encoding (setLocaleEncoding)
 import Pretty ()
-import Server (runOnPort, runOnStdio)
+import Server (runOnStdio)
 import System.Console.GetOpt
 import System.Environment
 import System.IO
@@ -13,6 +15,7 @@ import Prelude
 
 main :: IO ()
 main = do
+  setLocaleEncoding utf8
   hSetEncoding stdin utf8
   hSetEncoding stdout utf8
   hSetEncoding stderr utf8

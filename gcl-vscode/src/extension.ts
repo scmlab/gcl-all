@@ -2,31 +2,38 @@
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 import { retrieveMainEditor } from './utils'
-import { start, stop, sendRequest, onUpdateNotification, onErrorNotification } from "./connection";
+import { start, stop, sendRequest, onFileStateNotification } from "./connection";
 import { GclPanel } from './gclPanel';
-import { ISpecification } from './data/FileState';
-import { ClientState } from './data/ClientState';
+import { IHole, ISpecification, ClientFileState } from './data/FileState';
 import path from 'path';
 
 
 export async function activate(context: vscode.ExtensionContext) {
 	console.log('activating gcl-vscode');
 
+	// Persists for the extension lifetime (activate is called once per session).
+	// Keyed by filePath; entries are added/updated on gcl/update notifications.
+	const fileStateMap = new Map<string, ClientFileState>();
+
 
 	// Displays pre- and post- conditions as inline hints around specs
 	// TODO: Fully display long inlay hints.
 	// ^^^^^ P.S. This doesn't seem to be solvable with the current VSCode version. We have to wait.
+	const inlayHintsEmitter = new vscode.EventEmitter<void>();
 	const inlayHintsDisposable = vscode.languages.registerInlayHintsProvider(
 		{ scheme: 'file', language: 'gcl' },
 		{
+			onDidChangeInlayHints: inlayHintsEmitter.event,
 			provideInlayHints(document, visableRange, token): vscode.InlayHint[] {
 				let filePath: string = document.uri.fsPath
-				const clientState: ClientState | undefined = context.workspaceState.get(filePath);
-				const specs: ISpecification[] = clientState? clientState.specs : [];
+				const clientState: ClientFileState | undefined = fileStateMap.get(filePath);
 
-				const inlayHints = specs.flatMap((spec: ISpecification) => {
-					let start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
-					let end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character);
+				if (clientState === undefined)
+					return [];
+
+				const inlayHints = clientState.specs.flatMap((spec: ISpecification) => {
+					const start = new vscode.Position(spec.specRange.start.line, spec.specRange.start.character);
+					const end = new vscode.Position(spec.specRange.end.line, spec.specRange.end.character);
 					if (visableRange.contains(start) || visableRange.contains(end)) {
 						const preConditionHint = new vscode.InlayHint(start.translate(0, 2), `${spec.preCondition}`);
 						preConditionHint.paddingLeft = true;
@@ -36,6 +43,20 @@ export async function activate(context: vscode.ExtensionContext) {
 					}
 					return [];
 				});
+
+				inlayHints.push(...clientState.holes.flatMap((hole: IHole) => {
+					const holeRange = hole.holeRange;
+					const start = new vscode.Position(holeRange.start.line, holeRange.start.character);
+					const end = new vscode.Position(holeRange.end.line, holeRange.end.character);
+					if (visableRange.contains(start) || visableRange.contains(end)) {
+						const preConditionHint = new vscode.InlayHint(end.translate(0, -2), `${hole.holeID}`);
+						preConditionHint.paddingLeft = true;
+						return [ preConditionHint ];
+					}
+					
+					return [];
+				}));
+
 				return inlayHints;
 			}
 		}
@@ -55,11 +76,16 @@ export async function activate(context: vscode.ExtensionContext) {
 		const isFileTab: boolean = "uri" in (changedTab.input as any);
 		if (isFileTab) {
 			const filePath = (changedTab.input as {uri: vscode.Uri}).uri.fsPath;
-			let clientState: ClientState | undefined = context.workspaceState.get(filePath);
+			let clientState: ClientFileState | undefined = fileStateMap.get(filePath);
 			if (clientState) gclPanel.rerender(clientState);
 		}
 	});
 	context.subscriptions.push(changeTabDisposable);
+
+	const closeDocDisposable = vscode.workspace.onDidCloseTextDocument((document) => {
+		fileStateMap.delete(document.uri.fsPath);
+	});
+	context.subscriptions.push(closeDocDisposable);
 
 	// request gcl/reload
 	const reloadDisposable = vscode.commands.registerCommand('gcl.reload', async () => {
@@ -111,9 +137,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(outputChannel);
 
 	// notification gcl/update
-	// Update specs, pos, warnings in clientState, and clear errors
-	const updateNotificationHandlerDisposable = onUpdateNotification(async ({
+	const updateNotificationHandlerDisposable = onFileStateNotification(async ({
 		filePath,
+		errors,
+		holes,
 		specs,
 		pos,
 		warnings
@@ -122,34 +149,17 @@ export async function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
-		// Clear errors when receiving a successful update
-		let newClientState: ClientState = { specs, pos, warnings, errors: [] };
+		let newClientFileState: ClientFileState = { errors, holes, specs, pos, warnings };
 
-		await context.workspaceState.update(filePath, newClientState);
-		gclPanel.rerender(newClientState);
-		await updateInlayHints(newClientState);
+		fileStateMap.set(filePath, newClientFileState);
+		gclPanel.rerender(newClientFileState);
+		await updateInlayHints(newClientFileState);
 
-		async function updateInlayHints(newClientState: ClientState) {
-			// TODO: find a way to tell vscode to update inlay hints
+		async function updateInlayHints(newClientFileState: ClientFileState) {
+			inlayHintsEmitter.fire();
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
-
-	// notification gcl/error
-	// Update errors in clientState
-	const errorNotificationHandlerDisposable = onErrorNotification(async ({
-		filePath,
-		errors
-	}) => {
-		const oldClientState: ClientState | undefined = context.workspaceState.get(filePath);
-		const newClientState: ClientState =
-			oldClientState
-			? {errors, specs: oldClientState.specs, pos: oldClientState.pos, warnings: oldClientState.warnings}
-			: {errors, specs: [], pos: [], warnings: []};
-		await context.workspaceState.update(filePath, newClientState);
-		gclPanel.rerender(newClientState);
-	});
-	context.subscriptions.push(errorNotificationHandlerDisposable);
 }
 
 export async function deactivate() {

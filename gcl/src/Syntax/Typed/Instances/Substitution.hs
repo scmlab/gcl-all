@@ -9,7 +9,6 @@ import Control.Monad (forM)
 import Data.Map hiding (map)
 import qualified Data.Map as Map
 import GCL.Common
-import GCL.Range (Range)
 import Syntax.Abstract.Types (Type (..))
 import Syntax.Common
 import Syntax.Substitution
@@ -39,6 +38,8 @@ instance (Fresh m) => Substitutable m Expr Expr where
         (xs, e', _) <- substBinder sb [(x, t)] e
         let x' = fst (head xs)
         return (Lam x' t e' l)
+  subst sb (Tuple es) = Tuple <$> mapM (subst sb) es
+  subst sb (OutT i e) = OutT i <$> subst sb e
   subst sb (Quant op xs ran body l) = do
     (xs', (ran', body'), _) <- undefined -- SCM, TODO substBinder sb xs (ran, body)
     return $ Quant op xs' ran' body' l
@@ -55,6 +56,8 @@ instance (Fresh m) => Substitutable m Expr Expr where
         ( \(x, f) ->
             (,) x <$> subst sb f
         )
+  -- ChAoS: Is this the correct behavior for specification?
+  subst _ e@EHole {} = return e
 
 instance (Fresh m) => Substitutable m CaseClause Expr where
   subst sb (CaseClause pat rhs) = CaseClause pat <$> subst sb rhs

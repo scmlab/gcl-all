@@ -6,7 +6,6 @@ import GCL.Predicate
 import Pretty.Abstract ()
 import Pretty.Util
 import Prettyprinter
-import Render.Class (PrecContext (NoContext))
 import Prelude hiding (Ordering (..))
 
 --------------------------------------------------------------------------------

@@ -4,6 +4,7 @@
 
 module Server.Hover
   ( collectHoverInfo,
+    collectHoverInfoFromStmts,
   )
 where
 
@@ -20,6 +21,9 @@ import Syntax.Typed as Typed
 
 collectHoverInfo :: Typed.Program -> IntervalMap J.Hover
 collectHoverInfo = collect
+
+collectHoverInfoFromStmts :: [Typed.Stmt] -> IntervalMap J.Hover
+collectHoverInfoFromStmts = foldMap collect
 
 --------------------------------------------------------------------------------
 -- helper function for annotating some syntax node with its type or kind
@@ -62,7 +66,7 @@ instance Collect Typed.Program where
 unkind :: KindedType -> Type
 unkind (Typed.TBase base _ loc) = UnTyped.TBase base loc
 unkind (Typed.TArray int ty loc) = UnTyped.TArray int (unkind ty) loc
-unkind (Typed.TTuple int _) = UnTyped.TTuple int
+unkind (Typed.TTuple ts) = UnTyped.TTuple (map unkind ts)
 unkind (Typed.TFunc ty1 ty2 loc) = UnTyped.TFunc (unkind ty1) (unkind ty2) loc
 unkind (Typed.TOp op _) = UnTyped.TOp op
 unkind (Typed.TData name _ loc) = UnTyped.TData name loc
@@ -70,10 +74,15 @@ unkind (Typed.TApp ty1 ty2 loc) = UnTyped.TApp (unkind ty1) (unkind ty2) loc
 unkind (Typed.TVar name _ loc) = UnTyped.TVar name loc
 unkind (Typed.TMetaVar name _ loc) = UnTyped.TMetaVar name loc
 
+instance (Collect a) => Collect [a] where
+  collect [] = mempty
+  collect (x : xs) = collect x <> collect xs
+
 instance Collect Typed.Definition where
   collect (Typed.TypeDefn _ _ ctors _) = foldMap collect ctors
-  collect (Typed.FuncDefnSig name kinded prop _) = annotateType name (unkind kinded) <> collect kinded <> maybe mempty collect prop
-  collect (Typed.FuncDefn _name expr) = collect expr
+  collect (Typed.ValDefn name ty e) =
+    annotateType name ty -- XXX: what is going on here
+      <> collect e -- SCM: is this right?
 
 instance Collect Typed.TypeDefnCtor where
   collect (Typed.TypeDefnCtor _name _tys) = mempty
@@ -81,7 +90,7 @@ instance Collect Typed.TypeDefnCtor where
 instance Collect Typed.KindedType where
   collect (Typed.TBase base kind loc) = annotateKind loc kind
   collect (Typed.TArray int kinded loc) = collect kinded
-  collect (Typed.TTuple i k) = mempty
+  collect (Typed.TTuple ts) = collect ts
   collect (Typed.TFunc l r _) = collect l <> collect r
   collect (Typed.TOp op kind) = annotateKind op kind
   collect (Typed.TData name kind _) = annotateKind name kind
@@ -129,11 +138,14 @@ instance Collect Typed.Expr where
   collect (Typed.Chain ch) = collect ch
   collect (Typed.App expr1 expr2 _) = collect expr1 <> collect expr2
   collect (Typed.Lam name ty expr _) = annotateType name ty <> collect expr
+  collect (Typed.Tuple es) = collect es
+  collect (Typed.OutT _ e) = collect e
   collect (Typed.Quant quantifier _bound restriction inner _) = collect quantifier <> collect restriction <> collect inner
   collect (Typed.ArrIdx expr1 expr2 _) = collect expr1 <> collect expr2
   collect (Typed.ArrUpd arr index expr _) = collect arr <> collect index <> collect expr
   collect (Typed.Case expr clauses _) = collect expr <> foldMap collect clauses
   collect (Typed.Subst orig pairs) = collect orig <> foldMap (\(_, expr) -> collect expr) pairs -- TODO: Not sure if this is correct.
+  collect Typed.EHole {} = mempty
 
 instance Collect Typed.CaseClause where
   collect (Typed.CaseClause _pat expr) = collect expr

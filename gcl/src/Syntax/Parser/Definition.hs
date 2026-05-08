@@ -3,7 +3,6 @@
 
 module Syntax.Parser.Definition where
 
-import Data.Maybe (maybe)
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
 import Syntax.Parser.Basics
@@ -28,13 +27,13 @@ import Prelude hiding
   )
 
 definition :: Parser Definition
-definition = choice [try funcDefnSig, typeDefn, funcDefnF]
+definition = choice [try valDefnSig, typeDefn, valDefn]
   where
-    funcDefnSig :: Parser Definition
-    funcDefnSig = FuncDefnSig <$> declBase identifier <*> optional declProp
+    valDefnSig :: Parser Definition
+    valDefnSig = ValDefnSig <$> declBase identifier
 
-    funcDefnF :: Parser Definition
-    funcDefnF = FuncDefn <$> identifier <*> many lower <*> tokenEQ <*> expression
+    valDefn :: Parser Definition
+    valDefn = ValDefn <$> identifier <*> many pattern' <*> tokenEQ <*> expression
 
     -- `data T a1 a2 ... = C1 ai1 ai2 .. | C2 ... | ...`
     typeDefn :: Parser Definition

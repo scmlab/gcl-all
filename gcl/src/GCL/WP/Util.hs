@@ -21,9 +21,6 @@ import qualified Data.Text as Text
 import GCL.Common
   ( Counterous (..),
     Fresh (..),
-    Index,
-    TypeEnv,
-    TypeInfo,
     freshName',
   )
 import GCL.Predicate
@@ -33,13 +30,13 @@ import GCL.Predicate
     Spec (Specification),
   )
 import GCL.Range (Range)
+import GCL.Type2.Types (Env)
 import GCL.WP.Types
 import Numeric (showHex)
 import Pretty (toString)
 import Syntax.Abstract.Types (Type (..))
 import Syntax.Common
-  ( Name (..),
-    nameToText,
+  ( nameToText,
   )
 import Syntax.Typed
 import Syntax.Typed.Operator (disjunct)
@@ -109,7 +106,7 @@ tellPO p q origin = unless (p == q) $ do
 tellPO' :: Origin -> Pred -> Pred -> WP ()
 tellPO' l p q = tellPO p q l
 
-tellSpec :: Pred -> Pred -> [(Index, TypeInfo)] -> Range -> WP ()
+tellSpec :: Pred -> Pred -> Env -> Range -> WP ()
 tellSpec p q typeEnv l = do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q

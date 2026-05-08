@@ -82,8 +82,6 @@ import Data.Aeson
   ( FromJSON (..),
     ToJSON (..),
     object,
-    withObject,
-    (.:),
     (.=),
   )
 import Data.List.NonEmpty (NonEmpty)
@@ -231,8 +229,12 @@ class MaybeRanged a where
 instance MaybeRanged Range where
   maybeRangeOf = Just
 
-instance MaybeRanged (Maybe Range) where
-  maybeRangeOf = id
+-- instance MaybeRanged (Maybe Range) where
+--   maybeRangeOf = id
+
+instance (MaybeRanged a) => MaybeRanged (Maybe a) where
+  maybeRangeOf (Just x) = maybeRangeOf x
+  maybeRangeOf Nothing = Nothing
 
 instance (MaybeRanged a) => MaybeRanged [a] where
   maybeRangeOf = foldr ((<--->) . maybeRangeOf) Nothing

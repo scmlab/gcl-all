@@ -48,7 +48,7 @@ statement program =
       dispose,
       loop program,
       conditional program,
-      hole,
+      specQM,
       spec,
       programBlock program
     ]
@@ -124,8 +124,8 @@ guardedCommand program =
 
 -- blockOf statement
 
-hole :: Parser Stmt
-hole = SpecQM <$> (rangeOf <$> tokenQuestionMark)
+specQM :: Parser Stmt
+specQM = SpecQM . rangeOf <$> tokenQuestionMark
 
 spec :: Parser Stmt
 spec =

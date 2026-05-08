@@ -10,6 +10,7 @@ import Pretty
 import Prettyprinter (Pretty, pretty)
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
+import qualified Syntax.Concrete.Instances.ToAbstract as AT
 import Syntax.Parser (Parser)
 import qualified Syntax.Parser as Parser
 import Test.Tasty
@@ -79,7 +80,7 @@ ce :: Text -> C.Expr
 ce = unsafeFromRight . Parser.scanAndParse Parser.expression ""
 
 ae :: C.Expr -> A.Expr
-ae = C.toAbstract
+ae = AT.runAbstractTransform
 
 unsafeFromRight :: Either a b -> b
 unsafeFromRight (Right x) = x

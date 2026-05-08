@@ -6,7 +6,7 @@ import { LanguageClient,
 	ProtocolNotificationType,
 	ServerOptions,
 	TransportKind } from "vscode-languageclient/node";
-import { FileStateNotification, ErrorNotification } from "./data/ClientState";
+import { FileStateNotification } from "./data/ClientState";
 
 let client: LanguageClient | undefined;
 
@@ -53,12 +53,8 @@ export async function start() {
 	await client.start();
 }
 
-export function onUpdateNotification(handler: (fileStateNotification: FileStateNotification) => void) {
+export function onFileStateNotification(handler: (fileStateNotification: FileStateNotification) => void) {
 	if (!client) throw new Error('Language client is not running');
 	return client.onNotification(new ProtocolNotificationType<FileStateNotification, any>("gcl/update"), handler)
 }
 
-export function onErrorNotification(handler: (errorNotification: ErrorNotification) => void) {
-	if (!client) throw new Error('Language client is not running');
-	return client.onNotification(new ProtocolNotificationType<ErrorNotification, any>("gcl/error"), handler)
-}

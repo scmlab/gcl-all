@@ -9,9 +9,7 @@ import GCL.WP.Types
 import Render.Class
 import Render.Element
 import Render.Syntax.Abstract ()
-import Render.Syntax.Typed
-import Syntax.Abstract.Types (Expr (..))
-import Syntax.Common.Types (ArithOp (..))
+import Render.Syntax.Typed ()
 
 instance Render StructWarning where
   render (MissingBound _) =

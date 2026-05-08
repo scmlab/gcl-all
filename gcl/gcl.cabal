@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.38.1.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -21,6 +21,7 @@ library
   exposed-modules:
       Error
       GCL.Common
+      GCL.Dependency
       GCL.Exec
       GCL.Exec.ExecMonad
       GCL.Exec.ExNondet
@@ -28,13 +29,14 @@ library
       GCL.Predicate
       GCL.Predicate.Util
       GCL.Range
-      GCL.Substitution
       GCL.Type
-      GCL.Type2.Elaborate
       GCL.Type2.Infer
-      GCL.Type2.MiniAst
-      GCL.Type2.RSE
+      GCL.Type2.Infer.BuiltIn
+      GCL.Type2.Subst
       GCL.Type2.Test
+      GCL.Type2.ToTyped
+      GCL.Type2.Types
+      GCL.Type2.Unify
       GCL.WP
       GCL.WP.Explanation
       GCL.WP.SP
@@ -61,12 +63,13 @@ library
       Render.Syntax.Common
       Render.Syntax.Typed
       Server
+      Server.FileState
       Server.GoToDefn
       Server.Handler
       Server.Handler.AutoCompletion
       Server.Handler.GCL.Debug
+      Server.Handler.GCL.Load
       Server.Handler.GCL.Refine
-      Server.Handler.GCL.Reload
       Server.Handler.GoToDefinition
       Server.Handler.Hover
       Server.Handler.Initialized
@@ -77,9 +80,10 @@ library
       Server.IntervalMap
       Server.Load
       Server.Monad
-      Server.Notification.Error
+      Server.Move
       Server.Notification.Update
-      Server.PositionMapping
+      Server.OrigCoord
+      Server.Refine
       Server.SrcLoc
       Server.ToClient
       Syntax.Abstract
@@ -180,6 +184,8 @@ test-suite gcl-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.Move
+      Test.OrigCoord
       Test.Parser
       Test.Render
       Test.SrcLoc
