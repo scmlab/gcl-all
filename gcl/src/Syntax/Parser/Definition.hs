@@ -5,6 +5,7 @@
 module Syntax.Parser.Definition where
 
 import Control.Monad.Combinators.Expr
+import qualified Data.Set as Set (singleton)
 import Syntax.Common hiding (Fixity (..))
 import Syntax.Concrete hiding (Op)
 import Syntax.Parser.Basics
@@ -27,7 +28,6 @@ import Prelude hiding
     Ordering,
     lookup,
   )
-import qualified Data.Set as Set (singleton)
 
 definition :: Parser Definition
 definition = choice [try valDefnSig, typeDefn, valDefn]
@@ -37,10 +37,10 @@ definition = choice [try valDefnSig, typeDefn, valDefn]
 
     valDefn :: Parser Definition
     valDefn = do
-         (ident, args) <- unwindLhs =<< lhsExpr
-         tEq <- tokenEQ
-         rhs <- expression
-         return (ValDefn ident args tEq rhs)
+      (ident, args) <- unwindLhs =<< lhsExpr
+      tEq <- tokenEQ
+      rhs <- expression
+      return (ValDefn ident args tEq rhs)
 
     -- `data T a1 a2 ... = C1 ai1 ai2 .. | C2 ... | ...`
     typeDefn :: Parser Definition
@@ -63,17 +63,21 @@ lhsExpr :: Parser Expr
 lhsExpr = makeExprParser term opTable <?> "lhs expression"
   where
     opTable = [[InfixL (return App)]]
-    term = choice [ Lit <$> literal
-                  , Paren <$> tokenParenOpen <*> lhsExpr <*> tokenParenClose
-                  , Var <$> lower
-                  , Const <$> upper
-                  ] <?> "lhs term"
+    term =
+      choice
+        [ Lit <$> literal,
+          Paren <$> tokenParenOpen <*> lhsExpr <*> tokenParenClose,
+          Var <$> lower,
+          Const <$> upper
+        ]
+        <?> "lhs term"
 
 unwindApp :: Expr -> [Expr]
 unwindApp = reverse . unwindApp'
- where unwindApp' (Paren _ e _) = unwindApp' e
-       unwindApp' (App e1 e2) = e2 : unwindApp' e1
-       unwindApp' e = [e]
+  where
+    unwindApp' (Paren _ e _) = unwindApp' e
+    unwindApp' (App e1 e2) = e2 : unwindApp' e1
+    unwindApp' e = [e]
 
 unwindLhs :: Expr -> Parser (Name, [Pattern])
 unwindLhs e = case unwindApp e of
@@ -88,13 +92,12 @@ unwindPtn e = case unwindApp e of
   [Var v] -> return (PattBinder v)
   (Var _ : _) -> failWithMsg "pattern starting with a variable"
   (Const con : args) ->
-     PattConstructor con <$> mapM unwindPtn args
+    PattConstructor con <$> mapM unwindPtn args
   _ -> failWithMsg "ill-formed pattern"
 
-failWithMsg :: MonadParsec e s m => String -> m a
+failWithMsg :: (MonadParsec e s m) => String -> m a
 failWithMsg msg =
   fancyFailure (Set.singleton (ErrorFail msg))
-
 
 definitionBlock :: Parser DefinitionBlock
 definitionBlock = DefinitionBlock <$> tokenDeclOpen <*> sepByAlignmentOrSemi definition <*> tokenDeclClose
