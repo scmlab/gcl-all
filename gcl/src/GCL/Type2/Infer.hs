@@ -610,19 +610,19 @@ bindPattern (A.PattBinder name) ty = do
   let env = Map.singleton name (A.Forall [] ty)
   return (mempty, env)
 bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
-bindPattern (A.PattTuple ps) ty = do
+bindPattern pat@(A.PattTuple ps) ty = do
   tys <- case ty of
     (A.TTuple tys) -> return tys
     _ -> error "non-tuple shouldn't exist"
 
   when
     (length ps /= length tys)
-    (error "tuple length mismatch")
+    (throwError $ PatternArityMismatch (length ps) (length tys) (maybeRangeOf pat))
 
   (patsSubst, patsEnv) <-
     foldM
-      ( \(s', e') (pat, ty') -> do
-          (s'', e'') <- bindPattern pat ty'
+      ( \(s', e') (pat', ty') -> do
+          (s'', e'') <- bindPattern pat' ty'
           return (s'' <> s', e'' <> e')
       )
       (mempty, mempty)
