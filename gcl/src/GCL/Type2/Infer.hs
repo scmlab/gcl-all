@@ -452,6 +452,7 @@ inferCase expr clauses range = do
   (clausesSubst, clausesTy, typedClauses) <- foldM (aux exprTy) (mempty, caseFtv, []) clauses
 
   let resultSubst = clausesSubst <> exprSubst
+  -- XXX: do we need `applySubst exprSubst clausesTy` here? things seem to work for now
   return (resultSubst, clausesTy, T.Case typedExpr (reverse typedClauses) range)
   where
     aux exprTy (accSubst, clauseTy, typedClauses) (A.CaseClause pattern caseExpr) = do
@@ -486,7 +487,7 @@ inferCaseClause pattern expr ty = do
 
     fresh a
     Γ, x : a ⊢ e ↑ (s, t)
-    s1 = unify (a, t)
+    s1 = unify (s a, t)
     ----------------------------
     Γ ⊢ x = e ↑ (s1 <> s, s1 a)
 
@@ -609,19 +610,19 @@ bindPattern (A.PattBinder name) ty = do
   let env = Map.singleton name (A.Forall [] ty)
   return (mempty, env)
 bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
-bindPattern (A.PattTuple ps) ty = do
+bindPattern pat@(A.PattTuple ps) ty = do
   tys <- case ty of
     (A.TTuple tys) -> return tys
     _ -> error "non-tuple shouldn't exist"
 
   when
     (length ps /= length tys)
-    (error "tuple length mismatch")
+    (throwError $ PatternArityMismatch (length ps) (length tys) (maybeRangeOf pat))
 
   (patsSubst, patsEnv) <-
     foldM
-      ( \(s', e') (pat, ty') -> do
-          (s'', e'') <- bindPattern pat ty'
+      ( \(s', e') (pat', ty') -> do
+          (s'', e'') <- bindPattern pat' ty'
           return (s'' <> s', e'' <> e')
       )
       (mempty, mempty)
