@@ -79,7 +79,7 @@ nameVar x t = Var x t Nothing
 number :: Int -> Expr
 number n = Lit (Num n) tInt Nothing
 
-exists :: [Name] -> Expr -> Expr -> Expr
+exists :: [(Name, Type)] -> Expr -> Expr -> Expr
 exists xs ran term =
   Quant
     (Op (ArithOp (DisjU Nothing)) tBinLogicOp)
@@ -88,7 +88,7 @@ exists xs ran term =
     term
     Nothing
 
-forAll :: [Name] -> Expr -> Expr -> Expr
+forAll :: [(Name, Type)] -> Expr -> Expr -> Expr
 forAll xs ran term =
   Quant
     (Op (ArithOp (ConjU Nothing)) tBinLogicOp)

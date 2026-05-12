@@ -106,7 +106,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
       x' <- freshName' (nameToText x) -- generate fresh name using the existing "x"
       let post' = syntaxSubst [x] [nameVar x' tInt] post
 
-      return $ forAll [x'] true (newallocs x' `sImp` post')
+      return $ forAll [(x', tInt)] true (newallocs x' `sImp` post')
       where
         newallocs x' =
           sconjunct
@@ -118,7 +118,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
       v <- freshName' (nameToText x) -- generate fresh name using the exisiting "x"
       let post' = syntaxSubst [x] [nameVar v tInt] post
 
-      return $ exists [v] true (entry v `sConj` (entry v `sImp` post'))
+      return $ exists [(v, tInt)] true (entry v `sConj` (entry v `sImp` post'))
       where
         entry v = e `pointsTo` nameVar v tInt
     wp (HMutate e1 e2 _) post = do
@@ -169,7 +169,7 @@ calcLocalRenaming scope ((x, t) : xs)
 allocated :: (Fresh m) => Expr -> m Expr
 allocated e = do
   v <- freshName' "new"
-  return (exists [v] true (e `pointsTo` nameVar v tInt))
+  return (exists [(v, tInt)] true (e `pointsTo` nameVar v tInt))
 
 -- allocated e = e -> _
 

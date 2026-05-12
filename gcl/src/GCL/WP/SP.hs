@@ -77,13 +77,14 @@ spFunctions (structSegs, struct) = spSStmts
       -- {P} x := E { (exists x' :: x = E[x'/x] && P[x'/x]) }
       -- generate fresh names from the assignees "xs"
       freNames <- freshNames (map nameToText xs)
-      let freVars = zipWith nameVar freNames (map typeOf es)
+      let ts = map typeOf es
+      let freVars = zipWith nameVar freNames ts
       -- substitute "xs"s with fresh names in "pre"
       let pre' = syntaxSubst xs freVars pre
 
       let pairs = zip freVars es
       let predicates = [x `eqq` syntaxSubst xs freVars e | (x, e) <- pairs]
-      return $ exists freNames (conjunct predicates) pre'
+      return $ exists (zip freNames ts) (conjunct predicates) pre'
     sp (pre, _) (AAssign (Var x t _) i e _) = do
       -- {P} x[I] := E { (exist x' :: x = x'[I[x'/x] -> E[x'/x]] && P[x'/x]) }
       xn <- freshName' (nameToText x)
@@ -93,7 +94,7 @@ spFunctions (structSegs, struct) = spSStmts
       let e' = syntaxSubst [x] [x'] e
       return $
         exists
-          [xn]
+          [(xn, t)]
           (nameVar x t `eqq` ArrUpd x' i' e' Nothing)
           pre'
     sp (_, _) (AAssign _ _ _ l) = throwError (MultiDimArrayAsgnNotImp l)

@@ -40,11 +40,11 @@ handleExpr n (App (Op (ArithOp op) _) e _) = case classify (ArithOp op) of -- un
 handleExpr n (App f e _) =
   -- should only be normal applications
   parensIf n Nothing $ renderPrec HOLEApp f <+> renderPrec AppHOLE e
-handleExpr prec (Lam p _ q _) =
+handleExpr prec (Lam p t q _) =
   let ifparens = case prec of
         NoContext -> id
         _ -> parensE
-   in ifparens $ "λ" <+> render p <+> "→" <+> render q
+   in ifparens $ "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> render q
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
 handleExpr n (OutT i e) =
@@ -52,7 +52,7 @@ handleExpr n (OutT i e) =
 handleExpr _ (Quant op xs r t _) =
   "⟨"
     <+> renderQOp op
-    <+> horzE (map (render . fst) xs)
+    <+> renderBinders xs
     <+> ":"
     <+> render r
     <+> ":"
@@ -67,6 +67,14 @@ handleExpr _ (Quant op xs r t _) =
     renderQOp (Op (ArithOp (Mul _)) _) = "Π"
     renderQOp (Op op' _) = render op'
     renderQOp op' = render op'
+    renderBinders [] = ""
+    renderBinders [(x, t)] = render x <+> " : " <+> render t
+    renderBinders ((x, t) : xs) =
+      render x
+        <+> " : "
+        <+> render t
+        <+> ";"
+        <+> renderBinders xs
 handleExpr _ (ArrIdx e1 e2 _) = render e1 <> "[" <> render e2 <> "]"
 handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"

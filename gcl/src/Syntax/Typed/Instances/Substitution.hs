@@ -38,7 +38,7 @@ instance (Fresh m) => Substitutable m Expr Expr where
   subst sb (Tuple es) = Tuple <$> mapM (subst sb) es
   subst sb (OutT i e) = OutT i <$> subst sb e
   subst sb (Quant op xs ran body l) = do
-    (xs', (ran', body'), _) <- error "to be implemented" -- SCM, TODO substBinder sb xs (ran, body)
+    (xs', (ran', body'), _) <- substBinder sb xs (ran, body)
     return $ Quant op xs' ran' body' l
   subst sb (ArrIdx a i l) =
     ArrIdx <$> subst sb a <*> subst sb i <*> pure l
