@@ -6,7 +6,6 @@
 
 module GCL.Type2.ToTyped where
 
-import Control.Lens (like)
 import Control.Monad (foldM, void, when)
 import Data.Graph (SCC)
 import qualified Data.Graph as Graph
