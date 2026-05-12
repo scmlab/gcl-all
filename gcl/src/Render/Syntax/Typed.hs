@@ -52,7 +52,7 @@ handleExpr n (OutT i e) =
 handleExpr _ (Quant op xs r t _) =
   "⟨"
     <+> renderQOp op
-    <+> horzE (map render xs)
+    <+> horzE (map (render . fst) xs)
     <+> ":"
     <+> render r
     <+> ":"
