@@ -142,36 +142,58 @@ collectDefnToEnv (A.TypeDefn name args ctors range) = do
         )
         ([], baseTy)
 collectDefnToEnv (A.ValDefn name sig expr) = do
-  -- NOTE: this part handles recursive functions, consider:
+  (exprSubst, exprTy, typedExpr) <- inferRecursive expr
+
+  -- NOTE: function signatures should be "stricter" than the function definition
+  -- so stuff like
   -- ```
-  -- foldr f e Nil = e
-  -- foldr f e (Cons x xs) = f x (foldr f e xs)
+  -- f : a
+  -- f = 3
   -- ```
-  -- `foldr : t1` is in the env from `collectSccDefns`
-  -- after `infer`-ing the RHS we get substitutions for `t1` and the RHS
-  -- `t1` tells us how the function was called in itself as an arbitrary function
-  -- (say we change `foldr` in the function body to `g`)
-  -- the type of the RHS tells us the actual type of the function body is
-  -- and finally we unify the two to get the correct recursive function type
-  funcTy <- maybe freshTVar return sig
-  _ <- typeToKind funcTy
+  -- shouldn't be allowed
+  (unifySubst, resultTy) <- case sig of
+    Just funcTy -> do
+      _ <- typeToKind funcTy
 
-  (s1, typedExpr) <- typeCheck expr funcTy
+      unifySubst <- lift $ unify funcTy exprTy Nothing
 
-  env <- ask
-  let ty = case Map.lookup name env of
-        Just (A.Forall _ ty') -> applySubst s1 ty'
-        Nothing -> error "impossible"
+      let funcTy' = applySubst unifySubst funcTy
 
-  let funcTy' = applySubst s1 funcTy
+      when
+        (funcTy /= funcTy')
+        (throwError $ UnifyFailed funcTy funcTy' (maybeRangeOf funcTy))
 
-  s2 <- lift $ unify funcTy' ty Nothing
+      return (unifySubst, funcTy)
+    Nothing -> return (mempty, exprTy)
 
-  let resultSubst = s2 <> s1
-  let resultTy = applySubst s2 funcTy'
-  let resultDefn = T.ValDefn name resultTy (applySubstExpr resultSubst typedExpr)
+  let resultDefn = T.ValDefn name resultTy (applySubstExpr (unifySubst <> exprSubst) typedExpr)
 
   return (Map.singleton name (A.Forall [] resultTy), resultDefn)
+  where
+    inferRecursive expr' = do
+      -- NOTE: this part handles recursive functions, consider:
+      -- ```
+      -- foldr f e Nil = e
+      -- foldr f e (Cons x xs) = f x (foldr f e xs)
+      -- ```
+      -- `foldr : t1` is in the env from `collectSccDefns`
+      -- after `infer`-ing the RHS we get substitutions for `t1` and the RHS
+      -- `t1` tells us how the function was called in itself as an arbitrary function
+      -- (say we change `foldr` in the function body to `g`)
+      -- the type of the RHS tells us the actual type of the function body is
+      -- and finally we unify the two to get the correct recursive function type
+      (s1, exprTy, typedExpr) <- infer expr'
+
+      env <- ask
+      let ty = case Map.lookup name env of
+            Just (A.Forall _ ty') -> applySubst s1 ty'
+            Nothing -> error "impossible"
+
+      s2 <- lift $ unify exprTy ty Nothing
+
+      let resultSubst = s2 <> s1
+
+      return (resultSubst, applySubst s2 ty, typedExpr)
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
