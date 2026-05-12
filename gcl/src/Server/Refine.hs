@@ -4,14 +4,14 @@ module Server.Refine where
 
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad (unless, when)
-import Data.Bifunctor (Bifunctor (bimap), first, second)
+import Data.Bifunctor (first, second)
 import Data.Char (isSpace)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
+import GCL.Predicate (Hole (..), HoleError, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)

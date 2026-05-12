@@ -9,10 +9,10 @@
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, void, when)
-import Data.Graph (SCC)
-import qualified Data.Graph as Graph
 import Data.Bifunctor (Bifunctor (..))
 import Data.Either (lefts)
+import Data.Graph (SCC)
+import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
 import qualified Data.Map as Map
 import Data.Text (pack)
