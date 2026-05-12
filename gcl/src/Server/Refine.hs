@@ -124,7 +124,8 @@ refine filePath cursor = do
                             fsHoles = updateHoleIds (holes1 <> newHoles <> holes2'),
                             fsTIState = state
                           }
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+                      newFs' = updateHoleExprs hole typedExpr newFs
+                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
                   setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
@@ -420,3 +421,51 @@ mergeFileState moved fragment =
       fsDefinitionLinks = fsDefinitionLinks moved <> fsDefinitionLinks fragment,
       fsHoverInfos = fsHoverInfos moved <> fsHoverInfos fragment
     }
+
+-- | Updates hole expression to latest refined expression in every specifications and POs
+updateHoleExprs :: Hole -> T.Expr -> FileState -> FileState
+updateHoleExprs hole expr fs =
+  fs
+    { fsSpecifications = map updateSpec (fsSpecifications fs),
+      fsProofObligations = map updatePO (fsProofObligations fs)
+    }
+  where
+    updateSpec :: Spec -> Spec
+    updateSpec spec =
+      spec
+        { specPreCond = updateExpr hole expr (specPreCond spec),
+          specPostCond = updateExpr hole expr (specPostCond spec)
+        }
+
+    updatePO :: PO -> PO
+    updatePO po =
+      po
+        { poPre = updateExpr hole expr (poPre po),
+          poPost = updateExpr hole expr (poPost po)
+        }
+
+updateExpr :: Hole -> T.Expr -> T.Expr -> T.Expr
+updateExpr hole@(Hole holeNumber _ _ _) replacement expr = case expr of
+  T.Chain chain -> T.Chain $ updateChain chain
+  T.App e1 e2 r -> T.App (updateExpr' e1) (updateExpr' e2) r
+  T.Lam name ty e r -> T.Lam name ty (updateExpr' e) r
+  T.Tuple exprs -> T.Tuple $ map updateExpr' exprs
+  T.OutT i e -> T.OutT i (updateExpr' e)
+  T.Quant e1 names e2 e3 r -> T.Quant (updateExpr' e1) names (updateExpr' e2) (updateExpr' e3) r
+  T.ArrIdx e1 e2 r -> T.ArrIdx (updateExpr' e1) (updateExpr' e2) r
+  T.ArrUpd e1 e2 e3 r -> T.ArrUpd (updateExpr' e1) (updateExpr' e2) (updateExpr' e3) r
+  T.Case e clauses r -> T.Case (updateExpr' e) (map updateCaseClause clauses) r
+  T.Subst e redexes -> T.Subst (updateExpr' e) (map (second updateExpr') redexes)
+  T.EHole _ holeNumber' _ _ _ -> if holeNumber == holeNumber' then replacement else expr
+  e -> e
+  where
+    updateExpr' :: T.Expr -> T.Expr
+    updateExpr' = updateExpr hole replacement
+
+    updateChain :: T.Chain -> T.Chain
+    updateChain chain = case chain of
+      T.Pure e -> T.Pure $ updateExpr hole expr e
+      T.More chain' op ty e -> T.More (updateChain chain') op ty (updateExpr hole expr e)
+
+    updateCaseClause :: T.CaseClause -> T.CaseClause
+    updateCaseClause (T.CaseClause pats e) = T.CaseClause pats (updateExpr' e)
