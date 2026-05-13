@@ -110,7 +110,7 @@ refine filePath cursor = do
                       newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
-                Right (holes, state) -> do
+                Right (holes, typedExpr, state) -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: hole edit sent\n"
                   let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
@@ -166,7 +166,7 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, innerEditsRel, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error ([Hole], Inference))
+refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error ([Hole], T.Expr, Inference))
 refineHoleAndDig filePath hole source state = do
   let holeRng = holeRange hole
   unless (isSingleLine holeRng) $
@@ -203,12 +203,12 @@ loadConcreteFragment typeEnv idCount spec stmts = do
     foldTIResult :: [(T.Stmt, Inference)] -> ([T.Stmt], Inference)
     foldTIResult = second maximum . unzip
 
-loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error ([Hole], Inference)
+loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error ([Hole], T.Expr, Inference)
 loadConcreteHoleFragment typeEnv ty expr constraint state = do
   let abstract = C.runAbstractTransform expr
   ((_, expr'), state') <- first (TypeError . Hack.toOldError) (runTI (typeCheck' abstract ty) typeEnv state)
   case constraint expr' of
-    Nothing -> Right (collectTypedHole expr', state')
+    Nothing -> Right (collectTypedHole expr', expr', state')
     Just err -> Left $ HoleError err
 
 -- | Parse fragment and dig holes if needed.
@@ -456,7 +456,7 @@ updateHoleExprs hole expr holeMapping fs =
         }
 
 updateExpr :: Hole -> T.Expr -> [(Int, Int)] -> T.Expr -> T.Expr
-updateExpr hole@(Hole holeNumber _ _ _) replacement holeMapping expr = case expr of
+updateExpr hole@(Hole holeNumber _ _ _ _) replacement holeMapping expr = case expr of
   T.Chain chain -> T.Chain $ updateChain chain
   T.App e1 e2 r -> T.App (updateExpr' e1) (updateExpr' e2) r
   T.Lam name ty e r -> T.Lam name ty (updateExpr' e) r
@@ -467,12 +467,12 @@ updateExpr hole@(Hole holeNumber _ _ _) replacement holeMapping expr = case expr
   T.ArrUpd e1 e2 e3 r -> T.ArrUpd (updateExpr' e1) (updateExpr' e2) (updateExpr' e3) r
   T.Case e clauses r -> T.Case (updateExpr' e) (map updateCaseClause clauses) r
   T.Subst e redexes -> T.Subst (updateExpr' e) (map (second updateExpr') redexes)
-  T.EHole text holeNumber' ty r env ->
+  T.EHole (T.Hole text holeNumber' ty r env) ->
     if holeNumber == holeNumber'
       then
         replacement
       else case lookup holeNumber' holeMapping of
-        Just holeNumber'' -> T.EHole text holeNumber'' ty r env
+        Just holeNumber'' -> T.EHole (T.Hole text holeNumber'' ty r env)
         Nothing -> expr
   e -> e
   where
