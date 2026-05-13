@@ -5,6 +5,7 @@
 
 module Syntax.Typed.Instances.Free where
 
+import Data.Either (lefts)
 import Data.Set
   ( (\\),
   )
@@ -53,7 +54,7 @@ instance Free Stmt where
   freeVars (Skip _) = mempty
   freeVars (Abort _) = mempty
   freeVars (Assign ns es _) =
-    Set.fromList ns <> Set.unions (map freeVars es)
+    Set.fromList (lefts ns) <> Set.unions (map freeVars es)
   freeVars (AAssign a i e _) =
     freeVars a <> freeVars i <> freeVars e
   freeVars (Assert p _) = freeVars p

@@ -7,6 +7,7 @@
 module Syntax.Substitution where
 
 import Control.Monad (forM)
+import Data.Bifunctor (Bifunctor (..))
 import Data.Map hiding (map)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -91,7 +92,7 @@ instance (Fresh m) => Substitutable m Stmt Expr where
   subst _ s@(Skip _) = return s
   subst _ s@(Abort _) = return s
   subst sb (Assign ns es l) = do
-    let ns' = renameVars sb ns --- this could fail!
+    let ns' = map (first (renameVar sb)) ns --- this could fail!
     Assign ns' <$> subst sb es <*> pure l
   subst sb (AAssign a i v l) =
     AAssign <$> subst sb a <*> subst sb i <*> subst sb v <*> pure l

@@ -65,7 +65,7 @@ applySubstExpr subst (T.ArrIdx arr index range) = T.ArrIdx (applySubstExpr subst
 applySubstExpr subst (T.ArrUpd arr index expr range) = T.ArrUpd (applySubstExpr subst arr) (applySubstExpr subst index) (applySubstExpr subst expr) range
 applySubstExpr subst (T.Case expr clauses range) = T.Case (applySubstExpr subst expr) (map (applySubstClause subst) clauses) range
 applySubstExpr subst (T.Subst _ _) = undefined
-applySubstExpr subst (T.EHole text holeNumber ty range env) = T.EHole text holeNumber (applySubst subst ty) range env
+applySubstExpr subst (T.EHole h) = T.EHole $ applySubstHole subst h
 
 applySubstChain :: Subst -> T.Chain -> T.Chain
 applySubstChain subst (T.Pure expr) = T.Pure (applySubstExpr subst expr)
@@ -73,3 +73,6 @@ applySubstChain subst (T.More chain op ty expr) = T.More (applySubstChain subst 
 
 applySubstClause :: Subst -> T.CaseClause -> T.CaseClause
 applySubstClause subst (T.CaseClause pat expr) = T.CaseClause pat (applySubstExpr subst expr)
+
+applySubstHole :: Subst -> T.Hole -> T.Hole
+applySubstHole subst (T.Hole text holeNumber ty range env) = T.Hole text holeNumber (applySubst subst ty) range env

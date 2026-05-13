@@ -4,14 +4,14 @@ module Server.Refine where
 
 import Control.Applicative (Alternative ((<|>)))
 import Control.Monad (unless, when)
-import Data.Bifunctor (Bifunctor (bimap), first, second)
+import Data.Bifunctor (first, second)
 import Data.Char (isSpace)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Predicate (Hole (..), InfMode (..), PO (..), Spec (..))
+import GCL.Predicate (Hole (..), HoleError, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.ToTyped (runToTyped)
@@ -55,6 +55,7 @@ import qualified Syntax.Typed as T
 --------------------------------------------------------------------------------
 -- ServerM action
 
+-- ChAoS: Didn't check about the constraint of hole.
 refine :: FilePath -> Pos -> ServerM ()
 refine filePath cursor = do
   maybePending <- getPendingEdit filePath
@@ -109,14 +110,14 @@ refine filePath cursor = do
                       newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
-                Right (typedExpr, state) -> do
+                Right (holes, state) -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: hole edit sent\n"
                   let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
                       movedFs = applyMovesToFileState [lspMove] fs
                       newSource = applyEdits source edits
                       (holes1, holes2) = splitAtFirst hole (fsHoles fs)
-                      newHoles = justifyExpHoleRanges $ collectTypedHole typedExpr
+                      newHoles = justifyExpHoleRanges holes
                       holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
                       newFs =
                         movedFs
@@ -157,7 +158,7 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, innerEditsRel, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error (T.Expr, Inference))
+refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error ([Hole], Inference))
 refineHoleAndDig filePath hole source state = do
   let holeRng = holeRange hole
   unless (isSingleLine holeRng) $
@@ -167,7 +168,7 @@ refineHoleAndDig filePath hole source state = do
       implStart = rangeStart implRange
 
   (finalImplText, innerEditsRel, expr) <- parseAndDigHoleFragment filePath implStart implText
-  return (finalImplText, innerEditsRel, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr state)
+  return (finalImplText, innerEditsRel, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr (holeConstraint hole) state)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
@@ -194,10 +195,13 @@ loadConcreteFragment typeEnv idCount spec stmts = do
     foldTIResult :: [(T.Stmt, Inference)] -> ([T.Stmt], Inference)
     foldTIResult = second maximum . unzip
 
-loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> Inference -> Either Error (T.Expr, Inference)
-loadConcreteHoleFragment typeEnv ty expr state = do
+loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error ([Hole], Inference)
+loadConcreteHoleFragment typeEnv ty expr constraint state = do
   let abstract = C.runAbstractTransform expr
-  bimap (TypeError . Hack.toOldError) (first snd) (runTI (typeCheck' abstract ty) typeEnv state)
+  ((_, expr'), state') <- first (TypeError . Hack.toOldError) (runTI (typeCheck' abstract ty) typeEnv state)
+  case constraint expr' of
+    Nothing -> Right (collectTypedHole expr', state')
+    Just err -> Left $ HoleError err
 
 -- | Parse fragment and dig holes if needed.
 -- Internally uses relative positions (1,1) for hole digging,
@@ -318,10 +322,10 @@ justifyExpHoleRanges :: [Hole] -> [Hole]
 justifyExpHoleRanges = map (justifyHoleRange (-2))
 
 justifyRearHoleRanges :: Int -> Range -> [Hole] -> [Hole]
-justifyRearHoleRanges expDiff r = map (\hole@(Hole _ _ hr _) -> if onSameLine r hr then justifyHoleRange (expDiff * 4 - 1) hole else hole)
+justifyRearHoleRanges expDiff r = map (\hole@(Hole _ _ hr _ _) -> if onSameLine r hr then justifyHoleRange (expDiff * 4 - 1) hole else hole)
 
 justifyHoleRange :: Int -> Hole -> Hole
-justifyHoleRange diff hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _) =
+justifyHoleRange diff hole@(Hole _ _ (Range (Pos l1 c1) (Pos l2 c2)) _ _) =
   hole {holeRange = mkRange (mkPos l1 (c1 + diff)) (mkPos l2 (c2 + diff))}
 
 --------------------------------------------------------------------------------

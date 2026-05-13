@@ -5,6 +5,7 @@ module Pretty.Error where
 
 import Data.Foldable (toList)
 import Error
+import GCL.Predicate (HoleError (..))
 import GCL.Range (MaybeRanged (..), displayPos)
 import GCL.Type (TypeError (..))
 import GCL.WP.Types
@@ -25,6 +26,8 @@ instance Pretty Error where
     "Type Error" <+> pretty (maybeRangeOf err) <> line <> pretty err
   pretty (StructError err) =
     "Struct Error" <+> pretty (maybeRangeOf err) <> line <> pretty err
+  pretty (HoleError err) =
+    "Hole Error" <+> pretty (maybeRangeOf err) <> line <> pretty err
   pretty (CannotReadFile path) = "CannotReadFile" <+> pretty path
   pretty (Others title msg range) = "Others" <+> pretty title <+> pretty msg <+> maybe mempty pretty range
 
@@ -71,3 +74,7 @@ instance Pretty TypeError where
     "The arguments: " <+> pretty ns <+> "are missing"
   pretty (PatternArityMismatch expected actual _) =
     "Expect" <+> pretty expected <+> "arguments but found" <+> pretty actual
+
+instance Pretty HoleError where
+  pretty (UnsatisfiedConstraint msg _) =
+    "Hole refining not possible: unsatisified constraint, " <+> pretty msg

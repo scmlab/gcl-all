@@ -275,3 +275,9 @@ instance Collect TargetRanges OriginTargetRanges Endpoint where
   collect = \case
     Including x -> collect x
     Excluding x -> collect x
+
+--------------------------------------------------------------------------------
+
+-- | Hole
+instance Collect TargetRanges OriginTargetRanges Hole where
+  collect _ = return ()
