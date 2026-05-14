@@ -165,10 +165,9 @@ infer (A.RedexShell _ _) = undefined
 infer (A.ArrIdx arr index range) = inferArrIdx arr index range
 infer (A.ArrUpd arr index expr range) = inferArrUpd arr index expr range
 infer (A.Case expr clauses range) = inferCase expr clauses range
-infer (A.EHole text holeNumber range) = do
-  ty <- freshTVar
-  env <- ask
-  return (mempty, ty, T.EHole text holeNumber ty range env)
+infer (A.EHole hole) = do
+  (subst, ty, hole') <- inferHole hole
+  return (subst, ty, T.EHole hole')
 
 inferLit :: A.Lit -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLit lit range =
@@ -190,6 +189,12 @@ inferVar name range = do
       return (mempty, ty, T.Var name ty range)
     Nothing ->
       throwError $ NotInScope name
+
+inferHole :: A.Hole -> TIMonad (Subst, A.Type, T.Hole)
+inferHole (A.Hole text holeNumber range) = do
+  ty <- freshTVar
+  env <- ask
+  return (mempty, ty, T.Hole text holeNumber ty range env)
 
 {-
    Γ ⊢ch ch ↑ (s, t)
@@ -610,19 +615,19 @@ bindPattern (A.PattBinder name) ty = do
   let env = Map.singleton name (A.Forall [] ty)
   return (mempty, env)
 bindPattern (A.PattWildcard _) _ = return (mempty, mempty)
-bindPattern (A.PattTuple ps) ty = do
+bindPattern pat@(A.PattTuple ps) ty = do
   tys <- case ty of
     (A.TTuple tys) -> return tys
     _ -> error "non-tuple shouldn't exist"
 
   when
     (length ps /= length tys)
-    (error "tuple length mismatch")
+    (throwError $ PatternArityMismatch (length ps) (length tys) (maybeRangeOf pat))
 
   (patsSubst, patsEnv) <-
     foldM
-      ( \(s', e') (pat, ty') -> do
-          (s'', e'') <- bindPattern pat ty'
+      ( \(s', e') (pat', ty') -> do
+          (s'', e'') <- bindPattern pat' ty'
           return (s'' <> s', e'' <> e')
       )
       (mempty, mempty)

@@ -71,7 +71,7 @@ data Declaration
 data Stmt
   = Skip (Maybe Range)
   | Abort (Maybe Range)
-  | Assign [Name] [Expr] (Maybe Range)
+  | Assign [Either Name Hole] [Expr] (Maybe Range)
   | AAssign Expr Expr Expr (Maybe Range)
   | Assert Expr (Maybe Range)
   | LoopInvariant Expr Expr (Maybe Range)
@@ -196,7 +196,7 @@ data Expr
   | ArrIdx Expr Expr (Maybe Range)
   | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [CaseClause] (Maybe Range)
-  | EHole Text Int Range
+  | EHole Hole
   deriving (Eq, Show, Generic)
 
 data Chain = Pure Expr (Maybe Range) | More Chain ChainOp Expr (Maybe Range)
@@ -246,3 +246,7 @@ baseTypeOfLit (Bol _) = TBool
 baseTypeOfLit (Chr _) = TChar
 
 ----------------------------------------------------------------
+
+-- | Hole
+data Hole = Hole Text Int Range
+  deriving (Eq, Show, Generic)

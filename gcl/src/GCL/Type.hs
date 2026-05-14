@@ -28,6 +28,7 @@ import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range, (<--->))
 import GHC.Generics
 import Syntax.Abstract
+import qualified Syntax.Abstract as A
 import Syntax.Abstract.Util (wrapTFunc)
 import Syntax.Common
 import qualified Syntax.Typed as T
@@ -665,23 +666,24 @@ instance Elab Stmt where
   elaborate (Skip loc) _ = return (Nothing, T.Skip loc, mempty)
   elaborate (Abort loc) _ = return (Nothing, T.Abort loc, mempty)
   elaborate (Assign names exprs loc) env = do
-    duplicationCheck names
-    let ass = zip names exprs
-    let an = length ass
-    if
-      | an < length exprs -> throwError $ RedundantExprs (drop an exprs)
-      | an < length names -> throwError $ RedundantNames (drop an names)
-      | otherwise -> do
-          exprs' <-
-            mapM
-              ( \(name, expr) -> do
-                  ty <- checkAssign env name
-                  (ty', typedExpr, _) <- elaborate expr env
-                  _ <- unifyType ty (fromJust ty') $ maybeRangeOf expr
-                  return typedExpr
-              )
-              ass
-          return (Nothing, T.Assign names exprs' loc, mempty)
+    -- duplicationCheck names
+    -- let ass = zip names exprs
+    -- let an = length ass
+    -- if
+    --   | an < length exprs -> throwError $ RedundantExprs (drop an exprs)
+    --   | an < length names -> throwError $ RedundantNames (drop an names)
+    --   | otherwise -> do
+    --       exprs' <-
+    --         mapM
+    --           ( \(name, expr) -> do
+    --               ty <- checkAssign env name
+    --               (ty', typedExpr, _) <- elaborate expr env
+    --               _ <- unifyType ty (fromJust ty') $ maybeRangeOf expr
+    --               return typedExpr
+    --           )
+    --           ass
+    --       return (Nothing, T.Assign names exprs' loc, mempty)
+    undefined
   elaborate (AAssign arr index e loc) env = do
     tv <- freshVar
     (arrTy, typedArr, arrSub) <- elaborate arr env
@@ -971,9 +973,9 @@ instance Elab Expr where
                         list <- zipWithM patBind subpats (subst sub outputs')
                         let (envs, subs) = unzip list
                         return (mconcat envs, mconcat (sub : subs))
-  elaborate (EHole text holeNumber range) env = do
+  elaborate (EHole (A.Hole text holeNumber range)) env = do
     tv <- freshVar
-    return (Just tv, T.EHole text holeNumber tv range undefined, mempty)
+    return (Just tv, T.EHole (T.Hole text holeNumber tv range undefined), mempty)
 
 instance Elab Chain where -- TODO: Make sure the below implementation is correct.
   elaborate (More (More ch' op1 e1 loc1) op2 e2 loc2) env = do

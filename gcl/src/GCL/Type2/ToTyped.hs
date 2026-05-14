@@ -1,16 +1,17 @@
-{-# HLINT ignore "Use tuple-section" #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use tuple-section" #-}
 
 module GCL.Type2.ToTyped where
 
 import Control.Monad (foldM, unless, void, when)
+import Data.Bifunctor (Bifunctor (..))
+import Data.Either (lefts)
 import Data.Graph (SCC)
 import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
 import qualified Data.Map as Map
+import Data.Text (pack)
 import Debug.Trace
 import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
@@ -34,8 +35,9 @@ import GCL.Type2.Types
   )
 import GCL.Type2.Unify (unify)
 import Pretty
+import Render.Class (Render (..))
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name (..))
+import Syntax.Common.Types (Name (Name))
 import qualified Syntax.Typed.Types as T
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
@@ -283,27 +285,42 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Dispose expr range) = toTypedDispose expr range
   toTyped A.Block {} = undefined
 
-toTypedAssign :: [Name] -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
+toTypedAssign :: [Either Name A.Hole] -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedAssign names exprs range
-  | length names > length exprs = throwError $ RedundantNames (drop (length exprs) names)
+  | length names > length exprs = do
+      let names' =
+            map
+              ( \case
+                  Left name' -> name'
+                  Right hole@(A.Hole _ _ range') -> Name (pack $ show $ render hole) (Just range')
+              )
+              names
+      throwError $ RedundantNames (drop (length exprs) names')
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
   | otherwise = do
       env <- ask
-      lift $ checkDuplicateNames names
+      lift $ checkDuplicateNames $ lefts names
       let assignments = zip names exprs
-      typedExprs <-
-        mapM
-          ( \(name, expr) -> do
-              nameTy <- case Map.lookup name env of
-                Just (A.Forall _ ty) -> return ty
-                Nothing -> throwError $ NotInScope name
-
-              (exprSubst, typedExpr) <- typeCheck expr nameTy
-
-              return (applySubstExpr exprSubst typedExpr)
-          )
-          assignments
-      return $ T.Assign names typedExprs range
+      (names', typedExprs) <-
+        unzip . map (either (first Left) (first Right))
+          <$> mapM
+            ( \(lhs, expr) -> do
+                ty <- case lhs of
+                  Left name -> case Map.lookup name env of
+                    Just (A.Forall _ ty) -> return ty
+                    Nothing -> throwError $ NotInScope name
+                  Right _ -> freshTVar
+                (_, exprTy, expr') <- infer expr
+                subst <- lift $ unify ty exprTy (maybeRangeOf lhs)
+                let expr'' = applySubstExpr subst expr'
+                return $ case lhs of
+                  Left name ->
+                    Left (name, expr'')
+                  Right (A.Hole text holeNumber range') ->
+                    Right (T.Hole text holeNumber exprTy range' env, expr'')
+            )
+            assignments
+      return $ T.Assign names' typedExprs range
 
 toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedAAssign arr index expr range = do

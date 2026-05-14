@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Server.Load where
@@ -218,7 +219,7 @@ instance CollectHole C.Definition where
 instance CollectHole C.Stmt where
   collectHole (C.Skip {}) = mempty
   collectHole (C.Abort {}) = mempty
-  collectHole (C.Assign _ _ exprs) = collectHole exprs
+  collectHole (C.Assign lhs _ exprs) = foldMap (either (const []) collectHole) lhs <> collectHole exprs
   collectHole (C.AAssign _ _ a _ _ b) = collectHole a <> collectHole b
   collectHole (C.Assert _ a _) = collectHole a
   collectHole (C.LoopInvariant _ a _ _ _ b _) = collectHole a <> collectHole b
@@ -247,8 +248,7 @@ instance CollectHole C.Expr where
   collectHole (C.App a b) = collectHole a <> collectHole b
   collectHole (C.Quant _ _ _ _ a _ b _) = collectHole a <> collectHole b
   collectHole (C.Case _ a _ clauses) = collectHole a <> collectHole clauses
-  collectHole (C.HoleQM range) = [(ExprHole, range)]
-  collectHole (C.Hole {}) = mempty
+  collectHole (C.EHole hole) = collectHole hole
 
 instance CollectHole C.CaseClause where
   collectHole (C.CaseClause _ _ expr) = collectHole expr
@@ -256,3 +256,7 @@ instance CollectHole C.CaseClause where
 instance CollectHole C.Chain where
   collectHole (C.Pure expr) = collectHole expr
   collectHole (C.More c _ expr) = collectHole c <> collectHole expr
+
+instance CollectHole C.Hole where
+  collectHole (C.HoleQM range) = [(ExprHole, range)]
+  collectHole _ = mempty
