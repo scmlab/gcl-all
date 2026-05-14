@@ -6,7 +6,7 @@
 
 module GCL.Type2.ToTyped where
 
-import Control.Monad (foldM, void, when)
+import Control.Monad (foldM, unless, void, when)
 import Data.Graph (SCC)
 import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
@@ -35,7 +35,7 @@ import GCL.Type2.Types
 import GCL.Type2.Unify (unify)
 import Pretty
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name)
+import Syntax.Common.Types (Name (..))
 import qualified Syntax.Typed.Types as T
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
@@ -159,8 +159,8 @@ collectDefnToEnv (A.ValDefn name sig expr) = do
 
       let funcTy' = applySubst unifySubst funcTy
 
-      when
-        (funcTy /= funcTy')
+      unless
+        (isWeaker funcTy' funcTy)
         (throwError $ UnifyFailed funcTy funcTy' (maybeRangeOf funcTy))
 
       return (unifySubst, funcTy)
@@ -194,6 +194,25 @@ collectDefnToEnv (A.ValDefn name sig expr) = do
       let resultSubst = s2 <> s1
 
       return (resultSubst, applySubst s2 ty, typedExpr)
+
+    -- checking if there exists a one-to-one mapping from `t1` to `t2` in terms of `TVar`
+    isWeaker t1 t2 = maybe False (\e -> trace (show e) True) (aux mempty t1 t2)
+      where
+        aux binding (A.TArray _ t1' _) (A.TArray _ t2' _) = aux binding t1' t2'
+        aux binding (A.TTuple ts1) (A.TTuple ts2) =
+          foldl'
+            (\acc (t1', t2') -> acc >>= \e -> aux e t1' t2')
+            (Just binding)
+            (zip ts1 ts2)
+        aux binding (A.TApp a1 a2 _) (A.TApp b1 b2 _) = aux binding a1 b1 >>= \binding' -> aux binding' a2 b2
+        aux binding (A.TVar (Name n1 _) _) (A.TVar (Name n2 _) _) =
+          case Map.lookup n1 binding of
+            Just n2' ->
+              if n2 == n2'
+                then Just binding
+                else Nothing
+            Nothing -> Just (Map.insert n1 n2 binding)
+        aux binding t1' t2' = if t1' == t2' then Just binding else Nothing
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
