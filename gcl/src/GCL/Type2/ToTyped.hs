@@ -1,5 +1,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
 {-# HLINT ignore "Use tuple-section" #-}
 
 module GCL.Type2.ToTyped where
