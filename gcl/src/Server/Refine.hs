@@ -14,8 +14,10 @@ import Error (Error (..))
 import GCL.Predicate (Hole (..), HoleError, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.Infer (typeCheck')
+import GCL.Type2.Subst (applySubst)
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference, runTI)
+import qualified GCL.Type2.Types as T
 import GCL.WP (collectTypedHole, runWP, structStmts)
 import GCL.WP.Types (StructError, StructWarning (..))
 import qualified Hack
@@ -110,7 +112,7 @@ refine filePath cursor = do
                       newFs = fs {fsErrors = [convertedErr]}
                   setFileState filePath newFs
                   sendFileState filePath newFs
-                Right (holes, typedExpr, state) -> do
+                Right (subst, typedExpr, holes, state) -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: hole edit sent\n"
                   let lspMove = mkLSPMove (toLSPRange (holeRange hole)) finalImplText
@@ -119,7 +121,7 @@ refine filePath cursor = do
                       (holes1, holes2) = splitAtFirst hole (fsHoles fs)
                       newHoles = justifyExpHoleRanges holes
                       holes2' = justifyRearHoleRanges (length newHoles - 1) (holeRange hole) holes2
-                      (updatedHoles, holeMapping) = updateHoleIds (holes1 <> newHoles <> holes2')
+                      (updatedHoles, holeMapping) = updateHoleInfos subst (holes1 <> newHoles <> holes2')
                       newFs =
                         movedFs
                           { fsErrors = [],
@@ -133,12 +135,12 @@ refine filePath cursor = do
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
     splitAtFirst x = fmap (drop 1) . break (x ==)
 
-    updateHoleIds :: [Hole] -> ([Hole], [(Int, Int)])
-    updateHoleIds =
+    updateHoleInfos :: T.Subst -> [Hole] -> ([Hole], [(Int, Int)])
+    updateHoleInfos subst =
       unzip
         . zipWith
           ( \newIdx hole ->
-              (hole {holeID = newIdx}, (holeID hole, newIdx))
+              (hole {holeID = newIdx, holeType = applySubst subst (holeType hole)}, (holeID hole, newIdx))
           )
           [0 ..]
 
@@ -166,7 +168,7 @@ refineAndDig filePath idCount spec source = do
   (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath implStart implText
   return (finalImplText, innerEditsRel, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
-refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error ([Hole], T.Expr, Inference))
+refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error (T.Subst, T.Expr, [Hole], Inference))
 refineHoleAndDig filePath hole source state = do
   let holeRng = holeRange hole
   unless (isSingleLine holeRng) $
@@ -203,12 +205,12 @@ loadConcreteFragment typeEnv idCount spec stmts = do
     foldTIResult :: [(T.Stmt, Inference)] -> ([T.Stmt], Inference)
     foldTIResult = second maximum . unzip
 
-loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error ([Hole], T.Expr, Inference)
+loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error (T.Subst, T.Expr, [Hole], Inference)
 loadConcreteHoleFragment typeEnv ty expr constraint state = do
   let abstract = C.runAbstractTransform expr
-  ((_, expr'), state') <- first (TypeError . Hack.toOldError) (runTI (typeCheck' abstract ty) typeEnv state)
+  ((subst, expr'), state') <- first (TypeError . Hack.toOldError) (runTI (typeCheck' abstract ty) typeEnv state)
   case constraint expr' of
-    Nothing -> Right (collectTypedHole expr', expr', state')
+    Nothing -> Right (subst, expr', collectTypedHole expr', state')
     Just err -> Left $ HoleError err
 
 -- | Parse fragment and dig holes if needed.
