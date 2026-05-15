@@ -13,7 +13,6 @@ import qualified Data.Text.Encoding as TE
 import Debug.Trace
 import Error (Error (..))
 import GCL.Dependency as D
-import qualified GCL.Type as Type
 import qualified GCL.Type2.ToTyped as Type2
 import qualified Hack
 import qualified Syntax.Abstract as A
@@ -57,14 +56,6 @@ simpleLoad filepath source = runExceptT $ catchError run handler
     toDeps :: A.Program -> IO (Either Error D.Program)
     toDeps abstract = do
       case D.evalDependencyResolution abstract of
-        Left err -> do
-          -- TODO: more error reporting here
-          return $ Left (TypeError err)
-        Right typed -> return $ Right typed
-
-    toTyped :: A.Program -> IO (Either Error T.Program)
-    toTyped abstract = do
-      case Type.runElaboration abstract mempty of
         Left err -> do
           -- TODO: more error reporting here
           return $ Left (TypeError err)
