@@ -149,8 +149,8 @@ applyGCLMoveToContainerRange (Range oS oE) (GCLMove s e dL dC)
       let !nS = shiftPos oS
           !nE = shiftPos oE
        in Just (mkRange nS nE)
-  -- change is strictly inside the range (not touching boundaries): shift end only
-  | s > oS && e < oE = Just (mkRange oS (shiftPos oE))
+  -- change is inside the range (right boundary may coincide): shift end only
+  | s > oS && e <= oE = Just (mkRange oS (shiftPos oE))
   -- change overlaps a boundary: invalidate
   | otherwise = Nothing
   where
