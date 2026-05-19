@@ -149,6 +149,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine(`[${timestamp}] Received update for ${filePath}:`);
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
+		for (const po of pos) {
+			po.click = `<button class="clickBtn">click</button>`
+		}
+
 		let newClientFileState: ClientFileState = { errors, holes, specs, pos, warnings };
 
 		fileStateMap.set(filePath, newClientFileState);
@@ -160,6 +164,15 @@ export async function activate(context: vscode.ExtensionContext) {
 		}
 	});
 	context.subscriptions.push(updateNotificationHandlerDisposable);
+
+	gclPanel.panel.webview.onDidReceiveMessage(
+		msg => {
+			console.log(msg)
+		},
+		undefined,
+		context.subscriptions
+	)
+
 }
 
 export async function deactivate() {

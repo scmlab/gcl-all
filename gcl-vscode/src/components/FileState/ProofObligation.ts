@@ -25,8 +25,28 @@ export default function renderProofObligation(proofObligation: IProofObligation)
         <td class="proof-point">Prove.</td>
         <td>${proofObligation.goal}</td>
       </tr>
+      <tr>
+        <td class="proof-point">Click.</td>
+        <td>${proofObligation.click}</td>
+      </tr>
       </table>
     </div>
+
+    <script>
+      const vscode = acquireVsCodeApi();
+      const buttons = document.querySelectorAll(".clickBtn");
+
+      function handleClick(event) {
+        vscode.postMessage({
+          command: 'click',
+          text: 'click'
+        });
+      }
+
+      for (const btn of buttons) {
+        btn.addEventListener("click", handleClick);
+      }
+    </script>
   `;
   return renderSection(
     "Proof Obligation",
