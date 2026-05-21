@@ -219,8 +219,8 @@ applyMovesToFileState lspMoves fs =
         { fsErrors = map (applyMovesToError gclMoves) (fsErrors fs),
           fsSpecifications = mapMaybe (applyMovesToSpec gclMoves) (fsSpecifications fs),
           fsHoles = mapMaybe (applyMovesToHole gclMoves) (fsHoles fs),
-          fsProofObligations = mapMaybe (applyMovesToPO gclMoves) (fsProofObligations fs),
-          fsWarnings = mapMaybe (applyMovesToWarning gclMoves) (fsWarnings fs),
+          fsProofObligations = map (applyMovesToPO gclMoves) (fsProofObligations fs),
+          fsWarnings = map (applyMovesToWarning gclMoves) (fsWarnings fs),
           fsSemanticTokens = mapMaybe (applyLSPMovesToToken lspMoves) (fsSemanticTokens fs),
           fsDefinitionLinks = applyMovesToIntervalMap gclMoves updateOriginTargetRanges (fsDefinitionLinks fs),
           fsHoverInfos = applyMovesToIntervalMap gclMoves (\_ h -> Just h) (fsHoverInfos fs)
@@ -294,12 +294,17 @@ applyMovesToSpec moves spec@Specification {specRange = oldRange} = do
   newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ spec {specRange = newRange}
 
+-- POs are diagnostic artifacts (read-only, like errors): never dropped on
+-- didChange. If the edit overlaps the PO's range, the range is frozen at its
+-- current position until the next load regenerates POs.
 -- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
-applyMovesToPO :: [GCLMove] -> PO -> Maybe PO
-applyMovesToPO moves po@PO {poOrigin} = do
-  oldRange <- maybeRangeOf poOrigin
-  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
-  return $ po {poOrigin = setOriginRange (Just newRange) poOrigin}
+applyMovesToPO :: [GCLMove] -> PO -> PO
+applyMovesToPO moves po@PO {poOrigin} =
+  case maybeRangeOf poOrigin of
+    Nothing -> po
+    Just oldRange ->
+      let newRange = shiftContainerRangeOrFreeze moves oldRange
+       in po {poOrigin = setOriginRange (Just newRange) poOrigin}
 
 -- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
 applyMovesToHole :: [GCLMove] -> Hole -> Maybe Hole
@@ -307,10 +312,11 @@ applyMovesToHole moves hole@Hole {holeRange = oldRange} = do
   newRange <- foldM applyGCLMoveToContainerRange oldRange moves
   return $ hole {holeRange = newRange}
 
-applyMovesToWarning :: [GCLMove] -> StructWarning -> Maybe StructWarning
-applyMovesToWarning moves (MissingBound oldRange) = do
-  newRange <- foldM applyGCLMoveToContainerRange oldRange moves
-  return $ MissingBound newRange
+-- Warnings are diagnostic artifacts (like errors and POs): never dropped on
+-- didChange. Range is frozen on overlap until the next load.
+applyMovesToWarning :: [GCLMove] -> StructWarning -> StructWarning
+applyMovesToWarning moves (MissingBound oldRange) =
+  MissingBound (shiftContainerRangeOrFreeze moves oldRange)
 
 setOriginRange :: Maybe Range -> Origin -> Origin
 setOriginRange l (AtAbort _) = AtAbort l
