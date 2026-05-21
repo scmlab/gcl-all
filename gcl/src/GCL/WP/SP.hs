@@ -23,7 +23,9 @@ import Syntax.Typed.Operator
   )
 import Syntax.Typed.Util
   ( getGuards,
+    nameOf,
     syntaxSubst,
+    syntaxSubst',
     typeOf,
   )
 
@@ -80,7 +82,7 @@ spFunctions (structSegs, struct) = spSStmts
       let ts = map typeOf es
       let freVars = zipWith nameVar freNames ts
       -- substitute "xs"s with fresh names in "pre"
-      let pre' = syntaxSubst xs freVars pre
+      let pre' = syntaxSubst' xs freVars pre
 
       let pairs = zip freVars es
       let predicates = [x `eqq` syntaxSubst xs freVars e | (x, e) <- pairs]

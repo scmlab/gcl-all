@@ -70,7 +70,7 @@ instance Pretty Stmt where
   pretty (Skip _) = "skip"
   pretty (Abort _) = "abort"
   pretty (Assign xs es _) =
-    hsep (punctuate ", " (map pretty xs))
+    hsep (punctuate ", " (map (either pretty pretty) xs))
       <> ":= "
       <> hsep
         (punctuate ", " (map pretty es))
@@ -145,4 +145,10 @@ instance Pretty Interval where
 
 -- | Kind
 instance Pretty Kind where
+  pretty = fromRender
+
+--------------------------------------------------------------------------------
+
+-- | Kind
+instance Pretty Hole where
   pretty = fromRender

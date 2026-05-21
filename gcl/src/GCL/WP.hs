@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GCL.WP (WP, TM, sweep, structStmts, runWP, collectTypedHole) where
 
@@ -14,12 +15,13 @@ import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Text (Text)
 import GCL.Predicate
-  ( Hole (Hole),
+  ( HoleError (..),
     InfMode (..),
     PO (..),
     Pred,
     Spec (..),
   )
+import qualified GCL.Predicate as P
 import GCL.Range (MaybeRanged (..))
 import GCL.WP.SP
 import GCL.WP.Struct
@@ -44,7 +46,7 @@ runWP p decls counter = runExcept $ runRWST p decls counter
 
 sweep ::
   Program ->
-  Either StructError ([PO], [Spec], [Hole], [StructWarning], IntMap (Int, Expr), Int)
+  Either StructError ([PO], [Spec], [P.Hole], [StructWarning], IntMap (Int, Expr), Int)
 sweep program@(Program _ decs _props stmts _) = do
   let decls = programToScopeForSubstitution program
   let dnames = [map nameToText $ declaredNames decs]
@@ -130,7 +132,7 @@ structStmts = this
 -- Hole collection
 
 class CollectTypedHole a where
-  collectTypedHole :: a -> [Hole]
+  collectTypedHole :: a -> [P.Hole]
 
 instance (CollectTypedHole a) => CollectTypedHole [a] where
   collectTypedHole = concatMap collectTypedHole
@@ -156,7 +158,11 @@ instance CollectTypedHole Declaration where
 instance CollectTypedHole Stmt where
   collectTypedHole (Skip {}) = mempty
   collectTypedHole (Abort {}) = mempty
-  collectTypedHole (Assign _ exprs _) = collectTypedHole exprs
+  collectTypedHole (Assign lhs exprs _) = foldMap (either (const []) (\hole -> collectTypedHole (hole, lhsConstraint))) lhs <> collectTypedHole exprs
+    where
+      lhsConstraint :: Expr -> Maybe HoleError
+      lhsConstraint (Var {}) = Nothing
+      lhsConstraint expr = Just $ UnsatisfiedConstraint "expression may only be variable" (maybeRangeOf expr)
   collectTypedHole (AAssign a b c _) = collectTypedHole a <> collectTypedHole b <> collectTypedHole c
   collectTypedHole (Assert expr _) = collectTypedHole expr
   collectTypedHole (LoopInvariant a b _) = collectTypedHole a <> collectTypedHole b
@@ -188,7 +194,7 @@ instance CollectTypedHole Expr where
   collectTypedHole (ArrUpd a b c _) = collectTypedHole a <> collectTypedHole b <> collectTypedHole c
   collectTypedHole (Case expr clauses _) = collectTypedHole expr <> collectTypedHole clauses
   collectTypedHole (Subst expr substs) = collectTypedHole expr <> (collectTypedHole . map snd) substs
-  collectTypedHole (EHole _ i ty range env) = [Hole i ty range env]
+  collectTypedHole (EHole hole) = collectTypedHole ((hole, const Nothing) :: (Hole, Expr -> Maybe HoleError))
 
 instance CollectTypedHole CaseClause where
   collectTypedHole (CaseClause _ expr) = collectTypedHole expr
@@ -196,3 +202,6 @@ instance CollectTypedHole CaseClause where
 instance CollectTypedHole Chain where
   collectTypedHole (Pure expr) = collectTypedHole expr
   collectTypedHole (More c _ _ expr) = collectTypedHole c <> collectTypedHole expr
+
+instance CollectTypedHole (Hole, Expr -> Maybe HoleError) where
+  collectTypedHole (Hole _ i ty range env, constraint) = [P.Hole i ty range env constraint]

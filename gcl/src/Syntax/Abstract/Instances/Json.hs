@@ -29,3 +29,5 @@ instance ToJSON Pattern
 instance ToJSON Lit
 
 instance FromJSON Lit
+
+instance ToJSON Hole

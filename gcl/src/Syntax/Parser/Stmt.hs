@@ -84,7 +84,7 @@ loopInvariant = do
 
 assignment :: Parser Stmt
 assignment =
-  Assign <$> sepByComma lower <*> tokenAssign <*> sepByComma expression
+  Assign <$> sepByComma (choice [Left <$> lower, Right <$> hole]) <*> tokenAssign <*> sepByComma expression
 
 arrayAssignment :: Parser Stmt
 arrayAssignment =

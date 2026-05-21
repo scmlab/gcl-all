@@ -136,23 +136,9 @@ expression = do
             <*> tokenColon
             <*> expression
             <*> choice [Left <$> tokenQuantClose, Right <$> tokenQuantCloseU],
-          HoleQM . rangeOf <$> tokenQuestionMark,
-          hole
+          EHole <$> hole
         ]
         <?> "term"
-
-    hole :: Parser Expr
-    hole =
-      Expr.Hole
-        <$> tokenHoleOpen
-        <*> takeWhileP (Just "anything other than '!}'") notTokHoleClose
-        -- Although here we directly use mega's method instead of our 'symbol' and 'extract',
-        -- it is enclosed by parsers built with 'symbol'.
-        <*> tokenHoleClose
-
-    notTokHoleClose :: R Tok -> Bool
-    notTokHoleClose (R _ TokHoleClose) = False
-    notTokHoleClose _ = True
 
     -- shoule parse A[A[i]], A[i1][i2]...[in]
     array :: Parser Expr
@@ -222,6 +208,22 @@ pattern' =
       PattBinder <$> lower,
       PattConstructor <$> upper <*> many pattern'
     ]
+
+hole :: Parser Hole
+hole =
+  choice
+    [ HoleQM . rangeOf <$> tokenQuestionMark,
+      Hole
+        <$> tokenHoleOpen
+        <*> takeWhileP (Just "anything other than '!}'") notTokHoleClose
+        -- Although here we directly use mega's method instead of our 'symbol' and 'extract',
+        -- it is enclosed by parsers built with 'symbol'.
+        <*> tokenHoleClose
+    ]
+  where
+    notTokHoleClose :: R Tok -> Bool
+    notTokHoleClose (R _ TokHoleClose) = False
+    notTokHoleClose _ = True
 
 --------------------------------------------------------------------------------
 -- Type

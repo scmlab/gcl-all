@@ -10,6 +10,7 @@ import Syntax.Abstract.Operator (tInt)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common (Name (..))
 import Syntax.Typed
+import qualified Syntax.Typed.Types as T
 
 emptyExplain :: Text -> Maybe Range -> Origin
 emptyExplain title l =
@@ -21,7 +22,7 @@ emptyExplain title l =
       originRange = l
     }
 
-explainAssignment :: Pred -> Pred -> [Name] -> [Expr] -> Maybe Range -> Origin
+explainAssignment :: Pred -> Pred -> [Either Name T.Hole] -> [Expr] -> Maybe Range -> Origin
 explainAssignment pre post vars exprs l =
   Explain
     { originHeader = "Assignment",
@@ -31,7 +32,7 @@ explainAssignment pre post vars exprs l =
           <> "should be implied by the precondition"
           <> (codeE . render) pre
           <> "after free variables"
-          <> sepByCommaE (map (codeE . render) vars)
+          <> sepByCommaE (map (codeE . either render render) vars)
           <> "have been substituted with"
           <> sepByCommaE (map (codeE . render) exprs),
       originInfMode = Primary,

@@ -92,7 +92,7 @@ data DeclType = DeclType DeclBase (Maybe DeclProp) deriving (Eq, Show)
 data Stmt
   = Skip Range
   | Abort Range
-  | Assign (SepBy "," Name) (Token ":=") (SepBy "," Expr)
+  | Assign (SepBy "," (Either Name Hole)) (Token ":=") (SepBy "," Expr)
   | AAssign Name (Token "[") Expr (Token "]") (Token ":=") Expr
   | Assert (Token "{") Expr (Token "}")
   | LoopInvariant (Token "{") Expr (Token ",") (Token "bnd") (Token ":") Expr (Token "}")
@@ -170,8 +170,7 @@ data Expr
       TokQuantEnds
   | -- case expr of { ctor1 -> expr | ctor2 binder1 binder2 -> expr }
     Case (Token "case") Expr (Token "of") [CaseClause]
-  | HoleQM Range
-  | Hole (Token "{!") [R Tok] (Token "!}")
+  | EHole Hole
   deriving (Eq, Show, Generic)
 
 data Chain = Pure Expr | More Chain ChainOp Expr
@@ -203,3 +202,9 @@ data Lit = LitInt Int Range | LitBool Bool Range | LitChar Char Range
   deriving (Show, Eq, Generic)
 
 --------------------------------------------------------------------------------
+
+-- | Hole components ((un) / digged hole)
+data Hole
+  = HoleQM Range
+  | Hole (Token "{!") [R Tok] (Token "!}")
+  deriving (Eq, Show, Generic)
