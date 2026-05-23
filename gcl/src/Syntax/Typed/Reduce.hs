@@ -37,7 +37,54 @@ redexesExprs :: Int -> [Expr] -> [Redex]
 redexesExprs i es =
   concat (zipWith (\i -> map (i:)) [i..] (map redexes es))
 
+-- a redex tree marks whether a node is a redex
 
+data RTree a = Node a [RTree a]  -- a rose tree
+type RT = RTree Bool
+
+leaf :: RT
+leaf = Node False []
+
+redexRT :: Expr -> RT
+redexRT (Lit _ _ _ ) = leaf
+redexRT (Var _ _ _) = leaf
+redexRT (Const _ _ _) = leaf
+redexRT (Op _ _) = leaf
+redexRT (Chain _) = leaf  -- should look into Chain. Omit for now.
+redexRT (App f@(Lam _ _ _ _) e _) = Node True [redexRT f, redexRT e]
+redexRT (App f@(Var _ _ _) e _) = Node True [leaf, redexRT e]
+redexRT (App f e _) = Node False [redexRT f, redexRT e]
+redexRT (Lam _ _ e _) = Node False [redexRT e]
+redexRT (Tuple es) = Node False (map redexRT es)
+redexRT (OutT _ t@(Tuple _)) = Node True [redexRT t]
+redexRT (OutT _ e) = Node False [redexRT e]
+redexRT (Quant _ _ r b _) = Node False [redexRT r, redexRT b]
+redexRT (ArrIdx a i _) = Node False [redexRT a, redexRT i]
+redexRT (ArrUpd a i e _) =
+     Node False [redexRT a, redexRT i, redexRT e]
+redexRT (Case e cls _) =
+     Node True (redexRT e : map (redexRT . getClause) cls)
+    where getClause (CaseClause _ e) = e
+redexRT (Subst e sb) =
+     Node True (redexRT e : map (redexRT . snd) sb)
+redexRT (EHole {}) = leaf
+
+
+type RZ = ([Int], RT)   --- a "zipper" for RT
+
+initRZ :: [Int] -> RT -> RZ
+initRZ prefix rt = (reverse prefix, rt)
+
+isRedex :: RZ -> Bool
+isRedex (_, Node b _) = b
+
+currentPath :: RZ -> [Int]
+currentPath (p, _) = reverse p
+
+descend :: RZ -> [RZ]
+descend (p, Node _ ts) = zipWith (\i t -> (i:p, t)) [0..] ts
+
+---
 type Env = [(Name, Expr)]
 
 
@@ -56,7 +103,7 @@ reduce env (Lam x t e r) (0:p) = Lam x t <$> reduce env e p <*> pure r
 reduce env (Tuple es) (n:p) = Tuple <$> reduceNth env n es p
 
 reduce env (OutT i (Tuple es)) [] = return (es !! i)
-reduce env (OutT i (Tuple es)) (n:p) = (OutT i . Tuple) <$> reduceNth env n es p
+reduce env (OutT i e) p = OutT i <$> reduce env e p
 
 reduce env (Quant op xs ran bdy r) (0:p) =
   Quant op xs <$> reduce env ran p <*> pure bdy <*> pure r
