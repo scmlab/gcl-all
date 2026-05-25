@@ -150,7 +150,13 @@ export async function activate(context: vscode.ExtensionContext) {
 		outputChannel.appendLine(JSON.stringify({ specs }, null, 2));
 
 		for (const po of pos) {
-			po.click = `<button class="clickBtn">click</button>`
+			po.click = `
+				<span class="clickable" data-redex-id="outer">
+					outer
+					<span class="clickable" data-redex-id="inner">inner text</span>
+					text
+				</span>
+			`
 		}
 
 		let newClientFileState: ClientFileState = { errors, holes, specs, pos, warnings };

@@ -56,12 +56,23 @@ function renderLoading(extPath: string): string {
 
 function renderClientFileState(clientState: ClientFileState): string {
 	return /* html */`
-    	<!DOCTYPE html>
+	<!DOCTYPE html>
         <html lang="en">
             <head>
                 <title>${GclPanel.titleLabel}</title>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+				<style>
+					.clickable {
+						cursor: pointer;
+						color: var(--vscode-textLink-foreground);
+						text-decoration: underline;
+					}
+
+					.clickable:hover:not(:has(.clickable:hover)) {
+						color: white;
+					}
+				</style>
             </head>
             <body>
 				${clientState.errors.map(renderError).join('')}
@@ -69,6 +80,24 @@ function renderClientFileState(clientState: ClientFileState): string {
 				${clientState.holes.map(renderHole).join('')}
 				${clientState.specs.map(renderSpecification).join('')}
 				${clientState.pos.map(renderProofObligation).join('')}
+				<script>
+					const vscode = acquireVsCodeApi();
+					const buttons = document.querySelectorAll(".clickable");
+
+					function handleClick(event) {
+						event.stopPropagation();
+
+						const id = event.target.dataset.redexId;
+
+						vscode.postMessage({
+								id: id
+						});
+					}
+
+					for (const btn of buttons) {
+						btn.addEventListener("click", handleClick);
+					}
+				</script>
             </body>
         </html>
     `
