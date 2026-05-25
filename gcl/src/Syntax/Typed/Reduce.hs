@@ -40,6 +40,8 @@ redexesExprs i es =
 -- a redex tree marks whether a node is a redex
 
 data RTree a = Node a [RTree a]  -- a rose tree
+  deriving Show
+
 type RT = RTree Bool
 
 leaf :: RT
@@ -109,7 +111,7 @@ reduce env (Lam x t e r) (0:p) = Lam x t <$> reduce env e p <*> pure r
 reduce env (Tuple es) (n:p) = Tuple <$> reduceNth env n es p
 
 reduce env (OutT i (Tuple es)) [] = return (es !! i)
-reduce env (OutT i e) p = OutT i <$> reduce env e p
+reduce env (OutT i e) (0:p) = OutT i <$> reduce env e p
 
 reduce env (Quant op xs ran bdy r) (0:p) =
   Quant op xs <$> reduce env ran p <*> pure bdy <*> pure r
