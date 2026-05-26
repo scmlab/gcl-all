@@ -365,12 +365,7 @@ handleExpr (Case a expr b cases) =
       <> prettyWithRange expr
       <> prettyWithRange b
       <> prettyWithRange cases
-handleExpr (HoleQM r) = return $ fromDoc (Just r) (pretty $ show TokQM)
-handleExpr (Hole l s r) =
-  return $
-    prettyWithRange l
-      <> prettyWithRange (map (fmap show) s)
-      <> prettyWithRange r
+handleExpr (EHole h) = return $ prettyWithRange h
 
 handleArithOp :: ArithOp -> Variadic Expr (DocWithRange ann)
 handleArithOp op = case classify (ArithOp op) of -- TODO: rewrite `classify` to only handle `ArithOp`s.
@@ -400,6 +395,14 @@ handleChain chain = case chain of
     ch' <- handleChain ch
     return $ ch' <> prettyWithRange op <> prettyWithRange expr
 
+handleHole :: Hole -> Variadic Hole (DocWithRange ann)
+handleHole (HoleQM r) = return $ fromDoc (Just r) (pretty $ show TokQM)
+handleHole (Hole l s r) =
+  return $
+    prettyWithRange l
+      <> prettyWithRange (map (fmap show) s)
+      <> prettyWithRange r
+
 showWithParentheses :: Expr -> String
 showWithParentheses expr = case handleExpr' expr of
   Expect _ -> error "strange case in printWithParenses"
@@ -428,8 +431,7 @@ showWithParentheses expr = case handleExpr' expr of
       return $ show $ pretty q
     handleExpr' c@Case {} =
       return $ show $ pretty c
-    handleExpr' (HoleQM _) = return "?"
-    handleExpr' (Hole _ s _) = return $ "{!" <> unwords (map show s) <> "!}"
+    handleExpr' (EHole h) = return $ show $ pretty h
 
     handleArithOp' :: ArithOp -> Variadic Expr String
     handleArithOp' op = case classify (ArithOp op) of
@@ -520,3 +522,13 @@ instance PrettyWithRange EndpointClose where
 instance PrettyWithRange Interval where
   prettyWithRange (Interval a b c) =
     prettyWithRange a <> prettyWithRange b <> prettyWithRange c
+
+--------------------------------------------------------------------------------
+
+-- | Hole
+instance Pretty Hole where
+  pretty = toDoc . prettyWithRange
+
+instance PrettyWithRange Hole where
+  prettyWithRange (HoleQM l) = fromDoc (Just l) (pretty ("?" :: String))
+  prettyWithRange (Hole l t r) = prettyWithRange l <> prettyWithRange (map (fmap show) t) <> prettyWithRange r

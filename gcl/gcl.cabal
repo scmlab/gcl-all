@@ -89,6 +89,7 @@ library
       Syntax.Abstract
       Syntax.Abstract.Instances.Json
       Syntax.Abstract.Instances.Located
+      Syntax.Abstract.Instances.Substitution
       Syntax.Abstract.Operator
       Syntax.Abstract.Types
       Syntax.Abstract.Util
@@ -119,6 +120,7 @@ library
       Syntax.Typed.Instances.Located
       Syntax.Typed.Instances.Substitution
       Syntax.Typed.Operator
+      Syntax.Typed.Reduce
       Syntax.Typed.Types
       Syntax.Typed.Util
   other-modules:

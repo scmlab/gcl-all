@@ -166,10 +166,9 @@ infer (A.RedexShell _ _) = undefined
 infer (A.ArrIdx arr index range) = inferArrIdx arr index range
 infer (A.ArrUpd arr index expr range) = inferArrUpd arr index expr range
 infer (A.Case expr clauses range) = inferCase expr clauses range
-infer (A.EHole text holeNumber range) = do
-  ty <- freshTVar
-  env <- ask
-  return (mempty, ty, T.EHole text holeNumber ty range env)
+infer (A.EHole hole) = do
+  (subst, ty, hole') <- inferHole hole
+  return (subst, ty, T.EHole hole')
 
 inferLit :: A.Lit -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLit lit range =
@@ -191,6 +190,12 @@ inferVar name range = do
       return (mempty, ty, T.Var name ty range)
     Nothing ->
       throwError $ NotInScope name
+
+inferHole :: A.Hole -> TIMonad (Subst, A.Type, T.Hole)
+inferHole (A.Hole text holeNumber range) = do
+  ty <- freshTVar
+  env <- ask
+  return (mempty, ty, T.Hole text holeNumber ty range env)
 
 {-
    Γ ⊢ch ch ↑ (s, t)

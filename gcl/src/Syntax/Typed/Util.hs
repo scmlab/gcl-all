@@ -5,7 +5,9 @@ module Syntax.Typed.Util where
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Text (Text)
+import qualified Data.Text as T
 import GCL.Range (MaybeRanged (..), (<--->))
+import Render (Render (render))
 import Syntax.Abstract.Types (TBase (TBool), Type (..))
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common (Name (..), nameToText)
@@ -59,11 +61,14 @@ typeOf (ArrUpd arr _ _ _) = typeOf arr
 typeOf (Case _ [] _) = error "caseless case"
 typeOf (Case _ (CaseClause _ e : _) _) = typeOf e
 typeOf (Subst e _) = typeOf e
-typeOf (EHole _ _ t _ _) = t
+typeOf (EHole h) = typeOfHole h
 
 typeOfChain :: Chain -> Type
 typeOfChain (Pure e) = typeOf e -- SCM: shouldn't happen?
 typeOfChain (More _ _ _ _) = A.TBase TBool Nothing
+
+typeOfHole :: Hole -> Type
+typeOfHole (Hole _ _ t _ _) = t
 
 programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
 programToScopeForSubstitution (Program defns decls _ _ _) =
@@ -86,3 +91,12 @@ programToScopeForSubstitution (Program defns decls _ _ _) =
 
 syntaxSubst :: [Name] -> [Expr] -> Expr -> Expr
 syntaxSubst xs es e = Subst e (zip xs es)
+
+syntaxSubst' :: [Either Name Hole] -> [Expr] -> Expr -> Expr
+syntaxSubst' xs es e = Subst e (zip (map nameOf xs) es)
+
+nameOf :: Either Name Hole -> Name
+nameOf = either id holeToName
+
+holeToName :: Hole -> Name
+holeToName hole@(Hole _ _ _ r _) = Name (T.pack $ show $ render hole) (Just r)

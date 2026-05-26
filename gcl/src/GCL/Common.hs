@@ -9,6 +9,7 @@ module GCL.Common where
 
 import Control.Monad.RWS (RWST (..))
 import Control.Monad.State (StateT (..))
+import Data.Either (lefts)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Set
@@ -192,7 +193,7 @@ instance Free Stmt where
   freeVars (Skip _) = mempty
   freeVars (Abort _) = mempty
   freeVars (Assign ns es _) =
-    Set.fromList ns <> Set.unions (map freeVars es)
+    Set.fromList (lefts ns) <> Set.unions (map freeVars es)
   freeVars (AAssign a i e _) =
     freeVars a <> freeVars i <> freeVars e
   freeVars (Assert p _) = freeVars p

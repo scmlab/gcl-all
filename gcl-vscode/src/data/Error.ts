@@ -2,6 +2,7 @@ import { Range } from "vscode-languageclient";
 import { ParseError } from "./Error/ParseError";
 import { StructError } from "./Error/StructError";
 import { TypeError } from "./Error/TypeError";
+import { HoleError } from "./Error/HoleError";
 
 export type Error =
   | {
@@ -19,6 +20,10 @@ export type Error =
   | {
       tag: "StructError";
       message: StructError;
+    }
+  | {
+      tag: "HoleError";
+      message: HoleError;
     }
   | {
       tag: "Others";

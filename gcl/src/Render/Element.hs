@@ -15,6 +15,7 @@ module Render.Element
     codeE,
     linkE,
     substE,
+    redexE,
     parensE,
     iconE,
     horzE,
@@ -24,6 +25,8 @@ module Render.Element
     punctuateAfterE,
     punctuateE,
     sepByCommaE,
+    -- HTML rendering
+    inlinesToHtml,
   )
 where
 
@@ -137,13 +140,13 @@ instance ToJSON Inlines where
 
 instance Pretty Inlines where
   pretty = Pretty.hcat . map pretty . insertSpaces . toList . unInlines
-    where
-      -- insert space before and after inline code snippets
-      insertSpaces :: [Inline] -> [Inline]
-      insertSpaces xs =
-        xs >>= \case
-          Snpt x -> [Text " " [], Snpt x, Text " " []]
-          others -> [others]
+
+-- | insert space before and after inline code snippets
+insertSpaces :: [Inline] -> [Inline]
+insertSpaces xs =
+  xs >>= \case
+    Snpt x -> [Text " " [], Snpt x, Text " " []]
+    others -> [others]
 
 instance Show Inlines where
   show = show . pretty
@@ -159,6 +162,7 @@ isEmpty inlines = all elemIsEmpty (Seq.viewl (unInlines inlines))
     elemIsEmpty (Text _ _) = False
     elemIsEmpty (Link _ xs _) = all elemIsEmpty $ unInlines xs
     elemIsEmpty (Sbst _ xs) = all elemIsEmpty $ unInlines xs
+    elemIsEmpty (Redex _ xs) = all elemIsEmpty $ unInlines xs
     elemIsEmpty (Horz xs) = all isEmpty xs
     elemIsEmpty (Vert xs) = all isEmpty xs
     elemIsEmpty (Parn _) = False
@@ -186,6 +190,10 @@ linkE range xs = Inlines $ Seq.singleton $ Link range xs []
 
 substE :: Int -> Inlines -> Inlines
 substE i expr = Inlines $ Seq.singleton $ Sbst i expr
+
+-- | Mark a piece of inline elements as a redex, carrying its path
+redexE :: [Int] -> Inlines -> Inlines
+redexE path xs = Inlines $ Seq.singleton $ Redex path xs
 
 -- | Note: when there's only 1 Horz inside a Parn, convert it to PrHz
 parensE :: Inlines -> Inlines
@@ -227,6 +235,8 @@ data Inline
   | Link Range Inlines ClassNames
   | -- | For Substitution
     Sbst Int Inlines
+  | -- | A redex node, carrying its path (to be emitted as data-redex)
+    Redex [Int] Inlines
   | -- | Horizontal grouping, wrap when there's no space
     Horz [Inlines]
   | -- | Vertical grouping, each children would end with a newline
@@ -248,7 +258,49 @@ instance Pretty Inline where
   pretty (Snpt s) = pretty s
   pretty (Link _ xs _) = pretty xs
   pretty (Sbst _i xs) = pretty xs
+  pretty (Redex _ xs) = pretty xs
   pretty (Horz xs) = Pretty.sep (map pretty $ toList xs)
   pretty (Vert xs) = Pretty.vcat (map pretty $ toList xs)
   pretty (Parn x) = "(" <> pretty x <> ")"
   pretty (PrHz xs) = "(" <> Pretty.hcat (map pretty $ toList xs) <> ")"
+
+--------------------------------------------------------------------------------
+-- HTML rendering
+--
+-- Render Inlines to an HTML fragment. Layout follows the `Pretty Inlines`
+-- instance (top-level: concat, since `<+>` already inserts spaces as Text;
+-- Horz: space-separated like `sep`). `Redex` nodes become
+-- <span class="gcl-redex" data-redex="0,1">...</span>.
+
+inlinesToHtml :: Inlines -> Text
+inlinesToHtml = Text.concat . map inlineToHtml . insertSpaces . toList . unInlines
+
+inlineToHtml :: Inline -> Text
+inlineToHtml (Icon _ _) = ""
+inlineToHtml (Text s _) = escapeHtml s
+inlineToHtml (Snpt xs) = inlinesToHtml xs
+inlineToHtml (Link _ xs _) = inlinesToHtml xs
+inlineToHtml (Sbst _ xs) = inlinesToHtml xs
+inlineToHtml (Horz xs) = Text.intercalate " " (map inlinesToHtml xs)
+inlineToHtml (Vert xs) = Text.intercalate "\n" (map inlinesToHtml xs)
+inlineToHtml (Parn x) = "(" <> inlinesToHtml x <> ")"
+inlineToHtml (PrHz xs) = "(" <> Text.concat (map inlinesToHtml xs) <> ")"
+inlineToHtml (Redex path xs) =
+  "<span class=\"gcl-redex\" data-redex=\""
+    <> pathToText path
+    <> "\">"
+    <> inlinesToHtml xs
+    <> "</span>"
+
+pathToText :: [Int] -> Text
+pathToText = Text.intercalate "," . map (Text.pack . show)
+
+escapeHtml :: Text -> Text
+escapeHtml = Text.concatMap esc
+  where
+    esc '&' = "&amp;"
+    esc '<' = "&lt;"
+    esc '>' = "&gt;"
+    esc '"' = "&quot;"
+    esc '\'' = "&#39;"
+    esc c = Text.singleton c

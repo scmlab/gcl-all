@@ -36,7 +36,7 @@ data Declaration
 data Stmt
   = Skip (Maybe Range)
   | Abort (Maybe Range)
-  | Assign [Name] [Expr] (Maybe Range)
+  | Assign [Either Name Hole] [Expr] (Maybe Range)
   | AAssign Expr Expr Expr (Maybe Range)
   | Assert Expr (Maybe Range)
   | LoopInvariant Expr Expr (Maybe Range)
@@ -69,7 +69,7 @@ data Expr
   | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [CaseClause] (Maybe Range)
   | Subst Expr [(Name, Expr)]
-  | EHole Text Int Type Range Env
+  | EHole Hole
   deriving (Eq, Show)
 
 data CaseClause = CaseClause Pattern Expr
@@ -94,3 +94,7 @@ data KindedType
   | TVar Name Kind (Maybe Range)
   | TMetaVar Name Kind (Maybe Range)
   deriving (Show, Eq)
+
+data Hole
+  = Hole Text Int Type Range Env
+  deriving (Eq, Show)

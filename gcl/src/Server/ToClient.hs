@@ -20,6 +20,7 @@ import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingle
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.KeyMap as KeyMap
 import Data.List.NonEmpty (toList)
+import qualified Data.Text as T
 import qualified Data.Text as Text
 import qualified Error
 import qualified GCL.Predicate as GCL
@@ -33,6 +34,8 @@ import Pretty.Predicate ()
 import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Render.Class (Render (..))
+import Render.Element (inlinesToHtml)
+import Render.Syntax.Typed (renderExprRZ)
 import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
@@ -71,8 +74,8 @@ data Hole = Hole
 
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
-  { assumption :: String,
-    goal :: String,
+  { assumption :: Text.Text, -- HTML (with data-redex), see renderPredHtml
+    goal :: Text.Text, -- HTML (with data-redex), see renderPredHtml
     hash :: String,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
@@ -135,12 +138,18 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 convertPO :: GCL.PO -> ProofObligation
 convertPO (GCL.PO {GCL.poPre, GCL.poPost, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
-    { assumption = show $ pretty poPre,
-      goal = show $ pretty poPost,
+    { assumption = renderPredHtml poPre,
+      goal = renderPredHtml poPost,
       hash = Text.unpack poAnchorHash,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
+
+-- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">,
+-- with redex nodes carrying a data-redex path attribute.
+renderPredHtml :: GCL.Pred -> Text.Text
+renderPredHtml e =
+  "<span class=\"gcl-expr\">" <> inlinesToHtml (renderExprRZ e) <> "</span>"
 
 -- | Convert server-side Origin to client-side POOrigin
 -- Uses the Render instance to get the tag name and MaybeRanged to get location
@@ -192,6 +201,7 @@ data Error
   = ParseError ParseError
   | TypeError TypeError
   | StructError StructError
+  | HoleError HoleError
   | CannotReadFile FilePath
   | Others String String (Maybe LSP.Range)
   deriving stock (Show, Generic)
@@ -205,6 +215,8 @@ instance JSON.ToJSON Error where
     object ["tag" .= JSON.String "TypeError", "message" .= JSON.toJSON err]
   toJSON (StructError err) =
     object ["tag" .= JSON.String "StructError", "message" .= JSON.toJSON err]
+  toJSON (HoleError err) =
+    object ["tag" .= JSON.String "HoleError", "message" .= JSON.toJSON err]
   toJSON (CannotReadFile fp) =
     object ["tag" .= JSON.String "CannotReadFile", "filePath" .= JSON.toJSON fp]
   toJSON (Others title message loc) =
@@ -321,6 +333,15 @@ convertStructError (WP.MultiDimArrayAsgnNotImp l) =
 convertStructError (WP.LocalVarExceedScope l) =
   LocalVarExceedScope {location = fmap toLSPRange l}
 
+data HoleError
+  = UnsatisfiedConstraint {message :: String, location :: Maybe LSP.Range}
+  deriving stock (Show, Generic)
+  deriving anyclass (JSON.ToJSON)
+
+convertHoleError :: GCL.HoleError -> HoleError
+convertHoleError (GCL.UnsatisfiedConstraint msg l) =
+  UnsatisfiedConstraint {message = T.unpack msg, location = fmap toLSPRange l}
+
 --------------------------------------------------------------------------------
 -- Error Conversion Functions
 
@@ -329,5 +350,6 @@ convertError :: Error.Error -> Error
 convertError (Error.ParseError err) = ParseError (convertParseError err)
 convertError (Error.TypeError err) = TypeError (convertTypeError err)
 convertError (Error.StructError err) = StructError (convertStructError err)
+convertError (Error.HoleError err) = HoleError (convertHoleError err)
 convertError (Error.CannotReadFile fp) = CannotReadFile fp
 convertError (Error.Others t m l) = Others t m (fmap toLSPRange l)

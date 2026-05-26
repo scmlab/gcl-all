@@ -24,14 +24,23 @@ export class GclPanel {
       { enableScripts: true },
     );
 
-    this.cssUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, "media", "styles.css"))
-    this.jsUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(context.extensionUri, "media", "main.js"))
+    this.cssUri = this.panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, "media", "styles.css"),
+    );
+    this.jsUri = this.panel.webview.asWebviewUri(
+      vscode.Uri.joinPath(context.extensionUri, "media", "main.js"),
+    );
   }
   show(html: string): void {
     this.panel.webview.html = html;
   }
   rerender(clientState: ClientFileState): void {
-    this.panel.webview.html = renderClientFileState(clientState, this.panel.webview.cspSource, this.cssUri, this.jsUri);
+    this.panel.webview.html = renderClientFileState(
+      clientState,
+      this.panel.webview.cspSource,
+      this.cssUri,
+      this.jsUri,
+    );
   }
   // Show either the welcome page or sections (likely from the LSP server).
   showLoading(extPath: string): void {
@@ -62,7 +71,12 @@ function renderLoading(extPath: string): string {
   `;
 }
 
-function renderClientFileState(clientState: ClientFileState, cspSource: string, cssUri: vscode.Uri, jsUri: vscode.Uri): string {
+function renderClientFileState(
+  clientState: ClientFileState,
+  cspSource: string,
+  cssUri: vscode.Uri,
+  jsUri: vscode.Uri,
+): string {
   return /* html */ `
     <!DOCTYPE html>
     <html lang="en">

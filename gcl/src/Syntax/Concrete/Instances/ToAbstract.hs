@@ -1,5 +1,4 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures #-}
@@ -10,6 +9,9 @@ module Syntax.Concrete.Instances.ToAbstract where
 
 import Control.Arrow ((***))
 import Control.Monad.State
+import Data.Bifunctor (Bifunctor (..))
+import Data.Bitraversable (Bitraversable (bitraverse))
+import Data.Either (partitionEithers)
 import qualified Data.Text as Text
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range (..), rangeOf, (<--->))
@@ -52,6 +54,9 @@ instance (ToAbstract a b) => ToAbstract (Maybe a) (Maybe b) where
   toAbstract Nothing = return Nothing
   toAbstract (Just x) = Just <$> toAbstract x
 
+instance (ToAbstract a b, ToAbstract c d) => ToAbstract (Either a c) (Either b d) where
+  toAbstract = bitraverse toAbstract toAbstract
+
 instance (ToAbstract a b) => ToAbstract [a] [b] where
   toAbstract = mapM toAbstract
 
@@ -63,15 +68,11 @@ instance ToAbstract Name Name where
 -- | Program
 instance ToAbstract Program A.Program where
   toAbstract prog@(Program ds stmts') = do
-    (decls, defns) <- foldl (<>) ([], []) <$> (mapM toAbstract ds)
+    (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
     let (globProps, assertions) = ConstExpr.pickGlobals decls
     let pre = [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
     return $ A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
-
-instance ToAbstract (Either Declaration DefinitionBlock) ([A.Declaration], [A.Definition]) where
-  toAbstract (Left d) = (\d' -> ([d'], [])) <$> toAbstract d
-  toAbstract (Right defnBlock) = (\ds -> ([], ds)) <$> toAbstract defnBlock
 
 --------------------------------------------------------------------------------
 
@@ -118,7 +119,7 @@ splitValDefns (ValDefnSig (DeclBase ns _ ty) : ds) =
         mkDefn ds' = (n, Just ty, ds')
 splitValDefns (d@(ValDefn name _ _ _) : ds) =
   let (ds1, ds2) = span sameDefn ds
-   in (name, Nothing, (d : ds1)) : splitValDefns ds2
+   in (name, Nothing, d : ds1) : splitValDefns ds2
   where
     sameDefn (ValDefn name' _ _ _) = name == name'
     sameDefn _ = False
@@ -298,11 +299,7 @@ instance ToAbstract Expr A.Expr where
         <$> toAbstract expr
         <*> toAbstract cases
         <*> pure (maybeRangeOf x)
-    HoleQM _ -> error "HoleQM should be digged before calling toAbstract"
-    Syntax.Concrete.Types.Hole l xs r -> do
-      holeNumber <- countUp
-      let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
-       in return $ A.EHole text holeNumber (rangeOf l <> rangeOf r)
+    EHole hole -> A.EHole <$> toAbstract hole
 
 instance ToAbstract Chain A.Chain where
   toAbstract chain = case chain of
@@ -337,3 +334,10 @@ instance ToAbstract Lit A.Lit where
 instance (ToAbstract a b) => ToAbstract (SepBy sep a) [b] where
   toAbstract (Head a) = (: []) <$> toAbstract a
   toAbstract (Delim a _ as) = (:) <$> toAbstract a <*> toAbstract as
+
+instance ToAbstract Hole A.Hole where
+  toAbstract (HoleQM _) = error "HoleQM should be digged before calling toAbstract"
+  toAbstract (Syntax.Concrete.Types.Hole l xs r) = do
+    holeNumber <- countUp
+    let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
+     in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)

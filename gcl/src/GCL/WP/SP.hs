@@ -23,7 +23,9 @@ import Syntax.Typed.Operator
   )
 import Syntax.Typed.Util
   ( getGuards,
+    nameOf,
     syntaxSubst,
+    syntaxSubst',
     typeOf,
   )
 
@@ -76,14 +78,14 @@ spFunctions (structSegs, struct) = spSStmts
     sp (pre, _) (Assign xs es _) = do
       -- {P} x := E { (exists x' :: x = E[x'/x] && P[x'/x]) }
       -- generate fresh names from the assignees "xs"
-      freNames <- freshNames (map nameToText xs)
+      freNames <- freshNames (map (nameToText . nameOf) xs)
       let ts = map typeOf es
       let freVars = zipWith nameVar freNames ts
       -- substitute "xs"s with fresh names in "pre"
-      let pre' = syntaxSubst xs freVars pre
+      let pre' = syntaxSubst' xs freVars pre
 
       let pairs = zip freVars es
-      let predicates = [x `eqq` syntaxSubst xs freVars e | (x, e) <- pairs]
+      let predicates = [x `eqq` syntaxSubst' xs freVars e | (x, e) <- pairs]
       return $ exists (zip freNames ts) (conjunct predicates) pre'
     sp (pre, _) (AAssign (Var x t _) i e _) = do
       -- {P} x[I] := E { (exist x' :: x = x'[I[x'/x] -> E[x'/x]] && P[x'/x]) }

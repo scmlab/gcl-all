@@ -1,16 +1,19 @@
-{-# HLINT ignore "Use tuple-section" #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use tuple-section" #-}
 
 module GCL.Type2.ToTyped where
 
-import Control.Monad (foldM, void, when)
+import Control.Monad (foldM, unless, void, when)
+import Data.Bifunctor (Bifunctor (..))
+import Data.Either (lefts)
 import Data.Graph (SCC)
 import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
 import qualified Data.Map as Map
+import Data.Text (pack)
 import Debug.Trace
 import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
@@ -34,8 +37,9 @@ import GCL.Type2.Types
   )
 import GCL.Type2.Unify (unify)
 import Pretty
+import Render.Class (Render (..))
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (Name)
+import Syntax.Common.Types (Name (Name))
 import qualified Syntax.Typed.Types as T
 
 collectDeclToEnv :: A.Declaration -> TIMonad Env
@@ -142,36 +146,77 @@ collectDefnToEnv (A.TypeDefn name args ctors range) = do
         )
         ([], baseTy)
 collectDefnToEnv (A.ValDefn name sig expr) = do
-  -- NOTE: this part handles recursive functions, consider:
+  (exprSubst, exprTy, typedExpr) <- inferRecursive expr
+
+  -- NOTE: function signatures should be "stricter" than the function definition
+  -- so stuff like
   -- ```
-  -- foldr f e Nil = e
-  -- foldr f e (Cons x xs) = f x (foldr f e xs)
+  -- f : a
+  -- f = 3
   -- ```
-  -- `foldr : t1` is in the env from `collectSccDefns`
-  -- after `infer`-ing the RHS we get substitutions for `t1` and the RHS
-  -- `t1` tells us how the function was called in itself as an arbitrary function
-  -- (say we change `foldr` in the function body to `g`)
-  -- the type of the RHS tells us the actual type of the function body is
-  -- and finally we unify the two to get the correct recursive function type
-  funcTy <- maybe freshTVar return sig
-  _ <- typeToKind funcTy
+  -- shouldn't be allowed
+  (unifySubst, resultTy) <- case sig of
+    Just funcTy -> do
+      _ <- typeToKind funcTy
 
-  (s1, typedExpr) <- typeCheck expr funcTy
+      unifySubst <- lift $ unify funcTy exprTy Nothing
 
-  env <- ask
-  let ty = case Map.lookup name env of
-        Just (A.Forall _ ty') -> applySubst s1 ty'
-        Nothing -> error "impossible"
+      let funcTy' = applySubst unifySubst funcTy
 
-  let funcTy' = applySubst s1 funcTy
+      unless
+        (isWeaker funcTy' funcTy)
+        (throwError $ UnifyFailed funcTy funcTy' (maybeRangeOf funcTy))
 
-  s2 <- lift $ unify funcTy' ty Nothing
+      return (unifySubst, funcTy)
+    Nothing -> return (mempty, exprTy)
 
-  let resultSubst = s2 <> s1
-  let resultTy = applySubst s2 funcTy'
-  let resultDefn = T.ValDefn name resultTy (applySubstExpr resultSubst typedExpr)
+  let resultDefn = T.ValDefn name resultTy (applySubstExpr (unifySubst <> exprSubst) typedExpr)
 
   return (Map.singleton name (A.Forall [] resultTy), resultDefn)
+  where
+    inferRecursive expr' = do
+      -- NOTE: this part handles recursive functions, consider:
+      -- ```
+      -- foldr f e Nil = e
+      -- foldr f e (Cons x xs) = f x (foldr f e xs)
+      -- ```
+      -- `foldr : t1` is in the env from `collectSccDefns`
+      -- after `infer`-ing the RHS we get substitutions for `t1` and the RHS
+      -- `t1` tells us how the function was called in itself as an arbitrary function
+      -- (say we change `foldr` in the function body to `g`)
+      -- the type of the RHS tells us the actual type of the function body is
+      -- and finally we unify the two to get the correct recursive function type
+      (s1, exprTy, typedExpr) <- infer expr'
+
+      env <- ask
+      let ty = case Map.lookup name env of
+            Just (A.Forall _ ty') -> applySubst s1 ty'
+            Nothing -> error "impossible"
+
+      s2 <- lift $ unify exprTy ty Nothing
+
+      let resultSubst = s2 <> s1
+
+      return (resultSubst, applySubst s2 ty, typedExpr)
+
+    -- checking if there exists a one-to-one mapping from `t1` to `t2` in terms of `TVar`
+    isWeaker t1 t2 = maybe False (\e -> trace (show e) True) (aux mempty t1 t2)
+      where
+        aux binding (A.TArray _ t1' _) (A.TArray _ t2' _) = aux binding t1' t2'
+        aux binding (A.TTuple ts1) (A.TTuple ts2) =
+          foldl'
+            (\acc (t1', t2') -> acc >>= \e -> aux e t1' t2')
+            (Just binding)
+            (zip ts1 ts2)
+        aux binding (A.TApp a1 a2 _) (A.TApp b1 b2 _) = aux binding a1 b1 >>= \binding' -> aux binding' a2 b2
+        aux binding (A.TVar (Name n1 _) _) (A.TVar (Name n2 _) _) =
+          case Map.lookup n1 binding of
+            Just n2' ->
+              if n2 == n2'
+                then Just binding
+                else Nothing
+            Nothing -> Just (Map.insert n1 n2 binding)
+        aux binding t1' t2' = if t1' == t2' then Just binding else Nothing
 
 class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
@@ -242,27 +287,42 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Dispose expr range) = toTypedDispose expr range
   toTyped A.Block {} = undefined
 
-toTypedAssign :: [Name] -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
+toTypedAssign :: [Either Name A.Hole] -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedAssign names exprs range
-  | length names > length exprs = throwError $ RedundantNames (drop (length exprs) names)
+  | length names > length exprs = do
+      let names' =
+            map
+              ( \case
+                  Left name' -> name'
+                  Right hole@(A.Hole _ _ range') -> Name (pack $ show $ render hole) (Just range')
+              )
+              names
+      throwError $ RedundantNames (drop (length exprs) names')
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
   | otherwise = do
       env <- ask
-      lift $ checkDuplicateNames names
+      lift $ checkDuplicateNames $ lefts names
       let assignments = zip names exprs
-      typedExprs <-
-        mapM
-          ( \(name, expr) -> do
-              nameTy <- case Map.lookup name env of
-                Just (A.Forall _ ty) -> return ty
-                Nothing -> throwError $ NotInScope name
-
-              (exprSubst, typedExpr) <- typeCheck expr nameTy
-
-              return (applySubstExpr exprSubst typedExpr)
-          )
-          assignments
-      return $ T.Assign names typedExprs range
+      (names', typedExprs) <-
+        unzip . map (either (first Left) (first Right))
+          <$> mapM
+            ( \(lhs, expr) -> do
+                ty <- case lhs of
+                  Left name -> case Map.lookup name env of
+                    Just (A.Forall _ ty) -> return ty
+                    Nothing -> throwError $ NotInScope name
+                  Right _ -> freshTVar
+                (_, exprTy, expr') <- infer expr
+                subst <- lift $ unify ty exprTy (maybeRangeOf lhs)
+                let expr'' = applySubstExpr subst expr'
+                return $ case lhs of
+                  Left name ->
+                    Left (name, expr'')
+                  Right (A.Hole text holeNumber range') ->
+                    Right (T.Hole text holeNumber exprTy range' env, expr'')
+            )
+            assignments
+      return $ T.Assign names' typedExprs range
 
 toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedAAssign arr index expr range = do

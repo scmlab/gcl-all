@@ -4,6 +4,7 @@ module Render.Error where
 
 import Data.Foldable (toList)
 import Error
+import GCL.Predicate (HoleError (..))
 import GCL.Range (MaybeRanged (..), mkRange)
 import GCL.Type (TypeError (..))
 import GCL.WP.Types (StructError (..))
@@ -17,6 +18,7 @@ instance RenderSection Error where
   renderSection (ParseError e) = renderSection e
   renderSection (TypeError e) = renderSection e
   renderSection (StructError e) = renderSection e
+  renderSection (HoleError e) = renderSection e
   renderSection (CannotReadFile path) =
     Section
       Red
@@ -136,4 +138,12 @@ instance RenderSection StructError where
       Red
       [ Header "Local variable(s) exceeded scope" loc,
         Paragraph "Variables defined in a block must not remain in preconditions out of the block"
+      ]
+
+instance RenderSection HoleError where
+  renderSection (UnsatisfiedConstraint text loc) =
+    Section
+      Red
+      [ Header "Hole refining not possible: unsatisified constraint" loc,
+        Paragraph $ render text
       ]
