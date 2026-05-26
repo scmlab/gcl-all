@@ -34,6 +34,8 @@ import Pretty.Predicate ()
 import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Render.Class (Render (..))
+import Render.Element (inlinesToHtml)
+import Render.Syntax.Typed (renderExprRZ)
 import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
@@ -72,8 +74,8 @@ data Hole = Hole
 
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
-  { assumption :: String,
-    goal :: String,
+  { assumption :: Text.Text, -- HTML (with data-redex), see renderPredHtml
+    goal :: Text.Text, -- HTML (with data-redex), see renderPredHtml
     hash :: String,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
@@ -136,12 +138,18 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 convertPO :: GCL.PO -> ProofObligation
 convertPO (GCL.PO {GCL.poPre, GCL.poPost, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
-    { assumption = show $ pretty poPre,
-      goal = show $ pretty poPost,
+    { assumption = renderPredHtml poPre,
+      goal = renderPredHtml poPost,
       hash = Text.unpack poAnchorHash,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
+
+-- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">,
+-- with redex nodes carrying a data-redex path attribute.
+renderPredHtml :: GCL.Pred -> Text.Text
+renderPredHtml e =
+  "<span class=\"gcl-expr\">" <> inlinesToHtml (renderExprRZ e) <> "</span>"
 
 -- | Convert server-side Origin to client-side POOrigin
 -- Uses the Render instance to get the tag name and MaybeRanged to get location

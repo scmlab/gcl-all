@@ -21,6 +21,13 @@ export class GclPanel {
 			{ preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
 			{ enableScripts: true }
 		);
+		// log redex clicks coming from the webview (for confirmation/debugging)
+		this.panel.webview.onDidReceiveMessage((msg) => {
+			if (msg && msg.type === 'redex-click') {
+				console.log('[gcl] redex clicked, path =', JSON.stringify(msg.path));
+				vscode.window.showInformationMessage(`redex path: [${msg.path}]`);
+			}
+		});
 	}
 	show(html: string): void {
 		this.panel.webview.html = html
@@ -69,6 +76,16 @@ function renderClientFileState(clientState: ClientFileState): string {
 				${clientState.holes.map(renderHole).join('')}
 				${clientState.specs.map(renderSpecification).join('')}
 				${clientState.pos.map(renderProofObligation).join('')}
+				<script>
+					const vscode = acquireVsCodeApi();
+					document.addEventListener('click', (e) => {
+						const el = e.target.closest('[data-redex]');
+						if (!el) return;
+						const path = el.getAttribute('data-redex');
+						console.log('[gcl] redex clicked, path =', JSON.stringify(path));
+						vscode.postMessage({ type: 'redex-click', path });
+					});
+				</script>
             </body>
         </html>
     `
