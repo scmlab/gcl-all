@@ -1,10 +1,9 @@
-import { IHole } from '../../data/FileState'
-import { renderRange } from '../Range';
-import renderSection from '../Section';
+import { IHole } from "../../data/FileState";
+import { renderRange } from "../Range";
+import renderSection from "../Section";
 
 export default function renderHole(hole: IHole) {
-  
-  const sectionBody: string = /*html */`
+  const sectionBody: string = /*html */ `
     <div>
       <style scoped>
         .spec-condition {
@@ -25,6 +24,6 @@ export default function renderHole(hole: IHole) {
     "Hole",
     sectionBody,
     `at ${renderRange(hole.holeRange)}`,
-    hole.holeID
+    hole.holeID,
   );
 }

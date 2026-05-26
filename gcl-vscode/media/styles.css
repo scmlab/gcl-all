@@ -1,0 +1,9 @@
+.clickable {
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground);
+  text-decoration: underline;
+}
+
+.clickable:hover:not(:has(.clickable:hover)) {
+  color: white;
+}
