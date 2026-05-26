@@ -6,9 +6,8 @@
     // for VS Code users who forgot to run npm install
     {
       "label": "npm-install",
-      "type": "shell",
-      "command": "npm",
-      "args": ["install"]
+      "type": "npm",
+      "script": "install"
     },
     {
       "label": "npm-run-watch",

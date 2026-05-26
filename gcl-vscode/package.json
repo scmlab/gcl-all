@@ -91,14 +91,14 @@
     ]
   },
   "scripts": {
-    "vscode:prepublish": "npm run compile",
+    "vscode:prepublish": "pnpm run compile",
     "package": "vsce package --skip-license",
-    "compile": "npm run typecheck && node esbuild.cjs --prod",
+    "compile": "pnpm run typecheck && pnpm node esbuild.cjs --prod",
     "typecheck": "tsc --noEmit -p ./",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.cjs --watch",
     "watch:tsc": "tsc --watch --noEmit -p ./",
-    "pretest": "npm run compile && npm run lint",
+    "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src --ext ts",
     "format": "prettier . --write",
     "test": "vscode-test"
