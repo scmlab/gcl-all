@@ -89,7 +89,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(inlayHintsDisposable);
 
-  const gclPanel = new GclPanel();
+  const gclPanel = new GclPanel(context);
   gclPanel.showLoading(context.extensionPath);
   // We prevent focusing on the panel instead of the text editor.
   vscode.commands.executeCommand("workbench.action.focusFirstEditorGroup");
@@ -190,12 +190,12 @@ export async function activate(context: vscode.ExtensionContext) {
 
       for (const po of pos) {
         po.click = `
-				<span class="clickable" data-redex-id="outer">
-					outer
-					<span class="clickable" data-redex-id="inner">inner text</span>
-					text
-				</span>
-			`;
+          <span class="clickable" data-redex-id="outer">
+            outer
+            <span class="clickable" data-redex-id="inner">inner text</span>
+            text
+          </span>
+        `;
       }
 
       let newClientFileState: ClientFileState = {
