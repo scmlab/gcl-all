@@ -3,81 +3,81 @@ import { Range } from "vscode-languageclient";
 type TypeExpression = string;
 
 interface Name {
-    symbol: string;
-    location?: Range;
+  symbol: string;
+  location?: Range;
 }
 
-export type TypeError
-    = NotInScope
-    | UnifyFailed
-    | RecursiveType
-    | AssignToConst
-    | UndefinedType
-    | DuplicatedIdentifiers
-    | RedundantNames
-    | RedundantExprs
-    | MissingArguments
-    | KindUnifyFailed
-    | PatternArityMismatch;
+export type TypeError =
+  | NotInScope
+  | UnifyFailed
+  | RecursiveType
+  | AssignToConst
+  | UndefinedType
+  | DuplicatedIdentifiers
+  | RedundantNames
+  | RedundantExprs
+  | MissingArguments
+  | KindUnifyFailed
+  | PatternArityMismatch;
 
 interface NotInScope {
-    tag: "NotInScope";
-    symbol: Name;
+  tag: "NotInScope";
+  symbol: Name;
 }
 
 interface UnifyFailed {
-    tag: "UnifyFailed";
-    location?: Range;
-    typeExpressions: [TypeExpression, TypeExpression];
+  tag: "UnifyFailed";
+  location?: Range;
+  typeExpressions: [TypeExpression, TypeExpression];
 }
 
 interface RecursiveType {
-    tag: "RecursiveType";
-    typeVariable: Name;
-    typeExpression: TypeExpression;
-    location?: Range;
+  tag: "RecursiveType";
+  typeVariable: Name;
+  typeExpression: TypeExpression;
+  location?: Range;
 }
 
 interface AssignToConst {
-    tag: "AssignToConst";
-    constSymbol: Name;
+  tag: "AssignToConst";
+  constSymbol: Name;
 }
 
 interface UndefinedType {
-    tag: "UndefinedType";
-    typeVariable: Name;
+  tag: "UndefinedType";
+  typeVariable: Name;
 }
 
 interface DuplicatedIdentifiers {
-    tag: "DuplicatedIdentifiers";
-    identifiers: Name[];
+  tag: "DuplicatedIdentifiers";
+  identifiers: Name[];
 }
 
 interface RedundantNames {
-    tag: "RedundantNames";
-    names: Name[];
+  tag: "RedundantNames";
+  names: Name[];
 }
 
 interface RedundantExprs {
-    tag: "RedundantExprs";
-    expressions: TypeExpression[];
+  tag: "RedundantExprs";
+  expressions: TypeExpression[];
 }
 
 interface MissingArguments {
-    tag: "MissingArguments";
-    argumentNames: Name[];
+  tag: "MissingArguments";
+  argumentNames: Name[];
 }
 
 type KindExpression = string;
 interface KindUnifyFailed {
-    tag: "KindUnifyFailed";
-    location?: Range;
-    kindExpressions: [KindExpression, KindExpression];
+  tag: "KindUnifyFailed";
+  location?: Range;
+  kindExpressions: [KindExpression, KindExpression];
 }
 
 interface PatternArityMismatch {
-    tag: "PatternArityMismatch";
-    location?: Range;
-    expected: number;
-    received: number;
+  tag: "PatternArityMismatch";
+  location?: Range;
+  expected: number;
+  received: number;
 }

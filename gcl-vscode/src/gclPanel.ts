@@ -1,42 +1,40 @@
-
-import * as vscode from 'vscode';
-import { ClientFileState } from './data/FileState';
-import renderError from './components/FileState/ErrorSection';
-import renderProofObligation from './components/FileState/ProofObligation';
-import renderWarning from './components/FileState/WarningSection';
-import renderSpecification from './components/FileState/Specification';
-import renderHole from './components/FileState/Hole';
+import * as vscode from "vscode";
+import { ClientFileState } from "./data/FileState";
+import renderError from "./components/FileState/ErrorSection";
+import renderProofObligation from "./components/FileState/ProofObligation";
+import renderWarning from "./components/FileState/WarningSection";
+import renderSpecification from "./components/FileState/Specification";
+import renderHole from "./components/FileState/Hole";
 
 export class Welcome {
-	constructor() {}
+  constructor() {}
 }
 
 export class GclPanel {
-	static readonly titleLabel = "GCL";
-	panel: vscode.WebviewPanel;
-	constructor() {
-		this.panel = vscode.window.createWebviewPanel(
-			"gcl",
-			GclPanel.titleLabel,
-			{ preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
-			{ enableScripts: true }
-		);
-	}
-	show(html: string): void {
-		this.panel.webview.html = html
-	}
-	rerender(clientState: ClientFileState): void {
-		this.panel.webview.html = renderClientFileState(clientState);
-	}
-	// Show either the welcome page or sections (likely from the LSP server).
-	showLoading(extPath: string): void {
-		this.panel.webview.html = renderLoading(extPath);
-	}
-	
+  static readonly titleLabel = "GCL";
+  panel: vscode.WebviewPanel;
+  constructor() {
+    this.panel = vscode.window.createWebviewPanel(
+      "gcl",
+      GclPanel.titleLabel,
+      { preserveFocus: true, viewColumn: vscode.ViewColumn.Two },
+      { enableScripts: true },
+    );
+  }
+  show(html: string): void {
+    this.panel.webview.html = html;
+  }
+  rerender(clientState: ClientFileState): void {
+    this.panel.webview.html = renderClientFileState(clientState);
+  }
+  // Show either the welcome page or sections (likely from the LSP server).
+  showLoading(extPath: string): void {
+    this.panel.webview.html = renderLoading(extPath);
+  }
 }
 
 function renderLoading(extPath: string): string {
-	return /* html */`
+  return /* html */ `
 		<!DOCTYPE html>
 		<html lang="en">
 			<head>
@@ -51,11 +49,11 @@ function renderLoading(extPath: string): string {
 				">Loading</h2>
 			</body>
 		</html>
-	`
+	`;
 }
 
 function renderClientFileState(clientState: ClientFileState): string {
-	return /* html */`
+  return /* html */ `
 	<!DOCTYPE html>
         <html lang="en">
             <head>
@@ -75,11 +73,11 @@ function renderClientFileState(clientState: ClientFileState): string {
 				</style>
             </head>
             <body>
-				${clientState.errors.map(renderError).join('')}
-				${clientState.warnings.map(renderWarning).join('')}
-				${clientState.holes.map(renderHole).join('')}
-				${clientState.specs.map(renderSpecification).join('')}
-				${clientState.pos.map(renderProofObligation).join('')}
+				${clientState.errors.map(renderError).join("")}
+				${clientState.warnings.map(renderWarning).join("")}
+				${clientState.holes.map(renderHole).join("")}
+				${clientState.specs.map(renderSpecification).join("")}
+				${clientState.pos.map(renderProofObligation).join("")}
 				<script>
 					const vscode = acquireVsCodeApi();
 					const buttons = document.querySelectorAll(".clickable");
@@ -100,5 +98,5 @@ function renderClientFileState(clientState: ClientFileState): string {
 				</script>
             </body>
         </html>
-    `
+    `;
 }

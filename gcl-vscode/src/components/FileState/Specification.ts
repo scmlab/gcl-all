@@ -1,8 +1,6 @@
-
-import { ISpecification } from '../../data/FileState'
-import { renderRange } from '../Range';
-import renderSection from '../Section';
-
+import { ISpecification } from "../../data/FileState";
+import { renderRange } from "../Range";
+import renderSection from "../Section";
 
 // id: number;
 // preCondition: Predicate;
@@ -10,8 +8,7 @@ import renderSection from '../Section';
 // specRange: Range;
 
 export default function renderSpecification(specification: ISpecification) {
-  
-  const sectionBody: string = /*html */`
+  const sectionBody: string = /*html */ `
     <div>
       <style scoped>
         .spec-condition {
@@ -36,6 +33,6 @@ export default function renderSpecification(specification: ISpecification) {
     "Specification",
     sectionBody,
     `at ${renderRange(specification.specRange)}`,
-    specification.specID
+    specification.specID,
   );
 }

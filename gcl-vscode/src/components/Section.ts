@@ -1,6 +1,10 @@
-
-export default function renderSection(title: string, sectionBody: string, subtitle?: string, code?: string) {
-  return /* html */` 
+export default function renderSection(
+  title: string,
+  sectionBody: string,
+  subtitle?: string,
+  code?: string,
+) {
+  return /* html */ ` 
     <div>
       <style scoped>
         .section {
@@ -40,16 +44,22 @@ export default function renderSection(title: string, sectionBody: string, subtit
         <div class="section-header">
           <span>
             <span class="header-title">${title}</span>
-            ${subtitle? /*html*/`
-              <span class="header-subtitle">${subtitle}</span>`: ""
+            ${
+              subtitle
+                ? /*html*/ `
+              <span class="header-subtitle">${subtitle}</span>`
+                : ""
             }
-            ${code? /*html*/`<span class="header-code">#${code}</span>`: ""}
+            ${code ? /*html*/ `<span class="header-code">#${code}</span>` : ""}
           </span>
         </div>
-        ${sectionBody && /*html*/`
+        ${
+          sectionBody &&
+          /*html*/ `
           <div class="section-body">${sectionBody}</div>
-        `}
+        `
+        }
       </div>
     </div>
-  `
+  `;
 }

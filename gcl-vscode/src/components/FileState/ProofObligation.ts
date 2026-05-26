@@ -1,10 +1,11 @@
+import { IProofObligation } from "../../data/FileState";
+import { renderRange } from "../Range";
+import renderSection from "../Section";
 
-import { IProofObligation } from '../../data/FileState'
-import { renderRange } from '../Range'
-import renderSection from '../Section'
-
-export default function renderProofObligation(proofObligation: IProofObligation): string {
-  const sectionBody: string = /*html */`
+export default function renderProofObligation(
+  proofObligation: IProofObligation,
+): string {
+  const sectionBody: string = /*html */ `
     <div>
       <style scoped>
         .proof-point {
@@ -35,12 +36,11 @@ export default function renderProofObligation(proofObligation: IProofObligation)
   return renderSection(
     "Proof Obligation",
     sectionBody,
-    proofObligation.origin.location && `at ${renderRange(proofObligation.origin.location)}`,
-    proofObligation.hash.slice(0, 6).toUpperCase()
+    proofObligation.origin.location &&
+      `at ${renderRange(proofObligation.origin.location)}`,
+    proofObligation.hash.slice(0, 6).toUpperCase(),
   );
 }
-
-
 
 // assumption: Predicate;
 // goal: Predicate;
