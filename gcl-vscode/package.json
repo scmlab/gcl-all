@@ -4,6 +4,10 @@
   "description": "An Interactive Formal Verification tool for Guarded Command Language",
   "publisher": "scmlab",
   "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scmlab/gcl-all"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -92,7 +96,7 @@
   },
   "scripts": {
     "vscode:prepublish": "pnpm run compile",
-    "package": "vsce package --skip-license",
+    "package": "vsce package --skip-license --no-dependencies",
     "compile": "pnpm run typecheck && pnpm node esbuild.cjs --prod",
     "typecheck": "tsc --noEmit -p ./",
     "watch": "npm-run-all -p watch:*",
@@ -107,13 +111,13 @@
     "@types/mocha": "^10.0.6",
     "@types/node": "18.x",
     "@types/vscode": "^1.85.0",
-    "@typescript-eslint/eslint-plugin": "^6.13.1",
-    "@typescript-eslint/parser": "^6.13.1",
+    "@typescript-eslint/eslint-plugin": "^8.60.0",
+    "@typescript-eslint/parser": "^8.60.0",
     "@vscode/test-cli": "^0.0.4",
     "@vscode/test-electron": "^2.3.8",
     "@vscode/vsce": "^3.6.0",
     "esbuild": "^0.28.0",
-    "eslint": "^8.54.0",
+    "eslint": "^10.4.0",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.8.3",
     "typescript": "^5.5.4"
