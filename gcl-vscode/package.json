@@ -4,6 +4,7 @@
   "description": "An Interactive Formal Verification tool for Guarded Command Language",
   "publisher": "scmlab",
   "version": "0.0.1",
+  "packageManager": "pnpm@11.3.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/scmlab/gcl-all"
