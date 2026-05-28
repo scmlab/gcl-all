@@ -7,7 +7,7 @@
 module GCL.Type2.Infer where
 
 import Control.Monad (foldM, foldM_, when)
-import Data.List (intercalate, sort, foldl')
+import Data.List (foldl', intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map

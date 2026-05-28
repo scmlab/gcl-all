@@ -92,9 +92,9 @@ type FreshState = Int
 initFreshState :: FreshState
 initFreshState = 0
 
-type Subs a = Map Name a   -- SCM: TODO: Where is this used? Do we need it?
+type Subs a = Map Name a -- SCM: TODO: Where is this used? Do we need it?
 
-type Env a = Map Name a    -- SCM: TODO: Where is this used? Do we need it?
+type Env a = Map Name a -- SCM: TODO: Where is this used? Do we need it?
 
 emptySubs :: Subs a
 emptySubs = mempty

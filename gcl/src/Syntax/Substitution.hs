@@ -116,7 +116,6 @@ renameVar sb x = case lookup (nameToText x) sb of
 --- SCM: we assume that renameVars always succeed.
 --       Do we need to raise a catchable error?
 
-
 -- list verson of Data.Map methods for Subst
 
 elems :: Subst b -> [b]
@@ -132,7 +131,7 @@ restrictKeys :: Subst b -> Set Text -> Subst b
 restrictKeys sb ns = filter ((`Set.member` ns) . fst) sb
 
 insert :: Text -> b -> Subst b -> Subst b
-insert n e = ((n, e):)
+insert n e = ((n, e) :)
 
 keys :: Subst b -> [Text]
 keys = map fst
