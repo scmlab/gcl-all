@@ -6,8 +6,17 @@
     // for VS Code users who forgot to run npm install
     {
       "label": "npm-install",
+      // "type": "npm" but actually runs `pnpm install`:
+      // VS Code's "npm.packageManager" defaults to "auto", which detects the
+      // lockfile (pnpm-lock.yaml here) and uses the matching package manager.
       "type": "npm",
-      "script": "install"
+      "script": "install",
+      "options": {
+        "env": {
+          // skip corepack's interactive prompt when downloading pnpm
+          "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+        }
+      }
     },
     {
       "label": "npm-run-watch",

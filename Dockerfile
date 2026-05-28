@@ -9,6 +9,8 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | b
     echo "nvm version: $(nvm --version)" && \
     nvm install 24 && \
     nvm use 24 && \
+    npm install -g corepack@latest && \
+    corepack enable pnpm && \
     echo '. $NVM_DIR/nvm.sh' >> $HOME/.bashrc
 
 
