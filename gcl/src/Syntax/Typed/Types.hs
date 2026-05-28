@@ -64,7 +64,7 @@ data Expr
   | Lam Name Type Expr (Maybe Range)
   | Tuple [Expr] -- for internal use
   | OutT Int Expr -- for internal use
-  | Quant Expr [Name] Expr Expr (Maybe Range)
+  | Quant Expr [(Name, Type)] Expr Expr (Maybe Range)
   | ArrIdx Expr Expr (Maybe Range)
   | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [CaseClause] (Maybe Range)

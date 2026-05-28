@@ -20,9 +20,11 @@ cd ..
 echo "==== build gcl-vscode:"
 export NVM_DIR="$HOME/.nvm"
 source "$NVM_DIR/nvm.sh"
+export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 cd gcl-vscode
-time npm install
-npm run package
+corepack enable
+time pnpm install --frozen-lockfile
+time pnpm run package
 cp *.vsix $HOME # to ~/gcl-vscode-0.0.1.vsix
 
 

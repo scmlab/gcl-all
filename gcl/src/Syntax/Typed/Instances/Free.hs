@@ -24,7 +24,7 @@ instance Free Expr where
   freeVars (Tuple es) = Set.unions (map freeVars es)
   freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
-    (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList xs
+    (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList (map fst xs)
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e cs _) = freeVars e <> Set.unions (map freeVars cs)

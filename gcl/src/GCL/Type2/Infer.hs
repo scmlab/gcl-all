@@ -7,10 +7,11 @@
 module GCL.Type2.Infer where
 
 import Control.Monad (foldM, foldM_, when)
-import Data.List (intercalate, sort)
+import Data.List (foldl', intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
+import Data.Maybe (fromJust)
 import qualified Data.Set as Set
 import Debug.Trace
 import GCL.Common (Free (..))
@@ -355,7 +356,10 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
         -- SCM: |applySubst condSubst typeBool)| is always typeBool, right?
 
         let resultSubst = exprSubst <> condSubst
-        let typedQuant = T.Quant typedOp bound typedCond typedExpr range
+
+        let bound' = foldl' (\acc name -> (name, fromJust (Map.lookup name resultSubst)) : acc) [] bound
+
+        let typedQuant = T.Quant typedOp bound' typedCond typedExpr range
 
         return (resultSubst, typeInt, typedQuant)
     )
@@ -380,7 +384,11 @@ inferQuant op bound cond expr range = do
         (exprSubst, typedExpr) <- local (applySubstEnv (condSubst <> opSubst)) (typeCheck expr (applySubst (condSubst <> opSubst) ftv))
 
         let resultSubst = exprSubst <> condSubst <> opSubst
-        let typedQuant = T.Quant typedOp bound typedCond typedExpr range
+
+        let bound' = foldl' (\acc name -> (name, fromJust (Map.lookup name resultSubst)) : acc) [] bound
+
+        let typedQuant = T.Quant typedOp bound' typedCond typedExpr range
+
         return (resultSubst, applySubst resultSubst ftv, typedQuant)
     )
 

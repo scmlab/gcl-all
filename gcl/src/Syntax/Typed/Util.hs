@@ -58,7 +58,8 @@ typeOf (ArrIdx arr _ _) = case typeOf arr of
   A.TFunc _ t _ -> t
   _ -> error "indexed term not an array in a typed expression "
 typeOf (ArrUpd arr _ _ _) = typeOf arr
-typeOf (Case expr _ _) = typeOf expr -- FIXME: This is wrong and acts as a placeholder. Figure out what this should be.
+typeOf (Case _ [] _) = error "caseless case"
+typeOf (Case _ (CaseClause _ e : _) _) = typeOf e
 typeOf (Subst e _) = typeOf e
 typeOf (EHole h) = typeOfHole h
 

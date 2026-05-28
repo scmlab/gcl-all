@@ -6,15 +6,12 @@
 module Syntax.Typed.Instances.Substitution where
 
 import Control.Monad (forM)
-import Data.Map hiding (map)
-import qualified Data.Map as Map
 import GCL.Common
 import Syntax.Abstract.Types (Type (..))
 import Syntax.Common
 import Syntax.Substitution
 import Syntax.Typed.Instances.Free ()
 import Syntax.Typed.Types
-import Prelude hiding (Ordering (..), lookup)
 
 instance Variableous Expr Type where
   isVar (Var x t _) = Just (x, t)
@@ -25,9 +22,9 @@ instance Variableous Expr Type where
 instance (Fresh m) => Substitutable m Expr Expr where
   subst _ e@(Lit _ _ _) = return e
   subst sb (Var x t l) =
-    return . maybe (Var x t l) id $ Map.lookup (nameToText x) sb
+    return . maybe (Var x t l) id $ lookup (nameToText x) sb
   subst sb (Const x t l) =
-    return . maybe (Const x t l) id $ Map.lookup (nameToText x) sb
+    return . maybe (Const x t l) id $ lookup (nameToText x) sb
   subst _ e@(Op _ _) = return e
   subst sb (Chain ch) = Chain <$> subst sb ch
   subst sb (App e1 e2 l) =
@@ -41,7 +38,7 @@ instance (Fresh m) => Substitutable m Expr Expr where
   subst sb (Tuple es) = Tuple <$> mapM (subst sb) es
   subst sb (OutT i e) = OutT i <$> subst sb e
   subst sb (Quant op xs ran body l) = do
-    (xs', (ran', body'), _) <- undefined -- SCM, TODO substBinder sb xs (ran, body)
+    (xs', (ran', body'), _) <- substBinder sb xs (ran, body)
     return $ Quant op xs' ran' body' l
   subst sb (ArrIdx a i l) =
     ArrIdx <$> subst sb a <*> subst sb i <*> pure l
@@ -66,4 +63,5 @@ instance (Fresh m) => Substitutable m Chain Expr where
   subst sb (Pure expr) = Pure <$> subst sb expr
   subst sb (More ch' op t expr) = More <$> subst sb ch' <*> pure op <*> pure t <*> subst sb expr
 
-instance (Fresh m) => Substitutable m Stmt Expr
+instance (Fresh m) => Substitutable m Stmt Expr where
+  subst = error "Substitutable m Stmt Expr to be implemented"

@@ -5,7 +5,6 @@ module GCL.WP.WP where
 import Control.Arrow (first, second)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
-import Data.Map (fromList)
 import Data.Text (Text)
 import GCL.Common
   ( Fresh (..),
@@ -107,7 +106,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
       x' <- freshName' (nameToText x) -- generate fresh name using the existing "x"
       let post' = syntaxSubst [x] [nameVar x' tInt] post
 
-      return $ forAll [x'] true (newallocs x' `sImp` post')
+      return $ forAll [(x', tInt)] true (newallocs x' `sImp` post')
       where
         newallocs x' =
           sconjunct
@@ -119,7 +118,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
       v <- freshName' (nameToText x) -- generate fresh name using the exisiting "x"
       let post' = syntaxSubst [x] [nameVar v tInt] post
 
-      return $ exists [v] true (entry v `sConj` (entry v `sImp` post'))
+      return $ exists [(v, tInt)] true (entry v `sConj` (entry v `sImp` post'))
       where
         entry v = e `pointsTo` nameVar v tInt
     wp (HMutate e1 e2 _) post = do
@@ -150,10 +149,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
         (xs ++ (map (nameToText . fst . snd) ys))
         (wpStmts stmts' post)
       where
-        -- if any (`member` (fv pre)) (declaredNames decls)
-        --   then throwError (LocalVarExceedScope l)
-        --   else return pre
-        toSubst = fromList . map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
+        toSubst = map (\(n, (n', t)) -> (n, Var n' t (maybeRangeOf n')))
 
 calcLocalRenaming :: [Text] -> [(Name, Type)] -> WP ([Text], [(Text, (Name, Type))])
 calcLocalRenaming _ [] = return ([], [])
@@ -173,7 +169,7 @@ calcLocalRenaming scope ((x, t) : xs)
 allocated :: (Fresh m) => Expr -> m Expr
 allocated e = do
   v <- freshName' "new"
-  return (exists [v] true (e `pointsTo` nameVar v tInt))
+  return (exists [(v, tInt)] true (e `pointsTo` nameVar v tInt))
 
 -- allocated e = e -> _
 
