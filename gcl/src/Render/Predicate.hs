@@ -9,7 +9,7 @@ import GCL.WP.Types
 import Render.Class
 import Render.Element
 import Render.Syntax.Abstract ()
-import Render.Syntax.Typed ()
+import Render.Syntax.Typed (renderPOPredRZ)
 
 instance Render StructWarning where
   render (MissingBound _) =
@@ -75,7 +75,7 @@ exprOfPred p = case p of
 -}
 
 instance RenderSection PO where
-  renderSection (PO pre post anchorHash anchorLoc origin) =
+  renderSection (PO predicate anchorHash anchorLoc origin) =
     Section Plain $
       [ HeaderWithButtons
           (Text.pack $ show $ render origin)
@@ -83,7 +83,7 @@ instance RenderSection PO where
           anchorHash
           anchorLoc
       ]
-        <> [Code (vertE [render pre, "⇒", render post])]
+        <> [Code (renderPOPredRZ predicate)]
         <> explanation
     where
       explanation = case origin of

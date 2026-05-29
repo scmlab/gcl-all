@@ -26,8 +26,7 @@ export interface IHole {
 }
 
 export interface IProofObligation {
-  assumption: Predicate;
-  goal: Predicate;
+  pred: Predicate;
   click: string;
   hash: string;
   proofLocation?: Range;
