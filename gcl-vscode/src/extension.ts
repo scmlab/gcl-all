@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { retrieveMainEditor } from "./utils";
+import { executeOnGclEditor } from "./utils";
 import {
   start,
   stop,
@@ -119,30 +119,26 @@ export async function activate(context: vscode.ExtensionContext) {
   // request gcl/reload
   const reloadDisposable = vscode.commands.registerCommand(
     "gcl.reload",
-    async () => {
-      const editor = retrieveMainEditor();
-      // Get the path for the current text file.
-      const filePath = editor?.document.uri.fsPath;
-      // Send the request asynchronously.
-      const _response = await sendRequest("gcl/reload", { filePath: filePath });
-      // ignore the response and get results or errors from notifications
-    },
+    () =>
+      executeOnGclEditor(async (editor) => {
+        const filePath = editor.document.uri.fsPath;
+        await sendRequest("gcl/reload", { filePath: filePath });
+      }),
   );
   context.subscriptions.push(reloadDisposable);
 
   // refine gcl/refine
   const refineDisposable = vscode.commands.registerCommand(
     "gcl.refine",
-    async () => {
-      const editor = retrieveMainEditor();
-      const filePath = editor.document.uri.fsPath;
-      const _response = await sendRequest("gcl/refine", {
-        filePath: filePath,
-        line: editor.selection.start.line, // 0-based
-        character: editor.selection.start.character, // 0-based
-      });
-      // ignore the response and get results or errors from notifications
-    },
+    () =>
+      executeOnGclEditor(async (editor) => {
+        const filePath = editor.document.uri.fsPath;
+        await sendRequest("gcl/refine", {
+          filePath: filePath,
+          line: editor.selection.start.line, // 0-based
+          character: editor.selection.start.character, // 0-based
+        });
+      }),
   );
   context.subscriptions.push(refineDisposable);
 
@@ -168,11 +164,11 @@ export async function activate(context: vscode.ExtensionContext) {
   // request gcl/debug
   const debugDisposable = vscode.commands.registerCommand(
     "gcl.debug",
-    async () => {
-      const editor = retrieveMainEditor();
-      const filePath = editor?.document.uri.fsPath;
-      const _response = await sendRequest("gcl/debug", { filePath: filePath });
-    },
+    () =>
+      executeOnGclEditor(async (editor) => {
+        const filePath = editor.document.uri.fsPath;
+        await sendRequest("gcl/debug", { filePath: filePath });
+      }),
   );
   context.subscriptions.push(debugDisposable);
 
