@@ -36,9 +36,10 @@ import Control.Concurrent
     threadDelay,
     writeChan,
   )
-import Control.Exception (SomeException, catch, displayException, throwIO)
+import Control.Exception (SomeException, catch, displayException, evaluate, throwIO)
 import Control.Monad.Reader
 import qualified Data.Aeson as JSON
+import qualified Data.ByteString.Lazy as BSL
 import Data.IORef
   ( IORef,
     modifyIORef,
@@ -91,7 +92,13 @@ runServerMLogError globalState ctxEnv program =
       let errorMsg = "\n========== FATAL ERROR in handler ==========\n" ++ displayException e ++ "\n"
       appendFile "gcl_crash.log" errorMsg
       writeChan (logChannel gs) (Text.pack errorMsg)
-      threadDelay 500000 -- sleep 0.5 sec (best effort)
+      threadDelay 500000 -- best effort: let the log flush before we die
+      -- Best-effort notify so the UI shows an error instead of hanging. The
+      -- root cause is already logged above, so if this throws we lose nothing
+      -- important (we'd just rethrow that error instead of the original).
+      runServerM globalState ctxEnv $
+        sendWindowShowMessage
+          "GCL: internal error while processing the file. See gcl_crash.log for details."
       throwIO e
 
 --------------------------------------------------------------------------------
@@ -202,7 +209,16 @@ sendEditTextsWithVersion filepath version rangeTextPairs = do
         }
 
 sendCustomNotification :: (KnownSymbol s) => Proxy s -> JSON.Value -> ServerM ()
-sendCustomNotification methodId json = LSP.sendNotification (LSP.SMethod_CustomMethod methodId) (json)
+sendCustomNotification methodId json = do
+  -- Force the JSON to be fully serialized *here*, on the handler thread and
+  -- within runServerMLogError's `catch`. Otherwise the value is sent to the
+  -- client as a lazy thunk, and any hidden bottom (e.g. a `fromJust` deep in
+  -- an Expr) would only blow up later in lsp's separate output thread, where
+  -- our `catch` can't see it — making the server go silent instead of logging.
+  -- We use `encode` (not `force`) because that mirrors what the output thread
+  -- itself does, so it catches exactly the thunks that would have crashed it.
+  _ <- liftIO $ evaluate $ BSL.length $ JSON.encode json
+  LSP.sendNotification (LSP.SMethod_CustomMethod methodId) json
 
 sendWindowShowMessage :: Text -> ServerM ()
 sendWindowShowMessage message' = do
