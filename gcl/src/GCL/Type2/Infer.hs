@@ -7,7 +7,7 @@
 module GCL.Type2.Infer where
 
 import Control.Monad (foldM, foldM_, when)
-import Data.List (foldl', intercalate, sort)
+import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map as Map
@@ -352,12 +352,17 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
     (\e -> boundEnv <> e)
     ( do
         (condSubst, typedCond) <- typeCheck cond typeBool
-        (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr (applySubst condSubst typeBool))
-        -- SCM: |applySubst condSubst typeBool)| is always typeBool, right?
+        (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr typeBool)
 
         let resultSubst = exprSubst <> condSubst
 
-        let bound' = foldl' (\acc name -> (name, fromJust (Map.lookup name resultSubst)) : acc) [] bound
+        env' <- applySubstEnv resultSubst <$> ask
+        let bound' =
+              map
+                ( \name ->
+                    (name, ((\(A.Forall _ ty) -> ty) . fromJust) (Map.lookup name env'))
+                )
+                bound
 
         let typedQuant = T.Quant typedOp bound' typedCond typedExpr range
 
@@ -385,7 +390,13 @@ inferQuant op bound cond expr range = do
 
         let resultSubst = exprSubst <> condSubst <> opSubst
 
-        let bound' = foldl' (\acc name -> (name, fromJust (Map.lookup name resultSubst)) : acc) [] bound
+        env' <- applySubstEnv resultSubst <$> ask
+        let bound' =
+              map
+                ( \name ->
+                    (name, ((\(A.Forall _ ty) -> ty) . fromJust) (Map.lookup name env'))
+                )
+                bound
 
         let typedQuant = T.Quant typedOp bound' typedCond typedExpr range
 
