@@ -35,7 +35,7 @@ import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Render.Class (Render (..))
 import Render.Element (inlinesToHtml)
-import Render.Syntax.Typed (renderExprRZ)
+import Render.Syntax.Typed (renderPOPredRZ)
 import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
@@ -74,8 +74,7 @@ data Hole = Hole
 
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
-  { assumption :: Text.Text, -- HTML (with data-redex), see renderPredHtml
-    goal :: Text.Text, -- HTML (with data-redex), see renderPredHtml
+  { pred :: Text.Text, -- HTML (with data-redex), see renderPredHtml
     hash :: String,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
@@ -136,27 +135,23 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 
 -- | Convert server-side PO to client-side ProofObligation
 convertPO :: Int -> GCL.PO -> ProofObligation
-convertPO poIndex (GCL.PO {GCL.poPre, GCL.poPost, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO poIndex (GCL.PO {GCL.poPred, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
-    { assumption = renderPredHtml poIndex "pre" poPre,
-      goal = renderPredHtml poIndex "goal" poPost,
+    { pred = renderPredHtml poIndex poPred,
       hash = Text.unpack poAnchorHash,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
 
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
--- The wrapper carries data-po (PO index) and data-side ("pre"/"goal") so a
--- clicked redex can be traced back to its PO; redex nodes carry data-redex
--- (the path within this Expr).
-renderPredHtml :: Int -> Text.Text -> GCL.Pred -> Text.Text
-renderPredHtml poIndex side e =
+-- The wrapper carries data-po (PO index) so a clicked redex can be traced back
+-- to its PO; redex nodes carry data-redex (the path within this Expr).
+renderPredHtml :: Int -> GCL.Pred -> Text.Text
+renderPredHtml poIndex e =
   "<span class=\"gcl-expr\" data-po=\""
     <> Text.pack (show poIndex)
-    <> "\" data-side=\""
-    <> side
     <> "\">"
-    <> inlinesToHtml (renderExprRZ e)
+    <> inlinesToHtml (renderPOPredRZ e)
     <> "</span>"
 
 -- | Convert server-side Origin to client-side POOrigin

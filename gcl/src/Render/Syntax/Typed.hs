@@ -108,6 +108,20 @@ handleExpr n (Subst e subs) =
 renderExprRZ :: Expr -> Inlines
 renderExprRZ e = handleExprRZ NoContext (initRZ [] (redexRT e)) e
 
+-- | Render a PO predicate. When the top-level operator is `⇒`, break it onto
+-- two lines (`P ⇒` / `Q`); otherwise fall back to `renderExprRZ`. The zipper
+-- paths mirror the binary-operator case in `handleExprRZ` so redex marking
+-- stays consistent.
+renderPOPredRZ :: Expr -> Inlines
+renderPOPredRZ e@(App (App (Op (ArithOp op@(ImpliesU _)) _) left _) right _) =
+  let rz = initRZ [] (redexRT e)
+   in markRedex rz $
+        vertE
+          [ handleExprRZ (HOLEOp (ArithOp op)) (down (down rz 0) 1) left <+> render op,
+            handleExprRZ (OpHOLE (ArithOp op)) (down rz 1) right
+          ]
+renderPOPredRZ e = renderExprRZ e
+
 -- | Wrap with a redex marker iff the current zipper node is a redex.
 markRedex :: RZ -> Inlines -> Inlines
 markRedex rz ins

@@ -297,7 +297,7 @@ applyMovesToSpec moves spec@Specification {specRange = oldRange} = do
 -- POs are diagnostic artifacts (read-only, like errors): never dropped on
 -- didChange. If the edit overlaps the PO's range, the range is frozen at its
 -- current position until the next load regenerates POs.
--- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPre 和 poPost 裡面的位置資訊
+-- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPred 裡面的位置資訊
 applyMovesToPO :: [GCLMove] -> PO -> PO
 applyMovesToPO moves po@PO {poOrigin} =
   case maybeRangeOf poOrigin of

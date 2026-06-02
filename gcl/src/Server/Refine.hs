@@ -453,8 +453,7 @@ updateHoleExprs hole expr holeMapping fs =
     updatePO :: PO -> PO
     updatePO po =
       po
-        { poPre = updateExpr hole expr holeMapping (poPre po),
-          poPost = updateExpr hole expr holeMapping (poPost po)
+        { poPred = updateExpr hole expr holeMapping (poPred po)
         }
 
 updateExpr :: Hole -> T.Expr -> [(Int, Int)] -> T.Expr -> T.Expr

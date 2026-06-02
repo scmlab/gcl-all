@@ -39,7 +39,7 @@ import Syntax.Common
   ( nameToText,
   )
 import Syntax.Typed
-import Syntax.Typed.Operator (disjunct)
+import Syntax.Typed.Operator (disjunct, implies)
 import Syntax.Typed.Util
 
 -- Syntax Manipulation
@@ -99,9 +99,10 @@ tellPO :: Pred -> Pred -> Origin -> WP ()
 tellPO p q origin = unless (p == q) $ do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q
+  let predicate = implies p q
   let anchorHash =
-        Text.pack $ showHex (abs (Hashable.hash (toString (p, q)))) ""
-  tell ([PO p q anchorHash Nothing origin], [], [], mempty)
+        Text.pack $ showHex (abs (Hashable.hash (toString predicate))) ""
+  tell ([PO predicate anchorHash Nothing origin], [], [], mempty)
 
 tellPO' :: Origin -> Pred -> Pred -> WP ()
 tellPO' l p q = tellPO p q l
