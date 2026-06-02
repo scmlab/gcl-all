@@ -2,9 +2,6 @@
 
 module Syntax.Abstract.Types where
 
-import Data.List.NonEmpty (NonEmpty)
-import Data.Map (Map)
-import Data.Set (Set)
 import Data.Text (Text)
 import GCL.Range (Range)
 import GHC.Generics (Generic)
@@ -178,21 +175,6 @@ data Expr
     Tuple [Expr] --- for internal use
   | OutT Int Expr --- OutT i (Tuple [x1,x2..]) = xi. For internal use.
   | Quant Expr [Name] Expr Expr (Maybe Range)
-  | -- The innermost part of a Redex
-    -- should look something like `P [ x \ a ] [ y \ b ]`
-    RedexKernel
-      Name -- the variable to be substituted
-      Expr -- the expression for substituting the variable
-      (Set Name) -- free variables in that expression
-      -- NOTE, the expression may be some definition like "P",
-      --  in that case, the free variables should be that of after it's been expanded
-      (NonEmpty Mapping)
-  | -- a list of mappings of substitutions to be displayed to users (the `[ x \ a ] [ y \ b ]` part)
-    -- The order is reflected.
-    -- The outermost part of a Redex
-    RedexShell
-      Int -- for identifying Redexes in frontend-backend interactions
-      Expr -- should either be `RedexKernel` or `App (App (App ... RedexKernel arg0) ... argn`
   | ArrIdx Expr Expr (Maybe Range)
   | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [CaseClause] (Maybe Range)
@@ -204,8 +186,6 @@ data Chain = Pure Expr (Maybe Range) | More Chain ChainOp Expr (Maybe Range)
 
 -- QuantOp' seems not being used at current version of abstract?
 type QuantOp' = Either ArithOp Expr
-
-type Mapping = Map Text Expr
 
 --------------------------------------------------------------------------------
 

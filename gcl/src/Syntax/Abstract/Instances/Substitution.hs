@@ -39,8 +39,6 @@ instance (Fresh m) => Substitutable m Expr Expr where
   subst sb (Quant op xs ran body l) = do
     (xs', (ran', body'), _) <- substBinderTypeless sb xs (ran, body)
     return $ Quant op xs' ran' body' l
-  subst _ (RedexKernel _ _ _ _) = error "not knowing what is going on here"
-  subst _ (RedexShell _ _) = error "not knowing what is going on here"
   subst sb (ArrIdx a i l) =
     ArrIdx <$> subst sb a <*> subst sb i <*> pure l
   subst sb (ArrUpd a i v l) =

@@ -6,8 +6,6 @@ module Render.Syntax.Abstract where
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 -- import           Syntax.Abstract.Util           ( assignBindingToExpr )
 
-import Data.Foldable (toList)
-import qualified Data.Map as Map
 import Render.Class
 import Render.Element
 import Render.Syntax.Common ()
@@ -84,16 +82,6 @@ handleExpr _ (Quant op xs r t _) =
     renderQOp (Op (Mul _)) = "Π"
     renderQOp (Op op') = render op'
     renderQOp op' = render op'
-handleExpr n (RedexKernel name _value _freeVars mappings) =
-  renderPrec n name <+> mappings'
-  where
-    -- reverse the stack when printing it
-    mappings' =
-      punctuateE
-        " "
-        (map render $ reverse (filter (not . Map.null) (toList mappings)))
-handleExpr n (RedexShell index expr) =
-  substE index (renderPrec n expr)
 handleExpr _ (ArrIdx e1 e2 _) = render e1 <> "[" <> render e2 <> "]"
 handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"
@@ -105,14 +93,6 @@ handleExpr _ (EHole hole) = render hole
 instance Render Chain where -- Hopefully this is correct.
   render (Pure expr _) = render expr
   render (More ch op expr _) = render ch <+> render op <+> render expr
-
-instance Render Mapping where
-  render env
-    | null env = mempty
-    | otherwise = "[" <+> vars <+> "\\" <+> exprs <+> "]"
-    where
-      vars = punctuateE "," $ map render $ Map.keys env
-      exprs = punctuateE "," $ map render $ Map.elems env
 
 instance Render Hole where
   render (Hole text num _) = "{!" <> textE text <> "!}" <> subscriptNumber num
