@@ -76,8 +76,6 @@ instance MaybeRanged Expr where
   maybeRangeOf (Tuple _) = Nothing
   maybeRangeOf (OutT _ _) = Nothing
   maybeRangeOf (Quant _ _ _ _ l) = l
-  maybeRangeOf (RedexKernel es _ _ _) = maybeRangeOf es
-  maybeRangeOf (RedexShell _ x) = maybeRangeOf x
   maybeRangeOf (ArrIdx _ _ l) = l
   maybeRangeOf (ArrUpd _ _ _ l) = l
   maybeRangeOf (Case _ _ l) = l

@@ -162,10 +162,6 @@ calcLocalRenaming scope ((x, t) : xs)
   where
     tx = nameToText x
 
--- toMapping :: [(Text, Name)] -> A.Mapping
--- toMapping = fromList . map cvt
---   where cvt (x, y) = (x, A.Var y (locOf y))
-
 allocated :: (Fresh m) => Expr -> m Expr
 allocated e = do
   v <- freshName' "new"

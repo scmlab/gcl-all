@@ -212,9 +212,6 @@ instance Collect TargetRanges OriginTargetRanges Expr where
       localScope (scopeFromLocalBinders args) $ do
         collect c
         collect d
-    -- RedexKernel/RedexShell will only appear in proof obligations, not in code
-    RedexKernel {} -> return ()
-    RedexShell {} -> return ()
     ArrIdx e i _ -> do
       collect e
       collect i
