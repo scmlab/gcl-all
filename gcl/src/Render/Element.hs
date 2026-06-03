@@ -14,7 +14,6 @@ module Render.Element
     textE,
     codeE,
     linkE,
-    substE,
     redexE,
     parensE,
     iconE,
@@ -161,7 +160,6 @@ isEmpty inlines = all elemIsEmpty (Seq.viewl (unInlines inlines))
     elemIsEmpty (Snpt xs) = isEmpty xs
     elemIsEmpty (Text _ _) = False
     elemIsEmpty (Link _ xs _) = all elemIsEmpty $ unInlines xs
-    elemIsEmpty (Sbst _ xs) = all elemIsEmpty $ unInlines xs
     elemIsEmpty (Redex _ xs) = all elemIsEmpty $ unInlines xs
     elemIsEmpty (Horz xs) = all isEmpty xs
     elemIsEmpty (Vert xs) = all isEmpty xs
@@ -187,9 +185,6 @@ codeE xs = Inlines $ Seq.singleton $ Snpt xs
 -- | Text with source location
 linkE :: Range -> Inlines -> Inlines
 linkE range xs = Inlines $ Seq.singleton $ Link range xs []
-
-substE :: Int -> Inlines -> Inlines
-substE i expr = Inlines $ Seq.singleton $ Sbst i expr
 
 -- | Mark a piece of inline elements as a redex, carrying its path
 redexE :: [Int] -> Inlines -> Inlines
@@ -233,8 +228,6 @@ data Inline
   | -- | "Snippet" for inline code
     Snpt Inlines
   | Link Range Inlines ClassNames
-  | -- | For Substitution
-    Sbst Int Inlines
   | -- | A redex node, carrying its path (to be emitted as data-redex)
     Redex [Int] Inlines
   | -- | Horizontal grouping, wrap when there's no space
@@ -257,7 +250,6 @@ instance Pretty Inline where
   pretty (Text s _) = pretty s
   pretty (Snpt s) = pretty s
   pretty (Link _ xs _) = pretty xs
-  pretty (Sbst _i xs) = pretty xs
   pretty (Redex _ xs) = pretty xs
   pretty (Horz xs) = Pretty.sep (map pretty $ toList xs)
   pretty (Vert xs) = Pretty.vcat (map pretty $ toList xs)
@@ -280,7 +272,6 @@ inlineToHtml (Icon _ _) = ""
 inlineToHtml (Text s _) = escapeHtml s
 inlineToHtml (Snpt xs) = inlinesToHtml xs
 inlineToHtml (Link _ xs _) = inlinesToHtml xs
-inlineToHtml (Sbst _ xs) = inlinesToHtml xs
 inlineToHtml (Horz xs) = Text.intercalate " " (map inlinesToHtml xs)
 inlineToHtml (Vert xs) = Text.intercalate "\n" (map inlinesToHtml xs)
 inlineToHtml (Parn x) = "(" <> inlinesToHtml x <> ")"
