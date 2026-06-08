@@ -12,7 +12,7 @@ import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
 import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource)
 import Server.Move (applyMovesToFileState, mkLSPMoves)
-import Server.Notification.Update (sendRefreshes, setAndSendFileState)
+import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
@@ -24,8 +24,7 @@ handler filePath changes = do
       maybeSource <- readSource filePath
       case maybeSource of
         Just src | src == expectedContent -> do
-          setAndSendFileState filePath pendingFileState
-          sendRefreshes
+          setAndSendFileStateWithRefresh filePath pendingFileState
         _ -> applyTranslation
     Nothing -> applyTranslation
   t1 <- liftIO getMonotonicTimeNSec

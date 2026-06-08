@@ -20,7 +20,7 @@ import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
 import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendWindowInfoMessage, setPendingEdit)
-import Server.Notification.Update (sendRefreshes, setAndSendFileState)
+import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 import Server.OrigCoord (convertError, prepareEdits)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -62,13 +62,13 @@ load filePath = do
                in case maybeDig of
                     Nothing -> do
                       logText "Load: no holes, setting file state directly\n"
-                      setAndSendFileState filePath fs
                       case eitherFs of
                         Right _ -> do
                           logText "Load: sending refresh\n"
-                          sendRefreshes
-                        Left _ ->
+                          setAndSendFileStateWithRefresh filePath fs
+                        Left _ -> do
                           logTextLn "Load: type/struct error"
+                          setAndSendFileState filePath fs
                     Just (edits, newSource) ->
                       case eitherFs of
                         Left err -> do

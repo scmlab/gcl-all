@@ -14,7 +14,8 @@ setAndSendFileState filePath fs = do
   let json = ToClient.toClientFileStateJSON filePath fs
   Server.sendCustomNotification (Proxy @"gcl/update") json
 
-sendRefreshes :: ServerM ()
-sendRefreshes = do
+setAndSendFileStateWithRefresh :: FilePath -> FileState -> ServerM ()
+setAndSendFileStateWithRefresh filePath fs = do
+  setAndSendFileState filePath fs
   sendSemanticTokensRefresh
   sendInlayHintRefresh
