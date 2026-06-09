@@ -109,6 +109,26 @@ export async function activate(context: vscode.ExtensionContext) {
   );
   context.subscriptions.push(changeTabDisposable);
 
+  // Keep the GCL panel's editor group clear of text editors.
+  // The panel is a webview that shares an editor group with text editors
+  // (created in ViewColumn.Two). If focus is on the panel and the user
+  // double-clicks a file in the explorer, VS Code opens that file in the
+  // active group, i.e. right next to the panel, instead of in the left
+  // editor group. When we detect a text editor landing in the panel's group,
+  // move it back to the first group. Moving it changes its viewColumn so this
+  // handler won't fire again for it (no infinite loop).
+  const keepPanelGroupClearDisposable =
+    vscode.window.onDidChangeActiveTextEditor((editor) => {
+      if (!editor) return;
+      const panelColumn = gclPanel.panel.viewColumn;
+      if (panelColumn !== undefined && editor.viewColumn === panelColumn) {
+        vscode.commands.executeCommand(
+          "workbench.action.moveEditorToFirstGroup",
+        );
+      }
+    });
+  context.subscriptions.push(keepPanelGroupClearDisposable);
+
   const closeDocDisposable = vscode.workspace.onDidCloseTextDocument(
     (document) => {
       fileStateMap.delete(document.uri.fsPath);
