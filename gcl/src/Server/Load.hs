@@ -19,8 +19,8 @@ import qualified Hack
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
-import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendWindowInfoMessage, setFileState, setPendingEdit)
-import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
+import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, emptyFileStateWithErrors, getPendingEdit, logText, logTextLn, readSourceAndVersion, sendEditTextsWithVersion, sendWindowInfoMessage, setPendingEdit)
+import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 import Server.OrigCoord (convertError, prepareEdits)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -56,21 +56,19 @@ load filePath = do
             Left parseErr -> do
               logTextLn "Load: parse error"
               let fs = emptyFileStateWithErrors [ParseError parseErr]
-              setFileState filePath fs
-              sendFileState filePath fs
+              setAndSendFileState filePath fs
             Right (maybeDig, eitherFs) ->
               let fs = either (emptyFileStateWithErrors . pure) id eitherFs
                in case maybeDig of
                     Nothing -> do
                       logText "Load: no holes, setting file state directly\n"
-                      setFileState filePath fs
                       case eitherFs of
                         Right _ -> do
                           logText "Load: sending refresh\n"
-                          sendFileStateWithRefresh filePath fs
+                          setAndSendFileStateWithRefresh filePath fs
                         Left _ -> do
                           logTextLn "Load: type/struct error"
-                          sendFileState filePath fs
+                          setAndSendFileState filePath fs
                     Just (edits, newSource) ->
                       case eitherFs of
                         Left err -> do
@@ -78,8 +76,7 @@ load filePath = do
                           let ers = prepareEdits edits
                               convertedErr = convertError ers err
                               errFs = emptyFileStateWithErrors [convertedErr]
-                          setFileState filePath errFs
-                          sendFileState filePath errFs
+                          setAndSendFileState filePath errFs
                         Right _ -> do
                           logText "Load: holes dug, sending edit\n"
                           sendEditTextsWithVersion filePath vfsVersion edits

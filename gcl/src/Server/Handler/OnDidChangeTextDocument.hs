@@ -10,9 +10,9 @@ import qualified Data.Text as Text
 import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
-import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource, setFileState)
+import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource)
 import Server.Move (applyMovesToFileState, mkLSPMoves)
-import Server.Notification.Update (sendFileState, sendFileStateWithRefresh)
+import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 
 handler :: FilePath -> [LSP.TextDocumentContentChangeEvent] -> ServerM ()
 handler filePath changes = do
@@ -24,8 +24,7 @@ handler filePath changes = do
       maybeSource <- readSource filePath
       case maybeSource of
         Just src | src == expectedContent -> do
-          setFileState filePath pendingFileState
-          sendFileStateWithRefresh filePath pendingFileState
+          setAndSendFileStateWithRefresh filePath pendingFileState
         _ -> applyTranslation
     Nothing -> applyTranslation
   t1 <- liftIO getMonotonicTimeNSec
@@ -62,5 +61,4 @@ handler filePath changes = do
               <> " warnings: "
               <> Text.pack (show nWarnings)
               <> "\n"
-          setFileState filePath fs'
-          sendFileState filePath fs'
+          setAndSendFileState filePath fs'

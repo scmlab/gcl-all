@@ -39,11 +39,10 @@ import Server.Monad
     readSourceAndVersion,
     sendEditTextsWithVersion,
     sendWindowInfoMessage,
-    setFileState,
     setPendingEdit,
   )
 import Server.Move (applyMovesToFileState, mkLSPMove)
-import Server.Notification.Update (sendFileState)
+import Server.Notification.Update (setAndSendFileState)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Abstract as A
@@ -87,8 +86,7 @@ refine filePath cursor = do
                   let ers = prepareEdits (decomposeSpecEdits (specRange spec) innerEditsRel)
                       convertedErr = convertError ers err
                       newFs = fs {fsErrors = [convertedErr]}
-                  setFileState filePath newFs
-                  sendFileState filePath newFs
+                  setAndSendFileState filePath newFs
                 Right fragmentFs -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: spec edit sent\n"
@@ -110,8 +108,7 @@ refine filePath cursor = do
                       ers = prepareEdits (decomposeHoleEdits (holeRange hole) origContent innerEditsRel)
                       convertedErr = convertError ers err
                       newFs = fs {fsErrors = [convertedErr]}
-                  setFileState filePath newFs
-                  sendFileState filePath newFs
+                  setAndSendFileState filePath newFs
                 Right (subst, typedExpr, holes, state) -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: hole edit sent\n"
