@@ -13,13 +13,24 @@ import { FileStateNotification } from "./data/ClientState";
 let client: LanguageClient | undefined;
 
 export async function stop() {
-  if (client) {
-    try {
-      await client.stop();
-    } finally {
-      client = undefined;
-    }
+  if (client && client.needsStop()) {
+    await client.stop();
   }
+}
+
+// Stop (best-effort) and start the server again on the same LanguageClient
+// instance. Reusing the instance matters: vscode-languageclient keeps
+// notification handlers (e.g. our gcl/update handler) on the client and
+// re-installs them on the new connection, so creating a fresh client here
+// would silently drop them.
+export async function restart() {
+  try {
+    await stop();
+  } catch (e) {
+    // The server may have crashed or hung; start a fresh one anyway.
+    console.error("Error stopping GCL server during restart:", e);
+  }
+  await start();
 }
 
 export async function sendRequest<R>(method: string, param: any): Promise<R> {
@@ -27,7 +38,7 @@ export async function sendRequest<R>(method: string, param: any): Promise<R> {
   return client.sendRequest(method, param);
 }
 
-export async function start() {
+function createClient(): LanguageClient {
   const gclConfig = vscode.workspace.getConfiguration("gcl-vscode");
   const gclPath = gclConfig.get<string>("gclPath") ?? "gcl";
 
@@ -58,12 +69,16 @@ export async function start() {
   // Use "gcl-vscode" as the client ID (matches extension ID for consistency, though not required).
   // This enables automatic trace configuration: vscode-languageclient will automatically read
   // the "gcl-vscode.trace.server" setting without requiring manual setTrace() calls.
-  client = new LanguageClient(
+  return new LanguageClient(
     "gcl-vscode",
     "GCL LSP Server",
     serverOptions,
     clientOptions,
   );
+}
+
+export async function start() {
+  if (!client) client = createClient();
   await client.start();
 }
 

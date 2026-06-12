@@ -5,9 +5,10 @@ import { executeOnGclEditor } from "./utils";
 import {
   start,
   stop,
+  restart,
   sendRequest,
   onFileStateNotification,
-} from "./connection";
+} from "./client";
 import { GclPanel } from "./gclPanel";
 import { IHole, ISpecification, ClientFileState } from "./data/FileState";
 import path from "path";
@@ -169,9 +170,9 @@ export async function activate(context: vscode.ExtensionContext) {
     "gcl.restartServer",
     async () => {
       try {
-        await stop();
-        await start();
-        vscode.window.showInformationMessage("GCL server restarted");
+        // No success popup here: the server itself announces
+        // "GCL Server Initialized." once it is back up.
+        await restart();
       } catch (e: any) {
         vscode.window.showErrorMessage(
           "Failed to restart GCL server: " + e.message,
