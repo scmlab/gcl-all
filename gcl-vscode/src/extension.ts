@@ -8,7 +8,7 @@ import {
   restart,
   sendRequest,
   onFileStateNotification,
-} from "./connection";
+} from "./client";
 import { GclPanel } from "./gclPanel";
 import { IHole, ISpecification, ClientFileState } from "./data/FileState";
 import path from "path";
