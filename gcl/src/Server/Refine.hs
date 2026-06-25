@@ -9,7 +9,9 @@ import Data.Char (isSpace)
 import Data.List (find)
 import qualified Data.Map as Map
 import Data.Text (Text)
+import qualified Data.Text as T
 import qualified Data.Text as Text
+import Debug.Trace (trace)
 import Error (Error (..))
 import GCL.Predicate (Hole (..), HoleError, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
@@ -46,12 +48,14 @@ import Server.Notification.Update (setAndSendFileState)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.SrcLoc (toLSPRange)
 import qualified Syntax.Abstract as A
+import Syntax.Common (Name (..), nameToText)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError (..))
 import Syntax.Parser.Lexer (TokStream, scan)
 import qualified Syntax.Typed as T
+import Syntax.Typed.Util (holeToName)
 
 --------------------------------------------------------------------------------
 -- ServerM action
@@ -452,7 +456,8 @@ updateHoleExprs hole expr holeMapping fs =
     updatePO :: PO -> PO
     updatePO po =
       po
-        { poPred = updateExpr hole expr holeMapping (poPred po)
+        { poPred = updateExpr hole expr holeMapping (poPred po),
+          poReducedPred = updateExpr hole expr holeMapping (poReducedPred po)
         }
 
 updateExpr :: Hole -> T.Expr -> [(Int, Int)] -> T.Expr -> T.Expr
@@ -466,7 +471,7 @@ updateExpr hole@(Hole holeNumber _ _ _ _) replacement holeMapping expr = case ex
   T.ArrIdx e1 e2 r -> T.ArrIdx (updateExpr' e1) (updateExpr' e2) r
   T.ArrUpd e1 e2 e3 r -> T.ArrUpd (updateExpr' e1) (updateExpr' e2) (updateExpr' e3) r
   T.Case e clauses r -> T.Case (updateExpr' e) (map updateCaseClause clauses) r
-  T.Subst e redexes -> T.Subst (updateExpr' e) (map (second updateExpr') redexes)
+  T.Subst e redexes -> T.Subst (updateExpr' e) (updateRedexes redexes)
   T.EHole (T.Hole text holeNumber' ty r env) ->
     if holeNumber == holeNumber'
       then
@@ -486,3 +491,72 @@ updateExpr hole@(Hole holeNumber _ _ _ _) replacement holeMapping expr = case ex
 
     updateCaseClause :: T.CaseClause -> T.CaseClause
     updateCaseClause (T.CaseClause pats e) = T.CaseClause pats (updateExpr' e)
+
+    updateRedexes :: [(Name, T.Expr)] -> [(Name, T.Expr)]
+    updateRedexes =
+      map
+        ( \(name@(Name redexName range), expr') ->
+            if isHoleName name
+              then
+                let holeNumber' = read (getSubscriptSuffix name) :: Int
+                 in if holeNumber == holeNumber'
+                      then case replacement of
+                        T.Var name' _ _ -> (name', updateExpr' expr')
+                        T.Const name' _ _ -> (name', updateExpr' expr')
+                        T.EHole newHole -> (holeToName newHole, updateExpr' expr')
+                        _ -> (name, updateExpr' expr')
+                      else case lookup holeNumber' holeMapping of
+                        Just holeNumber'' -> (Name (replaceSubscriptSuffix holeNumber'' redexName) range, updateExpr' expr')
+                        Nothing -> (name, updateExpr' expr')
+              else
+                (name, updateExpr' expr')
+        )
+
+    isHoleName :: Name -> Bool
+    isHoleName (Name name _) = "{" `Text.isPrefixOf` name
+
+    getSubscriptSuffix :: Name -> String
+    getSubscriptSuffix (Name txt _) =
+      let suffix = Text.takeWhileEnd isSubscriptDigit txt
+       in Text.unpack (Text.map subscriptToDigit suffix)
+      where
+        isSubscriptDigit :: Char -> Bool
+        isSubscriptDigit c = c `elem` ("₀₁₂₃₄₅₆₇₈₉" :: String)
+
+        subscriptToDigit :: Char -> Char
+        subscriptToDigit '₀' = '0'
+        subscriptToDigit '₁' = '1'
+        subscriptToDigit '₂' = '2'
+        subscriptToDigit '₃' = '3'
+        subscriptToDigit '₄' = '4'
+        subscriptToDigit '₅' = '5'
+        subscriptToDigit '₆' = '6'
+        subscriptToDigit '₇' = '7'
+        subscriptToDigit '₈' = '8'
+        subscriptToDigit '₉' = '9'
+        subscriptToDigit c = c
+
+    showSubscript :: Int -> Text
+    showSubscript = Text.pack . map digitToSubscript . show
+      where
+        digitToSubscript '0' = '₀'
+        digitToSubscript '1' = '₁'
+        digitToSubscript '2' = '₂'
+        digitToSubscript '3' = '₃'
+        digitToSubscript '4' = '₄'
+        digitToSubscript '5' = '₅'
+        digitToSubscript '6' = '₆'
+        digitToSubscript '7' = '₇'
+        digitToSubscript '8' = '₈'
+        digitToSubscript '9' = '₉'
+        digitToSubscript c = c
+
+    replaceSubscriptSuffix :: Int -> Text -> Text
+    replaceSubscriptSuffix newIdx txt =
+      let suffix = Text.takeWhileEnd isSubscriptDigit txt
+       in if Text.null suffix
+            then txt
+            else Text.dropEnd (Text.length suffix) txt <> showSubscript newIdx
+      where
+        isSubscriptDigit :: Char -> Bool
+        isSubscriptDigit c = c `elem` ("₀₁₂₃₄₅₆₇₈₉" :: String)
