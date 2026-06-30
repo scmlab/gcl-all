@@ -3,28 +3,27 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module GCL.SMT.Types(Convert(convert), Eval(eval), SValue(..), valueAsBool, valueAsNum) where
+module GCL.SMT.Types(Convert(convert), ProofBuilder(..), ExceptableSymbolic, VarMap, BuildState, SValue(..), valueAsBool, valueAsNum) where
 
 import Data.SBV
-    ( SWord8,
-      SInteger,
-      SBool,
-      SChar,
-      SymVal(literal),
-      Mergeable,
-      EqSymbolic ((.==)),
-      Symbolic,
-      sFalse )
 import GHC.Generics (Generic)
 import qualified Syntax.Common.Types as C
 import qualified Syntax.Abstract.Types as A
-import Control.Monad.Trans.State (StateT)
+import Control.Monad.State (StateT)
+import Control.Monad.Except (ExceptT)
+import Data.Map (Map)
+
+type ExceptableSymbolic = StateT VarMap (SymbolicT (ExceptT String IO))
+
+type VarMap = Map C.Name SValue
+
+type BuildState = ExceptableSymbolic
 
 class Convert a b | a -> b where
   convert :: a -> b
 
-class Eval a where
-  eval :: a -> StateT [(C.Name, SValue)] Symbolic SValue
+class ProofBuilder a where
+  buildProof :: a -> BuildState SValue
 
 data SValue
   = SNum SInteger

@@ -14,7 +14,7 @@ import qualified Syntax.Parser as Parser
 import Control.Monad.State (evalState)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Abstract.Types as A
-import GCL.SMT.Evaluator (evaluate)
+import GCL.SMT.Evaluator (evaluateAsString)
 import qualified GCL.Type2.ToTyped as Type2
 
 test :: IO ()
@@ -23,9 +23,10 @@ test = do
   case result of
     Left err -> print $ show err
     Right typed -> do
-      -- print $ show typed
-      evaluate typed
+      result' <- evaluateAsString typed
+      print result'
 
+simpleLoad :: FilePath -> Text.Text -> IO (Either Error T.Expr)
 simpleLoad filepath source = runExceptT $ catchError run handler
   where
     run = do
