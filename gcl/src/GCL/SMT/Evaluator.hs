@@ -18,26 +18,8 @@ import Control.Monad (forM_)
 
 instance Eval T.Expr where
   eval (T.Lit lit _ _) = return $ convert lit
-  eval (T.Var name@(C.Name t _) ty _) = do
-    vars <- get
-    case lookup name vars of
-      Just var -> lift $ return var
-      Nothing -> case ty of
-        A.TBase base _ -> do
-          slit <- lift $ freshNamedSLit base (Text.unpack t)
-          _ <- put ((name, slit) : vars)
-          lift $ return slit
-        _ -> error "Unsupported type lookup"
-  eval (T.Const name@(C.Name t _) ty _) = do
-    vars <- get
-    case lookup name vars of
-      Just var -> lift $ return var
-      Nothing -> case ty of
-        A.TBase base _ -> do
-          slit <- lift $ freshNamedSLit base (Text.unpack t)
-          _ <- put ((name, slit) : vars)
-          lift $ return slit
-        _ -> error "Unsupported type lookup"
+  eval (T.Var name ty _) = evalVariable name ty
+  eval (T.Const name ty _) = evalVariable name ty
   eval (T.Op op _) =
     return $ SFunc $ opToFunc op
   eval (T.Chain chain) = eval chain
@@ -59,6 +41,19 @@ instance Eval T.Expr where
       )
     lift $ return expr'
   eval expr = error $ "Unsupported expression: " ++ show expr
+
+evalVariable :: C.Name -> A.Type -> StateT [(C.Name, SValue)] Symbolic SValue
+evalVariable name@(C.Name t _) ty = do
+  vars <- get
+  case lookup name vars of
+    Just var -> lift $ return var
+    Nothing -> case ty of
+      A.TBase base _ -> do
+        slit <- lift $ freshNamedSLit base (Text.unpack t)
+        _ <- put ((name, slit) : vars)
+        lift $ return slit
+      _ -> error "Unsupported type lookup"
+
 
 instance Eval T.Chain where
   eval (T.Pure expr) = eval expr
@@ -82,16 +77,22 @@ opToFunc (C.ChainOp op) = case op of
 opToFunc (C.ArithOp op) = case op of
   C.Implies _ -> liftLogicalOp (.=>)
   C.ImpliesU _ -> liftLogicalOp (.=>)
-
   C.Conj _ -> liftLogicalOp (.&&)
   C.ConjU _ -> liftLogicalOp (.&&)
   C.Disj _ -> liftLogicalOp (.||)
+  C.DisjU _ -> liftLogicalOp (.||)
+  C.Neg _ -> convert . sNot . valueAsBool
+  C.NegU _ -> convert . sNot . valueAsBool
 
   C.NegNum _ -> convert . negate . valueAsNum
   C.Add _ -> liftArithOp (+)
   C.Sub _ -> liftArithOp (-)
   C.Mul _ -> liftArithOp (*)
   C.Div _ -> liftArithOp sDiv
+  C.Mod _ -> liftArithOp sMod
+  C.Max _ -> liftArithOp smax
+  C.Min _ -> liftArithOp smin
+  C.Exp _ -> liftArithOp powUF
   _ -> error $ show op
   where
     liftArithOp :: (SInteger -> SInteger -> SInteger) -> (SValue -> SValue)
@@ -99,6 +100,9 @@ opToFunc (C.ArithOp op) = case op of
 
     liftLogicalOp :: (SBool -> SBool -> SBool) -> (SValue -> SValue)
     liftLogicalOp = curry' . lift' valueAsBool convert
+
+    powUF :: SInteger -> SInteger -> SInteger
+    powUF = uninterpret "pow"
 opToFunc (C.TypeOp op) = undefined
 
 lift' :: (SValue -> a) -> (b -> SValue) -> (a -> a -> b) -> SValue -> SValue -> SValue
