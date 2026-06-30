@@ -1,10 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module GCL.SMT.Types(Convert(convert), Eval(eval), SLit(..), SValue(..)) where
+module GCL.SMT.Types(Convert(convert), Eval(eval), SValue(..), valueAsBool, valueAsNum) where
 
 import Data.SBV
     ( SWord8,
@@ -13,7 +12,7 @@ import Data.SBV
       SChar,
       SymVal(literal),
       Mergeable,
-      EqSymbolic,
+      EqSymbolic ((.==)),
       Symbolic,
       sFalse )
 import GHC.Generics (Generic)
@@ -27,34 +26,44 @@ class Convert a b | a -> b where
 class Eval a where
   eval :: a -> StateT [(C.Name, SValue)] Symbolic SValue
 
-data SLit = SLit
-  {
-      tag :: SWord8,
-      num :: SInteger,
-      bool :: SBool,
-      char :: SChar
-  } deriving (Generic, Mergeable, EqSymbolic)
-
 data SValue
-  = SLiteral SLit
-  | SFunc (SValue -> Symbolic SValue)
+  = SNum SInteger
+  | SBool SBool
+  | SChar SChar
+  | SFunc (SValue -> SValue)
+  deriving (Generic)
 
-instance Convert Int SLit where
-  convert i = SLit 0 (literal $ toInteger i) sFalse (literal '\0')
+instance EqSymbolic SValue where
+  SNum a .== SNum b = a .== b
+  SBool a .== SBool b = a .== b
+  SChar a .== SChar b = a .== b
+  SFunc _ .== SFunc _ = error "unable to compare functions' equality"
+  _ .== _ = sFalse
 
-instance Convert Bool SLit where
-  convert b = SLit 1 (literal 0) (literal b) (literal '\0')
+instance Convert Int SValue where
+  convert = SNum . literal . toInteger
 
-instance Convert Char SLit where
-  convert c = SLit 2 (literal 0) sFalse (literal c)
+instance Convert Bool SValue where
+  convert = SBool . literal
 
-instance Convert A.Lit SLit where
+instance Convert Char SValue where
+  convert = SChar . literal
+
+instance Convert A.Lit SValue where
   convert (A.Num n) = convert n
   convert (A.Bol b) = convert b
   convert (A.Chr c) = convert c
 
-instance Convert SBool SLit where
-  convert b = SLit 1 (literal 0) b (literal '\0')
+instance Convert SInteger SValue where
+  convert = SNum
 
-instance Convert SInteger SLit where
-  convert i = SLit 0 i sFalse (literal '\0')
+instance Convert SBool SValue where
+  convert = SBool
+
+valueAsBool :: SValue -> SBool
+valueAsBool (SBool b) = b
+valueAsBool _ = error "Not a bool"
+
+valueAsNum :: SValue -> SInteger
+valueAsNum (SNum i) = i
+valueAsNum _ = error "Not a num"
