@@ -27,6 +27,10 @@ import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
+import Control.Monad (forM_)
+import Control.Monad.IO.Class (liftIO)
+import GCL.SMT.Evaluator (evaluateAsString)
+import GCL.Predicate (PO(..))
 
 --------------------------------------------------------------------------------
 -- Types
@@ -64,6 +68,10 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
+                          forM_ (fsProofObligations fs) (\po -> do
+                            resultText <- liftIO $ evaluateAsString (poReducedPred po)
+                            logTextLn $ Text.pack resultText
+                            )
                           logText "Load: sending refresh\n"
                           setAndSendFileStateWithRefresh filePath fs
                         Left _ -> do

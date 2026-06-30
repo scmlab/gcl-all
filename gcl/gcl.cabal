@@ -29,6 +29,9 @@ library
       GCL.Predicate
       GCL.Predicate.Util
       GCL.Range
+      GCL.SMT.Evaluator
+      GCL.SMT.Test
+      GCL.SMT.Types
       GCL.Type
       GCL.Type2.Infer
       GCL.Type2.Infer.BuiltIn
