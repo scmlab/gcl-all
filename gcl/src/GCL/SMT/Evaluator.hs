@@ -5,20 +5,9 @@ module GCL.SMT.Evaluator(evaluate, evaluateAsString) where
 
 import GCL.SMT.Types
     ( SValue(..),
-      SLit(bool, num, SLit, tag),
       Eval(..),
-      Convert(convert) )
-import Data.SBV
-    ( SInteger,
-      SBool,
-      SymVal(literal),
-      EqSymbolic((.==), (./=)),
-      Symbolic,
-      constrain,
-      sat,
-      sTrue,
-      free,
-      SDivisible(sDiv), (.=>), (.&&), (.||), prove)
+      Convert(convert), valueAsBool, valueAsNum )
+import Data.SBV hiding (name)
 import qualified Syntax.Typed.Types as T
 import qualified Syntax.Common.Types as C
 import qualified Syntax.Abstract.Types as A
@@ -28,14 +17,14 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad (forM_)
 
 instance Eval T.Expr where
-  eval (T.Lit lit _ _) = return $ SLiteral $ convert lit
+  eval (T.Lit lit _ _) = return $ convert lit
   eval (T.Var name@(C.Name t _) ty _) = do
     vars <- get
     case lookup name vars of
       Just var -> lift $ return var
       Nothing -> case ty of
         A.TBase base _ -> do
-          slit <- lift $ SLiteral <$> freshNamedSLit base (Text.unpack t)
+          slit <- lift $ freshNamedSLit base (Text.unpack t)
           _ <- put ((name, slit) : vars)
           lift $ return slit
         _ -> error "Unsupported type lookup"
@@ -45,19 +34,19 @@ instance Eval T.Expr where
       Just var -> lift $ return var
       Nothing -> case ty of
         A.TBase base _ -> do
-          slit <- lift $ SLiteral <$> freshNamedSLit base (Text.unpack t)
+          slit <- lift $ freshNamedSLit base (Text.unpack t)
           _ <- put ((name, slit) : vars)
           lift $ return slit
         _ -> error "Unsupported type lookup"
   eval (T.Op op _) =
-    return $ SFunc $ return . opToFunc op
+    return $ SFunc $ opToFunc op
   eval (T.Chain chain) = eval chain
   eval (T.App l r _) = do
     l' <- eval l
     r' <- eval r
     case l' of
-      SLiteral _ -> error "Unable to apply on literal"
-      SFunc func -> lift $ func r'
+      SFunc func -> return $ func r'
+      _ -> error "Unable to apply on literal values"
   eval (T.Subst expr redexes) = do
     expr' <- eval expr
     vars <- get
@@ -65,10 +54,7 @@ instance Eval T.Expr where
       case lookup name vars of
         Just var -> do
           substExpr' <- eval substExpr
-          case (var, substExpr') of
-            (SLiteral exprLit, SLiteral substExprLit) -> do
-              lift $ constrain $ exprLit .== substExprLit
-            _ -> error "Unable to constrain symbolic function"
+          lift $ constrain $ var .== substExpr'
         Nothing -> error "Subst var not found"
       )
     lift $ return expr'
@@ -81,8 +67,8 @@ instance Eval T.Chain where
     e <- eval expr
     let f = opToFunc op
     case f c of
-      SLiteral _ -> error ""
-      SFunc f' -> lift $ f' e
+      SFunc f' -> return $ f' e
+      _ -> error "Unable to apply on literal values"
 
 opToFunc :: C.Op -> (SValue -> SValue)
 opToFunc (C.ChainOp op) = case op of
@@ -91,8 +77,8 @@ opToFunc (C.ChainOp op) = case op of
   C.NEQU _ -> liftLogicalOp (./=)
   _ -> error $ show op
   where
-    liftLogicalOp :: (SLit -> SLit -> SBool) -> (SValue -> SValue)
-    liftLogicalOp = curry' . lift' unLit (SLiteral . convert)
+    liftLogicalOp :: (SValue -> SValue -> SBool) -> (SValue -> SValue)
+    liftLogicalOp = curry' . lift' id convert
 opToFunc (C.ArithOp op) = case op of
   C.Implies _ -> liftLogicalOp (.=>)
   C.ImpliesU _ -> liftLogicalOp (.=>)
@@ -101,7 +87,7 @@ opToFunc (C.ArithOp op) = case op of
   C.ConjU _ -> liftLogicalOp (.&&)
   C.Disj _ -> liftLogicalOp (.||)
 
-  C.NegNum _ -> SLiteral . convert . negate . num . unLit
+  C.NegNum _ -> convert . negate . valueAsNum
   C.Add _ -> liftArithOp (+)
   C.Sub _ -> liftArithOp (-)
   C.Mul _ -> liftArithOp (*)
@@ -109,32 +95,27 @@ opToFunc (C.ArithOp op) = case op of
   _ -> error $ show op
   where
     liftArithOp :: (SInteger -> SInteger -> SInteger) -> (SValue -> SValue)
-    liftArithOp = curry' . lift' (num . unLit) (SLiteral . convert)
+    liftArithOp = curry' . lift' valueAsNum convert
 
     liftLogicalOp :: (SBool -> SBool -> SBool) -> (SValue -> SValue)
-    liftLogicalOp = curry' . lift' (bool . unLit) (SLiteral . convert)
+    liftLogicalOp = curry' . lift' valueAsBool convert
 opToFunc (C.TypeOp op) = undefined
 
 lift' :: (SValue -> a) -> (b -> SValue) -> (a -> a -> b) -> SValue -> SValue -> SValue
 lift' h' h f x y = h $ f (h' x) (h' y)
 
 curry' :: (SValue -> SValue -> SValue) -> (SValue -> SValue)
-curry' f x = SFunc $ \y -> return $ f x y
+curry' f x = SFunc $ \y -> f x y
 
-unLit :: SValue -> SLit
-unLit (SLiteral l) = l
-unLit _ = error "Expected an literal here, but got high-order function"
-
-freshNamedSLit :: A.TBase -> String -> Symbolic SLit
+freshNamedSLit :: A.TBase -> String -> Symbolic SValue
 freshNamedSLit baseTy prefix = do
-  let t = case baseTy of
-        A.TInt -> literal 0
-        A.TBool -> literal 1
-        A.TChar -> literal 2
-  n <- free (prefix ++ "_num")
-  b <- free (prefix ++ "_bool")
-  c <- free (prefix ++ "_char")
-  return $ SLit t n b c
+  case baseTy of
+    A.TInt -> SNum <$> freeVar
+    A.TBool -> SBool <$> freeVar
+    A.TChar -> SChar <$> freeVar
+  where
+    freeVar :: (SymVal a) => Symbolic (SBV a)
+    freeVar = free prefix
 
 evaluate :: T.Expr -> IO ()
 evaluate expr = do
@@ -142,11 +123,9 @@ evaluate expr = do
     (expr', _) <- runStateT (eval expr) []
 
     case expr' of
-      SLiteral lit -> do
-        constrain $ tag lit .== 1
-        constrain $ bool lit .== sTrue
-      SFunc _ -> do
-        error ""
+      SBool lit -> do
+        constrain $ lit .== sTrue
+      _ -> error "Expected to check bool"
 
   print result
 
@@ -156,10 +135,8 @@ evaluateAsString expr = do
     (expr', _) <- runStateT (eval expr) []
 
     case expr' of
-      SLiteral lit -> do
-        constrain $ tag lit .== 1
-        return $ bool lit .== sTrue
-      SFunc _ -> do
-        error ""
+      SBool lit -> do
+        return $ lit .== sTrue
+      _ -> error "Expected to check bool"
 
   return $ show result
