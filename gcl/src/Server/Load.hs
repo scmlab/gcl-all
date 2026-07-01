@@ -31,8 +31,10 @@ import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
 import qualified Syntax.Typed.Types as T
 import Control.Monad (forM_)
-import Control.Monad.IO.Class (liftIO)
 import GCL.SMT.Evaluator (evaluateAsString)
+import Control.Monad.IO.Class (liftIO)
+import GCL.SMT.Proof (evaluateAsString)
+import GCL.Predicate (PO(..))
 
 --------------------------------------------------------------------------------
 -- Types
@@ -70,12 +72,13 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
-                          forM_ (fsProofObligations fs) (\po -> do
-                            resultText <- liftIO $ evaluateAsString (poReducedPred po)
-                            logTextLn $ Text.pack resultText
-                            )
+                          po <- mapM (\po -> do
+                            smtResult <- liftIO $ evaluateAsString (poReducedPred po)
+                            return $ po {poSMTResult = Text.pack smtResult}
+                            ) (fsProofObligations fs)
+                          let fs' = fs {fsProofObligations = po}
                           logText "Load: sending refresh\n"
-                          setAndSendFileStateWithRefresh filePath fs
+                          setAndSendFileStateWithRefresh filePath fs'
                         Left _ -> do
                           logTextLn "Load: type/struct error"
                           setAndSendFileState filePath fs

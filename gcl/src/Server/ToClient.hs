@@ -80,6 +80,7 @@ data ProofObligation = ProofObligation
     reducedPred :: Text.Text,
     strippedPred :: Text.Text,
     proofExists :: Bool,
+    smtResult :: Text.Text,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
   }
@@ -140,12 +141,13 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 
 -- | Convert server-side PO to client-side ProofObligation
 convertPO :: DefnEnv -> Int -> GCL.PO -> ProofObligation
-convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
     { pred = renderPredHtml defnEnv poIndex poPred,
       reducedPred = renderPredHtml defnEnv poIndex poReducedPred,
       strippedPred = poStrippedPred,
       proofExists = poProofExists,
+      smtResult = poSMTResult,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
