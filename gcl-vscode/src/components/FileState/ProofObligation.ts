@@ -6,6 +6,8 @@ export default function renderProofObligation(
   proofObligation: IProofObligation,
 ): string {
   const renderedExpression = `<span>${proofObligation.reducedPred}</span>`;
+  const isQED = proofObligation.smtResult === "Q.E.D.";
+  const proofResult = isQED ? "Q.E.D." : "Failed";
   const sectionBody: string = /*html */ `
     <div>
       <style scoped>
@@ -24,7 +26,7 @@ export default function renderProofObligation(
         <td class="proof-obligation-expression">${renderedExpression}</td>
       </tr>
       </table>
-      <p style="text-align: right;"><strong>${proofObligation.smtResult}</strong></p>
+      <p style="text-align: right;" title="${proofObligation.smtResult}"><strong>SMT Proof: ${proofResult}</strong></p>
     </div>
   `;
   return renderSection(
