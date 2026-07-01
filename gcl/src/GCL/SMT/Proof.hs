@@ -6,7 +6,7 @@ module GCL.SMT.Proof(evaluateAsString) where
 import GCL.SMT.Types
     ( SValue(..),
       ProofBuilder(..),
-      Convert(convert), valueAsBool, valueAsNum, BuildState, ExceptableSymbolic)
+      Convert(convert), BuildState, ExceptableSymbolic)
 import Data.SBV hiding (name)
 import qualified Syntax.Typed.Types as T
 import qualified Syntax.Common.Types as C
@@ -20,18 +20,35 @@ import Control.Monad.Except (MonadError(..))
 import Control.Monad.Trans.Except (runExceptT)
 import qualified Data.Map as Map
 
+buildExprProof :: T.Expr -> ExceptableSymbolic SBool
+buildExprProof expr = do
+  result <- buildProof expr
+  case result of
+    SBool predicate -> return predicate
+    _ -> throwError "Expected proof to have boolean type"
+
+runProof :: T.Expr -> IO (Either String ThmResult)
+runProof expr = runExceptT (Trans.prove $ evalStateT (buildExprProof expr) mempty)
+
+evaluateAsString :: T.Expr -> IO String
+evaluateAsString expr = do
+  result <- runProof expr
+  return $ case result of
+    Left err -> err
+    Right result' -> show result'
+
 instance ProofBuilder T.Expr where
   buildProof (T.Lit lit _ _) = return $ convert lit
   buildProof (T.Var name ty _) = evalVariable name ty
   buildProof (T.Const name ty _) = evalVariable name ty
-  buildProof (T.Op op _) =
-    SFunc <$> opToFunc op
+  buildProof (T.Op op _) = do
+    return $ SFunc $ opToFunc op
   buildProof (T.Chain chain) = buildProof chain
   buildProof (T.App l r _) = do
     l' <- buildProof l
     r' <- buildProof r
     case l' of
-      SFunc func -> return $ func r'
+      SFunc func -> func r'
       _ -> throwError "Unable to apply on literal values"
   buildProof (T.Subst expr redexes) = do
     expr' <- buildProof expr
@@ -64,12 +81,12 @@ instance ProofBuilder T.Chain where
   buildProof (T.More chain op _ expr) = do
     c <- buildProof chain
     e <- buildProof expr
-    f <- opToFunc op
-    case f c of
-      SFunc f' -> return $ f' e
+    r <- opToFunc op c
+    case r of
+      SFunc f' -> f' e
       _ -> throwError "Unable to apply on literal values"
 
-opToFunc :: C.Op -> BuildState (SValue -> SValue)
+opToFunc :: C.Op -> (SValue -> BuildState SValue)
 opToFunc (C.ChainOp op) = case op of
   C.EQ _ -> liftLogicalOp (.==)
   C.NEQ _ -> liftLogicalOp (./=)
@@ -80,13 +97,13 @@ opToFunc (C.ChainOp op) = case op of
   C.GTEU _ -> liftRelOp (.>=)
   C.LT _ -> liftRelOp (.>)
   C.GT _ -> liftRelOp (.<)
-  _ -> throwError $ show op
+  _ -> return $ throwError $ show op
   where
-    liftRelOp :: (SInteger -> SInteger -> SBool) -> BuildState (SValue -> SValue)
-    liftRelOp = return . curry' . lift' valueAsNum convert
+    liftRelOp :: (SInteger -> SInteger -> SBool) -> (SValue -> BuildState SValue)
+    liftRelOp = curry' . lift' valueAsNum convert
 
-    liftLogicalOp :: (SValue -> SValue -> SBool) -> BuildState (SValue -> SValue)
-    liftLogicalOp = return . curry' . lift' id convert
+    liftLogicalOp :: (SValue -> SValue -> SBool) -> (SValue -> BuildState SValue)
+    liftLogicalOp = curry' . lift' return convert
 opToFunc (C.ArithOp op) = case op of
   C.Implies _ -> liftLogicalOp (.=>)
   C.ImpliesU _ -> liftLogicalOp (.=>)
@@ -94,10 +111,16 @@ opToFunc (C.ArithOp op) = case op of
   C.ConjU _ -> liftLogicalOp (.&&)
   C.Disj _ -> liftLogicalOp (.||)
   C.DisjU _ -> liftLogicalOp (.||)
-  C.Neg _ -> return $ convert . sNot . valueAsBool
-  C.NegU _ -> return $ convert . sNot . valueAsBool
+  C.Neg _ -> \x -> do
+    b <- valueAsBool x
+    return $ convert (sNot b)
+  C.NegU _ -> \x -> do
+    b <- valueAsBool x
+    return $ convert (sNot b)
 
-  C.NegNum _ -> return $ convert . negate . valueAsNum
+  C.NegNum _ -> \x -> do
+    n <- valueAsNum x
+    return $ convert (negate n)
   C.Add _ -> liftArithOp (+)
   C.Sub _ -> liftArithOp (-)
   C.Mul _ -> liftArithOp (*)
@@ -105,21 +128,31 @@ opToFunc (C.ArithOp op) = case op of
   C.Mod _ -> liftArithOp sMod
   C.Max _ -> liftArithOp smax
   C.Min _ -> liftArithOp smin
-  C.Exp _ -> throwError "Exponential is not yet supported"
-  _ -> throwError $ show op
+  C.Exp _ -> curry' (\x y -> do
+    x' <- valueAsNum x
+    y' <- sFromIntegral <$> valueAsNum y :: BuildState SWord32
+    if isConcrete y' then
+      return $ convert $ x' .^ y'
+    else
+      throwError "Unsupported exponential operation: RHS must be concrete value"
+    )
+  _ -> return $ throwError $ show op
   where
-    liftArithOp :: (SInteger -> SInteger -> SInteger) -> BuildState (SValue -> SValue)
-    liftArithOp = return . curry' . lift' valueAsNum convert
+    liftArithOp :: (SInteger -> SInteger -> SInteger) -> (SValue -> BuildState SValue)
+    liftArithOp = curry' . lift' valueAsNum convert
 
-    liftLogicalOp :: (SBool -> SBool -> SBool) -> BuildState (SValue -> SValue)
-    liftLogicalOp = return . curry' . lift' valueAsBool convert
-opToFunc (C.TypeOp op) = throwError "Type Op is not yet implemented"
+    liftLogicalOp :: (SBool -> SBool -> SBool) -> (SValue -> BuildState SValue)
+    liftLogicalOp = curry' . lift' valueAsBool convert
+opToFunc (C.TypeOp op) = return $ throwError "Type Op is not yet implemented"
 
-lift' :: (SValue -> a) -> (b -> SValue) -> (a -> a -> b) -> SValue -> SValue -> SValue
-lift' h' h f x y = h $ f (h' x) (h' y)
+lift' :: (SValue -> BuildState a) -> (b -> SValue) -> (a -> a -> b) -> SValue -> SValue -> BuildState SValue
+lift' h' h f x y = do
+  a1 <- h' x
+  a2 <- h' y
+  return $ h $ f a1 a2
 
-curry' :: (SValue -> SValue -> SValue) -> (SValue -> SValue)
-curry' f x = SFunc $ \y -> f x y
+curry' :: (SValue -> SValue -> BuildState SValue) -> (SValue -> BuildState SValue)
+curry' f x = return $ SFunc $ \y -> f x y
 
 freshNamedSLit :: A.TBase -> String -> ExceptableSymbolic SValue
 freshNamedSLit baseTy prefix = do
@@ -131,19 +164,10 @@ freshNamedSLit baseTy prefix = do
     freeVar :: (SymVal a) => ExceptableSymbolic (SBV a)
     freeVar = Trans.free prefix
 
-buildExprProof :: T.Expr -> ExceptableSymbolic SBool
-buildExprProof expr = do
-  result <- buildProof expr
-  case result of
-    SBool predicate -> return predicate
-    _ -> throwError "Expected proof to have boolean type"
+valueAsBool :: SValue -> BuildState SBool
+valueAsBool (SBool b) = return b
+valueAsBool _ = throwError "Not a bool"
 
-runProof :: T.Expr -> IO (Either String ThmResult)
-runProof expr = runExceptT (Trans.prove $ evalStateT (buildExprProof expr) mempty)
-
-evaluateAsString :: T.Expr -> IO String
-evaluateAsString expr = do
-  result <- runProof expr
-  return $ case result of
-    Left err -> err
-    Right result' -> show result'
+valueAsNum :: SValue -> BuildState SInteger
+valueAsNum (SNum i) = return i
+valueAsNum _ = throwError "Not a num"

@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 
-module GCL.SMT.Types(Convert(convert), ProofBuilder(..), ExceptableSymbolic, VarMap, BuildState, SValue(..), valueAsBool, valueAsNum) where
+module GCL.SMT.Types(Convert(convert), ProofBuilder(..), ExceptableSymbolic, VarMap, BuildState, SValue(..)) where
 
 import Data.SBV
 import GHC.Generics (Generic)
@@ -29,7 +29,7 @@ data SValue
   = SNum SInteger
   | SBool SBool
   | SChar SChar
-  | SFunc (SValue -> SValue)
+  | SFunc (SValue -> BuildState SValue)
   deriving (Generic)
 
 instance EqSymbolic SValue where
@@ -58,11 +58,3 @@ instance Convert SInteger SValue where
 
 instance Convert SBool SValue where
   convert = SBool
-
-valueAsBool :: SValue -> SBool
-valueAsBool (SBool b) = b
-valueAsBool _ = error "Not a bool"
-
-valueAsNum :: SValue -> SInteger
-valueAsNum (SNum i) = i
-valueAsNum _ = error "Not a num"
