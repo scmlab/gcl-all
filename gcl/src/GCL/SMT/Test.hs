@@ -14,7 +14,7 @@ import qualified Syntax.Parser as Parser
 import Control.Monad.State (evalState)
 import qualified Syntax.Concrete as C
 import qualified Syntax.Abstract.Types as A
-import GCL.SMT.Evaluator (evaluateAsString)
+import GCL.SMT.Proof (evaluateAsString)
 import qualified GCL.Type2.ToTyped as Type2
 
 test :: IO ()

@@ -24,6 +24,7 @@ export default function renderProofObligation(
         <td class="proof-obligation-expression">${renderedExpression}</td>
       </tr>
       </table>
+      <p style="text-align: right;"><strong>${proofObligation.smtResult}</strong></p>
     </div>
   `;
   return renderSection(

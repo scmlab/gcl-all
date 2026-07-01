@@ -102,7 +102,7 @@ tellPO p q origin = unless (p == q) $ do
   let predicate = implies p q
   let anchorHash =
         Text.pack $ showHex (abs (Hashable.hash (toString predicate))) ""
-  tell ([PO predicate predicate anchorHash Nothing origin], [], [], mempty)
+  tell ([PO predicate predicate "" anchorHash Nothing origin], [], [], mempty)
 
 tellPO' :: Origin -> Pred -> Pred -> WP ()
 tellPO' l p q = tellPO p q l

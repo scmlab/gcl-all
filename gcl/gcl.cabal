@@ -29,7 +29,7 @@ library
       GCL.Predicate
       GCL.Predicate.Util
       GCL.Range
-      GCL.SMT.Evaluator
+      GCL.SMT.Proof
       GCL.SMT.Test
       GCL.SMT.Types
       GCL.Type

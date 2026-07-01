@@ -75,7 +75,7 @@ exprOfPred p = case p of
 -}
 
 instance RenderSection PO where
-  renderSection (PO _predicate reducedPredicate anchorHash anchorLoc origin) =
+  renderSection (PO _predicate reducedPredicate _ anchorHash anchorLoc origin) =
     Section Plain $
       [ HeaderWithButtons
           (Text.pack $ show $ render origin)
