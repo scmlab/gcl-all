@@ -95,8 +95,8 @@ opToFunc (C.ChainOp op) = case op of
   C.LTEU _ -> liftRelOp (.<=)
   C.GTE _ -> liftRelOp (.>=)
   C.GTEU _ -> liftRelOp (.>=)
-  C.LT _ -> liftRelOp (.>)
-  C.GT _ -> liftRelOp (.<)
+  C.LT _ -> liftRelOp (.<)
+  C.GT _ -> liftRelOp (.>)
   _ -> return $ throwError $ show op
   where
     liftRelOp :: (SInteger -> SInteger -> SBool) -> (SValue -> BuildState SValue)
