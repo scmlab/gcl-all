@@ -14,7 +14,6 @@ import qualified Syntax.Abstract.Types as A
 import qualified Data.Text as Text
 import Control.Monad.Trans.State.Lazy (get, put, evalStateT)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad (forM_)
 import qualified Data.SBV.Trans as Trans
 import Control.Monad.Except (MonadError(..))
 import Control.Monad.Trans.Except (runExceptT)
@@ -51,15 +50,23 @@ instance ProofBuilder T.Expr where
       SFunc func -> func r'
       _ -> throwError "Unable to apply on literal values"
   buildProof (T.Subst expr redexes) = do
-    expr' <- buildProof expr
+    -- Proof building for Subst is as follow:
+    -- The requirement for VarsMap (in the state) should be equivalant
+    -- for before and after state of Subst proof building.
+    --
+    -- The actual progress is as follow:
+    -- Retreive the state first, and builds redex expressions and put into
+    -- state by the accompanied name, then builds the substituted expression.
+    -- Finally, restore the state from the state retreived at the beginning of
+    -- proof building, and return the expression.
+    originalVars <- get
+    substs <- mapM (\(name, substExpr) -> do
+      substExpr' <- buildProof substExpr
+      return (name, substExpr')) redexes
     vars <- get
-    forM_ redexes (\(name, substExpr) ->
-      case Map.lookup name vars of
-        Just var -> do
-          substExpr' <- buildProof substExpr
-          lift $ constrain $ var .== substExpr'
-        Nothing -> throwError "Subst var not found"
-      )
+    put (foldr (\(name, v) m -> Map.insert name v m) vars substs)
+    expr' <- buildProof expr
+    put originalVars
     return expr'
   buildProof expr = throwError $ "Unsupported expression: " ++ show expr
 
@@ -71,7 +78,7 @@ evalVariable name@(C.Name t _) ty = do
     Nothing -> case ty of
       A.TBase base _ -> do
         lit <- freshNamedSLit base (Text.unpack t)
-        _ <- put (Map.insert name lit vars)
+        put (Map.insert name lit vars)
         lift $ return lit
       _ -> throwError "Unsupported type lookup"
 
@@ -154,14 +161,14 @@ lift' h' h f x y = do
 curry' :: (SValue -> SValue -> BuildState SValue) -> (SValue -> BuildState SValue)
 curry' f x = return $ SFunc $ \y -> f x y
 
-freshNamedSLit :: A.TBase -> String -> ExceptableSymbolic SValue
-freshNamedSLit baseTy prefix = do
+freshNamedSLit :: A.TBase -> String -> BuildState SValue
+freshNamedSLit baseTy prefix =
   case baseTy of
     A.TInt -> SNum <$> freeVar
     A.TBool -> SBool <$> freeVar
     A.TChar -> SChar <$> freeVar
   where
-    freeVar :: (SymVal a) => ExceptableSymbolic (SBV a)
+    freeVar :: (SymVal a) => BuildState (SBV a)
     freeVar = Trans.free prefix
 
 valueAsBool :: SValue -> BuildState SBool

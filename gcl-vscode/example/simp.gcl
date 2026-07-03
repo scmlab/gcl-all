@@ -1,0 +1,9 @@
+var x : Int
+con X : Int
+
+x := X
+{ x = X }
+if x ≥ 0 -> skip
+ | x < 0 -> x := -x
+fi
+{ x ≥ 0 }
