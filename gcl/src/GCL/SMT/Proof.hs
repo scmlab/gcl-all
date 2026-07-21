@@ -54,7 +54,7 @@ runProof expr = runExceptT $ Trans.prove $ do
   result <- evalStateT (buildProof expr) mempty
   case result of
     SVal v -> return $ toBool v
-    SFunc _ -> lift $ throwError "Expression did not fully reduce to a value; cannot prove a function"
+    SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
   where
     toBool :: SVal -> SBool
     toBool = SBV
@@ -128,65 +128,68 @@ instance ProofBuilder T.Chain where
 
 opToFunc :: C.Op -> (SValue -> BuildState SValue)
 opToFunc (C.ChainOp op) = case op of
-  C.EQ _ -> genFunc svEqual
-  C.NEQ _ -> genFunc svNotEqual
-  C.NEQU _ -> genFunc svNotEqual
-  C.LTE _ -> genFunc svLessEq
-  C.LTEU _ -> genFunc svLessEq
-  C.GTE _ -> genFunc svGreaterEq
-  C.GTEU _ -> genFunc svGreaterEq
-  C.LT _ -> genFunc svLessThan
-  C.GT _ -> genFunc svGreaterThan
-  _ -> return $ throwError $ show op
+  C.EQ _ -> genBinaryFunc svEqual
+  C.NEQ _ -> genBinaryFunc svNotEqual
+  C.NEQU _ -> genBinaryFunc svNotEqual
+  C.LTE _ -> genBinaryFunc svLessEq
+  C.LTEU _ -> genBinaryFunc svLessEq
+  C.GTE _ -> genBinaryFunc svGreaterEq
+  C.GTEU _ -> genBinaryFunc svGreaterEq
+  C.LT _ -> genBinaryFunc svLessThan
+  C.GT _ -> genBinaryFunc svGreaterThan
+  _ -> return $ throwError $ "Unsupported chain op: " <> show op
 opToFunc (C.ArithOp op) = case op of
-  C.Implies _ -> genFunc (\x y -> svNot x `svOr` y)
-  C.ImpliesU _ -> genFunc (\x y -> svNot x `svOr` y)
-  C.Conj _ -> genFunc svAnd
-  C.ConjU _ -> genFunc svAnd
-  C.Disj _ -> genFunc svOr
-  C.DisjU _ -> genFunc svOr
-  C.Neg _ -> \x -> do
-    b <- asVal x
-    return $ SVal $ svNot b
-  C.NegU _ -> \x -> do
-    b <- asVal x
-    return $ SVal $ svNot b
-  C.NegNum _ -> \x -> do
-    n <- asVal x
-    return $ SVal $ svUNeg n
-  C.Add _ -> genFunc svPlus
-  C.Sub _ -> genFunc svMinus
-  C.Mul _ -> genFunc svTimes
-  C.Div _ -> genFunc svDivide
-  C.Mod _ -> genFunc svRem
-  C.Max _ -> genFunc (\x y -> svIte (x `svGreaterThan` y) x y)
-  C.Min _ -> genFunc (\x y -> svIte (x `svLessThan` y) x y)
+  -- FIXME(ChAoS): Somehow svImplies is not visible?
+  C.Implies _ -> genBinaryFunc (\x y -> svNot x `svOr` y)
+  C.ImpliesU _ -> genBinaryFunc (\x y -> svNot x `svOr` y)
+  C.Conj _ -> genBinaryFunc svAnd
+  C.ConjU _ -> genBinaryFunc svAnd
+  C.Disj _ -> genBinaryFunc svOr
+  C.DisjU _ -> genBinaryFunc svOr
+  C.Neg _ -> genUnaryFunc svNot
+  C.NegU _ -> genUnaryFunc svNot
+  C.NegNum _ -> genUnaryFunc svUNeg
+  C.Add _ -> genBinaryFunc svPlus
+  C.Sub _ -> genBinaryFunc svMinus
+  C.Mul _ -> genBinaryFunc svTimes
+  C.Div _ -> genBinaryFunc svDivide
+  C.Mod _ -> genBinaryFunc svRem
+  C.Max _ -> genBinaryFunc (\x y -> svIte (x `svGreaterThan` y) x y)
+  C.Min _ -> genBinaryFunc (\x y -> svIte (x `svLessThan` y) x y)
   C.Exp _ ->
     curry'
       ( \x y -> do
           x' <- asVal x
           y' <- svFromIntegral (KBounded False 32) <$> asVal y
           case svAsInteger y' of
-            Just _ -> return $ SVal $ svExp x' y'
+            Just _ -> return $ convert $ svExp x' y'
             Nothing -> throwError "Unsupported exponential operation: RHS must be concrete value"
       )
-  _ -> return $ throwError $ show op
+  _ -> return $ throwError $ "Unsupported arith op: " <> show op
 opToFunc (C.TypeOp _) = return $ throwError "Type Op is not yet implemented"
 
-genFunc :: (SVal -> SVal -> SVal) -> (SValue -> BuildState SValue)
-genFunc = curry' . lift'
+genUnaryFunc :: (SVal -> SVal) -> (SValue -> BuildState SValue)
+genUnaryFunc = lift1'
 
-lift' :: (SVal -> SVal -> SVal) -> SValue -> SValue -> BuildState SValue
-lift' f x y = do
-  a1 <- asVal x
-  a2 <- asVal y
-  return $ SVal $ f a1 a2
+genBinaryFunc :: (SVal -> SVal -> SVal) -> (SValue -> BuildState SValue)
+genBinaryFunc = curry' . lift2'
+
+lift1' :: (SVal -> SVal) -> SValue -> BuildState SValue
+lift1' f x = do
+  x' <- asVal x
+  return $ convert $ f x'
+
+lift2' :: (SVal -> SVal -> SVal) -> SValue -> SValue -> BuildState SValue
+lift2' f x y = do
+  x' <- asVal x
+  y' <- asVal y
+  return $ convert $ f x' y'
 
 curry' :: (SValue -> SValue -> BuildState SValue) -> (SValue -> BuildState SValue)
 curry' f x = return $ SFunc $ \y -> f x y
 
 freshNamedSLit :: A.TBase -> String -> BuildState SValue
-freshNamedSLit baseTy prefix = SVal <$> svNewVar kind prefix
+freshNamedSLit baseTy prefix = convert <$> svNewVar kind prefix
   where
     kind :: Kind
     kind = case baseTy of
