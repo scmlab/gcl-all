@@ -45,3 +45,6 @@ instance Convert A.Lit SValue where
   convert (A.Num n) = convert n
   convert (A.Bol b) = convert b
   convert (A.Chr c) = convert c
+
+instance Convert SVal SValue where
+  convert = SVal
