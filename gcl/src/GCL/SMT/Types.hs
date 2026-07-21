@@ -1,17 +1,18 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
-module GCL.SMT.Types(Convert(convert), ProofBuilder(..), ExceptableSymbolic, VarMap, BuildState, SValue(..)) where
+module GCL.SMT.Types (Convert (convert), ProofBuilder (..), ExceptableSymbolic, VarMap, BuildState, SValue (..)) where
 
-import Data.SBV
-import GHC.Generics (Generic)
-import qualified Syntax.Common.Types as C
-import qualified Syntax.Abstract.Types as A
-import Control.Monad.State (StateT)
 import Control.Monad.Except (ExceptT)
+import Control.Monad.State (StateT)
 import Data.Map (Map)
+import Data.SBV
+import Data.SBV.Dynamic (SVal, svBool, svEqual, svInteger)
+import GHC.Generics (Generic)
+import qualified Syntax.Abstract.Types as A
+import qualified Syntax.Common.Types as C
 
 type ExceptableSymbolic = StateT VarMap (SymbolicT (ExceptT String IO))
 
@@ -26,35 +27,21 @@ class ProofBuilder a where
   buildProof :: a -> BuildState SValue
 
 data SValue
-  = SNum SInteger
-  | SBool SBool
-  | SChar SChar
+  = SVal SVal
   | SFunc (SValue -> BuildState SValue)
   deriving (Generic)
 
-instance EqSymbolic SValue where
-  SNum a .== SNum b = a .== b
-  SBool a .== SBool b = a .== b
-  SChar a .== SChar b = a .== b
-  SFunc _ .== SFunc _ = error "unable to compare functions' equality"
-  _ .== _ = sFalse
-
 instance Convert Int SValue where
-  convert = SNum . literal . toInteger
+  convert = SVal . svInteger KUnbounded . toInteger
 
 instance Convert Bool SValue where
-  convert = SBool . literal
+  convert = SVal . svBool
 
+-- FIXME(ChAoS): Somehow svChar is not visible?
 instance Convert Char SValue where
-  convert = SChar . literal
+  convert c = undefined
 
 instance Convert A.Lit SValue where
   convert (A.Num n) = convert n
   convert (A.Bol b) = convert b
   convert (A.Chr c) = convert c
-
-instance Convert SInteger SValue where
-  convert = SNum
-
-instance Convert SBool SValue where
-  convert = SBool

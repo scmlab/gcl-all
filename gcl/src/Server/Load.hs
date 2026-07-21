@@ -3,6 +3,7 @@
 
 module Server.Load where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Bifunctor (first)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
@@ -11,7 +12,9 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
+import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
+import GCL.SMT.Proof (evaluateAsString)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
 import qualified Hack
@@ -27,9 +30,6 @@ import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
-import Control.Monad.IO.Class (liftIO)
-import GCL.SMT.Proof (evaluateAsString)
-import GCL.Predicate (PO(..))
 
 --------------------------------------------------------------------------------
 -- Types
@@ -67,10 +67,13 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
-                          po <- mapM (\po -> do
-                            smtResult <- liftIO $ evaluateAsString (poReducedPred po)
-                            return $ po {poSMTResult = Text.pack smtResult}
-                            ) (fsProofObligations fs)
+                          po <-
+                            mapM
+                              ( \po -> do
+                                  smtResult <- liftIO $ evaluateAsString (poReducedPred po)
+                                  return $ po {poSMTResult = Text.pack smtResult}
+                              )
+                              (fsProofObligations fs)
                           let fs' = fs {fsProofObligations = po}
                           logText "Load: sending refresh\n"
                           setAndSendFileStateWithRefresh filePath fs'
