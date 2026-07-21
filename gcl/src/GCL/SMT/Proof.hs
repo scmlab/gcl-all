@@ -3,7 +3,9 @@
 
 module GCL.SMT.Proof (evaluateAsString) where
 
+import Control.Monad (forM_)
 import Control.Monad.Except (MonadError (..))
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.State.Lazy (evalStateT, get, put)
@@ -14,7 +16,8 @@ import Data.SBV
     ThmResult,
   )
 import Data.SBV.Dynamic
-  ( SVal,
+  ( Quantifier (..),
+    SVal,
     svAnd,
     svAsInteger,
     svDivide,
@@ -27,16 +30,17 @@ import Data.SBV.Dynamic
     svLessEq,
     svLessThan,
     svMinus,
-    svNewVar,
+    svMkSymVar,
     svNot,
     svNotEqual,
     svOr,
     svPlus,
     svRem,
     svTimes,
-    svUNeg, svUninterpreted,
+    svUNeg,
+    svUninterpreted,
   )
-import Data.SBV.Internals (SBV (..), UICodeKind (UINone))
+import Data.SBV.Internals (SBV (..), UICodeKind (UINone), VarContext (NonQueryVar))
 import qualified Data.SBV.Trans as Trans
 import qualified Data.Text as Text
 import GCL.SMT.Types
@@ -64,8 +68,8 @@ evaluateAsString expr = either id show <$> runProof expr
 
 instance ProofBuilder T.Expr where
   buildProof (T.Lit lit _ _) = return $ convert lit
-  buildProof (T.Var name ty _) = genVariable name ty
-  buildProof (T.Const name ty _) = genVariable name ty
+  buildProof (T.Var name ty _) = genVariable ALL name ty
+  buildProof (T.Const name ty _) = genVariable ALL name ty
   buildProof (T.Op op _) = do
     return $ SFunc $ opToFunc op
   buildProof (T.Chain chain) = buildProof chain
@@ -75,6 +79,24 @@ instance ProofBuilder T.Expr where
     case l' of
       SFunc func -> func r'
       _ -> throwError "Unable to apply on literal values"
+  buildProof (T.Quant opExpr bounds condExpr expr _) = do
+    quant <- case opExpr of
+      T.Op (C.ArithOp (C.Conj _)) _ -> return ALL
+      T.Op (C.ArithOp (C.ConjU _)) _ -> return ALL
+      T.Op (C.ArithOp (C.Disj _)) _ -> return EX
+      T.Op (C.ArithOp (C.DisjU _)) _ -> return EX
+      op@(T.Op _ _) -> throwError $ "Not a valid quantifier operator: " <> show op
+      expr' -> throwError $ "Not a valid quantifier operator expression: " <> show expr'
+    originalVars <- get
+    forM_ bounds (uncurry (genVariable quant))
+    condExpr' <- buildProof condExpr
+    expr' <- buildProof expr
+    put originalVars
+    case (condExpr', expr') of
+      (SVal condVal, SVal exprVal) -> return $ convert $ case quant of
+        ALL -> svNot condVal `svOr` exprVal
+        EX -> condVal `svAnd` exprVal
+      _ -> throwError $ "Not a valid quantifier expression"
   buildProof (T.Subst expr redexes) = do
     -- Proof building for Subst is as follow:
     -- The requirement for VarsMap (in the state) should be equivalant
@@ -100,18 +122,18 @@ instance ProofBuilder T.Expr where
     return expr'
   buildProof expr = throwError $ "Unsupported expression: " ++ show expr
 
-genVariable :: C.Name -> A.Type -> BuildState SValue
-genVariable name@(C.Name t _) ty = do
+genVariable :: Quantifier -> C.Name -> A.Type -> BuildState SValue
+genVariable quant name@(C.Name t _) ty = do
   vars <- get
   case Map.lookup name vars of
     Just var -> lift $ return var
     Nothing -> case ty of
       A.TBase base _ -> do
-        lit <- freshNamedSLit base (Text.unpack t)
+        lit <- mkFreshSymVar quant base (Text.unpack t)
         put (Map.insert name lit vars)
         lift $ return lit
       A.TApp (A.TApp (A.TOp (C.Arrow _)) _ _) _ _ -> do
-        lift $ return $ mkUninterpretedFunc "func_app" ty
+        lift $ return $ mkUninterpretedFunc (Text.unpack t) ty
       _ -> throwError "Unsupported type lookup"
 
 mkUninterpretedFunc :: String -> A.Type -> SValue
@@ -199,9 +221,12 @@ lift2' f x y = do
 curry' :: (SValue -> SValue -> BuildState SValue) -> (SValue -> BuildState SValue)
 curry' f x = return $ SFunc $ \y -> f x y
 
-freshNamedSLit :: A.TBase -> String -> BuildState SValue
-freshNamedSLit baseTy prefix = convert <$> svNewVar kind prefix
+mkFreshSymVar :: Quantifier -> A.TBase -> String -> BuildState SValue
+mkFreshSymVar quant baseTy name = convert <$> var
   where
+    var :: BuildState SVal
+    var = Trans.symbolicEnv >>= liftIO . svMkSymVar (NonQueryVar $ Just quant) kind (Just name)
+
     kind :: Kind
     kind = case baseTy of
       A.TInt -> KUnbounded
@@ -214,6 +239,6 @@ asVal _ = throwError "Not a sval"
 
 baseTyToKind :: A.TBase -> Kind
 baseTyToKind baseTy = case baseTy of
-      A.TInt -> KUnbounded
-      A.TBool -> KBool
-      A.TChar -> KChar
+  A.TInt -> KUnbounded
+  A.TBool -> KBool
+  A.TChar -> KChar
