@@ -34,9 +34,9 @@ import Data.SBV.Dynamic
     svPlus,
     svRem,
     svTimes,
-    svUNeg,
+    svUNeg, svUninterpreted,
   )
-import Data.SBV.Internals (SBV (..))
+import Data.SBV.Internals (SBV (..), UICodeKind (UINone))
 import qualified Data.SBV.Trans as Trans
 import qualified Data.Text as Text
 import GCL.SMT.Types
@@ -60,11 +60,7 @@ runProof expr = runExceptT $ Trans.prove $ do
     toBool = SBV
 
 evaluateAsString :: T.Expr -> IO String
-evaluateAsString expr = do
-  result <- runProof expr
-  return $ case result of
-    Left err -> err
-    Right result' -> show result'
+evaluateAsString expr = either id show <$> runProof expr
 
 instance ProofBuilder T.Expr where
   buildProof (T.Lit lit _ _) = return $ convert lit
@@ -114,7 +110,22 @@ genVariable name@(C.Name t _) ty = do
         lit <- freshNamedSLit base (Text.unpack t)
         put (Map.insert name lit vars)
         lift $ return lit
+      A.TApp (A.TApp (A.TOp (C.Arrow _)) _ _) _ _ -> do
+        lift $ return $ mkUninterpretedFunc "func_app" ty
       _ -> throwError "Unsupported type lookup"
+
+mkUninterpretedFunc :: String -> A.Type -> SValue
+mkUninterpretedFunc name = build []
+  where
+    build :: [SVal] -> A.Type -> SValue
+    build collected (A.TApp (A.TApp (A.TOp (C.Arrow _)) _argTy _) retTy _) =
+      SFunc $ \arg -> do
+        arg' <- asVal arg
+        return $ build (arg' : collected) retTy
+    build collected (A.TBase base _) =
+      SVal $ svUninterpreted (baseTyToKind base) name (UINone True) (reverse collected)
+    build _ ty =
+      error $ "Unsupported uninterpreted function type layer: " ++ show ty
 
 instance ProofBuilder T.Chain where
   buildProof (T.Pure expr) = buildProof expr
@@ -200,3 +211,9 @@ freshNamedSLit baseTy prefix = convert <$> svNewVar kind prefix
 asVal :: SValue -> BuildState SVal
 asVal (SVal v) = return v
 asVal _ = throwError "Not a sval"
+
+baseTyToKind :: A.TBase -> Kind
+baseTyToKind baseTy = case baseTy of
+      A.TInt -> KUnbounded
+      A.TBool -> KBool
+      A.TChar -> KChar
