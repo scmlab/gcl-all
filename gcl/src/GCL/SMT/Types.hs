@@ -9,7 +9,7 @@ import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)
 import Data.Map (Map)
 import Data.SBV
-import Data.SBV.Dynamic (SVal, svBool, svEqual, svInteger)
+import Data.SBV.Dynamic (SVal, svBool, svInteger)
 import GHC.Generics (Generic)
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Common.Types as C
