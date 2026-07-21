@@ -2,20 +2,20 @@
 
 module GCL.SMT.Test where
 
-import qualified Data.Text as Text
-import Error (Error (..))
-import qualified Syntax.Typed.Types as T
-import Control.Monad.Except (ExceptT(..))
-import qualified Hack
-import Debug.Trace (trace)
-import Control.Monad.Trans.Except (runExceptT)
-import Control.Monad.Error.Class (MonadError(..))
-import qualified Syntax.Parser as Parser
+import Control.Monad.Error.Class (MonadError (..))
+import Control.Monad.Except (ExceptT (..))
 import Control.Monad.State (evalState)
-import qualified Syntax.Concrete as C
-import qualified Syntax.Abstract.Types as A
+import Control.Monad.Trans.Except (runExceptT)
+import qualified Data.Text as Text
+import Debug.Trace (trace)
+import Error (Error (..))
 import GCL.SMT.Proof (evaluateAsString)
 import qualified GCL.Type2.ToTyped as Type2
+import qualified Hack
+import qualified Syntax.Abstract.Types as A
+import qualified Syntax.Concrete as C
+import qualified Syntax.Parser as Parser
+import qualified Syntax.Typed.Types as T
 
 test :: IO ()
 test = do
