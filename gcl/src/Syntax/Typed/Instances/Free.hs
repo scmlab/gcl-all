@@ -35,7 +35,7 @@ instance Free Expr where
   freeVars EHole {} = mempty
 
 instance Free CaseClause where
-  freeVars (CaseClause _ expr) = freeVars expr
+  freeVars (CaseClause pattern' expr) = freeVars expr \\ freeVars pattern'
 
 -- instance Free FuncClause where
 --   freeVars (FuncClause _ expr) = freeVars expr
