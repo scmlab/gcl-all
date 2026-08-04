@@ -1,11 +1,11 @@
 module Syntax.Typed.Reduce where
 
 import Control.Arrow ((***))
-import Control.Monad (foldM)
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
+import qualified Data.Text as Text
 import GCL.Common (Free (..), Fresh (..))
 import Syntax.Abstract.Types (Pattern (..), extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
@@ -254,200 +254,190 @@ definitionClosureFreeVars env = go Set.empty
 
 type NameRenaming = Map.Map Text Text
 
-alphaRenameAlongPath ::
-  (Fresh m) =>
-  Env ->
-  Set Text ->
-  Expr ->
-  Redex ->
-  m Expr
+alphaRenameAlongPath :: Env -> Set Text -> Expr -> Redex -> Expr
 alphaRenameAlongPath env avoid expr path =
-  fst <$> alphaExpr avoid reserved expr path
+  fst (alphaExpr avoid reserved expr path)
   where
     reserved = avoid <> allNamesExpr expr <> allNamesEnv env
 
 alphaExpr ::
-  (Fresh m) =>
   Set Text ->
   Set Text ->
   Expr ->
   Redex ->
-  m (Expr, Set Text)
-alphaExpr _ reserved expr [] = return (expr, reserved)
-alphaExpr avoid reserved (Chain chain) (i : path) = do
-  (chain', reserved') <- alphaChain avoid reserved chain i path
-  return (Chain chain', reserved')
-alphaExpr avoid reserved (App function argument range) (0 : path) = do
-  (function', reserved') <- alphaExpr avoid reserved function path
-  return (App function' argument range, reserved')
-alphaExpr avoid reserved (App function argument range) (1 : path) = do
-  (argument', reserved') <- alphaExpr avoid reserved argument path
-  return (App function argument' range, reserved')
-alphaExpr avoid reserved (Lam binder ty body range) (0 : path) = do
-  (renaming, reserved') <- freshenBinders avoid reserved [binder]
-  let binder' = renameName renaming binder
+  (Expr, Set Text)
+alphaExpr _ reserved expr [] = (expr, reserved)
+alphaExpr avoid reserved (Chain chain) (i : path) =
+  let (chain', reserved') = alphaChain avoid reserved chain i path
+   in (Chain chain', reserved')
+alphaExpr avoid reserved (App function argument range) (0 : path) =
+  let (function', reserved') = alphaExpr avoid reserved function path
+   in (App function' argument range, reserved')
+alphaExpr avoid reserved (App function argument range) (1 : path) =
+  let (argument', reserved') = alphaExpr avoid reserved argument path
+   in (App function argument' range, reserved')
+alphaExpr avoid reserved (Lam binder ty body range) (0 : path) =
+  let (renaming, reserved') = freshenBinders avoid reserved [binder]
+      binder' = renameName renaming binder
       body' = renameFreeOccurrences renaming body
-  (body'', reserved'') <- alphaExpr avoid reserved' body' path
-  return (Lam binder' ty body'' range, reserved'')
-alphaExpr avoid reserved (Tuple exprs) (i : path) = do
-  (exprs', reserved') <- alphaNthExpr avoid reserved i exprs path
-  return (Tuple exprs', reserved')
-alphaExpr avoid reserved (OutT index expr) (0 : path) = do
-  (expr', reserved') <- alphaExpr avoid reserved expr path
-  return (OutT index expr', reserved')
+      (body'', reserved'') = alphaExpr avoid reserved' body' path
+   in (Lam binder' ty body'' range, reserved'')
+alphaExpr avoid reserved (Tuple exprs) (i : path) =
+  let (exprs', reserved') = alphaNthExpr avoid reserved i exprs path
+   in (Tuple exprs', reserved')
+alphaExpr avoid reserved (OutT index expr) (0 : path) =
+  let (expr', reserved') = alphaExpr avoid reserved expr path
+   in (OutT index expr', reserved')
 alphaExpr avoid reserved (Quant op binders range body location) (i : path)
-  | i == 0 || i == 1 = do
-      (renaming, reserved') <- freshenBinders avoid reserved (map fst binders)
-      let binders' = map (\(name, ty) -> (renameName renaming name, ty)) binders
+  | i == 0 || i == 1 =
+      let (renaming, reserved') = freshenBinders avoid reserved (map fst binders)
+          binders' = map (\(name, ty) -> (renameName renaming name, ty)) binders
           op' = renameFreeOccurrences renaming op
           range' = renameFreeOccurrences renaming range
           body' = renameFreeOccurrences renaming body
-      if i == 0
-        then do
-          (range'', reserved'') <- alphaExpr avoid reserved' range' path
-          return (Quant op' binders' range'' body' location, reserved'')
-        else do
-          (body'', reserved'') <- alphaExpr avoid reserved' body' path
-          return (Quant op' binders' range' body'' location, reserved'')
-alphaExpr avoid reserved (ArrIdx array index location) (0 : path) = do
-  (array', reserved') <- alphaExpr avoid reserved array path
-  return (ArrIdx array' index location, reserved')
-alphaExpr avoid reserved (ArrIdx array index location) (1 : path) = do
-  (index', reserved') <- alphaExpr avoid reserved index path
-  return (ArrIdx array index' location, reserved')
-alphaExpr avoid reserved (ArrUpd array index value location) (0 : path) = do
-  (array', reserved') <- alphaExpr avoid reserved array path
-  return (ArrUpd array' index value location, reserved')
-alphaExpr avoid reserved (ArrUpd array index value location) (1 : path) = do
-  (index', reserved') <- alphaExpr avoid reserved index path
-  return (ArrUpd array index' value location, reserved')
-alphaExpr avoid reserved (ArrUpd array index value location) (2 : path) = do
-  (value', reserved') <- alphaExpr avoid reserved value path
-  return (ArrUpd array index value' location, reserved')
-alphaExpr avoid reserved (Case scrutinee clauses location) (0 : path) = do
-  (scrutinee', reserved') <- alphaExpr avoid reserved scrutinee path
-  return (Case scrutinee' clauses location, reserved')
+       in if i == 0
+            then
+              let (range'', reserved'') = alphaExpr avoid reserved' range' path
+               in (Quant op' binders' range'' body' location, reserved'')
+            else
+              let (body'', reserved'') = alphaExpr avoid reserved' body' path
+               in (Quant op' binders' range' body'' location, reserved'')
+alphaExpr avoid reserved (ArrIdx array index location) (0 : path) =
+  let (array', reserved') = alphaExpr avoid reserved array path
+   in (ArrIdx array' index location, reserved')
+alphaExpr avoid reserved (ArrIdx array index location) (1 : path) =
+  let (index', reserved') = alphaExpr avoid reserved index path
+   in (ArrIdx array index' location, reserved')
+alphaExpr avoid reserved (ArrUpd array index value location) (0 : path) =
+  let (array', reserved') = alphaExpr avoid reserved array path
+   in (ArrUpd array' index value location, reserved')
+alphaExpr avoid reserved (ArrUpd array index value location) (1 : path) =
+  let (index', reserved') = alphaExpr avoid reserved index path
+   in (ArrUpd array index' value location, reserved')
+alphaExpr avoid reserved (ArrUpd array index value location) (2 : path) =
+  let (value', reserved') = alphaExpr avoid reserved value path
+   in (ArrUpd array index value' location, reserved')
+alphaExpr avoid reserved (Case scrutinee clauses location) (0 : path) =
+  let (scrutinee', reserved') = alphaExpr avoid reserved scrutinee path
+   in (Case scrutinee' clauses location, reserved')
 alphaExpr avoid reserved (Case scrutinee clauses location) (i : path)
-  | i > 0 = do
-      (clauses', reserved') <- alphaNthClause avoid reserved (i - 1) clauses path
-      return (Case scrutinee clauses' location, reserved')
-alphaExpr avoid reserved (Subst subject substitutions) (0 : path) = do
-  (subject', reserved') <- alphaExpr avoid reserved subject path
-  return (Subst subject' substitutions, reserved')
+  | i > 0 =
+      let (clauses', reserved') = alphaNthClause avoid reserved (i - 1) clauses path
+       in (Case scrutinee clauses' location, reserved')
+alphaExpr avoid reserved (Subst subject substitutions) (0 : path) =
+  let (subject', reserved') = alphaExpr avoid reserved subject path
+   in (Subst subject' substitutions, reserved')
 alphaExpr avoid reserved (Subst subject substitutions) (i : path)
-  | i > 0 = do
-      (substitutions', reserved') <-
-        alphaNthSubstitution avoid reserved (i - 1) substitutions path
-      return (Subst subject substitutions', reserved')
+  | i > 0 =
+      let (substitutions', reserved') =
+            alphaNthSubstitution avoid reserved (i - 1) substitutions path
+       in (Subst subject substitutions', reserved')
 alphaExpr _ _ _ _ = error "definition path became invalid during alpha-renaming"
 
 alphaChain ::
-  (Fresh m) =>
   Set Text ->
   Set Text ->
   Chain ->
   Int ->
   Redex ->
-  m (Chain, Set Text)
-alphaChain avoid reserved (Pure expr) 0 path = do
-  (expr', reserved') <- alphaExpr avoid reserved expr path
-  return (Pure expr', reserved')
-alphaChain avoid reserved (More chain op ty expr) 0 path = do
-  (expr', reserved') <- alphaExpr avoid reserved expr path
-  return (More chain op ty expr', reserved')
+  (Chain, Set Text)
+alphaChain avoid reserved (Pure expr) 0 path =
+  let (expr', reserved') = alphaExpr avoid reserved expr path
+   in (Pure expr', reserved')
+alphaChain avoid reserved (More chain op ty expr) 0 path =
+  let (expr', reserved') = alphaExpr avoid reserved expr path
+   in (More chain op ty expr', reserved')
 alphaChain avoid reserved (More chain op ty expr) i path
-  | i > 0 = do
-      (chain', reserved') <- alphaChain avoid reserved chain (i - 1) path
-      return (More chain' op ty expr, reserved')
+  | i > 0 =
+      let (chain', reserved') = alphaChain avoid reserved chain (i - 1) path
+       in (More chain' op ty expr, reserved')
 alphaChain _ _ _ _ _ = error "definition chain path became invalid during alpha-renaming"
 
 alphaNthExpr ::
-  (Fresh m) =>
   Set Text ->
   Set Text ->
   Int ->
   [Expr] ->
   Redex ->
-  m ([Expr], Set Text)
+  ([Expr], Set Text)
 alphaNthExpr _ _ _ [] _ = error "definition tuple path became invalid during alpha-renaming"
-alphaNthExpr avoid reserved 0 (expr : exprs) path = do
-  (expr', reserved') <- alphaExpr avoid reserved expr path
-  return (expr' : exprs, reserved')
+alphaNthExpr avoid reserved 0 (expr : exprs) path =
+  let (expr', reserved') = alphaExpr avoid reserved expr path
+   in (expr' : exprs, reserved')
 alphaNthExpr avoid reserved i (expr : exprs) path
-  | i > 0 = do
-      (exprs', reserved') <- alphaNthExpr avoid reserved (i - 1) exprs path
-      return (expr : exprs', reserved')
+  | i > 0 =
+      let (exprs', reserved') = alphaNthExpr avoid reserved (i - 1) exprs path
+       in (expr : exprs', reserved')
 alphaNthExpr _ _ _ _ _ = error "definition tuple path became invalid during alpha-renaming"
 
 alphaNthClause ::
-  (Fresh m) =>
   Set Text ->
   Set Text ->
   Int ->
   [CaseClause] ->
   Redex ->
-  m ([CaseClause], Set Text)
+  ([CaseClause], Set Text)
 alphaNthClause _ _ _ [] _ = error "definition case path became invalid during alpha-renaming"
-alphaNthClause avoid reserved 0 (CaseClause pattern' rhs : clauses) path = do
-  (renaming, reserved') <- freshenBinders avoid reserved (extractBinder pattern')
-  let pattern'' = renamePatternBinders renaming pattern'
+alphaNthClause avoid reserved 0 (CaseClause pattern' rhs : clauses) path =
+  let (renaming, reserved') = freshenBinders avoid reserved (extractBinder pattern')
+      pattern'' = renamePatternBinders renaming pattern'
       rhs' = renameFreeOccurrences renaming rhs
-  (rhs'', reserved'') <- alphaExpr avoid reserved' rhs' path
-  return (CaseClause pattern'' rhs'' : clauses, reserved'')
+      (rhs'', reserved'') = alphaExpr avoid reserved' rhs' path
+   in (CaseClause pattern'' rhs'' : clauses, reserved'')
 alphaNthClause avoid reserved i (clause : clauses) path
-  | i > 0 = do
-      (clauses', reserved') <- alphaNthClause avoid reserved (i - 1) clauses path
-      return (clause : clauses', reserved')
+  | i > 0 =
+      let (clauses', reserved') = alphaNthClause avoid reserved (i - 1) clauses path
+       in (clause : clauses', reserved')
 alphaNthClause _ _ _ _ _ = error "definition case path became invalid during alpha-renaming"
 
 alphaNthSubstitution ::
-  (Fresh m) =>
   Set Text ->
   Set Text ->
   Int ->
   [(Name, Expr)] ->
   Redex ->
-  m ([(Name, Expr)], Set Text)
+  ([(Name, Expr)], Set Text)
 alphaNthSubstitution _ _ _ [] _ =
   error "definition substitution path became invalid during alpha-renaming"
-alphaNthSubstitution avoid reserved 0 ((name, expr) : substitutions) path = do
-  (expr', reserved') <- alphaExpr avoid reserved expr path
-  return ((name, expr') : substitutions, reserved')
+alphaNthSubstitution avoid reserved 0 ((name, expr) : substitutions) path =
+  let (expr', reserved') = alphaExpr avoid reserved expr path
+   in ((name, expr') : substitutions, reserved')
 alphaNthSubstitution avoid reserved i (substitution : substitutions) path
-  | i > 0 = do
-      (substitutions', reserved') <-
-        alphaNthSubstitution avoid reserved (i - 1) substitutions path
-      return (substitution : substitutions', reserved')
+  | i > 0 =
+      let (substitutions', reserved') =
+            alphaNthSubstitution avoid reserved (i - 1) substitutions path
+       in (substitution : substitutions', reserved')
 alphaNthSubstitution _ _ _ _ _ =
   error "definition substitution path became invalid during alpha-renaming"
 
 freshenBinders ::
-  (Fresh m) =>
   Set Text ->
   Set Text ->
   [Name] ->
-  m (NameRenaming, Set Text)
+  (NameRenaming, Set Text)
 freshenBinders avoid reserved binders =
-  foldM freshen (Map.empty, reserved) binders
+  foldl freshen (Map.empty, reserved) binders
   where
     freshen (renaming, usedNames) binder
-      | oldText `Set.notMember` avoid = return (renaming, usedNames)
-      | oldText `Map.member` renaming = return (renaming, usedNames)
-      | otherwise = do
-          newText <- freshAvoiding usedNames oldText
-          return
-            ( Map.insert oldText newText renaming,
-              Set.insert newText usedNames
-            )
+      | oldText `Set.notMember` avoid = (renaming, usedNames)
+      | oldText `Map.member` renaming = (renaming, usedNames)
+      | otherwise =
+          ( Map.insert oldText newText renaming,
+            Set.insert newText usedNames
+          )
       where
         oldText = nameToText binder
+        newText = freshAvoiding usedNames oldText
 
-freshAvoiding :: (Fresh m) => Set Text -> Text -> m Text
-freshAvoiding reserved prefix = do
-  candidate <- freshPre prefix
-  if candidate `Set.member` reserved
-    then freshAvoiding reserved prefix
-    else return candidate
+freshAvoiding :: Set Text -> Text -> Text
+freshAvoiding reserved prefix = go 0
+  where
+    go :: Int -> Text
+    go suffix =
+      let candidate = prefix <> Text.pack ('_' : show suffix)
+       in if candidate `Set.member` reserved
+            then go (suffix + 1)
+            else candidate
 
 renameFreeOccurrences :: NameRenaming -> Expr -> Expr
 renameFreeOccurrences renaming expr = case expr of
@@ -588,10 +578,10 @@ reduce :: (Fresh m) => Env -> Expr -> Redex -> m Expr
 reduce env expr path =
   case definitionAtPath env expr path of
     Nothing -> reduceRaw env expr path
-    Just definitionName -> do
+    Just definitionName ->
       let avoid = definitionClosureFreeVars env definitionName
-      expr' <- alphaRenameAlongPath env avoid expr path
-      reduceRaw env expr' path
+          expr' = alphaRenameAlongPath env avoid expr path
+       in reduceRaw env expr' path
 
 reduceRaw :: (Fresh m) => Env -> Expr -> Redex -> m Expr
 reduceRaw env (Chain ch) (i : p) = Chain <$> reduceChain env ch i p

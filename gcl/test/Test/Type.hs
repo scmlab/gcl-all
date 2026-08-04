@@ -12,8 +12,8 @@ import Pretty (toText)
 import qualified Syntax.Abstract.Operator as AO
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ChainOp (..), Name (..), Op (..), TypeOp (..))
-import qualified Syntax.Typed.Operator as TO
 import Syntax.Typed.Instances.Free ()
+import qualified Syntax.Typed.Operator as TO
 import Syntax.Typed.Reduce
   ( descend,
     initRZ,
@@ -164,6 +164,7 @@ tests =
         let inv = Name "Inv" Nothing
             parameter = Name "t" Nothing
             globalR = Name "r" Nothing
+            expectedFresh = Name "r_0" Nothing
             env = [(inv, captureDefinition parameter globalR)]
             callerR = intVar globalR
             original =
@@ -177,7 +178,7 @@ tests =
 
         case expanded of
           T.Quant (T.Var opName _ _) [(freshR, _)] _ body _ -> do
-            freshR /= globalR @? "the quantifier binder must be alpha-renamed"
+            freshR @?= expectedFresh
             opName @?= freshR
             body @?= TO.lt (intVar globalR) (intVar freshR)
           other -> assertFailure $ "expected one alpha-renamed quantifier, got: " <> show other,
@@ -285,7 +286,8 @@ tests =
             parameter = Name "t" Nothing
             globalR = Name "r" Nothing
             b = Name "B" Nothing
-            occupied = Name "?r_0" Nothing
+            occupied = Name "r_0" Nothing
+            expectedFresh = Name "r_1" Nothing
             env = [(inv, captureDefinition parameter globalR)]
             occupiedPredicate = TO.lt (intVar occupied) (intVar b)
             original =
@@ -299,8 +301,7 @@ tests =
 
         case expanded of
           T.Quant _ [(freshR, _)] _ body _ -> do
-            freshR /= globalR @? "the conflicting binder must be renamed"
-            freshR /= occupied @? "the generated name must avoid existing names"
+            freshR @?= expectedFresh
             body
               @?= TO.conj
                 occupiedPredicate
