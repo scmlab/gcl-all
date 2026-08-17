@@ -1,6 +1,5 @@
 module Syntax.Typed.Reduce where
 
-import Control.Arrow ((***))
 import qualified Data.Map as Map
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -9,9 +8,7 @@ import qualified Data.Text as Text
 import GCL.Common (Free (..), Fresh (..))
 import Syntax.Abstract.Types (Pattern (..), extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
-import Syntax.Substitution
 import Syntax.Typed.Instances.Free ()
-import Syntax.Typed.Instances.Substitution ()
 import Syntax.Typed.Reduce.Saturation (saturatedRedex)
 import Syntax.Typed.Types
 
@@ -65,7 +62,10 @@ redexRT _env (Var _ _ _) = leaf
 redexRT _env (Const _ _ _) = leaf
 redexRT _env (Op _ _) = leaf
 redexRT env (Chain ch) = Node False (redexRTChain env ch)
-redexRT env (App f@(Lam _ _ _ _) e _) = Node True [redexRT env f, redexRT env e]
+redexRT env (App f@(Lam binder _ body _) e _) =
+  Node
+    (not (betaDeferred env binder body e))
+    [redexRT env f, redexRT env e]
 redexRT env (App v@(Var f _ _) e _) = Node (isDefined env f) [redexRT env v, redexRT env e]
 redexRT env (App f e _) = Node False [redexRT env f, redexRT env e]
 redexRT env (Lam x _ e _) = Node False [redexRT (shadowDefinitions [x] env) e]
@@ -79,11 +79,11 @@ redexRT env (ArrIdx a i _) = Node False [redexRT env a, redexRT env i]
 redexRT env (ArrUpd a i e _) =
   Node False [redexRT env a, redexRT env i, redexRT env e]
 redexRT env (Case e cls _) =
-  Node True (redexRT env e : map redexClause cls)
+  Node (not (caseDeferred env e cls)) (redexRT env e : map redexClause cls)
   where
     redexClause (CaseClause pattern' rhs) = redexRT (shadowDefinitions (extractBinder pattern') env) rhs
-redexRT env (Subst e sb) =
-  Node True (redexRT env e : map (redexRT env . snd) sb)
+redexRT env expression@(Subst e sb) =
+  Node (substitutionMarkedRedex env expression) (redexRT env e : map (redexRT env . snd) sb)
 redexRT _env (EHole {}) = leaf
 
 redexRTChain :: Env -> Chain -> [RT]
@@ -105,7 +105,8 @@ redexRT_sat _env (Var _ _ _) = leaf
 redexRT_sat _env (Const _ _ _) = leaf
 redexRT_sat _env (Op _ _) = leaf
 redexRT_sat env (Chain ch) = Node False (redexRTChain_sat env ch)
-redexRT_sat env e@(App f a _) = Node (saturatedDefinitionRedex env e) [redexRT_sat env f, redexRT_sat env a]
+redexRT_sat env e@(App f a _) =
+  Node (saturatedDefinitionRedex env e) [redexRT_sat env f, redexRT_sat env a]
 redexRT_sat env (Lam x _ e _) = Node False [redexRT_sat (shadowDefinitions [x] env) e]
 redexRT_sat env (Tuple es) = Node False (map (redexRT_sat env) es)
 redexRT_sat env (OutT _ t@(Tuple _)) = Node True [redexRT_sat env t]
@@ -117,11 +118,11 @@ redexRT_sat env (ArrIdx a i _) = Node False [redexRT_sat env a, redexRT_sat env 
 redexRT_sat env (ArrUpd a i e _) =
   Node False [redexRT_sat env a, redexRT_sat env i, redexRT_sat env e]
 redexRT_sat env (Case e cls _) =
-  Node True (redexRT_sat env e : map redexClause cls)
+  Node (not (caseDeferred env e cls)) (redexRT_sat env e : map redexClause cls)
   where
     redexClause (CaseClause pattern' rhs) = redexRT_sat (shadowDefinitions (extractBinder pattern') env) rhs
-redexRT_sat env (Subst e sb) =
-  Node True (redexRT_sat env e : map (redexRT_sat env . snd) sb)
+redexRT_sat env expression@(Subst e sb) =
+  Node (substitutionMarkedRedex env expression) (redexRT_sat env e : map (redexRT_sat env . snd) sb)
 redexRT_sat _env (EHole {}) = leaf
 
 redexRTChain_sat :: Env -> Chain -> [RT]
@@ -166,7 +167,7 @@ saturatedDefinitionRedex env expr =
   saturatedRedex expr
     && case applicationHead expr of
       Var name _ _ -> isDefined env name
-      Lam {} -> True
+      Lam {} -> not (applicationSpineDeferred env expr)
       _ -> False
 
 applicationHead :: Expr -> Expr
@@ -228,6 +229,8 @@ definitionAtPath env expr path = do
     App {} -> case applicationHead focus of
       Var name _ _ | isDefined envAtFocus name -> Just name
       _ -> Nothing
+    Subst (Var name _ _) _
+      | isDefined envAtFocus name -> Just name
     _ -> Nothing
 
 -- Include the free names of referenced definitions as well as the immediate
@@ -574,22 +577,528 @@ allNamesPattern (PattTuple patterns) = foldMap allNamesPattern patterns
 allNamesPattern (PattConstructor name patterns) =
   Set.insert (nameToText name) (foldMap allNamesPattern patterns)
 
+data DefinitionSubstPolicy
+  = SuspendAtDefinitions
+  | PreserveExistingPending
+  deriving (Eq, Show)
+
+type DefinitionSubst = [(Name, Expr)]
+
+containsVisibleDefinitionReference :: Env -> Expr -> Bool
+containsVisibleDefinitionReference env expr = case expr of
+  Lit {} -> False
+  Var name _ _ -> isDefined env name
+  Const {} -> False
+  Op {} -> False
+  Chain chain -> containsVisibleDefinitionChain env chain
+  App function argument _ ->
+    containsVisibleDefinitionReference env function
+      || containsVisibleDefinitionReference env argument
+  Lam binder _ body _ ->
+    containsVisibleDefinitionReference (shadowDefinitions [binder] env) body
+  Tuple exprs -> any (containsVisibleDefinitionReference env) exprs
+  OutT _ inner -> containsVisibleDefinitionReference env inner
+  Quant op binders range body _ ->
+    any (containsVisibleDefinitionReference env') [op, range, body]
+    where
+      env' = shadowDefinitions (map fst binders) env
+  ArrIdx array index _ ->
+    containsVisibleDefinitionReference env array
+      || containsVisibleDefinitionReference env index
+  ArrUpd array index value _ ->
+    any (containsVisibleDefinitionReference env) [array, index, value]
+  Case scrutinee clauses _ ->
+    containsVisibleDefinitionReference env scrutinee
+      || any containsClause clauses
+    where
+      containsClause (CaseClause pattern' rhs) =
+        containsVisibleDefinitionReference
+          (shadowDefinitions (extractBinder pattern') env)
+          rhs
+  Subst subject substitutions ->
+    containsVisibleDefinitionReference env subject
+      || any (containsVisibleDefinitionReference env . snd) substitutions
+  EHole {} -> False
+
+containsVisibleDefinitionChain :: Env -> Chain -> Bool
+containsVisibleDefinitionChain env (Pure expr) =
+  containsVisibleDefinitionReference env expr
+containsVisibleDefinitionChain env (More chain _ _ expr) =
+  containsVisibleDefinitionChain env chain
+    || containsVisibleDefinitionReference env expr
+
+isPendingDefinition :: Env -> Expr -> Bool
+isPendingDefinition env (Subst subject _) = case subject of
+  Var name _ _ -> isDefined env name
+  nested@Subst {} -> isPendingDefinition env nested
+  _ -> False
+isPendingDefinition _ _ = False
+
+tableDomains :: DefinitionSubst -> Set Text
+tableDomains = Set.fromList . map (nameToText . fst)
+
+tableRangeFreeVars :: DefinitionSubst -> Set Text
+tableRangeFreeVars = foldMap (freeVarsT . snd)
+
+removeTableDomains :: [Name] -> DefinitionSubst -> DefinitionSubst
+removeTableDomains binders =
+  filter ((`Set.notMember` boundNames) . nameToText . fst)
+  where
+    boundNames = Set.fromList (map nameToText binders)
+
+restrictTableToScopes :: [Expr] -> DefinitionSubst -> DefinitionSubst
+restrictTableToScopes scopes =
+  filter ((`Set.member` scopeFreeVars) . nameToText . fst)
+  where
+    scopeFreeVars = foldMap freeVarsT scopes
+
+tableForTransparentScope ::
+  [Name] ->
+  [Expr] ->
+  DefinitionSubst ->
+  DefinitionSubst
+-- Shared by preflight and traversal so their retained tables stay identical.
+tableForTransparentScope binders scopes =
+  restrictTableToScopes scopes . removeTableDomains binders
+
+relevantDefinitionTable :: Env -> Name -> DefinitionSubst -> DefinitionSubst
+relevantDefinitionTable globalEnv definitionName =
+  filter
+    ( (`Set.member` definitionClosureFreeVars globalEnv definitionName)
+        . nameToText
+        . fst
+    )
+
+tableForLexicalScope ::
+  DefinitionSubstPolicy ->
+  Env ->
+  [Name] ->
+  [Expr] ->
+  DefinitionSubst ->
+  DefinitionSubst
+tableForLexicalScope policy env binders scopes table
+  | policy == SuspendAtDefinitions && opaque = table
+  | otherwise = tableForTransparentScope binders scopes table
+  where
+    env' = shadowDefinitions binders env
+    opaque = any (containsVisibleDefinitionReference env') scopes
+
+tableForSubstitutionSubject ::
+  DefinitionSubstPolicy ->
+  Env ->
+  DefinitionSubst ->
+  Expr ->
+  DefinitionSubst ->
+  DefinitionSubst
+-- Explicit substitutions may need entries for hidden definition-site names;
+-- lexical beta/case substitutions never enter those bodies. All nested-Subst
+-- paths share this helper so capture checks and traversal cannot drift apart.
+tableForSubstitutionSubject policy env outerTable subject innerTable
+  | policy == SuspendAtDefinitions
+      && containsVisibleDefinitionReference env subject =
+      unshadowedTable
+  | otherwise = restrictTableToScopes [subject] unshadowedTable
+  where
+    unshadowedTable = removeTableDomains (map fst innerTable) outerTable
+
+nestedOpacityConflict ::
+  DefinitionSubstPolicy ->
+  Env ->
+  DefinitionSubst ->
+  Expr ->
+  DefinitionSubst ->
+  Bool
+nestedOpacityConflict policy env outerTable innerSubject innerTable =
+  not (Set.null captureConflicts)
+    && containsVisibleDefinitionReference env innerSubject
+  where
+    innerDomains = tableDomains innerTable
+    subjectTable =
+      tableForSubstitutionSubject
+        policy
+        env
+        outerTable
+        innerSubject
+        innerTable
+    captureConflicts = innerDomains `Set.intersection` tableRangeFreeVars subjectTable
+
+mustDeferSubstitution ::
+  DefinitionSubstPolicy ->
+  Env ->
+  DefinitionSubst ->
+  Expr ->
+  Bool
+mustDeferSubstitution _ _ [] _ = False
+mustDeferSubstitution policy env table expr = case expr of
+  Lit {} -> False
+  Var {} -> False
+  Const {} -> False
+  Op {} -> False
+  Chain chain -> mustDeferChain policy env table chain
+  App function argument _ ->
+    any (mustDeferSubstitution policy env table) [function, argument]
+  Lam binder _ body _ ->
+    mustDeferSubstitution policy env' table' body
+    where
+      env' = shadowDefinitions [binder] env
+      table' = tableForLexicalScope policy env [binder] [body] table
+  Tuple exprs -> any (mustDeferSubstitution policy env table) exprs
+  OutT _ inner -> mustDeferSubstitution policy env table inner
+  Quant op binders range body _ ->
+    any (mustDeferSubstitution policy env' table') [op, range, body]
+    where
+      names = map fst binders
+      env' = shadowDefinitions names env
+      table' = tableForLexicalScope policy env names [op, range, body] table
+  ArrIdx array index _ ->
+    any (mustDeferSubstitution policy env table) [array, index]
+  ArrUpd array index value _ ->
+    any (mustDeferSubstitution policy env table) [array, index, value]
+  Case scrutinee clauses _ ->
+    mustDeferSubstitution policy env table scrutinee
+      || any deferClause clauses
+    where
+      deferClause (CaseClause pattern' rhs) =
+        mustDeferSubstitution policy env' table' rhs
+        where
+          names = extractBinder pattern'
+          env' = shadowDefinitions names env
+          table' = tableForLexicalScope policy env names [rhs] table
+  expression@(Subst subject innerTable)
+    | isPendingDefinition env expression ->
+        policy == PreserveExistingPending
+          && ( mustDeferSubstitution policy env table subject
+                 || any (mustDeferSubstitution policy env table . snd) innerTable
+             )
+    | nestedOpacityConflict policy env table subject innerTable -> True
+    | otherwise ->
+        mustDeferSubstitution policy env subjectTable subject
+          || any (mustDeferSubstitution policy env table . snd) innerTable
+    where
+      subjectTable =
+        tableForSubstitutionSubject policy env table subject innerTable
+  EHole {} -> False
+
+mustDeferChain ::
+  DefinitionSubstPolicy ->
+  Env ->
+  DefinitionSubst ->
+  Chain ->
+  Bool
+mustDeferChain policy env table (Pure expr) =
+  mustDeferSubstitution policy env table expr
+mustDeferChain policy env table (More chain _ _ expr) =
+  mustDeferChain policy env table chain
+    || mustDeferSubstitution policy env table expr
+
+prepareLexicalBinders ::
+  DefinitionSubstPolicy ->
+  Env ->
+  DefinitionSubst ->
+  [Name] ->
+  [Expr] ->
+  Set Text ->
+  (NameRenaming, [Name], DefinitionSubst, Env, Set Text)
+prepareLexicalBinders policy env table binders scopes reserved =
+  (renaming, binders', table', env', reserved')
+  where
+    scopeEnv = shadowDefinitions binders env
+    opaque =
+      policy == SuspendAtDefinitions
+        && any (containsVisibleDefinitionReference scopeEnv) scopes
+    table'
+      | opaque = table
+      | otherwise = tableForTransparentScope binders scopes table
+    domainConflicts
+      | opaque = tableDomains table
+      | otherwise = Set.empty
+    avoid = domainConflicts <> tableRangeFreeVars table'
+    (renaming, reserved') = freshenBinders avoid reserved binders
+    binders' = map (renameName renaming) binders
+    env' = shadowDefinitions binders' env
+
+substWithDefinitions ::
+  DefinitionSubstPolicy ->
+  Env ->
+  Env ->
+  DefinitionSubst ->
+  Expr ->
+  Maybe Expr
+substWithDefinitions _ _ _ [] expr = Just expr
+substWithDefinitions policy globalEnv env table expr =
+  fst <$> substDefinitionExpr policy globalEnv env table expr reserved
+  where
+    reserved =
+      allNamesExpr expr
+        <> allNamesEnv globalEnv
+        <> Set.fromList (map (nameToText . fst) table)
+        <> foldMap (allNamesExpr . snd) table
+
+substDefinitionExpr ::
+  DefinitionSubstPolicy ->
+  Env ->
+  Env ->
+  DefinitionSubst ->
+  Expr ->
+  Set Text ->
+  Maybe (Expr, Set Text)
+substDefinitionExpr _ _ _ [] expr reserved = Just (expr, reserved)
+substDefinitionExpr policy globalEnv env table expr reserved = case expr of
+  Lit {} -> Just (expr, reserved)
+  Var name ty range
+    | isDefined env name -> case policy of
+        PreserveExistingPending -> Just (expr, reserved)
+        SuspendAtDefinitions ->
+          case relevantDefinitionTable globalEnv name table of
+            [] -> Just (expr, reserved)
+            relevant -> Just (Subst (Var name ty range) relevant, reserved)
+    | otherwise -> Just (maybe expr id (lookup name table), reserved)
+  Const name _ _ -> Just (maybe expr id (lookup name table), reserved)
+  Op {} -> Just (expr, reserved)
+  Chain chain -> do
+    (chain', reserved') <-
+      substDefinitionChain policy globalEnv env table chain reserved
+    return (Chain chain', reserved')
+  App function argument range -> do
+    (function', reserved') <-
+      substDefinitionExpr policy globalEnv env table function reserved
+    (argument', reserved'') <-
+      substDefinitionExpr policy globalEnv env table argument reserved'
+    return (App function' argument' range, reserved'')
+  Lam binder ty body range -> do
+    let (renaming, _, table', env', reserved') =
+          prepareLexicalBinders policy env table [binder] [body] reserved
+        binder' = renameName renaming binder
+        body' = renameFreeOccurrences renaming body
+    (body'', reserved'') <-
+      substDefinitionExpr policy globalEnv env' table' body' reserved'
+    return (Lam binder' ty body'' range, reserved'')
+  Tuple exprs -> do
+    (exprs', reserved') <-
+      substDefinitionExprs policy globalEnv env table exprs reserved
+    return (Tuple exprs', reserved')
+  OutT index inner -> do
+    (inner', reserved') <-
+      substDefinitionExpr policy globalEnv env table inner reserved
+    return (OutT index inner', reserved')
+  Quant op binders range body location -> do
+    let names = map fst binders
+        tys = map snd binders
+        (renaming, names', table', env', reserved') =
+          prepareLexicalBinders policy env table names [op, range, body] reserved
+        binders' = zip names' tys
+        op' = renameFreeOccurrences renaming op
+        range' = renameFreeOccurrences renaming range
+        body' = renameFreeOccurrences renaming body
+    (op'', reserved'') <-
+      substDefinitionExpr policy globalEnv env' table' op' reserved'
+    (range'', reserved''') <-
+      substDefinitionExpr policy globalEnv env' table' range' reserved''
+    (body'', reserved'''') <-
+      substDefinitionExpr policy globalEnv env' table' body' reserved'''
+    return (Quant op'' binders' range'' body'' location, reserved'''')
+  ArrIdx array index location -> do
+    (array', reserved') <-
+      substDefinitionExpr policy globalEnv env table array reserved
+    (index', reserved'') <-
+      substDefinitionExpr policy globalEnv env table index reserved'
+    return (ArrIdx array' index' location, reserved'')
+  ArrUpd array index value location -> do
+    (array', reserved') <-
+      substDefinitionExpr policy globalEnv env table array reserved
+    (index', reserved'') <-
+      substDefinitionExpr policy globalEnv env table index reserved'
+    (value', reserved''') <-
+      substDefinitionExpr policy globalEnv env table value reserved''
+    return (ArrUpd array' index' value' location, reserved''')
+  Case scrutinee clauses location -> do
+    (scrutinee', reserved') <-
+      substDefinitionExpr policy globalEnv env table scrutinee reserved
+    (clauses', reserved'') <-
+      substDefinitionClauses policy globalEnv env table clauses reserved'
+    return (Case scrutinee' clauses' location, reserved'')
+  expression@(Subst subject innerTable)
+    | isPendingDefinition env expression -> case policy of
+        SuspendAtDefinitions -> Just (Subst expression table, reserved)
+        PreserveExistingPending ->
+          substPendingRanges policy globalEnv env table expression reserved
+    | nestedOpacityConflict policy env table subject innerTable -> Nothing
+    | otherwise -> do
+        let innerNames = map fst innerTable
+            subjectTable =
+              tableForSubstitutionSubject policy env table subject innerTable
+            captureConflicts =
+              tableDomains innerTable
+                `Set.intersection` tableRangeFreeVars subjectTable
+            (renaming, reserved') = freshenBinders captureConflicts reserved innerNames
+            innerNames' = map (renameName renaming) innerNames
+            subject' = renameFreeOccurrences renaming subject
+        (subject'', reserved'') <-
+          substDefinitionExpr policy globalEnv env subjectTable subject' reserved'
+        (ranges', reserved''') <-
+          substDefinitionExprs
+            policy
+            globalEnv
+            env
+            table
+            (map snd innerTable)
+            reserved''
+        return (Subst subject'' (zip innerNames' ranges'), reserved''')
+  EHole {} -> Just (expr, reserved)
+
+substDefinitionExprs ::
+  DefinitionSubstPolicy ->
+  Env ->
+  Env ->
+  DefinitionSubst ->
+  [Expr] ->
+  Set Text ->
+  Maybe ([Expr], Set Text)
+substDefinitionExprs _ _ _ _ [] reserved = Just ([], reserved)
+substDefinitionExprs policy globalEnv env table (expr : exprs) reserved = do
+  (expr', reserved') <-
+    substDefinitionExpr policy globalEnv env table expr reserved
+  (exprs', reserved'') <-
+    substDefinitionExprs policy globalEnv env table exprs reserved'
+  return (expr' : exprs', reserved'')
+
+substDefinitionChain ::
+  DefinitionSubstPolicy ->
+  Env ->
+  Env ->
+  DefinitionSubst ->
+  Chain ->
+  Set Text ->
+  Maybe (Chain, Set Text)
+substDefinitionChain policy globalEnv env table (Pure expr) reserved = do
+  (expr', reserved') <-
+    substDefinitionExpr policy globalEnv env table expr reserved
+  return (Pure expr', reserved')
+substDefinitionChain policy globalEnv env table (More chain op ty expr) reserved = do
+  (chain', reserved') <-
+    substDefinitionChain policy globalEnv env table chain reserved
+  (expr', reserved'') <-
+    substDefinitionExpr policy globalEnv env table expr reserved'
+  return (More chain' op ty expr', reserved'')
+
+substDefinitionClauses ::
+  DefinitionSubstPolicy ->
+  Env ->
+  Env ->
+  DefinitionSubst ->
+  [CaseClause] ->
+  Set Text ->
+  Maybe ([CaseClause], Set Text)
+substDefinitionClauses _ _ _ _ [] reserved = Just ([], reserved)
+substDefinitionClauses policy globalEnv env table (CaseClause pattern' rhs : clauses) reserved = do
+  let names = extractBinder pattern'
+      (renaming, _, table', env', reserved') =
+        prepareLexicalBinders policy env table names [rhs] reserved
+      pattern'' = renamePatternBinders renaming pattern'
+      rhs' = renameFreeOccurrences renaming rhs
+  (rhs'', reserved'') <-
+    substDefinitionExpr policy globalEnv env' table' rhs' reserved'
+  (clauses', reserved''') <-
+    substDefinitionClauses policy globalEnv env table clauses reserved''
+  return (CaseClause pattern'' rhs'' : clauses', reserved''')
+
+substPendingRanges ::
+  DefinitionSubstPolicy ->
+  Env ->
+  Env ->
+  DefinitionSubst ->
+  Expr ->
+  Set Text ->
+  Maybe (Expr, Set Text)
+substPendingRanges policy globalEnv env table (Subst subject pendingTable) reserved = do
+  (subject', reserved') <-
+    if isPendingDefinition env subject
+      then substPendingRanges policy globalEnv env table subject reserved
+      else Just (subject, reserved)
+  (ranges', reserved'') <-
+    substDefinitionExprs
+      policy
+      globalEnv
+      env
+      table
+      (map snd pendingTable)
+      reserved'
+  return (Subst subject' (zip (map fst pendingTable) ranges'), reserved'')
+substPendingRanges _ _ _ _ expr reserved = Just (expr, reserved)
+
+substitutionMarkedRedex :: Env -> Expr -> Bool
+substitutionMarkedRedex env (Subst subject table) =
+  not (isPendingDefinition env subject)
+    && not (mustDeferSubstitution SuspendAtDefinitions env table subject)
+substitutionMarkedRedex _ _ = False
+
+betaDeferred :: Env -> Name -> Expr -> Expr -> Bool
+betaDeferred env binder body argument =
+  mustDeferSubstitution
+    PreserveExistingPending
+    (shadowDefinitions [binder] env)
+    [(binder, argument)]
+    body
+
+applicationSpineDeferred :: Env -> Expr -> Bool
+applicationSpineDeferred env (App function argument _) = case function of
+  Lam binder _ body _ -> betaDeferred env binder body argument
+  nested@App {} -> applicationSpineDeferred env nested
+  _ -> False
+applicationSpineDeferred _ _ = False
+
+caseDeferred :: Env -> Expr -> [CaseClause] -> Bool
+caseDeferred env scrutinee clauses = case firstMatchingClause scrutinee clauses of
+  Nothing -> False
+  Just (pattern', rhs, table) ->
+    mustDeferSubstitution
+      PreserveExistingPending
+      (shadowDefinitions (extractBinder pattern') env)
+      table
+      rhs
+
+firstMatchingClause ::
+  Expr ->
+  [CaseClause] ->
+  Maybe (Pattern, Expr, DefinitionSubst)
+firstMatchingClause _ [] = Nothing
+firstMatchingClause scrutinee (CaseClause pattern' rhs : clauses) =
+  case matchPattern scrutinee pattern' of
+    Just table -> Just (pattern', rhs, table)
+    Nothing -> firstMatchingClause scrutinee clauses
+
 reduce :: (Fresh m) => Env -> Expr -> Redex -> m Expr
 reduce env expr path =
   case definitionAtPath env expr path of
-    Nothing -> reduceRaw env expr path
+    Nothing -> reduceRawWithEnvs env env expr path
     Just definitionName ->
       let avoid = definitionClosureFreeVars env definitionName
           expr' = alphaRenameAlongPath env avoid expr path
-       in reduceRaw env expr' path
+       in reduceRawWithEnvs env env expr' path
 
 reduceRaw :: (Fresh m) => Env -> Expr -> Redex -> m Expr
-reduceRaw env (Chain ch) (i : p) = Chain <$> reduceChain env ch i p
-reduceRaw _env (App (Lam x _ bdy _) e _) [] = betaReduce x bdy e
-reduceRaw env exp@(App (Var f _ _) e r) [] =
+reduceRaw env = reduceRawWithEnvs env env
+
+-- Keep the complete definition environment separate from the lexically visible
+-- one. Definition closures are computed at the definition site from globalEnv;
+-- redex visibility and traversal shadowing use env.
+reduceRawWithEnvs :: (Fresh m) => Env -> Env -> Expr -> Redex -> m Expr
+reduceRawWithEnvs globalEnv env (Chain ch) (i : p) =
+  Chain <$> reduceChainWithEnvs globalEnv env ch i p
+reduceRawWithEnvs globalEnv env expression@(App (Lam binder _ body _) argument _) []
+  | betaDeferred env binder body argument = return expression
+  | otherwise = case substWithDefinitions
+      PreserveExistingPending
+      globalEnv
+      (shadowDefinitions [binder] env)
+      [(binder, argument)]
+      body of
+      Just result -> return result
+      Nothing -> return expression
+reduceRawWithEnvs globalEnv env exp@(App (Var f _ _) e r) [] =
   maybe
     (return exp)
-    (\rhs -> reduceRaw env (App rhs e r) [])
+    (\rhs -> reduceRawWithEnvs globalEnv env (App rhs e r) [])
     (lookup f env)
 -- The function position is neither a lambda nor a variable. This happens when
 -- a point-free definition is inlined into an application, e.g. `id2 = plus 0`
@@ -597,89 +1106,170 @@ reduceRaw env exp@(App (Var f _ _) e r) [] =
 -- substitution in the function position. Reduce the function position one step
 -- so it can progress towards a lambda; if it cannot make progress, leave the
 -- application untouched instead of falling through to the catch-all error.
-reduceRaw env exp@(App f e r) []
-  | rootReducible f = do
-      f' <- reduceRaw env f []
-      if f' == f then return exp else reduceRaw env (App f' e r) []
+reduceRawWithEnvs globalEnv env exp@(App f e r) []
+  | rootReducible env f = do
+      f' <- reduceRawWithEnvs globalEnv env f []
+      if f' == f
+        then return exp
+        else reduceRawWithEnvs globalEnv env (App f' e r) []
   | otherwise = return exp
-reduceRaw env (App f e r) (0 : p) = App <$> reduceRaw env f p <*> pure e <*> pure r
-reduceRaw env (App f e r) (1 : p) = App f <$> reduceRaw env e p <*> pure r
-reduceRaw env (Lam x t e r) (0 : p) = Lam x t <$> reduceRaw (shadowDefinitions [x] env) e p <*> pure r
-reduceRaw env (Tuple es) (n : p) = Tuple <$> reduceNth env n es p
-reduceRaw _env (OutT i (Tuple es)) [] = return (es !! i)
-reduceRaw env (OutT i e) (0 : p) = OutT i <$> reduceRaw env e p
-reduceRaw env (Quant op xs ran bdy r) (0 : p) =
-  Quant op xs <$> reduceRaw env' ran p <*> pure bdy <*> pure r
+reduceRawWithEnvs globalEnv env (App f e r) (0 : p) =
+  App <$> reduceRawWithEnvs globalEnv env f p <*> pure e <*> pure r
+reduceRawWithEnvs globalEnv env (App f e r) (1 : p) =
+  App f <$> reduceRawWithEnvs globalEnv env e p <*> pure r
+reduceRawWithEnvs globalEnv env (Lam x t e r) (0 : p) =
+  Lam x t
+    <$> reduceRawWithEnvs globalEnv (shadowDefinitions [x] env) e p
+    <*> pure r
+reduceRawWithEnvs globalEnv env (Tuple es) (n : p) =
+  Tuple <$> reduceNthWithEnvs globalEnv env n es p
+reduceRawWithEnvs _globalEnv _env (OutT i (Tuple es)) [] = return (es !! i)
+reduceRawWithEnvs globalEnv env (OutT i e) (0 : p) =
+  OutT i <$> reduceRawWithEnvs globalEnv env e p
+reduceRawWithEnvs globalEnv env (Quant op xs ran bdy r) (0 : p) =
+  Quant op xs
+    <$> reduceRawWithEnvs globalEnv env' ran p
+    <*> pure bdy
+    <*> pure r
   where
     env' = shadowDefinitions (map fst xs) env
-reduceRaw env (Quant op xs ran bdy r) (1 : p) =
-  Quant op xs ran <$> reduceRaw env' bdy p <*> pure r
+reduceRawWithEnvs globalEnv env (Quant op xs ran bdy r) (1 : p) =
+  Quant op xs ran <$> reduceRawWithEnvs globalEnv env' bdy p <*> pure r
   where
     env' = shadowDefinitions (map fst xs) env
-reduceRaw env (ArrIdx a i r) (0 : p) = ArrIdx <$> reduceRaw env a p <*> pure i <*> pure r
-reduceRaw env (ArrIdx a i r) (1 : p) = ArrIdx a <$> reduceRaw env i p <*> pure r
-reduceRaw env (ArrUpd a i e r) (0 : p) =
-  ArrUpd <$> reduceRaw env a p <*> pure i <*> pure e <*> pure r
-reduceRaw env (ArrUpd a i e r) (1 : p) = ArrUpd a <$> reduceRaw env i p <*> pure e <*> pure r
-reduceRaw env (ArrUpd a i e r) (2 : p) = ArrUpd a i <$> reduceRaw env e p <*> pure r
-reduceRaw env expr@(Case e cls _) [] =
-  maybe expr id <$> reduceCase env e cls -- return expr unchanged if cannot reduce
-reduceRaw env (Case e cls r) (0 : p) =
-  Case <$> reduceRaw env e p <*> pure cls <*> pure r
-reduceRaw env (Case e cls r) (n : p) =
-  Case e <$> reduceNthCaseClause env (n - 1) cls p <*> pure r
-reduceRaw _env (Subst e sb) [] = subst (map (nameToText *** id) sb) e
-reduceRaw env (Subst e sb) (0 : p) = Subst <$> reduceRaw env e p <*> pure sb
-reduceRaw env (Subst e sb) (n : p) =
+reduceRawWithEnvs globalEnv env (ArrIdx a i r) (0 : p) =
+  ArrIdx <$> reduceRawWithEnvs globalEnv env a p <*> pure i <*> pure r
+reduceRawWithEnvs globalEnv env (ArrIdx a i r) (1 : p) =
+  ArrIdx a <$> reduceRawWithEnvs globalEnv env i p <*> pure r
+reduceRawWithEnvs globalEnv env (ArrUpd a i e r) (0 : p) =
+  ArrUpd
+    <$> reduceRawWithEnvs globalEnv env a p
+    <*> pure i
+    <*> pure e
+    <*> pure r
+reduceRawWithEnvs globalEnv env (ArrUpd a i e r) (1 : p) =
+  ArrUpd a <$> reduceRawWithEnvs globalEnv env i p <*> pure e <*> pure r
+reduceRawWithEnvs globalEnv env (ArrUpd a i e r) (2 : p) =
+  ArrUpd a i <$> reduceRawWithEnvs globalEnv env e p <*> pure r
+reduceRawWithEnvs globalEnv env expr@(Case e cls _) [] =
+  maybe expr id
+    <$> reduceCaseWithEnvs globalEnv env e cls -- return expr unchanged if cannot reduce
+reduceRawWithEnvs globalEnv env (Case e cls r) (0 : p) =
+  Case <$> reduceRawWithEnvs globalEnv env e p <*> pure cls <*> pure r
+reduceRawWithEnvs globalEnv env (Case e cls r) (n : p) =
+  Case e
+    <$> reduceNthCaseClauseWithEnvs globalEnv env (n - 1) cls p
+    <*> pure r
+reduceRawWithEnvs globalEnv env expression@(Subst (Var name _ _) table) []
+  | Just rhs <- lookup name env = case substWithDefinitions SuspendAtDefinitions globalEnv env table rhs of
+      Just result -> return result
+      Nothing -> return expression
+reduceRawWithEnvs _globalEnv env expression@(Subst subject _) []
+  | isPendingDefinition env subject = return expression
+reduceRawWithEnvs _globalEnv env expression@(Subst subject table) []
+  | mustDeferSubstitution SuspendAtDefinitions env table subject =
+      return expression
+reduceRawWithEnvs globalEnv env expression@(Subst subject table) [] =
+  case substWithDefinitions SuspendAtDefinitions globalEnv env table subject of
+    Just result -> return result
+    Nothing -> return expression
+reduceRawWithEnvs globalEnv env (Subst e sb) (0 : p) =
+  Subst <$> reduceRawWithEnvs globalEnv env e p <*> pure sb
+reduceRawWithEnvs globalEnv env (Subst e sb) (n : p) =
   (Subst e . zip (map fst sb))
-    <$> reduceNth env (n - 1) (map snd sb) p
-reduceRaw _ _ _ = error "shouldn't happen" -- a "catch-all" clause
+    <$> reduceNthWithEnvs globalEnv env (n - 1) (map snd sb) p
+reduceRawWithEnvs _ _ _ _ = error "shouldn't happen" -- a "catch-all" clause
 
 reduceNth :: (Fresh m) => Env -> Int -> [Expr] -> Redex -> m [Expr]
-reduceNth _ _ [] _ = error "shouldn't happen"
-reduceNth env 0 (e : es) p = (: es) <$> reduceRaw env e p
-reduceNth env n (e : es) p = (e :) <$> reduceNth env (n - 1) es p
+reduceNth env = reduceNthWithEnvs env env
+
+reduceNthWithEnvs :: (Fresh m) => Env -> Env -> Int -> [Expr] -> Redex -> m [Expr]
+reduceNthWithEnvs _ _ _ [] _ = error "shouldn't happen"
+reduceNthWithEnvs globalEnv env 0 (e : es) p =
+  (: es) <$> reduceRawWithEnvs globalEnv env e p
+reduceNthWithEnvs globalEnv env n (e : es) p =
+  (e :) <$> reduceNthWithEnvs globalEnv env (n - 1) es p
 
 reduceNthCaseClause :: (Fresh m) => Env -> Int -> [CaseClause] -> Redex -> m [CaseClause]
-reduceNthCaseClause _ _ [] _ = error "shouldn't happen"
-reduceNthCaseClause env 0 (CaseClause pattern' rhs : clauses) path =
-  (\rhs' -> CaseClause pattern' rhs' : clauses)
-    <$> reduceRaw (shadowDefinitions (extractBinder pattern') env) rhs path
-reduceNthCaseClause env n (clause : clauses) path =
-  (clause :) <$> reduceNthCaseClause env (n - 1) clauses path
+reduceNthCaseClause env = reduceNthCaseClauseWithEnvs env env
 
-betaReduce :: (Fresh m) => Name -> Expr -> Expr -> m Expr
-betaReduce x bdy e = subst [(nameToText x, e)] bdy
+reduceNthCaseClauseWithEnvs ::
+  (Fresh m) =>
+  Env ->
+  Env ->
+  Int ->
+  [CaseClause] ->
+  Redex ->
+  m [CaseClause]
+reduceNthCaseClauseWithEnvs _ _ _ [] _ = error "shouldn't happen"
+reduceNthCaseClauseWithEnvs globalEnv env 0 (CaseClause pattern' rhs : clauses) path =
+  (\rhs' -> CaseClause pattern' rhs' : clauses)
+    <$> reduceRawWithEnvs
+      globalEnv
+      (shadowDefinitions (extractBinder pattern') env)
+      rhs
+      path
+reduceNthCaseClauseWithEnvs globalEnv env n (clause : clauses) path =
+  (clause :)
+    <$> reduceNthCaseClauseWithEnvs globalEnv env (n - 1) clauses path
 
 -- | Whether an expression is reducible at its very root, i.e. whether
 --   @reduceRaw env e []@ performs a genuine one-step reduction. Used to decide
 --   whether the function position of an application can be simplified before
 --   applying.
-rootReducible :: Expr -> Bool
-rootReducible (App (Lam {}) _ _) = True
-rootReducible (App (Var {}) _ _) = True
-rootReducible (Case {}) = True
-rootReducible (Subst {}) = True
-rootReducible (OutT _ (Tuple {})) = True
-rootReducible _ = False
+rootReducible :: Env -> Expr -> Bool
+rootReducible env (App (Lam binder _ body _) argument _) =
+  not (betaDeferred env binder body argument)
+rootReducible env (App (Var name _ _) _ _) = isDefined env name
+rootReducible env (Case scrutinee clauses _) =
+  not (caseDeferred env scrutinee clauses)
+rootReducible env expression@(Subst _ _) =
+  not (isPendingDefinition env expression)
+    && substitutionMarkedRedex env expression
+rootReducible _ (OutT _ (Tuple {})) = True
+rootReducible _ _ = False
 
 reduceChain :: (Fresh m) => Env -> Chain -> Int -> Redex -> m Chain
-reduceChain env (Pure e) 0 p = Pure <$> reduceRaw env e p
-reduceChain env (More ch op t e) 0 p = More ch op t <$> reduceRaw env e p
-reduceChain env (More ch op t e) i p =
-  (\ch' -> More ch' op t e) <$> reduceChain env ch (i - 1) p
-reduceChain _ _ _ _ = error "shouldn't happen (reduceChain)"
+reduceChain env = reduceChainWithEnvs env env
+
+reduceChainWithEnvs ::
+  (Fresh m) => Env -> Env -> Chain -> Int -> Redex -> m Chain
+reduceChainWithEnvs globalEnv env (Pure e) 0 p =
+  Pure <$> reduceRawWithEnvs globalEnv env e p
+reduceChainWithEnvs globalEnv env (More ch op t e) 0 p =
+  More ch op t <$> reduceRawWithEnvs globalEnv env e p
+reduceChainWithEnvs globalEnv env (More ch op t e) i p =
+  (\ch' -> More ch' op t e)
+    <$> reduceChainWithEnvs globalEnv env ch (i - 1) p
+reduceChainWithEnvs _ _ _ _ _ = error "shouldn't happen (reduceChain)"
 
 reduceCase :: (Fresh m) => Env -> Expr -> [CaseClause] -> m (Maybe Expr)
-reduceCase _env _e [] = return Nothing
-reduceCase env e (CaseClause ptn rhs : cls) = do
-  case matchPattern e ptn of
-    Just subs -> Just <$> subst subs rhs
-    Nothing -> reduceCase env e cls
+reduceCase env = reduceCaseWithEnvs env env
 
-matchPattern :: Expr -> Pattern -> Maybe (Subst Expr)
+reduceCaseWithEnvs ::
+  (Fresh m) => Env -> Env -> Expr -> [CaseClause] -> m (Maybe Expr)
+reduceCaseWithEnvs _globalEnv _env _e [] = return Nothing
+reduceCaseWithEnvs globalEnv env e (CaseClause ptn rhs : cls) = do
+  case matchPattern e ptn of
+    Just table
+      | mustDeferSubstitution PreserveExistingPending env' table rhs ->
+          return Nothing
+      | otherwise ->
+          return
+            ( substWithDefinitions
+                PreserveExistingPending
+                globalEnv
+                env'
+                table
+                rhs
+            )
+      where
+        env' = shadowDefinitions (extractBinder ptn) env
+    Nothing -> reduceCaseWithEnvs globalEnv env e cls
+
+matchPattern :: Expr -> Pattern -> Maybe DefinitionSubst
 matchPattern (Lit l _ _) (PattLit l') | l == l' = Just []
-matchPattern e (PattBinder v) = Just [(nameToText v, e)]
+matchPattern e (PattBinder v) = Just [(v, e)]
 matchPattern _ (PattWildcard _) = Just []
 matchPattern (Tuple es) (PattTuple ps)
   | length es == length ps =
