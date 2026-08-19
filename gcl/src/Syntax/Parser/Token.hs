@@ -37,6 +37,12 @@ tokenConst = adapt TokCon "reserved word \"con\""
 tokenVar :: Parser (Token "var")
 tokenVar = adapt TokVar "reserved word \"var\""
 
+tokenProc :: Parser (Token "proc")
+tokenProc = adapt TokProc "reserved word \"proc\""
+
+tokenValue :: Parser (Token "value")
+tokenValue = adapt TokValue "reserved word \"value\""
+
 tokenData :: Parser (Token "data")
 tokenData = adapt TokData "reserved word \"data\""
 

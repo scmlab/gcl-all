@@ -226,6 +226,9 @@ instance Pretty TypeDefnCtor where
 instance PrettyWithRange TypeDefnCtor where
   prettyWithRange (TypeDefnCtor n ts) = prettyWithRange n <> prettyWithRange ts
 
+instance PrettyWithRange Procedure where
+  prettyWithRange Procedure {} = undefined -- XXX: idk how this works
+
 --------------------------------------------------------------------------------
 
 -- | Literals
@@ -298,8 +301,6 @@ instance PrettyWithRange Stmt where
   prettyWithRange (HMutate s e1 a e2) =
     prettyWithRange s <> prettyWithRange e1 <> prettyWithRange a <> prettyWithRange e2
   prettyWithRange (Dispose l e) = prettyWithRange l <> prettyWithRange e
-  prettyWithRange (Block l p r) =
-    prettyWithRange l <> prettyWithRange p <> prettyWithRange r
 
 instance Pretty GdCmd where
   pretty = toDoc . prettyWithRange

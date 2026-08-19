@@ -11,6 +11,7 @@ import Data.Text (Text)
 import GCL.Range (MaybeRanged (..), Pos, R, Range, Ranged (..), mkRange)
 import GHC.Base (Symbol)
 import GHC.Generics (Generic)
+import qualified Hack
 import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)
 import Syntax.Parser.Lexer (Tok)
 import Prelude hiding (Ordering (..))
@@ -46,10 +47,12 @@ data SepBy (sep :: Symbol) a = Head a | Delim a (Token sep) (SepBy sep a)
 
 --------------------------------------------------------------------------------
 
+-- XXX: why put everyting together and partition in abstract?
+
 -- | Program
 data Program
   = Program
-      [Either Declaration DefinitionBlock] -- constant and variable declarations
+      [Hack.Choice3 Declaration DefinitionBlock Procedure] -- constant and variable declarations
       [Stmt] -- main program
   deriving (Eq, Show)
 
@@ -88,6 +91,25 @@ data DeclType = DeclType DeclBase (Maybe DeclProp) deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
 
+-- | Procedure
+data Procedure = Procedure (Token "proc") Name ProcParam DeclProp ProcBlock DeclProp
+  deriving (Eq, Show)
+
+data ProcParam = ProcParam (Token "(") (SepBy "," ProcDecl) (Token ")")
+  deriving (Eq, Show)
+
+-- XXX: decl probably isn't the best word to describe this
+data ProcDecl
+  = PVarDecl (Token "var") DeclBase
+  | PValueDecl (Token "value") DeclBase
+  deriving (Eq, Show)
+
+data ProcBlock
+  = ProcBlock (Token "|[") Program (Token "]|")
+  deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+
 -- | Statements
 data Stmt
   = Skip Range
@@ -105,7 +127,6 @@ data Stmt
   | HLookup Name (Token ":=") (Token "*") Expr
   | HMutate (Token "*") Expr (Token ":=") Expr
   | Dispose (Token "dispose") Expr
-  | Block (Token "|[") Program (Token "]|")
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr TokArrows [Stmt] deriving (Eq, Show)

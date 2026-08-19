@@ -7,7 +7,7 @@ import Prelude hiding (Ordering (..))
 
 -- MaybeRanged instances (primary)
 instance MaybeRanged Program where
-  maybeRangeOf (Program _ _ _ _ l) = l
+  maybeRangeOf (Program _ _ _ _ _ l) = l
 
 instance MaybeRanged Declaration where
   maybeRangeOf (ConstDecl _ _ _ l) = l

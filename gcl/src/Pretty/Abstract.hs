@@ -16,8 +16,8 @@ import Prelude hiding (Ordering (..))
 
 -- | Program
 instance Pretty Program where
-  pretty (Program _ decls props stmts _) =
-    vsep $ map pretty decls ++ map pretty props ++ map pretty stmts
+  pretty (Program _ decls procs props stmts _) =
+    vsep $ map pretty decls ++ map pretty procs ++ map pretty props ++ map pretty stmts
 
 --------------------------------------------------------------------------------
 
@@ -43,6 +43,26 @@ instance Pretty Declaration where
       <> "{ "
       <> pretty p
       <> " }"
+
+instance Pretty Procedure where
+  pretty (Procedure name params pre block post) =
+    "proc "
+      <> pretty name
+      <> "("
+      <> hsep (punctuate ", " (map pretty params))
+      <> ")"
+      <> line
+      <> pretty pre
+      <> line
+      <> pretty block
+      <> line
+      <> pretty post
+
+instance Pretty ProcParam where
+  pretty (VarParam names t _) =
+    "var " <> hsep (punctuate ", " (map pretty names)) <> ": " <> pretty t
+  pretty (ValueParam names t _) =
+    "value " <> hsep (punctuate ", " (map pretty names)) <> ": " <> pretty t
 
 instance Pretty Definition where
   pretty (TypeDefn name binders qdcons _) =

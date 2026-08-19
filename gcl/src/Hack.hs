@@ -2,8 +2,11 @@
 
 module Hack where
 
+import Data.List (foldl')
+import GCL.Range (MaybeRanged (..))
 import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
+import Pretty.Util (PrettyWithRange (..))
 
 -- FIXME: this function is to help migrating LSP library versions
 -- previous LSP uses `Int` for line and character offsets
@@ -41,3 +44,31 @@ sshow x = go 0 (show x)
       | c == ')' = "\n" ++ indent (n - 1) ++ ")" ++ go (n - 1) cs
       | c == ' ' = " " ++ go n cs
       | otherwise = c : go n cs
+
+data Choice3 a b c
+  = A a
+  | B b
+  | C c
+  deriving (Eq, Show)
+
+choice3 :: (a -> d) -> (b -> d) -> (c -> d) -> Choice3 a b c -> d
+choice3 f _ _ (A a) = f a
+choice3 _ g _ (B b) = g b
+choice3 _ _ h (C c) = h c
+
+instance (MaybeRanged a, MaybeRanged b, MaybeRanged c) => MaybeRanged (Choice3 a b c) where
+  maybeRangeOf = choice3 maybeRangeOf maybeRangeOf maybeRangeOf
+
+instance (PrettyWithRange a, PrettyWithRange b, PrettyWithRange c) => PrettyWithRange (Choice3 a b c) where
+  prettyWithRange = choice3 prettyWithRange prettyWithRange prettyWithRange
+
+partitionChoice3 :: [Choice3 a b c] -> ([a], [b], [c])
+partitionChoice3 =
+  foldl'
+    ( \(as, bs, cs) choice ->
+        case choice of
+          A a -> (a : as, bs, cs)
+          B b -> (as, b : bs, cs)
+          C c -> (as, bs, c : cs)
+    )
+    ([], [], [])

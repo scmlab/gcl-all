@@ -28,6 +28,7 @@ data Program
   = Program
       [Definition] -- definitions (the functional language part)
       [Declaration] -- constant and variable declarations
+      [Procedure]
       [Expr] -- global properties
       [Stmt] -- main program
       (Maybe Range)
@@ -61,6 +62,16 @@ data TypeDefnCtor = TypeDefnCtor Name [Type]
 data Declaration
   = ConstDecl [Name] Type (Maybe Expr) (Maybe Range)
   | VarDecl [Name] Type (Maybe Expr) (Maybe Range)
+  deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+
+data Procedure = Procedure Name [ProcParam] Expr Program Expr
+  deriving (Eq, Show)
+
+data ProcParam
+  = VarParam [Name] Type (Maybe Range)
+  | ValueParam [Name] Type (Maybe Range)
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------

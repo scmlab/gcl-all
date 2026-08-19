@@ -212,7 +212,8 @@ instance Free GdCmd where
     freeVars g <> Set.unions (map freeVars stmts)
 
 instance Free Program where
-  freeVars (Program _defns decls props stmts _) =
+  freeVars (Program _defns decls procs props stmts _) =
+    -- XXX: `freeVars` of procedures?
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 
 -- SCM: TODO: deal with defns later.

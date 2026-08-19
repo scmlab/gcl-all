@@ -56,6 +56,8 @@ data Tok
   | TokQM -- question mark ? for digging holes
   | TokVar
   | TokCon
+  | TokProc
+  | TokValue
   | TokData
   | TokArray
   | TokOf
@@ -156,6 +158,8 @@ instance Show Tok where
     TokQM -> "?"
     TokVar -> "var"
     TokCon -> "con"
+    TokProc -> "proc"
+    TokValue -> "value"
     TokData -> "data"
     TokArray -> "array"
     TokOf -> "of"
@@ -261,6 +265,10 @@ tokRE =
     <$ string "con"
       <|> TokVar
     <$ string "var"
+      <|> TokProc
+    <$ string "proc"
+      <|> TokValue
+    <$ string "value"
       <|> TokData
     <$ string "data"
       <|> TokArray

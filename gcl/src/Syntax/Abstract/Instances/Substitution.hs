@@ -105,10 +105,11 @@ instance (Fresh m) => Substitutable m GdCmd Expr where
       <*> pure l
 
 instance (Fresh m) => Substitutable m Program Expr where
-  subst sb (Program defns decls props stmts l) = do
+  subst sb (Program defns decls procs props stmts l) = do
+    -- XXX: `subst` for procs
     (_, (decls', props', stmts'), _) <-
       substBinderTypeless sb locals (decls, props, stmts)
-    return $ Program defns decls' props' stmts' l
+    return $ Program defns decls' procs props' stmts' l
     where
       -- SCM: TODO: deal with defns
       locals = declaredNames decls

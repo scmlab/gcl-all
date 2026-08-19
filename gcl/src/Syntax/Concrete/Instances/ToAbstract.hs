@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
 
@@ -9,22 +10,21 @@ module Syntax.Concrete.Instances.ToAbstract where
 
 import Control.Arrow ((***))
 import Control.Monad.State
-import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable (Bitraversable (bitraverse))
-import Data.Either (partitionEithers)
 import qualified Data.List as List
 import qualified Data.Text as Text
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range (..), rangeOf, (<--->))
+import qualified Hack
 import Pretty.Util
   ( PrettyWithRange (prettyWithRange),
     docToText,
     toDoc,
   )
-import qualified Syntax.Abstract as A
 import qualified Syntax.Abstract.Operator as A
+import qualified Syntax.Abstract.Types as A
 import Syntax.Abstract.Util
-import Syntax.Common (ArithOp, Name (..))
+import Syntax.Common.Types (ArithOp, Name (..))
 import Syntax.Concrete.Instances.Located ()
 import Syntax.Concrete.Types
 import qualified Syntax.ConstExpr as ConstExpr
@@ -64,16 +64,21 @@ instance (ToAbstract a b) => ToAbstract [a] [b] where
 instance ToAbstract Name Name where
   toAbstract = return
 
+instance (ToAbstract a1 b1, ToAbstract a2 b2, ToAbstract a3 b3) => ToAbstract (Hack.Choice3 a1 a2 a3) (Hack.Choice3 b1 b2 b3) where
+  toAbstract (Hack.A a) = Hack.A <$> toAbstract a
+  toAbstract (Hack.B b) = Hack.B <$> toAbstract b
+  toAbstract (Hack.C c) = Hack.C <$> toAbstract c
+
 --------------------------------------------------------------------------------
 
 -- | Program
 instance ToAbstract Program A.Program where
   toAbstract prog@(Program ds stmts') = do
-    (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
+    (decls, defns, procs) <- (\(a, b, c) -> (a, concat b, c)) . Hack.partitionChoice3 <$> mapM toAbstract ds
     let (globProps, assertions) = ConstExpr.pickGlobals decls
     let pre = [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
-    return $ A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
+    return $ A.Program defns decls procs globProps (pre ++ stmts) (maybeRangeOf prog)
 
 --------------------------------------------------------------------------------
 
@@ -187,6 +192,26 @@ withRange f x = ($ maybeRangeOf x) <$> f x
 
 --------------------------------------------------------------------------------
 
+-- | Procedure
+instance ToAbstract Procedure A.Procedure where
+  toAbstract (Procedure _ name params pre block post) =
+    A.Procedure name <$> toAbstractParams params <*> toAbstract pre <*> toAbstractBlock block <*> toAbstract post
+    where
+      toAbstractParams (ProcParam _ params' _) =
+        mapM
+          ( \case
+              d@(PVarDecl _ base) -> do
+                (names, ty) <- toAbstract base
+                return $ A.VarParam names ty (maybeRangeOf d)
+              d@(PValueDecl _ base) -> do
+                (names, ty) <- toAbstract base
+                return $ A.ValueParam names ty (maybeRangeOf d)
+          )
+          $ sepByToList params'
+      toAbstractBlock (ProcBlock _ program _) = toAbstract program
+
+--------------------------------------------------------------------------------
+
 -- | Statement
 instance ToAbstract Stmt A.Stmt where
   toAbstract stmt = withRange toAbstract' stmt
@@ -210,7 +235,6 @@ instance ToAbstract Stmt A.Stmt where
       toAbstract' (HLookup x _ _ e) = A.HLookup x <$> toAbstract e
       toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
       toAbstract' (Dispose _ e) = A.Dispose <$> toAbstract e
-      toAbstract' (Block _ p _) = A.Block <$> toAbstract p
 
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =
