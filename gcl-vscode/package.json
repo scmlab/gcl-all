@@ -3,7 +3,7 @@
   "displayName": "gcl-vscode",
   "description": "An Interactive Formal Verification tool for Guarded Command Language",
   "publisher": "scmlab",
-  "version": "0.0.3-alpha.1",
+  "version": "0.0.3.0",
   "packageManager": "pnpm@11.3.0",
   "repository": {
     "type": "git",
