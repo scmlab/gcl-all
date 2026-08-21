@@ -41,7 +41,7 @@ runOnPort port = do
 
     handle <- socketToHandle sock ReadWriteMode
     _ <- runServerWithHandles ioLogger lspLogger handle handle (serverDefn env)
-    putStrLn "== dev server closed =="
+    putStrLn "== dev server closed ==!!!!!"
   where
     printLog :: GlobalState -> IO ()
     printLog env = forever $ do
