@@ -59,17 +59,17 @@
       {
         "command": "gcl.reload",
         "key": "ctrl+c ctrl+l",
-        "when": "!editorHasSelection && editorTextFocus"
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
       },
       {
         "command": "gcl.refine",
         "key": "ctrl+c ctrl+r",
-        "when": "!editorHasSelection && editorTextFocus"
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
       },
       {
         "command": "gcl.debug",
         "key": "ctrl+c ctrl+/",
-        "when": "editorTextFocus"
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
       }
     ],
     "configuration": [
