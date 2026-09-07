@@ -19,11 +19,12 @@ main = do
   hSetEncoding stdin utf8
   hSetEncoding stdout utf8
   hSetEncoding stderr utf8
-  (Options mode logFilePath, _) <- getArgs >>= parseOpts
+  hSetBuffering stderr LineBuffering
+  (Options mode, _) <- getArgs >>= parseOpts
   case mode of
     ModeHelp -> putStrLn $ usageInfo usage options
     ModeRun -> do
-      _ <- runOnStdio logFilePath
+      _ <- runOnStdio
       return ()
 
 --------------------------------------------------------------------------------
@@ -32,16 +33,14 @@ main = do
 data Mode = ModeHelp | ModeRun deriving (Show)
 
 data Options = Options
-  { _mode :: Mode,
-    _out :: Maybe FilePath
+  { _mode :: Mode
   }
   deriving (Show)
 
 defaultOptions :: Options
 defaultOptions =
   Options
-    { _mode = ModeRun,
-      _out = Nothing
+    { _mode = ModeRun
     }
 
 options :: [OptDescr (Options -> Options)]
@@ -55,12 +54,7 @@ options =
       []
       ["stdio"]
       (NoArg (\opts -> opts {_mode = ModeRun}))
-      "for debugging",
-    Option
-      ['o']
-      ["out"]
-      (ReqArg (\logFilePath opts -> opts {_out = Just logFilePath}) "LOG_FILE_PATH")
-      "log file path when -d is set"
+      "for debugging"
   ]
 
 usage :: String
