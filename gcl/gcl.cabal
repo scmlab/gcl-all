@@ -144,8 +144,6 @@ library
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , prettyprinter
     , random
@@ -177,8 +175,6 @@ executable gcl
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , prettyprinter
     , random
@@ -219,8 +215,6 @@ test-suite gcl-test
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , pretty-simple
     , prettyprinter
