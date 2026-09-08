@@ -11,6 +11,7 @@ import Data.Set
   )
 import qualified Data.Set as Set
 import GCL.Common
+import Syntax.Abstract.Types (extractBinder)
 import Syntax.Typed.Types
 
 instance Free Expr where
@@ -35,7 +36,8 @@ instance Free Expr where
   freeVars EHole {} = mempty
 
 instance Free CaseClause where
-  freeVars (CaseClause _ expr) = freeVars expr
+  freeVars (CaseClause pattern' expr) =
+    freeVars expr \\ Set.fromList (extractBinder pattern')
 
 -- instance Free FuncClause where
 --   freeVars (FuncClause _ expr) = freeVars expr

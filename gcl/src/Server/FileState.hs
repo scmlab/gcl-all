@@ -2,7 +2,7 @@ module Server.FileState where
 
 import Data.Text (Text)
 import Error (Error)
-import GCL.Predicate (Hole, PO, Spec)
+import GCL.Predicate (Hole, PO, Pred, Spec)
 import GCL.Type2.Types (Inference, mkInference)
 import GCL.WP.Types (StructWarning)
 import qualified Language.LSP.Protocol.Types as LSP
@@ -22,7 +22,8 @@ data FileState = FileState
     fsSemanticTokens :: ![LSP.SemanticTokenAbsolute],
     fsDefinitionLinks :: !(IntervalMap OriginTargetRanges),
     fsHoverInfos :: !(IntervalMap LSP.Hover),
-    fsDefinitions :: ![(Name, T.Expr)]
+    fsDefinitions :: ![(Name, T.Expr)],
+    fsGlobalProps :: ![Pred]
   }
 
 emptyFileStateWithErrors :: [Error] -> FileState
@@ -38,7 +39,8 @@ emptyFileStateWithErrors errs =
       fsSemanticTokens = [],
       fsDefinitionLinks = mempty,
       fsHoverInfos = mempty,
-      fsDefinitions = []
+      fsDefinitions = [],
+      fsGlobalProps = []
     }
 
 data PendingEdit = PendingEdit

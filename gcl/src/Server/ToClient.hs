@@ -50,7 +50,8 @@ data ClientFileState = ClientFileState
     specs :: [Specification],
     holes :: [Hole],
     pos :: [ProofObligation],
-    warnings :: [StructWarning]
+    warnings :: [StructWarning],
+    globalProps :: [Text.Text]
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -114,7 +115,8 @@ toClientFileState fs =
       specs = map convertSpec (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = zipWith (convertPO (Server.fsDefinitions fs)) [0 ..] (Server.fsProofObligations fs),
-      warnings = map convertWarning (Server.fsWarnings fs)
+      warnings = map convertWarning (Server.fsWarnings fs),
+      globalProps = map convertGlobalProp (Server.fsGlobalProps fs)
     }
 
 -- | Convert server-side Spec to client-side Specification
@@ -170,6 +172,9 @@ convertOrigin origin =
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
 convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
+
+convertGlobalProp :: GCL.Pred -> Text.Text
+convertGlobalProp prop = inlinesToHtml (render prop)
 
 --------------------------------------------------------------------------------
 -- JSON instances for client types

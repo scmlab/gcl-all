@@ -200,7 +200,7 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // notification gcl/update
   const updateNotificationHandlerDisposable = onFileStateNotification(
-    async ({ filePath, errors, holes, specs, pos, warnings }) => {
+    async ({ filePath, errors, holes, specs, pos, warnings, globalProps }) => {
       const timestamp = new Date().toLocaleString();
       outputChannel.appendLine(
         `[${timestamp}] Received update for ${filePath}:`,
@@ -213,6 +213,7 @@ export async function activate(context: vscode.ExtensionContext) {
         specs,
         pos,
         warnings,
+        globalProps,
       };
 
       fileStateMap.set(filePath, newClientFileState);

@@ -30,13 +30,7 @@ module Server.Monad
   )
 where
 
-import Control.Concurrent
-  ( Chan,
-    newChan,
-    threadDelay,
-    writeChan,
-  )
-import Control.Exception (SomeException, catch, displayException, evaluate, throwIO)
+import Control.Exception (IOException, SomeException, catch, displayException, evaluate, throwIO)
 import Control.Monad.Reader
 import qualified Data.Aeson as JSON
 import qualified Data.ByteString.Lazy as BSL
@@ -51,6 +45,7 @@ import qualified Data.Map as Map
 import Data.Proxy
 import Data.Text (Text)
 import qualified Data.Text as Text
+import qualified Data.Text.IO as TextIO
 import GCL.Range (Range)
 import GHC.TypeLits (KnownSymbol)
 import qualified Language.LSP.Protocol.Message as LSP
@@ -59,11 +54,11 @@ import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
 import Server.FileState
 import qualified Server.SrcLoc as SrcLoc
+import System.IO (hFlush, stderr)
 
 -- | State shared by all clients and requests
 data GlobalState = GlobalState
-  { logChannel :: Chan Text, -- Channel for printing log
-    filesState :: IORef (Map FilePath FileState),
+  { filesState :: IORef (Map FilePath FileState),
     pendingEdits :: IORef (Map FilePath PendingEdit)
   }
 
@@ -71,8 +66,7 @@ data GlobalState = GlobalState
 initGlobalEnv :: IO GlobalState
 initGlobalEnv =
   GlobalState
-    <$> newChan
-    <*> newIORef Map.empty
+    <$> newIORef Map.empty
     <*> newIORef Map.empty
 
 --------------------------------------------------------------------------------
@@ -85,20 +79,16 @@ runServerM globalState ctxEnv program = runReaderT (LSP.runLspT ctxEnv program) 
 -- Wrap runServerM with error logging
 runServerMLogError :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
 runServerMLogError globalState ctxEnv program =
-  catch (runServerM globalState ctxEnv program) (handleException globalState)
+  catch (runServerM globalState ctxEnv program) handleException
   where
-    handleException :: GlobalState -> SomeException -> IO a
-    handleException gs e = do
+    handleException :: SomeException -> IO a
+    handleException e = do
       let errorMsg = "\n========== FATAL ERROR in handler ==========\n" ++ displayException e ++ "\n"
-      appendFile "gcl_crash.log" errorMsg
-      writeChan (logChannel gs) (Text.pack errorMsg)
-      threadDelay 500000 -- best effort: let the log flush before we die
-      -- Best-effort notify so the UI shows an error instead of hanging. The
-      -- root cause is already logged above, so if this throws we lose nothing
-      -- important (we'd just rethrow that error instead of the original).
-      runServerM globalState ctxEnv $
-        sendWindowShowMessage
-          "GCL: internal error while processing the file. See gcl_crash.log for details."
+      bestEffortStderrAndFlush (Text.pack errorMsg)
+      ignoreAnyException $
+        runServerM globalState ctxEnv $
+          sendWindowShowMessage
+            "GCL: internal error while processing the file. See Output > GCL LSP Server for details."
       throwIO e
 
 --------------------------------------------------------------------------------
@@ -107,12 +97,28 @@ runServerMLogError globalState ctxEnv program =
 
 -- display Text
 logText :: Text -> ServerM ()
-logText s = do
-  chan <- lift $ asks logChannel
-  liftIO $ writeChan chan s
+logText = liftIO . bestEffortStderr
 
 logTextLn :: Text -> ServerM ()
 logTextLn s = logText (s <> "\n")
+
+bestEffortStderr :: Text -> IO ()
+bestEffortStderr message = catch (TextIO.hPutStr stderr message) ignoreIOException
+
+bestEffortStderrAndFlush :: Text -> IO ()
+bestEffortStderrAndFlush message =
+  catch
+    (TextIO.hPutStr stderr message >> hFlush stderr)
+    ignoreIOException
+
+ignoreIOException :: IOException -> IO ()
+ignoreIOException _ = pure ()
+
+ignoreAnyException :: IO () -> IO ()
+ignoreAnyException action = catch action handler
+  where
+    handler :: SomeException -> IO ()
+    handler _ = pure ()
 
 getFileState :: FilePath -> ServerM (Maybe FileState)
 getFileState filePath = do

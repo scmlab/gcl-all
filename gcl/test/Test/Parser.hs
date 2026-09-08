@@ -19,6 +19,7 @@ import Test.Tasty
   )
 import Test.Tasty.HUnit
   ( Assertion,
+    assertFailure,
     testCase,
     (@?=),
   )
@@ -32,6 +33,7 @@ tests =
   testGroup
     "Parser"
     [ expression,
+      quantifierOperator,
       pattern',
       type',
       definition,
@@ -98,7 +100,7 @@ expression =
       testCase "arith op combined 4" $ run "B && C || A",
       testCase "quant 1" $ run "<| + i : i > 0 : f i |>",
       testCase "quant 2" $ run "⟨     + i :   i > 0   : f i ⟩",
-      testCase "quant 3" $ run "⟨ max i j : 0 ≤ i < j < n : A i - A j ⟩",
+      testCase "quant 3" $ run "⟨ ↑ i j : 0 ≤ i < j < n : A i - A j ⟩",
       testCase "quant 4" $ run "<| + i : 0 <= i < k : F i |>",
       testCase "quant 5" $ run "x = <| + i : 0 <= i < k : F i |>",
       testCase "quant 6 (sum)" $ run "x = <| + i : 0 < i < n : i |>\n",
@@ -141,6 +143,54 @@ expression =
     ]
   where
     run = parserIso Parser.expression
+
+--------------------------------------------------------------------------------
+
+-- | Quantifier operator
+quantifierOperator :: TestTree
+quantifierOperator =
+  testGroup
+    "Quantifier operator"
+    [ testGroup
+        "admitted"
+        [ testCase "+" $ iso "<| + i : R : T |>",
+          testCase "*" $ iso "<| * i : R : T |>",
+          testCase "&&" $ iso "<| && i : R : T |>",
+          testCase "||" $ iso "<| || i : R : T |>",
+          testCase "and" $ iso "<| ∧ i : R : T |>",
+          testCase "or" $ iso "<| ∨ i : R : T |>",
+          testCase "max" $ iso "<| ↑ i : R : T |>",
+          testCase "min" $ iso "<| ↓ i : R : T |>",
+          testCase "hash" $ iso "<| # i : R : T |>",
+          -- These share a constructor with an ASCII form and are printed in that
+          -- form, so they are compared against it rather than round-tripped.
+          testCase "sum" $ canonicalises "<| Σ i : R : T |>" "<| + i : R : T |>",
+          testCase "prod" $ canonicalises "<| ∏ i : R : T |>" "<| * i : R : T |>",
+          testCase "forall" $ canonicalises "<| ∀ i : R : T |>" "<| && i : R : T |>",
+          testCase "exists" $ canonicalises "<| ∃ i : R : T |>" "<| || i : R : T |>"
+        ],
+      testGroup
+        "rejected"
+        [ testCase "a name" $ rejects "<| max i : R : T |>",
+          testCase "-" $ rejects "<| - i : R : T |>",
+          testCase "/" $ rejects "<| / i : R : T |>",
+          testCase "%" $ rejects "<| % i : R : T |>",
+          testCase "^" $ rejects "<| ^ i : R : T |>",
+          testCase "=>" $ rejects "<| => i : R : T |>",
+          testCase "implies" $ rejects "<| ⇒ i : R : T |>",
+          testCase "~" $ rejects "<| ~ i : R : T |>",
+          testCase "not" $ rejects "<| ¬ i : R : T |>"
+        ],
+      testCase "an ordinary application is unaffected" $ iso "max r s"
+    ]
+  where
+    iso = parserIso Parser.expression
+    canonicalises = parserCompare Parser.expression
+    rejects raw =
+      case Parser.scanAndParse Parser.expression "<test>" raw of
+        Left _ -> return ()
+        Right result ->
+          assertFailure ("expected a parse error, got: " <> show (toText result))
 
 --------------------------------------------------------------------------------
 

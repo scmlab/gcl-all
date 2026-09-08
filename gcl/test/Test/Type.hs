@@ -4,6 +4,7 @@ module Test.Type (tests) where
 
 import Control.Monad.State (evalState)
 import qualified Data.Map as Map
+import GCL.Common (Free (freeVars))
 import GCL.Range (mkPos, mkRange)
 import GCL.Type2.Subst (applySubst)
 import GCL.Type2.Types (typeToType)
@@ -11,6 +12,7 @@ import Pretty (toText)
 import qualified Syntax.Abstract.Operator as AO
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (..), TypeOp (..))
+import Syntax.Typed.Instances.Free ()
 import qualified Syntax.Typed.Operator as TO
 import Syntax.Typed.Reduce
   ( descend,
@@ -51,6 +53,17 @@ tests =
             identity = T.Lam x intType (T.Var x intType Nothing) Nothing
             application = T.App identity (T.Lit (A.Num 1) intType Nothing) Nothing
         typeOf application @?= intType,
+      testCase "case-pattern binders are excluded from free variables" $ do
+        let patternName = Name "r" Nothing
+            freeName = Name "t" Nothing
+            rhs =
+              T.Tuple
+                [ T.Var patternName intType Nothing,
+                  T.Var freeName intType Nothing
+                ]
+            clause = T.CaseClause (A.PattBinder patternName) rhs
+
+        freeVars clause @?= freeVars (T.Var freeName intType Nothing),
       testCase "typed operator annotations use nested Arrow applications" $
         TO.tBinIntOp
           @?= A.mkArrowType intType (A.mkArrowType intType intType),

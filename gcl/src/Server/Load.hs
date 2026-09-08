@@ -21,11 +21,12 @@ import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, e
 import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.Reduce (collectDefinitions)
-import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
+import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
+import qualified Syntax.Typed.Types as T
 
 --------------------------------------------------------------------------------
 -- Types
@@ -105,7 +106,7 @@ loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
   abstract' <- first TypeError $ evalDependencyResolution abstract
-  (elaborated, state) <- first TypeError $ runToTyped abstract' mempty
+  (elaborated@(T.Program _ _ globalProps _ _), state) <- first TypeError $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
   return
     FileState
@@ -119,7 +120,8 @@ loadConcrete concrete = do
         fsSemanticTokens = collectHighlighting concrete,
         fsDefinitionLinks = collectLocationLinks abstract,
         fsHoverInfos = collectHoverInfo elaborated,
-        fsDefinitions = collectDefinitions elaborated
+        fsDefinitions = collectDefinitions elaborated,
+        fsGlobalProps = globalProps
       }
 
 -- | Parse source, and if holes are found, dig them and re-parse.

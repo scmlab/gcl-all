@@ -91,7 +91,6 @@ library
       Syntax.Abstract
       Syntax.Abstract.Instances.Json
       Syntax.Abstract.Instances.Located
-      Syntax.Abstract.Instances.Substitution
       Syntax.Abstract.Operator
       Syntax.Abstract.Types
       Syntax.Abstract.Util
@@ -144,8 +143,6 @@ library
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , prettyprinter
     , random
@@ -177,8 +174,6 @@ executable gcl
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , prettyprinter
     , random
@@ -219,8 +214,6 @@ test-suite gcl-test
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , pretty-simple
     , prettyprinter

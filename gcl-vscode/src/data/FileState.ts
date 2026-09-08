@@ -10,6 +10,7 @@ export interface ClientFileState {
   specs: ISpecification[];
   pos: IProofObligation[];
   warnings: IStructWarning[];
+  globalProps: Predicate[];
 }
 
 export interface ISpecification {
