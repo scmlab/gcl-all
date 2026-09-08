@@ -83,9 +83,10 @@ instance Collect () Highlighting AsName where
 -- Program
 
 instance Collect () Highlighting Program where
-  collect (Program as bs) = do
+  collect (Program as bs cs ds) = do
     collect as
     collect bs
+    collect cs
 
 --------------------------------------------------------------------------------
 -- Definition

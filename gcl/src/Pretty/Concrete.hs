@@ -133,12 +133,6 @@ instance PrettyWithRange (Token "⟨") where
 instance PrettyWithRange (Token "⟩") where
   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokQuantCloseU) l r
 
--- instance PrettyWithRange (Token "{-") where
---   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokProofOpen) l r
-
--- instance PrettyWithRange (Token "-}") where
---   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokProofClose) l r
-
 instance PrettyWithRange (Token "{:") where
   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokDeclOpen) l r
 

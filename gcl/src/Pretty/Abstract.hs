@@ -16,8 +16,8 @@ import Prelude hiding (Ordering (..))
 
 -- | Program
 instance Pretty Program where
-  pretty (Program _ decls props stmts _) =
-    vsep $ map pretty decls ++ map pretty props ++ map pretty stmts
+  pretty (Program _ decls props stmts blocks _) =
+    vsep $ map pretty decls ++ map pretty props ++ map pretty stmts ++ map pretty blocks
 
 --------------------------------------------------------------------------------
 
@@ -84,9 +84,9 @@ instance Pretty Stmt where
   pretty (If gdCmds _) =
     "if" <> line <> vsep (map (\x -> " |" <+> pretty x <> line) gdCmds) <> "fi"
   pretty (Spec content _) = "[!" <> pretty content <> "!]"
-  pretty (Proof anchor contents _) =
-    -- "{-" <> vsep (map (\x -> pretty x <> line) anchors) <> "-}"
-    "{- #" <> pretty anchor <> line <> pretty contents <> line <> "-}"
+  -- pretty (Proof anchor contents _) =
+  --   -- "{-" <> vsep (map (\x -> pretty x <> line) anchors) <> "-}"
+  --   "{- #" <> pretty anchor <> line <> pretty contents <> line <> "-}"
   pretty (Alloc x es _) =
     pretty x
       <+> ":="
@@ -152,3 +152,7 @@ instance Pretty Kind where
 -- | Kind
 instance Pretty Hole where
   pretty = fromRender
+
+instance Pretty BlockComment where
+  pretty (Proof proof proofText) =
+    "{-" <> pretty proof <> line <> "---" <> line <> pretty proofText <> line <> "-}"

@@ -195,7 +195,7 @@ instance (CollectHole a) => CollectHole (SepBy s a) where
   collectHole (Delim c _ cs) = collectHole c <> collectHole cs
 
 instance CollectHole C.Program where
-  collectHole (C.Program decls stmts) = collectHole decls <> collectHole stmts
+  collectHole (C.Program defns decls stmts blocks) = collectHole defns <> collectHole decls <> collectHole stmts
 
 instance CollectHole C.DefinitionBlock where
   collectHole (C.DefinitionBlock _ defs _) = collectHole defs

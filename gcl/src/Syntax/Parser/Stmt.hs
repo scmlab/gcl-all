@@ -5,12 +5,13 @@ module Syntax.Parser.Stmt where
 
 import GCL.Range
 import Syntax.Concrete.Types
-    ( BlockComment(..),
-      CommentContent(..),
-      GdCmd(..),
-      Program,
-      SepBy,
-      Stmt(..) )
+  ( BlockComment (..),
+    CommentContent (..),
+    GdCmd (..),
+    Program,
+    SepBy,
+    Stmt (..),
+  )
 import Syntax.Parser.Basics
 import Syntax.Parser.Expr
 import Syntax.Parser.Lexer
