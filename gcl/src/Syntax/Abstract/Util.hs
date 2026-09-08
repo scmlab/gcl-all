@@ -42,30 +42,6 @@ declaredNames decls = concat . map extractNames $ decls
     extractNames (ConstDecl ns _ _ _) = ns
     extractNames (VarDecl ns _ _ _) = ns
 
--- function definition           => Just Expr
--- constant/variable declaration => Nothing
-
--- TODO:
--- programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
--- programToScopeForSubstitution (Program defns decls _ _ _) =
---   Map.mapKeys nameToText $
---     foldMap extractDeclaration decls
---       <> ( Map.fromList
---              . map (second Just)
---              . Maybe.mapMaybe pickFuncDefn
---          )
---         defns
---   where
---     extractDeclaration :: Declaration -> Map Name (Maybe Expr)
---     extractDeclaration (ConstDecl names _ _ _) =
---       Map.fromList (zip names (repeat Nothing))
---     extractDeclaration (VarDecl names _ _ _) =
---       Map.fromList (zip names (repeat Nothing))
---
--- pickFuncDefn :: Definition -> Maybe (Name, Expr)
--- pickFuncDefn (ValDefn n _ : expr) = Just (n, expr)
--- pickFuncDefn _ = Nothing
-
 {-
 combineFuncDefns :: [Definition] -> [Definition]
 combineFuncDefns defns =
