@@ -5,9 +5,7 @@ module Syntax.Parser.Stmt where
 
 import GCL.Range
 import Syntax.Concrete.Types
-  ( BlockComment (..),
-    CommentContent (..),
-    GdCmd (..),
+  ( GdCmd (..),
     Program,
     SepBy,
     Stmt (..),
@@ -144,64 +142,6 @@ spec =
     notTokSpecClose :: R Tok -> Bool
     notTokSpecClose (R _ TokSpecClose) = False
     notTokSpecClose _ = True
-
-blockComment :: Parser BlockComment
-blockComment =
-  BlockComment
-    <$> tokenBlockCommentOpen
-    <*> (try proofBlock <|> comment) -- TODO: how do i disable indent requirement
-    <*> tokenBlockCommentClose
-
-proofBlock :: Parser CommentContent
-proofBlock = Proof <$> proof <*> tokenProofSep <*> proofText
-  where
-    proof = takeWhileP (Just "proof") notTokProofSep
-
-    notTokProofSep (R _ TokProofSep) = False
-    notTokProofSep _ = True
-
-    proofText = takeWhileP (Just "proof text") notTokBlockCommentClose
-
-comment :: Parser CommentContent
-comment = Comment <$> takeWhileP (Just "comment") notTokBlockCommentClose
-
-notTokBlockCommentClose :: R Tok -> Bool
-notTokBlockCommentClose (R _ TokBlockCommentClose) = False
-notTokBlockCommentClose _ = True
-
--- proofBlock :: Parser CommentContent
--- proofBlock = do
---   ((proofAnchor, contents, whole), r) <- getRange $ extract extractProof
---   return $ Proof (Text.pack proofAnchor) (Text.pack contents) (Text.pack whole) r
---   where
---     extractProof (TokProof anchor contents whole) = Just (anchor, contents, whole)
---     extractProof _ = Nothing
-
--- proofAnchors :: Parser Stmt
--- proofAnchors =
---   Proof
---     <$> tokenProofOpen
---     <*> many proofAnchor
---     <*> tokenProofClose
---  where
---   proofAnchor :: Parser ProofAnchor
---   proofAnchor = do
---     (hash, range) <- getRange $ extract extractHash
---     skipProof
---     return $ ProofAnchor hash range
-
---   skipProof :: Parser ()
---   skipProof = void $ takeWhileP
---     (Just "anything other than '-]' or another proof anchor")
---     notTokProofCloseOrProofAnchor
-
---   notTokProofCloseOrProofAnchor :: L Tok -> Bool
---   notTokProofCloseOrProofAnchor (L _ TokProofClose     ) = False
---   notTokProofCloseOrProofAnchor (L _ (TokProofAnchor _)) = False
---   notTokProofCloseOrProofAnchor _                        = True
-
---   extractHash (TokProofAnchor s) = Just (Text.pack s)
---   extractHash _                  = Nothing
 
 alloc :: Parser Stmt
 alloc =
