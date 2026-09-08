@@ -64,7 +64,7 @@ program = do
           ( \c (defns', decls', stmts', blocks') ->
               case c of
                 Definition defn -> (defn : defns', decls', stmts', blocks')
-                Declaration decl -> (defns', decl : decls, stmts', blocks')
+                Declaration decl -> (defns', decl : decls', stmts', blocks')
                 Statement stmt -> (defns', decls', stmt : stmts', blocks')
                 BComment block -> (defns', decls', stmts', block : blocks')
           )

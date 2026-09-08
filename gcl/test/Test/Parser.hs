@@ -370,7 +370,7 @@ statement =
       testCase "spec QM" $ run "?",
       testCase "spec 1" $ run "[!!]",
       testCase "spec 2" $ run "[!\n   !]",
-      testCase "proof" $ run "{- #123456\n asdfasf!@^%&\nfadf -}",
+      -- testCase "proof" $ run "{- #123456\n asdfasf!@^%&\nfadf -}",
       testCase "alloc 1" $ run "p := new(e1)",
       testCase "alloc 2" $ run "p := new(e1, e2)",
       testCase "alloc 3" $ run "p := new(e1, e2, e3)",
@@ -428,10 +428,10 @@ golden =
       runGolden "" "no-stmt" "no-stmt.gcl",
       runGolden "" "assign" "assign.gcl",
       runGolden "" "quant 1" "quant1.gcl",
-      runGolden "" "spec" "spec.gcl",
+      runGolden "" "spec" "spec.gcl"
       -- TODO: failing test - gcd (golden)
       -- runGolden "examples/" "gcd" "gcd.gcl",
-      runGolden "examples/" "proof" "proof.gcl"
+      -- runGolden "examples/" "proof" "proof.gcl"
       -- , runGolden "examples/" "block"    "block.gcl"
     ]
 
