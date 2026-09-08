@@ -1,0 +1,174 @@
+{-# LANGUAGE FlexibleContexts #-}
+
+-- | Capture-avoiding substitution over the typed AST, in one traversal.
+--
+--   The environment carries two maps, because substituting and alpha-renaming
+--   are different operations that a single @[(Text, Expr)]@ is forced to
+--   conflate. A substitution puts an arbitrary expression in place of a name,
+--   so its range has to be a full 'Expr'. A renaming only puts another name
+--   there, and must leave the occurrence's own type and source range alone.
+--
+--   Keeping them apart is what makes a pattern binder renameable at all --
+--   'PattBinder' carries no 'Type', so no replacement 'Expr' can be built for
+--   one -- and what keeps this to a single traversal, rather than a
+--   scope-aware substitution with a scope-blind renaming pass beside it.
+module Syntax.Typed.Subst2 (substExpr) where
+
+import Data.Set (Set)
+import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as Text
+import GCL.Common (Fresh (..), freeVarsT)
+import GCL.Range (Range)
+import Syntax.Abstract.Types (Pattern (..), Type, extractBinder)
+import Syntax.Common.Types (Name (..), nameToText)
+import Syntax.Typed.Instances.Free ()
+import Syntax.Typed.Types
+
+-- | What a traversal carries into a binder's scope.
+data SubstEnv = SubstEnv
+  { -- | @x@ stands for this expression.
+    envSubst :: [(Text, Expr)],
+    -- | @x@ is spelled this way instead. Only the name changes, so every
+    --   occurrence keeps the type and range it already had.
+    envRename :: [(Text, Text)]
+  }
+  deriving (Show)
+
+-- | Substitute, as callers of the @Substitutable@ instance mean it.
+substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
+substExpr assignments = substitute (SubstEnv assignments [])
+
+substitute :: (Fresh m) => SubstEnv -> Expr -> m Expr
+substitute _ e@Lit {} = pure e
+substitute env (Var x t l) = pure (occurrence env Var x t l)
+substitute env (Const x t l) = pure (occurrence env Const x t l)
+substitute _ e@Op {} = pure e
+substitute env (Chain chain) = Chain <$> substituteChain env chain
+substitute env (App function argument l) =
+  App <$> substitute env function <*> substitute env argument <*> pure l
+substitute env (Lam x t body l) = do
+  (inner, renaming) <- underBinders env [x] (freeVarsT body)
+  Lam (renameName renaming x) t <$> substitute inner body <*> pure l
+substitute env (Tuple elements) = Tuple <$> mapM (substitute env) elements
+substitute env (OutT index e) = OutT index <$> substitute env e
+substitute env (Quant operator binders range body l) = do
+  (inner, renaming) <-
+    underBinders env (map fst binders) (freeVarsT (operator, range, body))
+  Quant
+    <$> substitute inner operator
+    <*> pure [(renameName renaming x, t) | (x, t) <- binders]
+    <*> substitute inner range
+    <*> substitute inner body
+    <*> pure l
+substitute env (ArrIdx array index l) =
+  ArrIdx <$> substitute env array <*> substitute env index <*> pure l
+substitute env (ArrUpd array index value l) =
+  ArrUpd
+    <$> substitute env array
+    <*> substitute env index
+    <*> substitute env value
+    <*> pure l
+substitute env (Case scrutinee clauses l) =
+  Case
+    <$> substitute env scrutinee
+    <*> mapM (substituteClause env) clauses
+    <*> pure l
+substitute env (Subst body table) = do
+  (inner, renaming) <- underBinders env (map fst table) (freeVarsT body)
+  Subst
+    <$> substitute inner body
+    <*> mapM (\(x, e) -> (,) (renameName renaming x) <$> substitute env e) table
+substitute _ e@EHole {} = pure e
+
+substituteChain :: (Fresh m) => SubstEnv -> Chain -> m Chain
+substituteChain env (Pure e) = Pure <$> substitute env e
+substituteChain env (More chain operator t e) =
+  More <$> substituteChain env chain <*> pure operator <*> pure t <*> substitute env e
+
+-- | A clause's pattern binds over its body only, never over the scrutinee.
+substituteClause :: (Fresh m) => SubstEnv -> CaseClause -> m CaseClause
+substituteClause env (CaseClause pattern' body) = do
+  (inner, renaming) <- underBinders env (extractBinder pattern') (freeVarsT body)
+  CaseClause (renamePattern renaming pattern') <$> substitute inner body
+
+-- | An occurrence. At most one of the two maps can name it: 'underBinders'
+--   drops every entry a binder shadows and keys every renaming it adds on one
+--   of exactly those names, so the two key sets are disjoint at every depth.
+--   The order of these lookups therefore decides nothing.
+occurrence ::
+  SubstEnv ->
+  (Name -> Type -> Maybe Range -> Expr) ->
+  Name ->
+  Type ->
+  Maybe Range ->
+  Expr
+occurrence env build name@(Name text range) t l =
+  case lookup text (envRename env) of
+    Just text' -> build (Name text' range) t l
+    Nothing -> maybe (build name t l) id (lookup text (envSubst env))
+
+-- | Enter a binder's scope, given the names it binds and the free names of the
+--   scope it binds over. Returns the environment to use inside, and the
+--   renaming that had to be forced on the binders themselves -- callers apply
+--   that to the binder positions, which this cannot reach.
+underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m (SubstEnv, [(Text, Text)])
+underBinders env binders scopeFree = do
+  renaming <- allocate forbidden clashing
+  pure (visible {envRename = renaming <> envRename visible}, renaming)
+  where
+    bound = map nameToText binders
+
+    -- A binder hides its own name for the whole of its scope, and an entry
+    -- that names nothing free in that scope cannot do anything there.
+    visible =
+      SubstEnv
+        { envSubst = usable (envSubst env),
+          envRename = usable (envRename env)
+        }
+    usable :: [(Text, b)] -> [(Text, b)]
+    usable =
+      filter (\(x, _) -> x `notElem` bound && x `Set.member` scopeFree)
+
+    -- What entering this scope would carry in. A binder spelled the same way
+    -- would capture it, so that binder has to move.
+    incoming =
+      Set.unions (map (freeVarsT . snd) (envSubst visible))
+        <> Set.fromList (map snd (envRename visible))
+
+    clashing = filter ((`Set.member` incoming) . nameToText) binders
+    forbidden = incoming <> scopeFree <> Set.fromList bound
+
+allocate :: (Fresh m) => Set Text -> [Name] -> m [(Text, Text)]
+allocate _ [] = pure []
+allocate forbidden (binder : rest) = do
+  target <- freshFor forbidden binder
+  ((nameToText binder, target) :) <$> allocate (Set.insert target forbidden) rest
+
+-- | A name outside @forbidden@. 'Fresh' only proposes a candidate; whether it
+--   is actually unused is checked here, because @Fresh WP@ avoids only the
+--   names in its reader scopes and hands back the prefix unchanged for
+--   anything else. A clash extends the prefix rather than asking again: that
+--   instance is reader-only and would answer identically forever.
+freshFor :: (Fresh m) => Set Text -> Name -> m Text
+freshFor forbidden binder = go (nameToText binder)
+  where
+    go prefix = do
+      candidate <- freshPre prefix
+      if candidate `Set.member` forbidden
+        then go (Text.snoc prefix '\'')
+        else pure candidate
+
+renameName :: [(Text, Text)] -> Name -> Name
+renameName renaming name@(Name text range) =
+  maybe name (`Name` range) (lookup text renaming)
+
+renamePattern :: [(Text, Text)] -> Pattern -> Pattern
+renamePattern _ pattern'@PattLit {} = pattern'
+renamePattern renaming (PattBinder x) = PattBinder (renameName renaming x)
+renamePattern _ pattern'@PattWildcard {} = pattern'
+renamePattern renaming (PattTuple patterns) =
+  PattTuple (map (renamePattern renaming) patterns)
+-- The constructor names a data constructor, not a binder.
+renamePattern renaming (PattConstructor constructor patterns) =
+  PattConstructor constructor (map (renamePattern renaming) patterns)
