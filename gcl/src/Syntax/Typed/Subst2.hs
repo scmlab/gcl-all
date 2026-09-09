@@ -2,16 +2,25 @@
 
 -- | Capture-avoiding substitution over the typed AST, in one traversal.
 --
---   The environment carries two maps, because substituting and alpha-renaming
---   are different operations that a single @[(Text, Expr)]@ is forced to
---   conflate. A substitution puts an arbitrary expression in place of a name,
---   so its range has to be a full 'Expr'. A renaming only puts another name
---   there, and must leave the occurrence's own type and source range alone.
+--   Substituting and alpha-renaming are different operations that a single
+--   @[(Text, Expr)]@ is forced to conflate. A substitution puts an arbitrary
+--   expression in place of a name, so its range has to be a full 'Expr'. A
+--   renaming only puts another name there, and must leave the occurrence's own
+--   type and source range alone.
 --
---   Keeping them apart is what makes a pattern binder renameable at all --
---   'PattBinder' carries no 'Type', so no replacement 'Expr' can be built for
---   one -- and what keeps this to a single traversal, rather than a
---   scope-aware substitution with a scope-blind renaming pass beside it.
+--   The usual trick -- encoding a renaming as a substitution by @Var x'@, as
+--   'Syntax.Substitution' does through @mkVar@ -- has to build that 'Expr' at
+--   the binder, and this AST does not have what that takes. A 'PattBinder'
+--   carries no 'Type', because the typed AST reuses @Syntax.Abstract@'s
+--   untyped 'Pattern', so no replacement expression can be built for one at
+--   all. And an occurrence's 'Name' carries the range that
+--   @Render.Syntax.Common@ turns into a link back into the source, so a
+--   replacement built once at the binder would collapse every occurrence of a
+--   renamed variable onto the binder's position.
+--
+--   So the two meanings stay apart -- but in one map, as one 'Meaning'. At
+--   most one of them can ever attach to a name, and saying that in the type is
+--   what keeps it from becoming an invariant to maintain by hand.
 module Syntax.Typed.Subst2 (substExpr) where
 
 import Data.Set (Set)
@@ -25,19 +34,27 @@ import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Instances.Free ()
 import Syntax.Typed.Types
 
--- | What a traversal carries into a binder's scope.
-data SubstEnv = SubstEnv
-  { -- | @x@ stands for this expression.
-    envSubst :: [(Text, Expr)],
-    -- | @x@ is spelled this way instead. Only the name changes, so every
+-- | What a name stands for inside a scope.
+data Meaning
+  = -- | @x@ is spelled this way instead. Only the name changes, so the
     --   occurrence keeps the type and range it already had.
-    envRename :: [(Text, Text)]
-  }
+    SpelledAs Text
+  | -- | @x@ stands for this expression.
+    StandsFor Expr
   deriving (Show)
+
+-- | What a traversal carries into a binder's scope.
+type SubstEnv = [(Text, Meaning)]
+
+-- | The free names an entry would carry into a scope. A renaming's range is a
+--   name, whose free names are just itself.
+carriedIn :: Meaning -> Set Text
+carriedIn (SpelledAs x) = Set.singleton x
+carriedIn (StandsFor e) = freeVarsT e
 
 -- | Substitute, as callers of the @Substitutable@ instance mean it.
 substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
-substExpr assignments = substitute (SubstEnv assignments [])
+substExpr assignments = substitute [(x, StandsFor e) | (x, e) <- assignments]
 
 substitute :: (Fresh m) => SubstEnv -> Expr -> m Expr
 substitute _ e@Lit {} = pure e
@@ -92,10 +109,10 @@ substituteClause env (CaseClause pattern' body) = do
   (inner, renaming) <- underBinders env (extractBinder pattern') (freeVarsT body)
   CaseClause (renamePattern renaming pattern') <$> substitute inner body
 
--- | An occurrence. At most one of the two maps can name it: 'underBinders'
---   drops every entry a binder shadows and keys every renaming it adds on one
---   of exactly those names, so the two key sets are disjoint at every depth.
---   The order of these lookups therefore decides nothing.
+-- | An occurrence. This is the one place where the two meanings part company:
+--   a renaming is finished off with the type and range the occurrence brought
+--   with it, which is exactly what a replacement built back at the binder
+--   could not have supplied.
 occurrence ::
   SubstEnv ->
   (Name -> Type -> Maybe Range -> Expr) ->
@@ -104,9 +121,10 @@ occurrence ::
   Maybe Range ->
   Expr
 occurrence env build name@(Name text range) t l =
-  case lookup text (envRename env) of
-    Just text' -> build (Name text' range) t l
-    Nothing -> maybe (build name t l) id (lookup text (envSubst env))
+  case lookup text env of
+    Nothing -> build name t l
+    Just (SpelledAs text') -> build (Name text' range) t l
+    Just (StandsFor e) -> e
 
 -- | Enter a binder's scope, given the names it binds and the free names of the
 --   scope it binds over. Returns the environment to use inside, and the
@@ -115,26 +133,18 @@ occurrence env build name@(Name text range) t l =
 underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m (SubstEnv, [(Text, Text)])
 underBinders env binders scopeFree = do
   renaming <- allocate forbidden clashing
-  pure (visible {envRename = renaming <> envRename visible}, renaming)
+  pure ([(x, SpelledAs x') | (x, x') <- renaming] <> visible, renaming)
   where
     bound = map nameToText binders
 
     -- A binder hides its own name for the whole of its scope, and an entry
     -- that names nothing free in that scope cannot do anything there.
     visible =
-      SubstEnv
-        { envSubst = usable (envSubst env),
-          envRename = usable (envRename env)
-        }
-    usable :: [(Text, b)] -> [(Text, b)]
-    usable =
-      filter (\(x, _) -> x `notElem` bound && x `Set.member` scopeFree)
+      filter (\(x, _) -> x `notElem` bound && x `Set.member` scopeFree) env
 
     -- What entering this scope would carry in. A binder spelled the same way
     -- would capture it, so that binder has to move.
-    incoming =
-      Set.unions (map (freeVarsT . snd) (envSubst visible))
-        <> Set.fromList (map snd (envRename visible))
+    incoming = foldMap (carriedIn . snd) visible
 
     clashing = filter ((`Set.member` incoming) . nameToText) binders
     forbidden = incoming <> scopeFree <> Set.fromList bound
