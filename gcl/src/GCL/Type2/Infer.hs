@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, foldM_, when)
+import Control.Monad (foldM, when)
 import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
@@ -582,32 +582,7 @@ inferTupleCaseClause patterns expr = do
   return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
 
 checkDuplicateBinders :: [A.Pattern] -> Result ()
-checkDuplicateBinders pats = do
-  foldM_ (\names pat -> aux pat names) [] pats
-  where
-    aux :: A.Pattern -> [Name] -> Result [Name]
-    aux (A.PattLit _) _binders = return []
-    aux (A.PattBinder name) binders =
-      if name `elem` binders
-        then throwError $ DuplicatedIdentifiers [name]
-        else return [name]
-    aux (A.PattWildcard _) _binders = return []
-    aux (A.PattTuple ps) binders =
-      foldM
-        ( \b' p -> do
-            b'' <- aux p b'
-            return (b'' <> b')
-        )
-        binders
-        ps
-    aux (A.PattConstructor _p ps) binders =
-      foldM
-        ( \b' p' -> do
-            b'' <- aux p' b'
-            return (b'' <> b')
-        )
-        binders
-        ps
+checkDuplicateBinders = checkDuplicateNames . concatMap A.extractBinder
 
 {-
 

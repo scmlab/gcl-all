@@ -7,7 +7,7 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import GCL.Common (Free (freeVars))
 import GCL.Range (mkPos, mkRange)
-import GCL.Type2.Infer (infer)
+import GCL.Type2.Infer (checkDuplicateBinders, infer)
 import GCL.Type2.Subst (applySubst)
 import GCL.Type2.Types (TypeError (..), mkInference, runTI, typeToType)
 import Pretty (toText)
@@ -68,6 +68,18 @@ tests =
             clause = T.CaseClause (A.PattBinder patternName) rhs
 
         freeVars clause @?= freeVars (T.Var freeName intType Nothing),
+      testCase "duplicate binders are rejected across patterns" $
+        let i = Name "i" Nothing
+            j = Name "j" Nothing
+         in checkDuplicateBinders
+              [A.PattBinder i, A.PattBinder j, A.PattBinder i]
+              @?= Left (DuplicatedIdentifiers [i]),
+      testCase "duplicate binders in a definition are rejected" $
+        inferDefinition "{:\nf x x = x\n:}"
+          @?= Left (DuplicatedIdentifiers [Name "x" Nothing]),
+      testCase "every duplicated binder is reported" $
+        inferDefinition "{:\nf x y x y = x\n:}"
+          @?= Left (DuplicatedIdentifiers [Name "x" Nothing, Name "y" Nothing]),
       testCase "typed operator annotations use nested Arrow applications" $
         TO.tBinIntOp
           @?= A.mkArrowType intType (A.mkArrowType intType intType),
@@ -186,3 +198,17 @@ inferSource source =
       case runTI (infer (AT.runAbstractTransform concrete)) mempty mkInference of
         Left err -> Left err
         Right ((_, ty, _), _) -> Right ty
+
+-- | Type-check the body of the first definition in a program's definition
+--   block, so a test goes through the same desugaring a user's file does.
+inferDefinition :: Text -> Either TypeError A.Type
+inferDefinition source =
+  case Parser.scanAndParse Parser.program "<test>" source of
+    Left _ -> error "parse failure in test source"
+    Right concrete ->
+      case AT.runAbstractTransform concrete :: A.Program of
+        A.Program (A.ValDefn _ _ body : _) _ _ _ _ ->
+          case runTI (infer body) mempty mkInference of
+            Left err -> Left err
+            Right ((_, ty, _), _) -> Right ty
+        _ -> error "expected a value definition in test source"
