@@ -4,14 +4,18 @@ module Test.Type (tests) where
 
 import Control.Monad.State (evalState)
 import qualified Data.Map as Map
+import Data.Text (Text)
 import GCL.Common (Free (freeVars))
 import GCL.Range (mkPos, mkRange)
+import GCL.Type2.Infer (infer)
 import GCL.Type2.Subst (applySubst)
-import GCL.Type2.Types (typeToType)
+import GCL.Type2.Types (TypeError (..), mkInference, runTI, typeToType)
 import Pretty (toText)
 import qualified Syntax.Abstract.Operator as AO
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (..), TypeOp (..))
+import qualified Syntax.Concrete.Instances.ToAbstract as AT
+import qualified Syntax.Parser as Parser
 import Syntax.Typed.Instances.Free ()
 import qualified Syntax.Typed.Operator as TO
 import Syntax.Typed.Reduce
@@ -145,7 +149,18 @@ tests =
       testCase "array codomain remains its element type" $ do
         let endpoint = A.Including (A.Lit (A.Num 0) Nothing)
             arrayType = A.TArray (A.Interval endpoint endpoint Nothing) boolType Nothing
-        codomain arrayType @?= boolType
+        codomain arrayType @?= boolType,
+      testCase "duplicate quantifier binders are rejected" $
+        inferSource "<| + i i : i < 3 : i |>"
+          @?= Left (DuplicatedIdentifiers [Name "i" Nothing]),
+      testCase "duplicate binders are rejected for the counting quantifier" $
+        inferSource "<| # i i : i < 3 : i < 3 |>"
+          @?= Left (DuplicatedIdentifiers [Name "i" Nothing]),
+      testCase "a duplicate quantifier binder is caught across other binders" $
+        inferSource "<| + i j i : i < 3 : i |>"
+          @?= Left (DuplicatedIdentifiers [Name "i" Nothing]),
+      testCase "distinct quantifier binders are accepted" $
+        inferSource "<| + i j : i < 3 : i |>" @?= Right intType
     ]
   where
     assertArrowType actual =
@@ -160,3 +175,14 @@ intType = A.TBase A.TInt Nothing
 
 boolType :: A.Type
 boolType = A.TBase A.TBool Nothing
+
+-- | Infer the type of an expression written in source syntax, so a test goes
+--   through the same path a user's file does.
+inferSource :: Text -> Either TypeError A.Type
+inferSource source =
+  case Parser.scanAndParse Parser.expression "<test>" source of
+    Left _ -> error "parse failure in test source"
+    Right concrete ->
+      case runTI (infer (AT.runAbstractTransform concrete)) mempty mkInference of
+        Left err -> Left err
+        Right ((_, ty, _), _) -> Right ty

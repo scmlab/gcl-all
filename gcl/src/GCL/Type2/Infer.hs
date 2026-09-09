@@ -336,6 +336,8 @@ inferOutT i expr = do
 
 inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferQuant op@(A.Op (Hash _)) bound cond expr range = do
+  lift $ checkDuplicateNames bound
+
   -- special case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
 
@@ -370,6 +372,8 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
         return (resultSubst, typeInt, typedQuant)
     )
 inferQuant op bound cond expr range = do
+  lift $ checkDuplicateNames bound
+
   ftv <- freshTVar
 
   -- introduce new vars
