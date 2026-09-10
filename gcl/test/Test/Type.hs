@@ -16,6 +16,7 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (..), TypeOp (..))
 import qualified Syntax.Concrete.Instances.ToAbstract as AT
 import qualified Syntax.Parser as Parser
+import Syntax.Substitution (subst)
 import Syntax.Typed.Instances.Free ()
 import qualified Syntax.Typed.Operator as TO
 import Syntax.Typed.Reduce
@@ -87,6 +88,29 @@ tests =
             quantifier = T.Quant operator binders restriction body Nothing
 
         freeVars quantifier @?= freeVars operator,
+      -- The first i is the operator; the second is the quantifier binder:
+      --   ⟨ i i : i : i ⟩[i := 1] → ⟨ 1 i : i : i ⟩
+      testCase "term substitution applies outside quantifier binder scope" $ do
+        let binder = Name "i" Nothing
+            occurrence = T.Var binder intType Nothing
+            replacement = T.Lit (A.Num 1) intType Nothing
+            quantifier = T.Quant occurrence [(binder, intType)] occurrence occurrence Nothing
+            expected = T.Quant replacement [(binder, intType)] occurrence occurrence Nothing
+
+        evalState (subst [("i", replacement)] quantifier) (0 :: Int) @?= expected,
+      -- The operator is outside the binder's scope, so substituting i there does
+      -- not require renaming the binder:
+      --   ⟨ op i : i : i ⟩[op := i] → ⟨ i i : i : i ⟩
+      testCase "operator substitution does not rename quantifier binders" $ do
+        let operatorName = Name "op" Nothing
+            binder = Name "i" Nothing
+            operator = T.Var operatorName intType Nothing
+            boundOccurrence = T.Var binder intType Nothing
+            replacement = T.Var binder intType Nothing
+            quantifier = T.Quant operator [(binder, intType)] boundOccurrence boundOccurrence Nothing
+            expected = T.Quant replacement [(binder, intType)] boundOccurrence boundOccurrence Nothing
+
+        evalState (subst [("op", replacement)] quantifier) (0 :: Int) @?= expected,
       testCase "duplicate binders are rejected across patterns" $
         let i = Name "i" Nothing
             j = Name "j" Nothing
