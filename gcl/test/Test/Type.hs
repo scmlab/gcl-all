@@ -13,8 +13,8 @@ import GCL.Type2.Types (TypeError (..), mkInference, runTI, typeToType)
 import Pretty (toText)
 import qualified Syntax.Abstract.Operator as AO
 import qualified Syntax.Abstract.Types as A
-import qualified Syntax.Common.Types as C
 import Syntax.Common.Types (Name (..), TypeOp (..))
+import qualified Syntax.Common.Types as C
 import qualified Syntax.Concrete.Instances.ToAbstract as AT
 import qualified Syntax.Parser as Parser
 import Syntax.Substitution (subst)
