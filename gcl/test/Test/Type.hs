@@ -13,6 +13,7 @@ import GCL.Type2.Types (TypeError (..), mkInference, runTI, typeToType)
 import Pretty (toText)
 import qualified Syntax.Abstract.Operator as AO
 import qualified Syntax.Abstract.Types as A
+import qualified Syntax.Common.Types as C
 import Syntax.Common.Types (Name (..), TypeOp (..))
 import qualified Syntax.Concrete.Instances.ToAbstract as AT
 import qualified Syntax.Parser as Parser
@@ -148,7 +149,7 @@ tests =
             lambda = T.Lam inv functionType call Nothing
             clause = T.CaseClause (A.PattBinder inv) call
             caseExpr = T.Case (T.Var b functionType Nothing) [clause] Nothing
-            quantBodyRZ = descend (initRZ [] (redexRT_sat env quant)) !! 1
+            quantBodyRZ = descend (initRZ [] (redexRT_sat env quant)) !! 2
             lambdaBodyRZ =
               case descend (initRZ [] (redexRT_sat env lambda)) of
                 [bodyRZ] -> bodyRZ
@@ -163,7 +164,7 @@ tests =
         isRedex caseBodyRZ @?= False
         evalState (reduce env call []) (0 :: Int)
           @?= T.Lit (A.Bol True) boolType Nothing
-        evalState (reduce env quant [1]) (0 :: Int) @?= quant
+        evalState (reduce env quant [2]) (0 :: Int) @?= quant
         evalState (reduce env lambda [0]) (0 :: Int) @?= lambda
         evalState (reduce env caseExpr [1]) (0 :: Int) @?= caseExpr,
       testCase "shadowing preserves unrelated definition redexes" $ do
@@ -181,19 +182,44 @@ tests =
             lambda = T.Lam inv functionType helperCall Nothing
             clause = T.CaseClause (A.PattBinder inv) helperCall
             caseExpr = T.Case (T.Var b functionType Nothing) [clause] Nothing
-            quantBodyRZ = descend (initRZ [] (redexRT_sat env quant)) !! 1
+            quantBodyRZ = descend (initRZ [] (redexRT_sat env quant)) !! 2
             lambdaBodyRZ = descend (initRZ [] (redexRT_sat env lambda)) !! 0
             caseBodyRZ = descend (initRZ [] (redexRT_sat env caseExpr)) !! 1
 
         isRedex quantBodyRZ @? "quantifier shadowing must preserve helper"
         isRedex lambdaBodyRZ @? "lambda shadowing must preserve helper"
         isRedex caseBodyRZ @? "case-clause shadowing must preserve helper"
-        evalState (reduce env quant [1]) (0 :: Int)
+        evalState (reduce env quant [2]) (0 :: Int)
           @?= T.Quant range [(inv, functionType)] range result Nothing
         evalState (reduce env lambda [0]) (0 :: Int)
           @?= T.Lam inv functionType result Nothing
         evalState (reduce env caseExpr [1]) (0 :: Int)
           @?= T.Case (T.Var b functionType Nothing) [T.CaseClause (A.PattBinder inv) result] Nothing,
+      -- Internal-AST equivalent of the following PSEUDO source:
+      --
+      --   outer f :: Int -> (Bool -> Bool -> Bool)
+      --   outer f x = (&&)
+      --   ⟨ (f a) f : True : True ⟩
+      --     │     └─ binder f, whose scope starts at the restriction
+      --     └─ (f a) is the operator, reducible at path [0]
+      --     ↓
+      --   ⟨ (&&) f : True : True ⟩
+      --
+      testCase "quantifier operator redex uses outer scope" $ do
+        let f = Name "f" Nothing
+            x = Name "x" Nothing
+            argumentName = Name "a" Nothing
+            operatorType = TO.tBinLogicOp
+            functionType = A.mkArrowType intType operatorType
+            quantifierOperator = T.Op (C.ArithOp (C.ConjU Nothing)) operatorType
+            definition = T.Lam x intType quantifierOperator Nothing
+            env = [(f, definition)]
+            call = T.App (T.Var f functionType Nothing) (T.Var argumentName intType Nothing) Nothing
+            restriction = T.Lit (A.Bol True) boolType Nothing
+            quantifier = T.Quant call [(f, functionType)] restriction restriction Nothing
+            expected = T.Quant quantifierOperator [(f, functionType)] restriction restriction Nothing
+
+        evalState (reduce env quantifier [0]) (0 :: Int) @?= expected,
       testCase "function signatures render as arrows" $
         toText (A.mkArrowType intType boolType) @?= "Int → Bool",
       testCase "substitution traverses nested Arrow applications" $ do
