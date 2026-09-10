@@ -68,6 +68,25 @@ tests =
             clause = T.CaseClause (A.PattBinder patternName) rhs
 
         freeVars clause @?= freeVars (T.Var freeName intType Nothing),
+      testCase "abstract quantifier binders do not scope over the operator" $ do
+        let operatorName = Name "i" Nothing
+            bodyName = Name "j" Nothing
+            operator = A.Var operatorName Nothing
+            restriction = A.Var bodyName Nothing
+            body = A.Tuple [A.Var operatorName Nothing, A.Var bodyName Nothing]
+            quantifier = A.Quant operator [operatorName, bodyName] restriction body Nothing
+
+        freeVars quantifier @?= freeVars operator,
+      testCase "typed quantifier binders do not scope over the operator" $ do
+        let operatorName = Name "i" Nothing
+            bodyName = Name "j" Nothing
+            operator = T.Var operatorName intType Nothing
+            restriction = T.Var bodyName intType Nothing
+            body = T.Tuple [T.Var operatorName intType Nothing, T.Var bodyName intType Nothing]
+            binders = [(operatorName, intType), (bodyName, intType)]
+            quantifier = T.Quant operator binders restriction body Nothing
+
+        freeVars quantifier @?= freeVars operator,
       testCase "duplicate binders are rejected across patterns" $
         let i = Name "i" Nothing
             j = Name "j" Nothing
