@@ -205,6 +205,31 @@ tests =
         let endpoint = A.Including (A.Lit (A.Num 0) Nothing)
             arrayType = A.TArray (A.Interval endpoint endpoint Nothing) boolType Nothing
         codomain arrayType @?= boolType,
+      -- Internal-AST equivalent of the following PSEUDO source:
+      --
+      --   outer i :: Int -> Int -> Int
+      --   ⟨ i i : True : i ⟩
+      --     │ │          └─ bound occurrence
+      --     │ └─ binder
+      --     └─ operator resolved from the outer environment
+      --
+      -- The operator i and binder i must resolve to different bindings.
+      testCase "quantifier operator is inferred outside binder scope" $ do
+        let i = Name "i" Nothing
+            operatorType = intType `typeToType` intType `typeToType` intType
+            env = Map.singleton i (A.Forall [] operatorType)
+            occurrence = A.Var i Nothing
+            restriction = A.Lit (A.Bol True) Nothing
+            quantifier = A.Quant occurrence [i] restriction occurrence Nothing
+
+        case runTI (infer quantifier) env mkInference of
+          Left err -> assertFailure $ "unexpected inference failure: " <> show err
+          Right ((_, resultType, T.Quant typedOperator [(_, binderType)] _ _ _), _) -> do
+            typeOf typedOperator @?= operatorType
+            binderType @?= intType
+            resultType @?= intType
+          Right ((_, _, typedExpr), _) ->
+            assertFailure $ "expected typed quantifier, got: " <> show typedExpr,
       testCase "duplicate quantifier binders are rejected" $
         inferSource "<| + i i : i < 3 : i |>"
           @?= Left (DuplicatedIdentifiers [Name "i" Nothing]),

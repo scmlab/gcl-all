@@ -386,10 +386,11 @@ inferQuant op bound cond expr range = do
         )
         bound
 
+  (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
+
   local
     (\e -> boundEnv <> e)
     ( do
-        (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
         (condSubst, typedCond) <- local (applySubstEnv opSubst) (typeCheck cond typeBool)
         (exprSubst, typedExpr) <- local (applySubstEnv (condSubst <> opSubst)) (typeCheck expr (applySubst (condSubst <> opSubst) ftv))
 
