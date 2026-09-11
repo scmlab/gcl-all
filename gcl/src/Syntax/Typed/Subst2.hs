@@ -18,9 +18,9 @@
 --   replacement built once at the binder would collapse every occurrence of a
 --   renamed variable onto the binder's position.
 --
---   So the two meanings stay apart -- but in one map, as one 'Meaning'. At
---   most one of them can ever attach to a name, and saying that in the type is
---   what keeps it from becoming an invariant to maintain by hand.
+--   So the two operations stay apart while sharing one environment: each
+--   entry contains one 'SubstAction'. Encoding that choice in the type keeps
+--   it from becoming an invariant that callers must maintain by hand.
 module Syntax.Typed.Subst2 (substExpr) where
 
 import Data.Set (Set)
@@ -34,8 +34,8 @@ import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Instances.Free ()
 import Syntax.Typed.Types
 
--- | What a name stands for inside a scope.
-data Meaning
+-- | What to do when a name is encountered during substitution.
+data SubstAction
   = -- | Rename @x@ to this name. Only the name changes, so the
     --   occurrence keeps the type and range it already had.
     RenameTo Text
@@ -43,12 +43,12 @@ data Meaning
     ReplaceWith Expr
   deriving (Show)
 
--- | What a traversal carries into a binder's scope.
-type SubstEnv = [(Text, Meaning)]
+-- | The actions a traversal carries into a binder's scope.
+type SubstEnv = [(Text, SubstAction)]
 
--- | The free names an entry would carry into a scope. A renaming's range is a
---   name, whose free names are just itself.
-carriedIn :: Meaning -> Set Text
+-- | The free names an action would carry into a scope. 'RenameTo' carries its
+--   target name; 'ReplaceWith' carries the replacement's free names.
+carriedIn :: SubstAction -> Set Text
 carriedIn (RenameTo x) = Set.singleton x
 carriedIn (ReplaceWith e) = freeVarsT e
 
@@ -65,17 +65,17 @@ substitute env (Chain chain) = Chain <$> substituteChain env chain
 substitute env (App function argument l) =
   App <$> substitute env function <*> substitute env argument <*> pure l
 substitute env (Lam x t body l) = do
-  (inner, renaming) <- underBinders env [x] (freeVarsT body)
-  Lam (renameName renaming x) t <$> substitute inner body <*> pure l
+  (innerEnv, binderRenaming) <- underBinders env [x] (freeVarsT body)
+  Lam (renameName binderRenaming x) t <$> substitute innerEnv body <*> pure l
 substitute env (Tuple elements) = Tuple <$> mapM (substitute env) elements
 substitute env (OutT index e) = OutT index <$> substitute env e
 substitute env (Quant operator binders range body l) = do
   operator' <- substitute env operator
-  (inner, renaming) <-
+  (innerEnv, binderRenaming) <-
     underBinders env (map fst binders) (freeVarsT (range, body))
-  Quant operator' [(renameName renaming x, t) | (x, t) <- binders]
-    <$> substitute inner range
-    <*> substitute inner body
+  Quant operator' [(renameName binderRenaming x, t) | (x, t) <- binders]
+    <$> substitute innerEnv range
+    <*> substitute innerEnv body
     <*> pure l
 substitute env (ArrIdx array index l) =
   ArrIdx <$> substitute env array <*> substitute env index <*> pure l
@@ -91,10 +91,10 @@ substitute env (Case scrutinee clauses l) =
     <*> mapM (substituteClause env) clauses
     <*> pure l
 substitute env (Subst body table) = do
-  (inner, renaming) <- underBinders env (map fst table) (freeVarsT body)
+  (innerEnv, binderRenaming) <- underBinders env (map fst table) (freeVarsT body)
   Subst
-    <$> substitute inner body
-    <*> mapM (\(x, e) -> (,) (renameName renaming x) <$> substitute env e) table
+    <$> substitute innerEnv body
+    <*> mapM (\(x, e) -> (,) (renameName binderRenaming x) <$> substitute env e) table
 substitute _ e@EHole {} = pure e
 
 substituteChain :: (Fresh m) => SubstEnv -> Chain -> m Chain
@@ -105,8 +105,9 @@ substituteChain env (More chain operator t e) =
 -- | A clause's pattern binds over its body only, never over the scrutinee.
 substituteClause :: (Fresh m) => SubstEnv -> CaseClause -> m CaseClause
 substituteClause env (CaseClause pattern' body) = do
-  (inner, renaming) <- underBinders env (extractBinder pattern') (freeVarsT body)
-  CaseClause (renamePattern renaming pattern') <$> substitute inner body
+  (innerEnv, binderRenaming) <-
+    underBinders env (extractBinder pattern') (freeVarsT body)
+  CaseClause (renamePattern binderRenaming pattern') <$> substitute innerEnv body
 
 -- | Handle a 'Var' or 'Const' occurrence according to the environment:
 --
@@ -140,13 +141,16 @@ occurrence env build name@(Name text range) t l =
     Just (ReplaceWith e) -> e
 
 -- | Enter a binder's scope, given the names it binds and the free names of the
---   scope it binds over. Returns the environment to use inside, and the
---   renaming that had to be forced on the binders themselves -- callers apply
---   that to the binder positions, which this cannot reach.
+--   scope it binds over. Returns the environment to use inside and the
+--   renaming required for the binders themselves -- callers apply that to the
+--   binder positions, which this cannot reach.
 underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m (SubstEnv, [(Text, Text)])
 underBinders env binders scopeFree = do
-  renaming <- allocate forbidden clashing
-  pure ([(x, RenameTo x') | (x, x') <- renaming] <> visible, renaming)
+  binderRenaming <- allocate forbidden clashing
+  pure
+    ( [(x, RenameTo x') | (x, x') <- binderRenaming] <> visible,
+      binderRenaming
+    )
   where
     bound = map nameToText binders
 
