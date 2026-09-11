@@ -36,11 +36,11 @@ import Syntax.Typed.Types
 
 -- | What a name stands for inside a scope.
 data Meaning
-  = -- | @x@ is spelled this way instead. Only the name changes, so the
+  = -- | Rename @x@ to this name. Only the name changes, so the
     --   occurrence keeps the type and range it already had.
-    SpelledAs Text
-  | -- | @x@ stands for this expression.
-    StandsFor Expr
+    RenameTo Text
+  | -- | Replace @x@ with this expression.
+    ReplaceWith Expr
   deriving (Show)
 
 -- | What a traversal carries into a binder's scope.
@@ -49,12 +49,12 @@ type SubstEnv = [(Text, Meaning)]
 -- | The free names an entry would carry into a scope. A renaming's range is a
 --   name, whose free names are just itself.
 carriedIn :: Meaning -> Set Text
-carriedIn (SpelledAs x) = Set.singleton x
-carriedIn (StandsFor e) = freeVarsT e
+carriedIn (RenameTo x) = Set.singleton x
+carriedIn (ReplaceWith e) = freeVarsT e
 
 -- | Substitute, as callers of the @Substitutable@ instance mean it.
 substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
-substExpr assignments = substitute [(x, StandsFor e) | (x, e) <- assignments]
+substExpr assignments = substitute [(x, ReplaceWith e) | (x, e) <- assignments]
 
 substitute :: (Fresh m) => SubstEnv -> Expr -> m Expr
 substitute _ e@Lit {} = pure e
@@ -108,10 +108,24 @@ substituteClause env (CaseClause pattern' body) = do
   (inner, renaming) <- underBinders env (extractBinder pattern') (freeVarsT body)
   CaseClause (renamePattern renaming pattern') <$> substitute inner body
 
--- | An occurrence. This is the one place where the two meanings part company:
---   a renaming is finished off with the type and range the occurrence brought
---   with it, which is exactly what a replacement built back at the binder
---   could not have supplied.
+-- | Handle a 'Var' or 'Const' occurrence according to the environment:
+--
+--   * No entry: rebuild the occurrence unchanged.
+--
+--     @
+--     Var x t l   -> Var x t l
+--     Const x t l -> Const x t l
+--     @
+--
+--   * 'RenameTo' @x'@: change only the name, preserving the constructor,
+--     type, and source ranges.
+--
+--     @
+--     Var x t l   -> Var x' t l
+--     Const x t l -> Const x' t l
+--     @
+--
+--   * 'ReplaceWith' @e@: replace the whole occurrence with @e@.
 occurrence ::
   SubstEnv ->
   (Name -> Type -> Maybe Range -> Expr) ->
@@ -122,8 +136,8 @@ occurrence ::
 occurrence env build name@(Name text range) t l =
   case lookup text env of
     Nothing -> build name t l
-    Just (SpelledAs text') -> build (Name text' range) t l
-    Just (StandsFor e) -> e
+    Just (RenameTo text') -> build (Name text' range) t l
+    Just (ReplaceWith e) -> e
 
 -- | Enter a binder's scope, given the names it binds and the free names of the
 --   scope it binds over. Returns the environment to use inside, and the
@@ -132,7 +146,7 @@ occurrence env build name@(Name text range) t l =
 underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m (SubstEnv, [(Text, Text)])
 underBinders env binders scopeFree = do
   renaming <- allocate forbidden clashing
-  pure ([(x, SpelledAs x') | (x, x') <- renaming] <> visible, renaming)
+  pure ([(x, RenameTo x') | (x, x') <- renaming] <> visible, renaming)
   where
     bound = map nameToText binders
 
