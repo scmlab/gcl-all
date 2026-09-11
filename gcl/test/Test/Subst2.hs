@@ -171,6 +171,23 @@ tests =
             expected = quantOf i (T.Tuple [var i, two]) (var i)
 
         run [("i", one), ("y", two)] quantified @?= expected,
+      -- The first i is the operator; the second is the quantifier binder:
+      --   ⟨ i i : i : i ⟩[i := 1] → ⟨ 1 i : i : i ⟩
+      testCase "quantifier binders do not scope over the operator" $ do
+        let occurrence = var i
+            quantified = T.Quant occurrence [(i, intType)] occurrence occurrence Nothing
+            expected = T.Quant one [(i, intType)] occurrence occurrence Nothing
+
+        run [("i", one)] quantified @?= expected,
+      -- The operator is outside the binder's scope, so substituting i there does
+      -- not require renaming the binder:
+      --   ⟨ op i : i : i ⟩[op := i] → ⟨ i i : i : i ⟩
+      testCase "operator substitution does not rename quantifier binders" $ do
+        let occurrence = var i
+            quantified = quantOf i occurrence occurrence
+            expected = T.Quant occurrence [(i, intType)] occurrence occurrence Nothing
+
+        run [("op", occurrence)] quantified @?= expected,
       testCase "quantifier substitution avoids capture" $
         case run [("y", var i)] (quantOf i (T.Tuple [var i, var y]) (var i)) of
           T.Quant _ [(binder, _)] (T.Tuple [bound, inserted]) body _ -> do

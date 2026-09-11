@@ -70,12 +70,11 @@ substitute env (Lam x t body l) = do
 substitute env (Tuple elements) = Tuple <$> mapM (substitute env) elements
 substitute env (OutT index e) = OutT index <$> substitute env e
 substitute env (Quant operator binders range body l) = do
+  operator' <- substitute env operator
   (inner, renaming) <-
-    underBinders env (map fst binders) (freeVarsT (operator, range, body))
-  Quant
-    <$> substitute inner operator
-    <*> pure [(renameName renaming x, t) | (x, t) <- binders]
-    <*> substitute inner range
+    underBinders env (map fst binders) (freeVarsT (range, body))
+  Quant operator' [(renameName renaming x, t) | (x, t) <- binders]
+    <$> substitute inner range
     <*> substitute inner body
     <*> pure l
 substitute env (ArrIdx array index l) =
