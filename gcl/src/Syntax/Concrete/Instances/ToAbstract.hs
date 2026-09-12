@@ -8,10 +8,9 @@
 module Syntax.Concrete.Instances.ToAbstract where
 
 import Control.Arrow ((***))
+import Control.Monad (foldM)
 import Control.Monad.State
-import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable (Bitraversable (bitraverse))
-import Data.Either (partitionEithers)
 import qualified Data.List as List
 import qualified Data.Text as Text
 import GCL.Common
@@ -68,12 +67,15 @@ instance ToAbstract Name Name where
 
 -- | Program
 instance ToAbstract Program A.Program where
-  toAbstract prog@(Program ds stmts') = do
-    (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
+  toAbstract prog@(Program defns' decls' stmts' blocks') = do
+    -- (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
+    defns <- concat <$> mapM toAbstract defns'
+    decls <- mapM toAbstract decls'
     let (globProps, assertions) = ConstExpr.pickGlobals decls
     let pre = [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
-    return $ A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
+    blocks <- toAbstract blocks'
+    return $ A.Program defns decls globProps (pre ++ stmts) blocks (maybeRangeOf prog)
 
 --------------------------------------------------------------------------------
 
@@ -205,7 +207,6 @@ instance ToAbstract Stmt A.Stmt where
       toAbstract' (Spec l xs r) = do
         let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
         return $ const (A.Spec text (rangeOf l <> rangeOf r))
-      toAbstract' (Proof anchor contents _ r) = return $ const (A.Proof anchor contents r)
       toAbstract' (Alloc p _ _ _ es _) = A.Alloc p <$> toAbstract es
       toAbstract' (HLookup x _ _ e) = A.HLookup x <$> toAbstract e
       toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
@@ -356,3 +357,16 @@ instance ToAbstract Hole A.Hole where
     holeNumber <- countUp
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
+
+instance {-# OVERLAPS #-} ToAbstract [BlockComment] [A.BlockComment] where
+  toAbstract =
+    foldM
+      ( \acc (BlockComment _ content _) ->
+          case content of
+            (Comment _) -> return acc
+            (Proof proof _ proofText) -> do
+              let proof' = docToText $ toDoc $ prettyWithRange (map (fmap show) proof)
+              let proofText' = docToText $ toDoc $ prettyWithRange (map (fmap show) proofText)
+              return (A.Proof proof' proofText' : acc)
+      )
+      []

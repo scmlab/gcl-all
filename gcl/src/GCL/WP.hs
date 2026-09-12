@@ -61,7 +61,7 @@ sweep program@(Program _ decs _props stmts _) = do
           _ -> []
   -- make a table of (#hash, range) from Proof Anchors
   let table = Map.fromList proofAnchors
-  let updatePO po = case Map.lookup (poAnchorHash po) table of
+  let updatePO po = case Map.lookup (poStrippedPred po) table of
         Nothing -> po
         Just range -> po {poAnchorRange = Just range}
 

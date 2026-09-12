@@ -96,7 +96,7 @@ instance Eq Stmt where
 data PO = PO
   { poPred :: Pred, -- the single proposition `pre ⇒ post`
     poReducedPred :: Pred,
-    poAnchorHash :: Text, -- anchor hash
+    poStrippedPred :: Text, -- pred without surrounding rendered html
     poAnchorRange :: Maybe Range, -- anchor location, if it exists in the source
     poOrigin :: Origin -- whereabouts
   }

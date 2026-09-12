@@ -138,8 +138,9 @@ data Tok
   | TokChar Char
   | TokTrue
   | TokFalse
-  | -- tokens for proof block {- #anchor ...} or block comment {- ... -}
-    TokProof String String String -- anchor, contents, full-text containing "{-", "-}"
+  | TokBlockCommentOpen -- "{-"
+  | TokBlockCommentClose -- "-}"
+  | TokProofSep -- proof block separator "---"
   deriving (Eq, Ord)
 
 instance Show Tok where
@@ -234,7 +235,9 @@ instance Show Tok where
     TokIntType -> "Int"
     TokBoolType -> "Bool"
     TokCharType -> "Char"
-    TokProof s _ _ -> "{- #" ++ s ++ " ...-}"
+    TokBlockCommentOpen -> "{-"
+    TokBlockCommentClose -> "-}"
+    TokProofSep -> "---"
 
 --------------------------------------------------------------------------------
 
@@ -326,6 +329,12 @@ tokRE =
     <$ string "{:"
       <|> TokDeclClose
     <$ string ":}"
+      <|> TokBlockCommentOpen
+    <$ string "{-"
+      <|> TokBlockCommentClose
+    <$ string "-}"
+      <|> TokProofSep
+    <$ string "---"
       -- literals
       <|> TokUnderscore
     <$ string "_"
@@ -457,14 +466,14 @@ isNewline _ = False
 isNameChar :: Char -> Bool
 isNameChar c = isAlphaNum c || c == '_' || c == '\''
 
-proofAnchorRE :: RE Char String
-proofAnchorRE =
-  -- string "#" *> ((:) <$> psym isAlphaNum <*> many (psym isAlphaNum))
-  string "#" *> some (psym isAlphaNum)
+-- proofAnchorRE :: RE Char String
+-- proofAnchorRE =
+--   -- string "#" *> ((:) <$> psym isAlphaNum <*> many (psym isAlphaNum))
+--   string "#" *> some (psym isAlphaNum)
 
-makeProofTok :: (String, String) -> String -> String -> Tok
-makeProofTok (preSpaces, anchor) postSpaces contents =
-  TokProof anchor contents ("{-" <> preSpaces <> "#" <> anchor <> postSpaces <> contents <> "-}")
+-- makeProofTok :: (String, String) -> String -> String -> Tok
+-- makeProofTok (preSpaces, anchor) postSpaces contents =
+--   TokProof anchor contents ("{-" <> preSpaces <> "#" <> anchor <> postSpaces <> contents <> "-}")
 
 lexer :: Lexer Tok
 lexer =
@@ -472,18 +481,18 @@ lexer =
     [ -- tokens to be sent to the parser
       token (longest tokRE),
       -- Handling {- #anchor ... -} and {- ... -}
-      token $
-        longestShortest ((,) <$> (string "{-" *> many (psym isSpace)) <*> proofAnchorRE) $
-          \opening ->
-            makeProofTok opening
-              <$> many (psym isSpace)
-              <*> (many anySym <* string "-}"),
-      whitespace $ longestShortest (string "{-") $ const (many anySym <* string "-}"),
+      -- token $
+      --   longestShortest ((,) <$> (string "{-" *> many (psym isSpace)) <*> proofAnchorRE) $
+      --     \opening ->
+      --       makeProofTok opening
+      --         <$> many (psym isSpace)
+      --         <*> (many anySym <* string "-}"),
       -- meaningless tokens that are to be dumped
-      whitespace (longest $ string "--" <* many (psym (not . isNewline))),
+      -- whitespace $ longestShortest (string "{-") $ const (many anySym <* string "-}"),
       -- single-line comment
-      whitespace (longestShortest (string "{{") (const (many anySym *> string "}}"))),
+      whitespace (longest $ string "--" <* many (psym (not . isNewline))),
       -- old-style comment block
+      whitespace (longestShortest (string "{{") (const (many anySym *> string "}}"))),
       whitespace (longest $ psym isSpace)
     ]
 

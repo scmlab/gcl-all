@@ -56,7 +56,7 @@ instance Pretty OriginTargetRanges where
 -- | The TargetRanges here contains only the "target" info, i.e. the definition / declaration parts.
 -- | It will become OriginTargetRanges when we have the "origin" info during collection.
 programToScopes :: Program -> [Scope TargetRanges]
-programToScopes (Program defns decls _ _ _) = [topLevelScope] -- we only have a single scope for now
+programToScopes (Program defns decls _ _ _ _) = [topLevelScope] -- we only have a single scope for now
   where
     topLevelScope :: Map Text.Text TargetRanges
     topLevelScope = Map.mapKeys nameToText targetRanges
@@ -148,7 +148,7 @@ instance Collect TargetRanges OriginTargetRanges Name where
 -- Program
 
 instance Collect TargetRanges OriginTargetRanges Program where
-  collect (Program defns decls _ stmts _) = do
+  collect (Program defns decls _ stmts _ _) = do
     collect defns
     collect decls
     collect stmts

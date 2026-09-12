@@ -26,12 +26,13 @@ export default function renderProofObligation(
       </table>
     </div>
   `;
+
   return renderSection(
     "Proof Obligation",
     sectionBody,
     proofObligation.origin.location &&
       `at ${renderRange(proofObligation.origin.location)}`,
-    proofObligation.hash.slice(0, 6).toUpperCase(),
+    `<button class="proof" data-pred="${proofObligation.strippedPred}">Proof</button>`,
   );
 }
 
