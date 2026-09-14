@@ -65,13 +65,13 @@ substitute env (Chain chain) = Chain <$> substituteChain env chain
 substitute env (App function argument l) =
   App <$> substitute env function <*> substitute env argument <*> pure l
 substitute env (Lam x t body l) = do
-  (innerEnv, binderRenaming) <- underBinders env [x] (freeVarsT body)
+  (binderRenaming, innerEnv) <- underBinders env [x] (freeVarsT body)
   Lam (renameName binderRenaming x) t <$> substitute innerEnv body <*> pure l
 substitute env (Tuple elements) = Tuple <$> mapM (substitute env) elements
 substitute env (OutT index e) = OutT index <$> substitute env e
 substitute env (Quant operator binders range body l) = do
   operator' <- substitute env operator
-  (innerEnv, binderRenaming) <-
+  (binderRenaming, innerEnv) <-
     underBinders env (map fst binders) (freeVarsT (range, body))
   Quant operator' [(renameName binderRenaming x, t) | (x, t) <- binders]
     <$> substitute innerEnv range
@@ -91,7 +91,7 @@ substitute env (Case scrutinee clauses l) =
     <*> mapM (substituteClause env) clauses
     <*> pure l
 substitute env (Subst body table) = do
-  (innerEnv, binderRenaming) <- underBinders env (map fst table) (freeVarsT body)
+  (binderRenaming, innerEnv) <- underBinders env (map fst table) (freeVarsT body)
   Subst
     <$> substitute innerEnv body
     <*> mapM (\(x, e) -> (,) (renameName binderRenaming x) <$> substitute env e) table
@@ -105,7 +105,7 @@ substituteChain env (More chain operator t e) =
 -- | A clause's pattern binds over its body only, never over the scrutinee.
 substituteClause :: (Fresh m) => SubstEnv -> CaseClause -> m CaseClause
 substituteClause env (CaseClause pattern' body) = do
-  (innerEnv, binderRenaming) <-
+  (binderRenaming, innerEnv) <-
     underBinders env (extractBinder pattern') (freeVarsT body)
   CaseClause (renamePattern binderRenaming pattern') <$> substitute innerEnv body
 
@@ -141,15 +141,15 @@ occurrence env build name@(Name text range) t l =
     Just (ReplaceWith e) -> e
 
 -- | Enter a binder's scope, given the names it binds and the free names of the
---   scope it binds over. Returns the environment to use inside and the
---   renaming required for the binders themselves -- callers apply that to the
---   binder positions, which this cannot reach.
-underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m (SubstEnv, [(Text, Text)])
+--   scope it binds over. Returns the renaming required for the binders
+--   themselves and the environment to use inside. Callers apply the renaming
+--   to the binder positions, which this cannot reach.
+underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m ([(Text, Text)], SubstEnv)
 underBinders env binders scopeFree = do
   binderRenaming <- allocate forbidden clashing
   pure
-    ( [(x, RenameTo x') | (x, x') <- binderRenaming] <> visible,
-      binderRenaming
+    ( binderRenaming,
+      [(x, RenameTo x') | (x, x') <- binderRenaming] <> visible
     )
   where
     bound = map nameToText binders
