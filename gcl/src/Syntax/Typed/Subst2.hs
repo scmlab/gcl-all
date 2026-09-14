@@ -152,6 +152,9 @@ occurrence env build name@(Name text range) t l =
 --   subtracted. Returns the binder renaming for the caller to apply and the
 --   environment for traversing the bound region. This function does not
 --   rewrite AST nodes itself.
+--
+--   Binder names must be distinct. Type inference enforces this for source
+--   ASTs; otherwise a renaming cannot distinguish equal binder names.
 underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m ([(Text, Text)], SubstEnv)
 underBinders env binders freeVarsBeforeBinding = do
   binderRenaming <- allocate forbidden clashing
