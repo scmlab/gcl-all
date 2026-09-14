@@ -188,7 +188,9 @@ freshFor forbidden binder = go (nameToText binder)
 
 renameName :: [(Text, Text)] -> Name -> Name
 renameName renaming name@(Name text range) =
-  maybe name (`Name` range) (lookup text renaming)
+  case lookup text renaming of
+    Nothing -> name
+    Just text' -> Name text' range
 
 renamePattern :: [(Text, Text)] -> Pattern -> Pattern
 renamePattern _ pattern'@PattLit {} = pattern'
