@@ -53,8 +53,15 @@ carriedIn (RenameTo x) = Set.singleton x
 carriedIn (ReplaceWith e) = freeVarsT e
 
 -- | Substitute, as callers of the @Substitutable@ instance mean it.
+--   Duplicate assignment names are rejected.
 substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
-substExpr assignments = substitute [(x, ReplaceWith e) | (x, e) <- assignments]
+substExpr assignments
+  | Set.size domain /= length assignments =
+      error "substExpr: duplicate assignment names"
+  | otherwise =
+      substitute [(x, ReplaceWith e) | (x, e) <- assignments]
+  where
+    domain = Set.fromList (map fst assignments)
 
 substitute :: (Fresh m) => SubstEnv -> Expr -> m Expr
 substitute _ e@Lit {} = pure e

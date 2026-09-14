@@ -2,6 +2,7 @@
 
 module Test.Subst2 (tests) where
 
+import Control.Exception (ErrorCall (..), evaluate, try)
 import Control.Monad.State (evalState)
 import qualified Data.Map as Map
 import GCL.Range (mkPos, mkRange)
@@ -231,7 +232,13 @@ tests =
           result -> assertFailure ("unexpected result: " <> show result),
       testCase "substitution is simultaneous, not sequential" $
         run [("x", var y), ("y", var x)] (T.Tuple [var x, var y])
-          @?= T.Tuple [var y, var x]
+          @?= T.Tuple [var y, var x],
+      testCase "a name assigned more than once is rejected" $ do
+        outcome <- try (evaluate (run [("x", one), ("x", two)] (var x)))
+
+        case outcome of
+          Left (ErrorCall _) -> pure ()
+          Right result -> assertFailure ("expected an error, got: " <> show result)
     ]
   where
     run assignments expr = evalState (substExpr assignments expr) (0 :: Int)
