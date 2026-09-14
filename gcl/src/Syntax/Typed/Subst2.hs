@@ -140,11 +140,11 @@ occurrence env build name@(Name text range) t l =
     Just (RenameTo text') -> build (Name text' range) t l
     Just (ReplaceWith e) -> e
 
--- | Enter a binder's scope, given the names it binds and the free names of the
---   region they bind over, before those binders are subtracted. Returns the
---   renaming required for the binders themselves and the environment to use
---   inside. Callers apply the renaming to the binder positions, which this
---   cannot reach.
+-- | Prepare to enter a binder's scope from the outer environment, given the
+--   names it binds and the free names of the region, before those binders are
+--   subtracted. Returns the binder renaming for the caller to apply and the
+--   environment for traversing the bound region. This function does not
+--   rewrite AST nodes itself.
 underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m ([(Text, Text)], SubstEnv)
 underBinders env binders freeVarsBeforeBinding = do
   binderRenaming <- allocate forbidden clashing
