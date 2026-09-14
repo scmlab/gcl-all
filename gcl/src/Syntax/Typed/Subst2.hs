@@ -141,11 +141,12 @@ occurrence env build name@(Name text range) t l =
     Just (ReplaceWith e) -> e
 
 -- | Enter a binder's scope, given the names it binds and the free names of the
---   scope it binds over. Returns the renaming required for the binders
---   themselves and the environment to use inside. Callers apply the renaming
---   to the binder positions, which this cannot reach.
+--   region they bind over, before those binders are subtracted. Returns the
+--   renaming required for the binders themselves and the environment to use
+--   inside. Callers apply the renaming to the binder positions, which this
+--   cannot reach.
 underBinders :: (Fresh m) => SubstEnv -> [Name] -> Set Text -> m ([(Text, Text)], SubstEnv)
-underBinders env binders scopeFree = do
+underBinders env binders freeVarsBeforeBinding = do
   binderRenaming <- allocate forbidden clashing
   pure
     ( binderRenaming,
@@ -157,14 +158,14 @@ underBinders env binders scopeFree = do
     -- A binder hides its own name for the whole of its scope, and an entry
     -- that names nothing free in that scope cannot do anything there.
     visible =
-      filter (\(x, _) -> x `notElem` bound && x `Set.member` scopeFree) env
+      filter (\(x, _) -> x `notElem` bound && x `Set.member` freeVarsBeforeBinding) env
 
     -- What entering this scope would carry in. A binder spelled the same way
     -- would capture it, so that binder has to move.
     incoming = foldMap (carriedIn . snd) visible
 
     clashing = filter ((`Set.member` incoming) . nameToText) binders
-    forbidden = incoming <> scopeFree <> Set.fromList bound
+    forbidden = incoming <> freeVarsBeforeBinding <> Set.fromList bound
 
 allocate :: (Fresh m) => Set Text -> [Name] -> m [(Text, Text)]
 allocate _ [] = pure []
