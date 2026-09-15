@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 
--- | Capture-avoiding substitution over the typed AST, in one traversal.
+-- | Capture-avoiding substitution over the typed AST.
 --
 --   Substituting and alpha-renaming are different operations that a single
 --   @[(Text, Expr)]@ is forced to conflate. A substitution puts an arbitrary
