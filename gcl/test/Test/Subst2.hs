@@ -230,6 +230,31 @@ tests =
             rangeOfName binder @?= rangeOfName binderName
             rangeOfName bound @?= rangeOfName occurrence
           result -> assertFailure ("unexpected result: " <> show result),
+      -- Pseudo-GCL, where @[x \ e]@ is a 'T.Subst' table:
+      --
+      --   @subst y := x in ((x, y) [x \ x])
+      --     ==> (x', x) [x' \ x]@
+      --
+      -- The free inserted @x@ forces the table-domain binder to move. The
+      -- table value is outside that binder's scope and keeps its own @x@.
+      testCase "substitution-node binders avoid capture" $
+        case run [("y", var x)] (T.Subst (T.Tuple [var x, var y]) [(x, var x)]) of
+          T.Subst (T.Tuple [bound, inserted]) [(binder, value)] -> do
+            nameToText binder /= "x" @? "the substitution-node binder must be renamed"
+            bound @?= var binder
+            inserted @?= var x
+            value @?= var x
+          result -> assertFailure ("unexpected result: " <> show result),
+      -- Pseudo-GCL:
+      --
+      --   @subst x := 1 in (x [x \ x])
+      --     ==> x [x \ 1]@
+      --
+      -- The table domain shadows the outer assignment in the body, but it
+      -- does not scope over the table value.
+      testCase "substitution-node domains shadow only their bodies" $
+        run [("x", one)] (T.Subst (var x) [(x, var x)])
+          @?= T.Subst (var x) [(x, one)],
       testCase "substitution is simultaneous, not sequential" $
         run [("x", var y), ("y", var x)] (T.Tuple [var x, var y])
           @?= T.Tuple [var y, var x],
