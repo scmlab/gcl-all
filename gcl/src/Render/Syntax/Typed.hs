@@ -171,22 +171,22 @@ handleExprRZ n rz (OutT i e) =
 handleExprRZ _ rz (Quant op xs r t _) =
   markRedex rz $
     "⟨"
-      <+> renderQOp op
+      <+> renderQOp (down rz 0) op
       <+> renderBinders xs
       <+> ":"
-      <+> handleExprRZ NoContext (down rz 0) r
+      <+> handleExprRZ NoContext (down rz 1) r
       <+> ":"
-      <+> handleExprRZ NoContext (down rz 1) t
+      <+> handleExprRZ NoContext (down rz 2) t
       <+> "⟩"
   where
-    renderQOp (Op (ArithOp (Conj _)) _) = "∀"
-    renderQOp (Op (ArithOp (ConjU _)) _) = "∀"
-    renderQOp (Op (ArithOp (Disj _)) _) = "∃"
-    renderQOp (Op (ArithOp (DisjU _)) _) = "∃"
-    renderQOp (Op (ArithOp (Add _)) _) = "Σ"
-    renderQOp (Op (ArithOp (Mul _)) _) = "Π"
-    renderQOp (Op op' _) = render op'
-    renderQOp op' = render op'
+    renderQOp _ (Op (ArithOp (Conj _)) _) = "∀"
+    renderQOp _ (Op (ArithOp (ConjU _)) _) = "∀"
+    renderQOp _ (Op (ArithOp (Disj _)) _) = "∃"
+    renderQOp _ (Op (ArithOp (DisjU _)) _) = "∃"
+    renderQOp _ (Op (ArithOp (Add _)) _) = "Σ"
+    renderQOp _ (Op (ArithOp (Mul _)) _) = "Π"
+    renderQOp _ (Op op' _) = render op'
+    renderQOp opRZ op' = handleExprRZ NoContext opRZ op'
     renderBinders [] = ""
     renderBinders [(x, t')] = render x <+> " : " <+> render t'
     renderBinders ((x, t') : xs') =
