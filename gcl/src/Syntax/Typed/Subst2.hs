@@ -102,6 +102,12 @@ substitute env (Subst body table) = do
   Subst
     <$> substitute innerEnv body
     <*> mapM (\(x, e) -> (,) (renameName binderRenaming x) <$> substitute env e) table
+-- A hole is opaque. Its 'Env' is a snapshot of the scope in the elaborated
+-- source tree, so this traversal does not rewrite it when surrounding binders
+-- are renamed. Consequently, the 'Env' in a transformed copy may not match
+-- the surrounding AST and must not be used for scope-sensitive operations
+-- such as hole refinement. The server retains source-derived holes separately
+-- for that purpose; see 'GCL.WP.sweep'.
 substitute _ e@EHole {} = pure e
 
 substituteChain :: (Fresh m) => SubstEnv -> Chain -> m Chain
