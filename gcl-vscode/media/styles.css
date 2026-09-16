@@ -12,7 +12,7 @@
 }
 
 button {
-  border: none;
+  border: var(--vscode-button-border);
   border-radius: var(--vscode-cornerRadius-medium);
   padding: var(--input-padding-vertical) var(--input-padding-horizontal);
   width: 100%;
@@ -39,6 +39,11 @@ button.secondary {
 
 button.secondary:hover {
   background: var(--vscode-button-secondaryHoverBackground);
+}
+
+button:disabled {
+  color: var(--vscode-checkbox-disabled-foreground);
+  background: var(--vscode-checkbox-disabled-background);
 }
 
 .gcl-redex {

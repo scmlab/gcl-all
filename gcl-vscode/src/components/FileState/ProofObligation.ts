@@ -32,7 +32,7 @@ export default function renderProofObligation(
     sectionBody,
     proofObligation.origin.location &&
       `at ${renderRange(proofObligation.origin.location)}`,
-    `<button class="proof" data-pred="${proofObligation.strippedPred}">Proof</button>`,
+    `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`,
   );
 }
 

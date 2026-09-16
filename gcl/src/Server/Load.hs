@@ -11,6 +11,8 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
+import qualified GCL.Dependency as D
+import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
@@ -21,6 +23,7 @@ import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, e
 import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.Reduce (collectDefinitions)
+import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Concrete.Types as C
@@ -105,15 +108,17 @@ loadAndDig filePath source = do
 loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
   let abstract = C.runAbstractTransform concrete
-  abstract' <- first TypeError $ evalDependencyResolution abstract
+  abstract'@(D.Program _ _ _ _ comments _) <- first TypeError $ evalDependencyResolution abstract
   (elaborated@(T.Program _ _ globalProps _ _), state) <- first TypeError $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
+  let proofs = getProofs comments
+  let pos' = map (\po -> po {poProofExists = poStrippedPred po `elem` proofs}) pos
   return
     FileState
       { fsErrors = [],
         fsSpecifications = specs,
         fsHoles = holes,
-        fsProofObligations = pos,
+        fsProofObligations = pos',
         fsWarnings = warnings,
         fsIdCount = idCount,
         fsTIState = state,
@@ -123,6 +128,8 @@ loadConcrete concrete = do
         fsDefinitions = collectDefinitions elaborated,
         fsGlobalProps = globalProps
       }
+  where
+    getProofs = foldr (\(A.Proof p _) acc -> p : acc) []
 
 -- | Parse source, and if holes are found, dig them and re-parse.
 -- Returns (if holes were dug) the DigResult, and the clean concrete AST.
@@ -195,7 +202,7 @@ instance (CollectHole a) => CollectHole (SepBy s a) where
   collectHole (Delim c _ cs) = collectHole c <> collectHole cs
 
 instance CollectHole C.Program where
-  collectHole (C.Program defns decls stmts blocks) = collectHole defns <> collectHole decls <> collectHole stmts
+  collectHole (C.Program defns decls stmts _blocks) = collectHole defns <> collectHole decls <> collectHole stmts
 
 instance CollectHole C.DefinitionBlock where
   collectHole (C.DefinitionBlock _ defs _) = collectHole defs

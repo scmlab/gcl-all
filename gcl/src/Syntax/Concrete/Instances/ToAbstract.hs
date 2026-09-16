@@ -365,8 +365,9 @@ instance {-# OVERLAPS #-} ToAbstract [BlockComment] [A.BlockComment] where
           case content of
             (Comment _) -> return acc
             (Proof proof _ proofText) -> do
-              let proof' = docToText $ toDoc $ prettyWithRange (map (fmap show) proof)
-              let proofText' = docToText $ toDoc $ prettyWithRange (map (fmap show) proofText)
+              let rTokToText = docToText . toDoc . prettyWithRange . map (fmap show)
+              let proof' = rTokToText proof
+              let proofText' = rTokToText proofText
               return (A.Proof proof' proofText' : acc)
       )
       []

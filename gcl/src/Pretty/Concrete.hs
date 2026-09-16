@@ -538,5 +538,5 @@ instance PrettyWithRange BlockComment where
   prettyWithRange (BlockComment l c r) = prettyWithRange l <> prettyWithRange c <> prettyWithRange r
 
 instance PrettyWithRange CommentContent where
-  prettyWithRange (Comment t) = prettyWithRange (map (fmap show) t)
-  prettyWithRange (Proof p s t) = prettyWithRange (map (fmap show) p) <> prettyWithRange s <> prettyWithRange (map (fmap show) t)
+  prettyWithRange (Comment t) = (prettyWithRange . map (fmap show)) t
+  prettyWithRange (Proof p s t) = (prettyWithRange . map (fmap show)) p <> prettyWithRange s <> (prettyWithRange . map (fmap show)) t

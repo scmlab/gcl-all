@@ -237,22 +237,31 @@ export async function activate(context: vscode.ExtensionContext) {
           });
           return;
         case "proof":
-          executeOnGclEditor(async (editor) => {
-            const document = editor.document;
-            const lastLine = document.lineAt(document.lineCount - 1);
-
-            const proofBlock = `\n{-\n${message.pred}\n---\n\n-}\n`;
-
-            await editor.edit((builder) => {
-              builder.insert(lastLine.range.end, proofBlock);
-            });
-          });
+          executeOnGclEditor(insertProofBlock(message.pred));
           return;
       }
     },
     undefined,
     context.subscriptions,
   );
+}
+
+function insertProofBlock(pred: string) {
+  return async (editor: vscode.TextEditor) => {
+    const tabSize = (editor.options.tabSize ?? 4) as number; // type coercion is safe based on docs
+    const insertSpaces = editor.options.insertSpaces ?? true;
+
+    const indentation = insertSpaces ? " ".repeat(tabSize) : "\t";
+
+    const document = editor.document;
+    const lastLine = document.lineAt(document.lineCount - 1);
+
+    const proofBlock = `\n{-\n${indentation}${pred}\n${indentation}---\n\n-}\n`;
+
+    await editor.edit((builder) => {
+      builder.insert(lastLine.range.end, proofBlock);
+    });
+  }
 }
 
 export async function deactivate() {

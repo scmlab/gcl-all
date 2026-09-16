@@ -102,7 +102,7 @@ tellPO p q origin = unless (p == q) $ do
   let predicate = implies p q
   let strippedPred = renderStrict $ layoutPretty (LayoutOptions Unbounded) $ pretty predicate
 
-  tell ([PO predicate predicate strippedPred Nothing origin], [], [], mempty)
+  tell ([PO predicate predicate strippedPred False Nothing origin], [], [], mempty)
 
 tellPO' :: Origin -> Pred -> Pred -> WP ()
 tellPO' l p q = tellPO p q l

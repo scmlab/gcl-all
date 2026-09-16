@@ -97,16 +97,17 @@ data PO = PO
   { poPred :: Pred, -- the single proposition `pre ⇒ post`
     poReducedPred :: Pred,
     poStrippedPred :: Text, -- pred without surrounding rendered html
+    poProofExists :: Bool,
     poAnchorRange :: Maybe Range, -- anchor location, if it exists in the source
     poOrigin :: Origin -- whereabouts
   }
   deriving (Eq, Show, Generic)
 
 instance Ord PO where
-  compare (PO _ _ _ _ x) (PO _ _ _ _ y) = compare y x
+  compare (PO _ _ _ _ _ x) (PO _ _ _ _ _ y) = compare y x
 
 instance MaybeRanged PO where
-  maybeRangeOf (PO _ _ _ _ o) = maybeRangeOf o
+  maybeRangeOf (PO _ _ _ _ _ o) = maybeRangeOf o
 
 -- instance ToJSON PO
 

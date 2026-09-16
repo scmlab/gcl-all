@@ -78,7 +78,7 @@ exprOfPred p = case p of
 -- annotations. Interactive PO rendering goes through Server.ToClient with
 -- fsDefinitions, so no definition environment is needed here.
 instance RenderSection PO where
-  renderSection (PO _predicate reducedPredicate _ _ origin) =
+  renderSection (PO _predicate reducedPredicate _ _ _ origin) =
     Section Plain $
       [ Header
           (Text.pack $ show $ render origin)
