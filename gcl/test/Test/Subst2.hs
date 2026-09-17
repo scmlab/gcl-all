@@ -10,7 +10,7 @@ import GCL.WP (runWP)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Concrete.Instances.ToAbstract ()
-import Syntax.Typed.Subst2 (substExpr)
+import Syntax.Typed.Subst2 (renameForSubstitution, substExpr)
 import qualified Syntax.Typed.Types as T
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
@@ -19,7 +19,35 @@ tests :: TestTree
 tests =
   testGroup
     "Subst2"
-    [ testCase "case-pattern binders shadow substitutions" $ do
+    [ -- Pseudo-GCL: (case c of x -> (x, y))[y := x]
+      -- The first pass yields case c of x' -> (x', y), before inserting x.
+      testCase "first pass renames binders but does not replace occurrences" $
+        case evalState
+          ( renameForSubstitution
+              [("y", var x)]
+              (caseOf scrutinee (A.PattBinder x) (T.Tuple [var x, var y]))
+          )
+          (0 :: Int) of
+          T.Case _ [T.CaseClause (A.PattBinder binder) (T.Tuple [bound, stillY])] _ -> do
+            nameToText binder /= "x" @? "the binder must move before replacement"
+            bound @?= var binder
+            stillY @?= var y
+          result -> assertFailure ("unexpected first-pass result: " <> show result),
+      -- Pseudo-GCL: (\\x -> \\y -> i)[i := (x, y)].
+      -- Both binders move in the first pass, while the body remains i.
+      testCase "first pass handles nested binders before replacement" $
+        case evalState
+          ( renameForSubstitution
+              [("i", T.Tuple [var x, var y])]
+              (T.Lam x intType (T.Lam y intType (var i) Nothing) Nothing)
+          )
+          (0 :: Int) of
+          T.Lam outer _ (T.Lam inner _ stillI _) _ -> do
+            nameToText outer /= "x" @? "the outer binder must move"
+            nameToText inner /= "y" @? "the inner binder must move"
+            stillI @?= var i
+          result -> assertFailure ("unexpected first-pass result: " <> show result),
+      testCase "case-pattern binders shadow substitutions" $ do
         let clause =
               caseOf
                 scrutinee
@@ -108,6 +136,15 @@ tests =
             rangeOfName binder @?= rangeOfName binderName
             rangeOfName bound @?= rangeOfName occurrence
           result -> assertFailure ("unexpected result: " <> show result),
+      -- Pseudo-GCL: y[y := x] inserts the replacement x, including its
+      -- source ranges, instead of treating that Var as a renaming.
+      testCase "a variable replacement retains its own ranges" $ do
+        let source = Name "y" (Just (mkRange (mkPos 1 1) (mkPos 1 2)))
+            replacementName = Name "x" (Just (mkRange (mkPos 3 4) (mkPos 3 5)))
+            replacementRange = Just (mkRange (mkPos 3 1) (mkPos 3 8))
+            replacement = T.Var replacementName intType replacementRange
+
+        run [("y", replacement)] (T.Var source intType Nothing) @?= replacement,
       -- issue 02: a shadowed entry must not take the rest of the
       -- substitution down with it.
       testCase "a lambda binder shadows only its own entry" $ do
@@ -149,9 +186,10 @@ tests =
             body @?= range
           Right result -> assertFailure ("unexpected result: " <> show result)
           Left err -> assertFailure ("unexpected WP failure: " <> err),
-      testCase "renaming a binder cascades into an inner binder of the target name" $ do
-        -- Under Fresh WP the clause binder y is forced to y'. The inner lambda
-        -- is already spelled y', so it has to move as well.
+      testCase "a fresh binder name avoids an inner binder" $ do
+        -- Pseudo-GCL: (case c of y -> (\\y' -> (y, x)))[x := y].
+        -- Fresh WP first proposes y', but the inner lambda already uses it.
+        -- The outer binder must choose another name; the lambda stays y'.
         let clause =
               caseOf
                 scrutinee
@@ -163,6 +201,7 @@ tests =
             nameToText outer /= "y" @? "the clause binder must be renamed"
             nameToText inner /= nameToText outer
               @? "the inner binder must not shadow the renamed clause binder"
+            nameToText inner @?= "y'"
             bound @?= var outer
             inserted @?= var y
           Right result -> assertFailure ("unexpected result: " <> show result)
