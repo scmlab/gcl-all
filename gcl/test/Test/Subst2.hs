@@ -294,6 +294,12 @@ tests =
       testCase "substitution-node domains shadow only their bodies" $
         run [("x", one)] (T.Subst (var x) [(x, var x)])
           @?= T.Subst (var x) [(x, one)],
+      -- Pseudo-GCL: c[c := 1] ==> 1 for both Const and Var occurrences.
+      -- They use separate equations in 'replace', so test both.
+      testCase "a Const occurrence is substituted like a Var" $ do
+        let c = Name "c" Nothing
+        run [("c", one)] (T.Const c intType Nothing) @?= one
+        run [("c", one)] (T.Var c intType Nothing) @?= one,
       testCase "substitution is simultaneous, not sequential" $
         run [("x", var y), ("y", var x)] (T.Tuple [var x, var y])
           @?= T.Tuple [var y, var x],

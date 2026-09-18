@@ -17,13 +17,13 @@
 --   > body [xs \ es]               body, but not es
 module Syntax.Typed.Subst2 (substExpr, renameForSubstitution) where
 
+import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Common (Fresh (..), freeVarsT)
-import GCL.Range (Range)
-import Syntax.Abstract.Types (Pattern (..), Type, extractBinder)
+import Syntax.Abstract.Types (Pattern (..), extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Instances.Free ()
 import Syntax.Typed.Types
@@ -156,8 +156,8 @@ prepareClause sb (CaseClause pattern' body) = do
 --   expressions are inserted whole, without recursively substituting into them.
 replace :: Substitution -> Expr -> Expr
 replace _ e@Lit {} = e
-replace sb (Var x t l) = occurrence sb Var x t l
-replace sb (Const x t l) = occurrence sb Const x t l
+replace sb e@(Var x _ _) = fromMaybe e (lookup (nameToText x) sb)
+replace sb e@(Const x _ _) = fromMaybe e (lookup (nameToText x) sb)
 replace _ e@Op {} = e
 replace sb (Chain chain) = Chain (replaceChain sb chain)
 replace sb (App function argument l) =
@@ -197,18 +197,6 @@ replaceChain sb (More chain operator t e) =
 replaceClause :: Substitution -> CaseClause -> CaseClause
 replaceClause sb (CaseClause pattern' body) =
   CaseClause pattern' (replace (hide (extractBinder pattern') sb) body)
-
-occurrence ::
-  Substitution ->
-  (Name -> Type -> Maybe Range -> Expr) ->
-  Name ->
-  Type ->
-  Maybe Range ->
-  Expr
-occurrence sb build name t l =
-  case lookup (nameToText name) sb of
-    Nothing -> build name t l
-    Just e -> e
 
 -- | A binder shadows entries for its names throughout its scope.
 hide :: [Name] -> [(Text, a)] -> [(Text, a)]
