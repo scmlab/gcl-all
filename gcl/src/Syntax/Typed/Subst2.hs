@@ -8,6 +8,13 @@
 --   performs simultaneous, scope-aware replacement without choosing names.
 --   Renaming preserves each occurrence's type and source range; replacement
 --   brings its own metadata.
+--
+--   What a binder scopes over, by node:
+--
+--   > \x -> body                   body
+--   > <| op x : range : body |>    range and body, but not op
+--   > case s of x -> body          each clause's body, but not s
+--   > body [xs \ es]               body, but not es
 module Syntax.Typed.Subst2 (substExpr, renameForSubstitution) where
 
 import Data.Set (Set)
@@ -28,6 +35,7 @@ type Substitution = [(Text, Expr)]
 type Renaming = [(Text, Text)]
 
 -- | First alpha-rename the source tree, then insert the replacement expressions.
+--   Duplicate substitution keys are rejected.
 substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
 substExpr sb expr
   | hasDuplicateNames sb =
@@ -38,7 +46,36 @@ substExpr sb expr
 -- | Prepare an expression for the given substitution without applying it.
 --   This is substitution-specific: which binders must move depends on the
 --   free names of replacements that are visible in each binder's scope.
---   Duplicate names are rejected.
+--   Only binders and their bound occurrences are renamed. The result is
+--   alpha-equivalent to the input. 'replace' then needs no freshness check.
+--   One caveat: an 'EHole' is copied unchanged, so renaming a surrounding
+--   binder may leave its stored 'Env' out of sync with the transformed tree
+--   (see below).
+--   Duplicate substitution keys are rejected.
+--
+--   Examples (pseudo-GCL; primes stand for fresh names):
+--
+--   > (\x -> (x, y))[y := x]  ==>  \x' -> (x', y)
+--   > (\x -> y)[y := z]       ==>  \x -> y
+--   > (\x -> x)[x := y]       ==>  \x -> x
+--   > ((\x -> x), y)[y := x]  ==>  ((\x -> x), y)
+--
+--   In the first example, @y@ is still present: only the capturing binder
+--   and its bound @x@ are renamed. The other examples need no renaming:
+--   the replacement cannot be captured, the entry is shadowed, or its
+--   occurrence lies outside the binder's scope, respectively.
+--
+--   With multiple substitution entries, the same rule applies:
+--
+--   > (\x -> \y -> (a, b))[a := x, b := y]  ==>  \x' -> \y' -> (a, b)
+--   > (\x -> (x, a, b))[a := x, b := z]     ==>  \x' -> (x', a, b)
+--
+--   Both @a@ and @b@ remain pending; only binders that could capture a
+--   replacement move.
+--
+--   Binders that are not lambdas follow the same rule:
+--
+--   > (case c of x -> (x, y))[y := x]  ==>  case c of x' -> (x', y)
 renameForSubstitution :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
 renameForSubstitution sb expr
   | hasDuplicateNames sb =
