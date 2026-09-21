@@ -32,6 +32,8 @@ import Syntax.Typed.Types
 --   substitution. It is used whole, with its own type and range.
 type Substitution = [(Text, Expr)]
 
+-- | Renaming only changes how a name is spelled, so an occurrence keeps the
+--   type and range it already had.
 type Renaming = [(Text, Text)]
 
 -- | First alpha-rename the source tree, then insert the replacement expressions.
@@ -46,12 +48,15 @@ substExpr sb expr
 -- | Prepare an expression for the given substitution without applying it.
 --   This is substitution-specific: which binders must move depends on the
 --   free names of replacements that are visible in each binder's scope.
+--   Duplicate substitution keys are rejected.
+--
 --   Only binders and their bound occurrences are renamed. The result is
 --   alpha-equivalent to the input. 'replace' then needs no freshness check.
 --   One caveat: an 'EHole' is copied unchanged, so renaming a surrounding
---   binder may leave its stored 'Env' out of sync with the transformed tree
---   (see below).
---   Duplicate substitution keys are rejected.
+--   binder may leave its stored 'Env' out of sync with the transformed tree.
+--   Such a stale 'Env' must not be used for scope-sensitive work such as hole
+--   refinement; the 'EHole' case of 'prepare' says where the server gets holes
+--   it can trust.
 --
 --   Examples (pseudo-GCL; primes stand for fresh names):
 --
@@ -133,10 +138,9 @@ prepare sb (Subst body table) = do
   pure (Subst body' values')
 -- A hole is opaque. Its 'Env' is a snapshot of the scope in the elaborated
 -- source tree, so this traversal does not rewrite it when surrounding binders
--- are renamed. Consequently, the 'Env' in a transformed copy may not match
--- the surrounding AST and must not be used for scope-sensitive operations
--- such as hole refinement. The server retains source-derived holes separately
--- for that purpose; see 'GCL.WP.sweep'.
+-- are renamed; 'renameForSubstitution' states what that costs the caller. The
+-- server retains source-derived holes separately for refinement; see
+-- 'GCL.WP.sweep'.
 prepare _ e@EHole {} = pure e
 
 prepareChain :: (Fresh m) => Substitution -> Chain -> m Chain
@@ -208,6 +212,19 @@ hide binders = filter (\(key, _) -> Set.notMember key bound)
 --   names are absent from the region, including its inner binders, because
 --   'renameFree' itself never allocates fresh names. Binder names must be
 --   distinct; type inference enforces this for source ASTs.
+--
+--   The binders are the ones this node introduces -- a quantifier, a pattern
+--   or a substitution table can bind several at once -- not those gathered on
+--   the way down. Enclosing binders need no mention here: entries shadowed
+--   by them have already been removed from the substitution, and any renaming
+--   they required has already been applied to the region. An enclosing name
+--   can only be captured here if it occurs in the region, where 'allNames'
+--   already forbids it.
+--
+--   The returned substitution is the part of the input that can still insert
+--   something inside these binders. Traversing the region with it, rather
+--   than with the original, is what keeps binders from moving for nothing;
+--   see the @visible@ filter below.
 prepareBinders :: (Fresh m) => Substitution -> [Name] -> [Expr] -> m (Renaming, Substitution)
 prepareBinders sb binders region = do
   binderRenaming <- allocate forbidden clashing
@@ -217,7 +234,15 @@ prepareBinders sb binders region = do
     freeInRegion = foldMap freeVarsT region
 
     -- A binder hides its own entry. An entry whose name is not free in this
-    -- region cannot insert anything here.
+    -- region cannot insert anything here. Either way the entry cannot be
+    -- captured here, so dropping it is not what keeps the result correct --
+    -- 'replace' does that with its own 'hide'. It keeps binders from moving
+    -- for nothing:
+    --
+    --   > (\x -> \y -> x)[x := y]  ==>  \x -> \y -> x
+    --
+    -- Keep the shadowed x := y visible under @\x@ and @y@ would count as
+    -- incoming, so the inner binder would be renamed to no purpose.
     visible =
       filter
         (\(key, _) -> Set.notMember key bound && Set.member key freeInRegion)
@@ -227,14 +252,23 @@ prepareBinders sb binders region = do
     clashing = filter (\binder -> Set.member (nameToText binder) incoming) binders
     forbidden = incoming <> foldMap allNames region <> bound
 
+-- | A target for each binder. Each target joins @forbidden@ before the next
+--   one is chosen, so binders of the same node cannot land on a common name.
 allocate :: (Fresh m) => Set Text -> [Name] -> m Renaming
 allocate _ [] = pure []
 allocate forbidden (binder : rest) = do
   target <- freshFor forbidden binder
   ((nameToText binder, target) :) <$> allocate (Set.insert target forbidden) rest
 
--- | 'Fresh WP' may propose a name already present in the expression. Check
---   every proposal explicitly; a rejected prefix is extended before retrying.
+-- | A name outside @forbidden@. 'Fresh' only proposes one: 'Fresh WP' avoids
+--   the names in its own reader scopes and hands back the prefix unchanged for
+--   everything else, so every proposal is checked here.
+--
+--   A clash extends the prefix rather than asking again, because that instance
+--   is reader-only and would answer identically forever. This loop terminates
+--   if every 'freshPre' result is at least as long as its prefix: @forbidden@
+--   is finite, so a long enough prefix outgrows every member. All three
+--   current instances satisfy this; the 'Fresh' class does not require it.
 freshFor :: (Fresh m) => Set Text -> Name -> m Text
 freshFor forbidden binder = go (nameToText binder)
   where
@@ -244,9 +278,11 @@ freshFor forbidden binder = go (nameToText binder)
         then go (Text.snoc prefix '\'')
         else pure candidate
 
--- | Change free occurrences relative to the supplied region. The caller has
---   already chosen targets absent from that region. Binders are updated
---   separately; nested binders shadow the renaming in their own scopes.
+-- | Change the free occurrences named by the renaming. This allocates nothing
+--   and so cannot avoid capture by itself: the caller must have chosen targets
+--   absent from this expression, binders included -- 'prepareBinders' does.
+--   Binders are updated separately; nested binders shadow the renaming in
+--   their own scopes.
 renameFree :: Renaming -> Expr -> Expr
 renameFree _ e@Lit {} = e
 renameFree renaming (Var x t l) = Var (renameName renaming x) t l
