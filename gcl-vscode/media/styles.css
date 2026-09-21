@@ -44,6 +44,8 @@ button.secondary:hover {
 button:disabled {
   color: var(--vscode-checkbox-disabled-foreground);
   background: var(--vscode-checkbox-disabled-background);
+  border: 1px solid var(--vscode-button-secondaryBorder);
+  cursor: default;
 }
 
 .gcl-redex {

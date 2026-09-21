@@ -34,6 +34,8 @@ function handleProof(event) {
 
   const pred = el.dataset.pred;
 
+  event.currentTarget.disabled = true;
+
   vscode.postMessage({
     action: "proof",
     pred,

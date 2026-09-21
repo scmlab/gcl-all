@@ -258,9 +258,16 @@ function insertProofBlock(pred: string) {
 
     const proofBlock = `\n{-\n${indentation}${pred}\n${indentation}---\n\n-}\n`;
 
-    await editor.edit((builder) => {
+    const applied = await editor.edit((builder) => {
       builder.insert(lastLine.range.end, proofBlock);
     });
+
+    if (applied) {
+      await vscode.window.showTextDocument(document, {
+        viewColumn: editor.viewColumn,
+        preserveFocus: false,
+      });
+    }
   }
 }
 
