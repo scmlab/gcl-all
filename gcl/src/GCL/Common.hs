@@ -157,7 +157,7 @@ instance Free Expr where
   freeVars (Tuple xs) = Set.unions (map freeVars xs)
   freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
-    (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList xs
+    freeVars op <> ((freeVars range <> freeVars term) \\ Set.fromList xs)
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e clauses _) = freeVars e <> Set.unions (map freeVars clauses)

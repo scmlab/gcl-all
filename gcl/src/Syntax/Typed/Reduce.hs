@@ -27,7 +27,11 @@ redexes (Lam _ _ e _) = map (0 :) (redexes e)
 redexes (Tuple es) = redexesExprs 0 es
 redexes (OutT _ t@(Tuple _)) = [] : map (0 :) (redexes t)
 redexes (OutT _ _) = []
-redexes (Quant _ _ r b _) = map (0 :) (redexes r) ++ map (1 :) (redexes b)
+-- Quant children follow constructor order: operator, restriction, body.
+redexes (Quant op _ r b _) =
+  map (0 :) (redexes op)
+    ++ map (1 :) (redexes r)
+    ++ map (2 :) (redexes b)
 redexes (ArrIdx a i _) = map (0 :) (redexes a) ++ map (1 :) (redexes i)
 redexes (ArrUpd a i e _) =
   map (0 :) (redexes a)
@@ -66,7 +70,8 @@ redexRT env (Lam x _ e _) = Node False [redexRT (shadowDefinitions [x] env) e]
 redexRT env (Tuple es) = Node False (map (redexRT env) es)
 redexRT env (OutT _ t@(Tuple _)) = Node True [redexRT env t]
 redexRT env (OutT _ e) = Node False [redexRT env e]
-redexRT env (Quant _ xs r b _) = Node False [redexRT env' r, redexRT env' b]
+redexRT env (Quant op xs r b _) =
+  Node False [redexRT env op, redexRT env' r, redexRT env' b]
   where
     env' = shadowDefinitions (map fst xs) env
 redexRT env (ArrIdx a i _) = Node False [redexRT env a, redexRT env i]
@@ -104,7 +109,8 @@ redexRT_sat env (Lam x _ e _) = Node False [redexRT_sat (shadowDefinitions [x] e
 redexRT_sat env (Tuple es) = Node False (map (redexRT_sat env) es)
 redexRT_sat env (OutT _ t@(Tuple _)) = Node True [redexRT_sat env t]
 redexRT_sat env (OutT _ e) = Node False [redexRT_sat env e]
-redexRT_sat env (Quant _ xs r b _) = Node False [redexRT_sat env' r, redexRT_sat env' b]
+redexRT_sat env (Quant op xs r b _) =
+  Node False [redexRT_sat env op, redexRT_sat env' r, redexRT_sat env' b]
   where
     env' = shadowDefinitions (map fst xs) env
 redexRT_sat env (ArrIdx a i _) = Node False [redexRT_sat env a, redexRT_sat env i]
@@ -192,10 +198,12 @@ reduce env (Tuple es) (n : p) = Tuple <$> reduceNth env n es p
 reduce _env (OutT i (Tuple es)) [] = return (es !! i)
 reduce env (OutT i e) (0 : p) = OutT i <$> reduce env e p
 reduce env (Quant op xs ran bdy r) (0 : p) =
+  (\op' -> Quant op' xs ran bdy r) <$> reduce env op p
+reduce env (Quant op xs ran bdy r) (1 : p) =
   Quant op xs <$> reduce env' ran p <*> pure bdy <*> pure r
   where
     env' = shadowDefinitions (map fst xs) env
-reduce env (Quant op xs ran bdy r) (1 : p) =
+reduce env (Quant op xs ran bdy r) (2 : p) =
   Quant op xs ran <$> reduce env' bdy p <*> pure r
   where
     env' = shadowDefinitions (map fst xs) env
