@@ -13,7 +13,7 @@
 
 button {
   border: var(--vscode-button-border);
-  border-radius: var(--vscode-cornerRadius-medium);
+  border-radius: var(--vscode-cornerRadius-small);
   padding: var(--input-padding-vertical) var(--input-padding-horizontal);
   width: 100%;
   text-align: center;
@@ -42,10 +42,11 @@ button.secondary:hover {
 }
 
 button:disabled {
-  color: var(--vscode-checkbox-disabled-foreground);
-  background: var(--vscode-checkbox-disabled-background);
-  border: 1px solid var(--vscode-button-secondaryBorder);
-  cursor: default;
+  /* color: var(--vscode-checkbox-disabled-foreground); */
+  /* background: var(--vscode-checkbox-disabled-background); */
+  /* border: 1px solid var(--vscode-button-secondaryBorder); */
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .gcl-redex {

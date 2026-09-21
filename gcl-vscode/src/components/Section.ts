@@ -52,9 +52,11 @@ export default function renderSection(
             <span class="header-subtitle">${subtitle}</span>`
               : ""
           }
-          <div class="header-code">
-            ${code}
-          </div>
+          ${
+            code
+              ? `<div class="header-code">${code}</div>`
+              : ""
+          }
         </div>
         ${
           sectionBody &&
