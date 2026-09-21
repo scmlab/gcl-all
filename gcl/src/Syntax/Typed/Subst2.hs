@@ -47,7 +47,7 @@ substExpr sb expr
 
 -- | Prepare an expression for the given substitution without applying it.
 --   This is substitution-specific: which binders must move depends on the
---   free names of replacements that are visible in each binder's scope.
+--   free names of replacements that are active in each binder's scope.
 --   Duplicate substitution keys are rejected.
 --
 --   Only binders and their bound occurrences are renamed. The result is
@@ -208,7 +208,7 @@ hide binders = filter (\(key, _) -> Set.notMember key bound)
   where
     bound = Set.fromList (map nameToText binders)
 
--- | Decide which binders would capture a visible replacement. The chosen
+-- | Decide which binders would capture an active replacement. The chosen
 --   names are absent from the region, including its inner binders, because
 --   'renameFree' itself never allocates fresh names. Binder names must be
 --   distinct; type inference enforces this for source ASTs.
@@ -224,11 +224,11 @@ hide binders = filter (\(key, _) -> Set.notMember key bound)
 --   The returned substitution is the part of the input that can still insert
 --   something inside these binders. Traversing the region with it, rather
 --   than with the original, is what keeps binders from moving for nothing;
---   see the @visible@ filter below.
+--   see the @activeSb@ filter below.
 prepareBinders :: (Fresh m) => Substitution -> [Name] -> [Expr] -> m (Renaming, Substitution)
 prepareBinders sb binders region = do
-  binderRenaming <- allocate forbidden clashing
-  pure (binderRenaming, visible)
+  binderRenaming <- allocate forbidden clashingBinders
+  pure (binderRenaming, activeSb)
   where
     bound = Set.fromList (map nameToText binders)
     freeInRegion = foldMap freeVarsT region
@@ -241,15 +241,15 @@ prepareBinders sb binders region = do
     --
     --   > (\x -> \y -> x)[x := y]  ==>  \x -> \y -> x
     --
-    -- Keep the shadowed x := y visible under @\x@ and @y@ would count as
+    -- If the shadowed @x := y@ remained active under @\x@, @y@ would count as
     -- incoming, so the inner binder would be renamed to no purpose.
-    visible =
+    activeSb =
       filter
         (\(key, _) -> Set.notMember key bound && Set.member key freeInRegion)
         sb
 
-    incoming = foldMap (freeVarsT . snd) visible
-    clashing = filter (\binder -> Set.member (nameToText binder) incoming) binders
+    incoming = foldMap (freeVarsT . snd) activeSb
+    clashingBinders = filter (\binder -> Set.member (nameToText binder) incoming) binders
     forbidden = incoming <> foldMap allNames region <> bound
 
 -- | A target for each binder. Each target joins @forbidden@ before the next
