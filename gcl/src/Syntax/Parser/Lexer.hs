@@ -141,6 +141,7 @@ data Tok
   | TokBlockCommentOpen -- "{-"
   | TokBlockCommentClose -- "-}"
   | TokProofSep -- proof block separator "---"
+  | TokBackslash
   deriving (Eq, Ord)
 
 instance Show Tok where
@@ -238,6 +239,7 @@ instance Show Tok where
     TokBlockCommentOpen -> "{-"
     TokBlockCommentClose -> "-}"
     TokProofSep -> "---"
+    TokBackslash -> "\\"
 
 --------------------------------------------------------------------------------
 
@@ -430,6 +432,8 @@ tokRE =
     <$> charRE
       <|> TokHash
     <$ string "#"
+      <|> TokBackslash
+    <$ string "\\"
 
 -- proofBlockRE :: RE Char Tok
 -- proofBlockRE = TokProofBlock

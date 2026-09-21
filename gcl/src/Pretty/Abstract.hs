@@ -155,4 +155,4 @@ instance Pretty Hole where
 
 instance Pretty BlockComment where
   pretty (Proof proof proofText) =
-    "{-" <> pretty proof <> line <> "---" <> line <> pretty proofText <> line <> "-}"
+    "{-" <> line <> pretty proof <> line <> "---" <> line <> pretty proofText <> line <> "-}"
