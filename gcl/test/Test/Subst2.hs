@@ -289,7 +289,7 @@ tests =
       --   @subst x := 1 in (x [x \ x])
       --     ==> x [x \ 1]@
       --
-      -- The table domain shadows the outer assignment in the body, but it
+      -- The table domain shadows the outer entry in the body, but it
       -- does not scope over the table value.
       testCase "substitution-node domains shadow only their bodies" $
         run [("x", one)] (T.Subst (var x) [(x, var x)])
@@ -303,18 +303,30 @@ tests =
       testCase "substitution is simultaneous, not sequential" $
         run [("x", var y), ("y", var x)] (T.Tuple [var x, var y])
           @?= T.Tuple [var y, var x],
-      testCase "a name assigned more than once is rejected" $ do
+      testCase "a repeated name is rejected" $ do
         outcome <- try (evaluate (run [("x", one), ("x", two)] (var x)))
+
+        case outcome of
+          Left (ErrorCall _) -> pure ()
+          Right result -> assertFailure ("expected an error, got: " <> show result),
+      -- The renaming pass is exported on its own, so it carries the same
+      -- guard rather than relying on 'substExpr' to have checked first.
+      testCase "the renaming pass rejects a repeated name as well" $ do
+        outcome <-
+          try
+            ( evaluate
+                (evalState (renameForSubstitution [("x", one), ("x", two)] (var x)) (0 :: Int))
+            )
 
         case outcome of
           Left (ErrorCall _) -> pure ()
           Right result -> assertFailure ("expected an error, got: " <> show result)
     ]
   where
-    run assignments expr = evalState (substExpr assignments expr) (0 :: Int)
+    run sb expr = evalState (substExpr sb expr) (0 :: Int)
 
-    runIn scopes assignments expr =
-      case runWP (substExpr assignments expr) (Map.empty, scopes) 0 of
+    runIn scopes sb expr =
+      case runWP (substExpr sb expr) (Map.empty, scopes) 0 of
         Right (result, _, _) -> Right result
         Left err -> Left (show err)
 
