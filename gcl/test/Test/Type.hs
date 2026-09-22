@@ -301,7 +301,7 @@ inferDefinition source =
     Left _ -> error "parse failure in test source"
     Right concrete ->
       case AT.runAbstractTransform concrete :: A.Program of
-        A.Program (A.ValDefn _ _ body : _) _ _ _ _ ->
+        A.Program (A.ValDefn _ _ body : _) _ _ _ _ _ ->
           case runTI (infer body) mempty mkInference of
             Left err -> Left err
             Right ((_, ty, _), _) -> Right ty

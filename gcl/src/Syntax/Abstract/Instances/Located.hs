@@ -7,7 +7,7 @@ import Prelude hiding (Ordering (..))
 
 -- MaybeRanged instances (primary)
 instance MaybeRanged Program where
-  maybeRangeOf (Program _ _ _ _ l) = l
+  maybeRangeOf (Program _ _ _ _ _ l) = l
 
 instance MaybeRanged Declaration where
   maybeRangeOf (ConstDecl _ _ _ l) = l
@@ -31,7 +31,6 @@ instance MaybeRanged Stmt where
   maybeRangeOf (Do _ l) = l
   maybeRangeOf (If _ l) = l
   maybeRangeOf (Spec _ l) = Just l
-  maybeRangeOf (Proof _ _ r) = Just r
   maybeRangeOf (Alloc _ _ l) = l
   maybeRangeOf (HLookup _ _ l) = l
   maybeRangeOf (HMutate _ _ l) = l

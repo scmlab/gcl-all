@@ -198,7 +198,6 @@ instance Free Stmt where
   freeVars (Do gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (If gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (Spec _ _) = mempty
-  freeVars Proof {} = mempty
   freeVars (Alloc x es _) =
     Set.singleton x <> Set.unions (map freeVars es)
   freeVars (HLookup x e _) =
@@ -212,7 +211,7 @@ instance Free GdCmd where
     freeVars g <> Set.unions (map freeVars stmts)
 
 instance Free Program where
-  freeVars (Program _defns decls props stmts _) =
+  freeVars (Program _defns decls props stmts _ _) =
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 
 -- SCM: TODO: deal with defns later.

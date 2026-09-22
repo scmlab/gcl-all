@@ -223,7 +223,7 @@ class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
 
 instance ToTyped D.Program T.Program where
-  toTyped (D.Program defns decls exprs stmts range) = do
+  toTyped (D.Program defns decls exprs stmts blocks range) = do
     traceM $ "defns: " <> show (pretty (Graph.flattenSCCs defns))
     traceM $ "decls: " <> show (pretty decls)
     traceM $ "exprs: " <> show (pretty exprs)
@@ -281,7 +281,6 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Do gds range) = toTypedDo gds range
   toTyped (A.If gds range) = toTypedIf gds range
   toTyped (A.Spec text range) = T.Spec text range <$> ask
-  toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
   toTyped (A.Alloc var exprs range) = toTypedAlloc var exprs range
   toTyped (A.HLookup name expr range) = toTypedHLookup name expr range
   toTyped (A.HMutate left right range) = toTypedHMutate left right range

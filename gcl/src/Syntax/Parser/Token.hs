@@ -82,12 +82,6 @@ tokenHoleOpen = adapt TokHoleOpen "{!"
 tokenHoleClose :: Parser (Token "!}")
 tokenHoleClose = adapt TokHoleClose "!}"
 
--- tokenProofOpen :: Parser (Token "{-")
--- tokenProofOpen = adapt TokProofOpen "{-"
-
--- tokenProofClose :: Parser (Token "-}")
--- tokenProofClose = adapt TokProofClose "-}"
-
 tokenBlockOpen :: Parser (Token "|[")
 tokenBlockOpen = adapt TokBlockOpen "|["
 
@@ -99,6 +93,15 @@ tokenDeclOpen = adapt TokDeclOpen "{:"
 
 tokenDeclClose :: Parser (Token ":}")
 tokenDeclClose = adapt TokDeclClose ":}"
+
+tokenBlockCommentOpen :: Parser (Token "{-")
+tokenBlockCommentOpen = adapt TokBlockCommentOpen "{-"
+
+tokenBlockCommentClose :: Parser (Token "-}")
+tokenBlockCommentClose = adapt TokBlockCommentClose "-}"
+
+tokenProofSep :: Parser (Token "---")
+tokenProofSep = adapt TokProofSep "---"
 
 tokenColon :: Parser (Token ":")
 tokenColon = adapt TokColon "colon"

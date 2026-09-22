@@ -12,6 +12,7 @@ import {
 import { GclPanel } from "./gclPanel";
 import { IHole, ISpecification, ClientFileState } from "./data/FileState";
 import path from "path";
+import { WebviewMessage } from "./data/Webview";
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log("activating gcl-vscode");
@@ -227,15 +228,47 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(updateNotificationHandlerDisposable);
 
   gclPanel.panel.webview.onDidReceiveMessage(
-    async (reduceParams) => {
-      executeOnGclEditor(async (editor) => {
-        const filePath = editor?.document.uri.fsPath;
-        const _response = await sendRequest("gcl/reduce", { filePath, ...reduceParams })
-      });
+    async (message: WebviewMessage) => {
+      switch (message.action) {
+        case "reduce":
+          executeOnGclEditor(async (editor) => {
+            const filePath = editor?.document.uri.fsPath;
+            await sendRequest("gcl/reduce", { filePath, ...message });
+          });
+          return;
+        case "proof":
+          executeOnGclEditor(insertProofBlock(message.pred));
+          return;
+      }
     },
     undefined,
     context.subscriptions,
   );
+}
+
+function insertProofBlock(pred: string) {
+  return async (editor: vscode.TextEditor) => {
+    const tabSize = (editor.options.tabSize ?? 4) as number; // type coercion is safe based on docs
+    const insertSpaces = editor.options.insertSpaces ?? true;
+
+    const indentation = insertSpaces ? " ".repeat(tabSize) : "\t";
+
+    const document = editor.document;
+    const lastLine = document.lineAt(document.lineCount - 1);
+
+    const proofBlock = `\n{-\n${indentation}${pred}\n${indentation}---\n\n-}\n`;
+
+    const applied = await editor.edit((builder) => {
+      builder.insert(lastLine.range.end, proofBlock);
+    });
+
+    if (applied) {
+      await vscode.window.showTextDocument(document, {
+        viewColumn: editor.viewColumn,
+        preserveFocus: false,
+      });
+    }
+  }
 }
 
 export async function deactivate() {
