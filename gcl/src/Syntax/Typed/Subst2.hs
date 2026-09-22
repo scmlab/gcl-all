@@ -49,6 +49,9 @@ substExpr sb expr
 --   This is substitution-specific: which binders must move depends on the
 --   free names of replacements that are active in each binder's scope.
 --   Duplicate substitution keys are rejected.
+--   The expression is treated as a scope root. For a detached subtree, callers
+--   must account for enclosing binders that may shadow keys or capture
+--   replacements.
 --
 --   Only binders and their bound occurrences are renamed. The result is
 --   alpha-equivalent to the input. 'replace' then needs no freshness check.
