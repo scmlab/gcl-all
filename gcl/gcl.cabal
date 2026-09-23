@@ -195,6 +195,7 @@ test-suite gcl-test
       Test.Render
       Test.SrcLoc
       Test.Subst2
+      Test.Subst2Property
       Test.Type
       Test.Util
       Paths_gcl
