@@ -248,15 +248,10 @@ export async function activate(context: vscode.ExtensionContext) {
 
 function insertProofBlock(pred: string) {
   return async (editor: vscode.TextEditor) => {
-    const tabSize = (editor.options.tabSize ?? 4) as number; // type coercion is safe based on docs
-    const insertSpaces = editor.options.insertSpaces ?? true;
-
-    const indentation = insertSpaces ? " ".repeat(tabSize) : "\t";
-
     const document = editor.document;
     const lastLine = document.lineAt(document.lineCount - 1);
 
-    const proofBlock = `\n{-\n${indentation}${pred}\n${indentation}---\n\n-}\n`;
+    const proofBlock = `\n{-\n${pred}\n---\n\n-}\n`;
 
     const applied = await editor.edit((builder) => {
       builder.insert(lastLine.range.end, proofBlock);
