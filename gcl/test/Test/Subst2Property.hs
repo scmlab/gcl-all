@@ -23,7 +23,7 @@ import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), Name (..), Op (..), nameToText)
 import Syntax.Concrete.Instances.ToAbstract ()
 import Syntax.Typed.Instances.Free ()
-import Syntax.Typed.Subst2 (renameForSubstitution, substExpr)
+import Syntax.Typed.Subst2 (renameFree, substExpr)
 import qualified Syntax.Typed.Types as T
 import Test.Tasty (TestTree, adjustOption, testGroup)
 import Test.Tasty.HUnit (testCase, (@?=))
@@ -297,15 +297,6 @@ runWP' scopes sb e = case runWP (substExpr sb e) (Map.empty, scopes) 0 of
   Right (r, _, _) -> r
   Left err -> error (show err)
 
-prepareState' :: [(Text, T.Expr)] -> T.Expr -> T.Expr
-prepareState' sb e = evalState (renameForSubstitution sb e) (0 :: Int)
-
-prepareWP' :: [[Text]] -> [(Text, T.Expr)] -> T.Expr -> T.Expr
-prepareWP' scopes sb e =
-  case runWP (renameForSubstitution sb e) (Map.empty, scopes) 0 of
-    Right (r, _, _) -> r
-    Left err -> error (show err)
-
 prop_alpha :: ([(Text, T.Expr)] -> T.Expr -> T.Expr) -> Property
 prop_alpha runner = forAll ((,) <$> genSubs <*> genExpr 7) $ \(sb, e) ->
   let actual = runner sb e
@@ -322,28 +313,49 @@ prop_fv runner = forAll ((,) <$> genSubs <*> genExpr 7) $ \(sb, e) ->
    in counterexample (unlines ["input: " ++ show e, "subs:  " ++ show sb, "actual fv: " ++ show actual, "expect fv: " ++ show expect]) $
         actual == expect
 
-prop_prepareAlpha :: ([(Text, T.Expr)] -> T.Expr -> T.Expr) -> Property
-prop_prepareAlpha runner = forAll ((,) <$> genSubs <*> genExpr 7) $ \(sb, e) ->
-  let actual = runner sb e
-   in counterexample (unlines ["input:  " ++ show e, "subs:   " ++ show sb, "prepared: " ++ show actual]) $
-        alphaEq actual e
+-- | A renaming target must occur nowhere in the expression.  The pool excludes
+-- the "#" prefix, so this name satisfies that for any generated tree.
+target :: Text
+target = Text.pack "#r"
 
-prop_idem :: ([(Text, T.Expr)] -> T.Expr -> T.Expr) -> Property
-prop_idem runner = forAll ((,) <$> genSubs <*> genExpr 7) $ \(sb, e) ->
-  let prepared = runner sb e
-      preparedAgain = runner sb prepared
-   in counterexample (unlines ["input: " ++ show e, "subs:  " ++ show sb, "once:  " ++ show prepared, "twice: " ++ show preparedAgain]) $
-        preparedAgain == prepared
+-- Renaming is not alpha-preserving on its own -- it rewrites free occurrences.
+-- What it preserves is the binder that scopes over it, which is how the third
+-- binder rule uses it:
+--
+--   (\y -> M)[N/x]  ==>  \y' -> (M{y'/y})[N/x]
+--
+-- So the property belongs on the lambda, not on the body: 'renameFree' renames
+-- what the binder owns, the caller renames the binder, and together they leave
+-- an alpha-equivalent node.  Occurrences shadowed by an inner binder stay put,
+-- which is sound for the same reason -- they never belonged to that binder.
+prop_renameUnderBinder :: Property
+prop_renameUnderBinder = forAll ((,) <$> genName <*> genExpr 7) $ \(x, body) ->
+  let x' = case x of Name _ r -> Name target r
+      before = T.Lam x tyInt body Nothing
+      after = T.Lam x' tyInt (renameFree [(nameToText x, target)] body) Nothing
+   in counterexample (unlines ["binder: " ++ show x, "before: " ++ show before, "after:  " ++ show after]) $
+        alphaEq before after
+
+-- A second pass changes nothing: renamed occurrences are gone; occurrences that
+-- remain were skipped for a reason that has not changed.
+prop_renameIdem :: Property
+prop_renameIdem = forAll ((,) <$> genName <*> genExpr 7) $ \(x, e) ->
+  let renaming = [(nameToText x, target)]
+      renamedOnce = renameFree renaming e
+      renamedTwice = renameFree renaming renamedOnce
+   in counterexample (unlines ["input: " ++ show e, "once:  " ++ show renamedOnce, "twice: " ++ show renamedTwice]) $
+        renamedTwice == renamedOnce
 
 prop_noop :: Property
 prop_noop = forAll (genExpr 7) $ \e -> runState' [] e == e
 
 -------------------------------------------------------------------------------
--- Half the runs below rest on alphaEq -- prop_alpha, prop_prepareAlpha and
--- prop_freshenAlpha, 6 of 12 -- and nothing else checks it: a comparator that
--- is too lenient would make those pass blindly.  (prop_fv, prop_idem and
--- prop_noop use set or exact equality instead.)  So alphaEq gets hand-written
--- cases, negatives included.  Note that 'Eq Name' ignores
+-- Half the properties below rest on alphaEq -- prop_freshenAlpha,
+-- prop_renameUnderBinder, and the three prop_alpha variants, 5 of 10 -- and
+-- nothing else checks it: a comparator that is too lenient would make those
+-- pass blindly.  (prop_fv, prop_renameIdem, and prop_noop use set or exact
+-- equality instead.)  So alphaEq gets hand-written cases, negatives included.
+-- Note that 'Eq Name' ignores
 -- ranges on purpose ("compare regardless of their locations"), which is why
 -- alphaEq carries its own rangeEq and why these cases pin it down.
 -------------------------------------------------------------------------------
@@ -451,10 +463,8 @@ tests =
         testCase "the name pool is disjoint from freshened binders" $
           filter (Text.isPrefixOf (Text.pack "#")) pool @?= [],
         testProperty "freshen preserves alpha-equivalence" prop_freshenAlpha,
-        testProperty "prepare is alpha-equivalent to input (State Int)" (prop_prepareAlpha prepareState'),
-        testProperty "prepare is alpha-equivalent to input (WP, scope [a,b,c])" (prop_prepareAlpha (prepareWP' [["a", "b", "c"]])),
-        testProperty "prepare is idempotent (State Int)" (prop_idem prepareState'),
-        testProperty "prepare is idempotent (WP, scope [a,b,c])" (prop_idem (prepareWP' [["a", "b", "c"]])),
+        testProperty "renaming a binder with its body preserves alpha-equivalence" prop_renameUnderBinder,
+        testProperty "renaming is idempotent" prop_renameIdem,
         testProperty "identity (empty substitution)" prop_noop,
         testProperty "free-variable law (State Int)" (prop_fv runState'),
         testProperty "free-variable law (WP, empty scope)" (prop_fv (runWP' [])),

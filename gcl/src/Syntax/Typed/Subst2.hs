@@ -1,21 +1,119 @@
 {-# LANGUAGE FlexibleContexts #-}
 
--- | Capture-avoiding substitution over the typed AST, in two passes.
+-- | Capture-avoiding substitution over the typed AST.
 --
---   'renameForSubstitution' first moves binders that would capture free names
---   brought in by a substitution. It changes binder names and their bound
---   occurrences, but does not insert replacement expressions. 'replace' then
---   performs simultaneous, scope-aware replacement without choosing names.
---   Renaming preserves each occurrence's type and source range; replacement
---   brings its own metadata.
+-- == Textbook rules
 --
---   What a binder scopes over, by node:
+-- Peter Selinger's /Lecture Notes on the Lambda Calculus/ defines @M[N\/x]@,
+-- the substitution of @N@ for the free occurrences of @x@ in @M@, by:
 --
---   > \x -> body                   body
---   > <| op x : range : body |>    range and body, but not op
---   > case s of x -> body          each clause's body, but not s
---   > body [xs \ es]               body, but not es
-module Syntax.Typed.Subst2 (substExpr, renameForSubstitution) where
+-- > S1.  x[N/x]        =  N
+-- > S2.  y[N/x]        =  y                         if x /= y
+-- > S3.  (M P)[N/x]    =  (M[N/x]) (P[N/x])
+-- > S4.  (\x.M)[N/x]   =  \x.M
+-- > S5.  (\y.M)[N/x]   =  \y.(M[N/x])               if x /= y and y not in FV(N)
+-- > S6.  (\y.M)[N/x]   =  \y'.(M{y'/y}[N/x])        if x /= y, y in FV(N), and y' fresh
+--
+-- The renaming @M{y\/x}@ used by S6 is defined by:
+--
+-- > R1.  x{y/x}        =  y
+-- > R2.  z{y/x}        =  z                         if x /= z
+-- > R3.  (M N){y/x}    =  (M{y/x}) (N{y/x})
+-- > R4.  (\x.M){y/x}   =  \y.(M{y/x})
+-- > R5.  (\z.M){y/x}   =  \z.(M{y/x})               if x /= z
+--
+-- S6 is the only substitution rule that invokes this renaming. Its fresh
+-- target @y'@ must not occur anywhere in @M@; under that precondition,
+-- R1-R5 can replace binding, bound, and free occurrences uniformly.
+-- These compact rules are well suited to proofs and to defining
+-- alpha-equivalence. This module adjusts them because its result is also shown
+-- to users, for whom a needless prime is needless cognitive overhead.
+--
+-- The textbook writes the replacement first, @[N\/x]@. The public examples in
+-- this module use the implementation's key-first notation, @[x := N]@.
+--
+-- == Minimal renaming
+--
+-- The intended rule is an if-and-only-if:
+--
+-- > binder b is renamed
+-- > iff some substitution [x := N] really fires in b's scope
+-- >     and b is in FV(N).
+--
+-- For a single binder @y@, this means @x /= y@, @x@ is free in the body @M@,
+-- and @y@ is free in @N@. Thus every rename prevents a concrete capture, and
+-- every concrete capture is prevented.
+--
+-- === Modified S5 and S6
+--
+-- The textbook's S6 can rename a binder even when there is no @x@ to replace:
+--
+-- > (\y -> no_x)[x := y + 1]
+-- > textbook:  \y' -> no_x
+-- > here:      \y  -> no_x
+--
+-- No replacement is inserted, so no @y@ can be captured and the binder does
+-- not need to be renamed. We therefore add the test @x in FV(M)@ and use these
+-- rules:
+--
+-- > S5'. (\y.M)[N/x]   =  \y.(M[N/x])               if x /= y
+-- >                                                    and (y not in FV(N) or x not in FV(M))
+-- > S6'. (\y.M)[N/x]   =  \y'.(M{y'/y}[N/x])        if x /= y, y in FV(N),
+-- >                                                    x in FV(M), and y' fresh
+--
+-- Among the @x /= y@ cases, S6' therefore does less than S6: cases where @x@
+-- is not free in @M@ move to S5'. S4 is unchanged.
+--
+-- === Modified R4
+--
+-- In @M{y'/y}@, textbook renaming replaces all occurrences of @y@, whether
+-- free, bound, or binding. R4 therefore also renames an unrelated inner binder:
+--
+-- > (\y -> (\y -> y) x)[x := y]
+-- > textbook:  \y' -> ((\y' -> y') y)
+-- > here:      \y' -> ((\y  -> y)  y)
+--
+-- The inner @\y -> y@ belongs to its own binder, not the outer binder being
+-- alpha-renamed. When applying @x -> y@, 'renameFree' therefore leaves a binder
+-- named @x@ and its scope unchanged:
+--
+-- > R4.   (\x.M){y/x}  =  \y.(M{y/x})    -- textbook
+-- > R4'.  (\x.M){y/x}  =  \x.M           -- this module
+--
+-- The caller separately renames the binder it selected. Together, changing
+-- that binder and applying 'renameFree' to its scope form the alpha-renaming.
+--
+-- == Extension to GCL
+--
+-- GCL extends the lambda-calculus rules in four ways:
+--
+-- * It has several binding forms: 'Lam', 'CaseClause', 'Quant', and 'Subst'.
+--
+-- * A simultaneous substitution can contain several entries,
+--   e.g. @[x := M, y := N]@.
+--
+-- * A node can introduce several binders, e.g.
+--   @case (a, b) of (binder1, binder2) -> body@.
+--
+-- * A binder's scope can cover several subexpressions, e.g. both @range@ and
+--   @body@ in @<| + i : range : body |>@.
+--
+-- What a binder scopes over, by node:
+--
+-- > \x -> body                   body
+-- > <| op x : range : body |>    range and body, but not op
+-- > case s of x -> body          each clause's body, but not s
+-- > body [xs \ es]               body, but not es
+--
+-- 'underBinders' applies S4, S5', and S6' uniformly to those forms. It keeps
+-- only entries that can fire in the scoped region, gathers the free names their
+-- replacements can introduce, and freshens exactly the binders that clash.
+-- Fresh targets cannot collide with an active substitution key; this invariant
+-- is needed because 'renameFree' runs before 'subst' continues into the region.
+--
+-- Renaming preserves each occurrence's type and source range; a replacement
+-- brings its own metadata.
+module Syntax.Typed.Subst2 (substExpr, renameFree) where
 
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
@@ -33,219 +131,137 @@ import Syntax.Typed.Types
 type Substitution = [(Text, Expr)]
 
 -- | Renaming only changes how a name is spelled, so an occurrence keeps the
---   type and range it already had.
+--   type and range it already had. The names being rewritten must be distinct;
+--   internal callers satisfy this because binder names are distinct.
 type Renaming = [(Text, Text)]
 
--- | First alpha-rename the source tree, then insert the replacement expressions.
---   Duplicate substitution keys are rejected.
-substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
-substExpr sb expr
-  | hasDuplicateNames sb =
-      error "substExpr: duplicate names in substitution"
-  | otherwise =
-      replace sb <$> renameForSubstitution sb expr
-
--- | Prepare an expression for the given substitution without applying it.
---   This is substitution-specific: which binders must move depends on the
---   free names of replacements that are active in each binder's scope.
---   Duplicate substitution keys are rejected.
+-- | Substitute simultaneously, avoiding capture. Duplicate substitution keys
+--   are rejected.
+--
 --   The expression is treated as a scope root. For a detached subtree, callers
 --   must account for enclosing binders that may shadow keys or capture
 --   replacements.
 --
---   Only binders and their bound occurrences are renamed. The result is
---   alpha-equivalent to the input. 'replace' then needs no freshness check.
 --   One caveat: an 'EHole' is copied unchanged, so renaming a surrounding
 --   binder may leave its stored 'Env' out of sync with the transformed tree.
 --   Such a stale 'Env' must not be used for scope-sensitive work such as hole
---   refinement; the 'EHole' case of 'prepare' says where the server gets holes
+--   refinement; the 'EHole' case of 'subst' says where the server gets holes
 --   it can trust.
 --
---   Examples (pseudo-GCL; primes stand for fresh names):
+--   Examples (pseudo-GCL, in this module's @[key := value]@ notation; primes
+--   stand for fresh names):
 --
---   > (\x -> (x, y))[y := x]  ==>  \x' -> (x', y)
---   > (\x -> y)[y := z]       ==>  \x -> y
+--   > (\x -> (x, y))[y := x]  ==>  \x' -> (x', x)
+--   > (\x -> y)[y := z]       ==>  \x -> z
 --   > (\x -> x)[x := y]       ==>  \x -> x
---   > ((\x -> x), y)[y := x]  ==>  ((\x -> x), y)
+--   > ((\x -> x), y)[y := x]  ==>  ((\x -> x), x)
 --
---   In the first example, @y@ is still present: only the capturing binder
---   and its bound @x@ are renamed. The other examples need no renaming:
---   the replacement cannot be captured, the entry is shadowed, or its
---   occurrence lies outside the binder's scope, respectively.
---
---   With multiple substitution entries, the same rule applies:
---
---   > (\x -> \y -> (a, b))[a := x, b := y]  ==>  \x' -> \y' -> (a, b)
---   > (\x -> (x, a, b))[a := x, b := z]     ==>  \x' -> (x', a, b)
---
---   Both @a@ and @b@ remain pending; only binders that could capture a
---   replacement move.
---
---   Binders that are not lambdas follow the same rule:
---
---   > (case c of x -> (x, y))[y := x]  ==>  case c of x' -> (x', y)
-renameForSubstitution :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
-renameForSubstitution sb expr
+--   Only the first needs a binder to be renamed: in the others the replacement
+--   cannot be captured, the entry is shadowed, or the occurrence lies outside
+--   the binder's scope, respectively.
+substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
+substExpr sb expr
   | hasDuplicateNames sb =
-      error "renameForSubstitution: duplicate names in substitution"
-  | otherwise = prepare sb expr
+      error "substExpr: duplicate names in substitution"
+  | otherwise = subst sb expr
 
 hasDuplicateNames :: Substitution -> Bool
 hasDuplicateNames sb =
   Set.size (Set.fromList (map fst sb)) /= length sb
 
-prepare :: (Fresh m) => Substitution -> Expr -> m Expr
-prepare _ e@Lit {} = pure e
-prepare _ e@Var {} = pure e
-prepare _ e@Const {} = pure e
-prepare _ e@Op {} = pure e
-prepare sb (Chain chain) = Chain <$> prepareChain sb chain
-prepare sb (App function argument l) =
-  App <$> prepare sb function <*> prepare sb argument <*> pure l
-prepare sb (Lam x t body l) = do
-  (binderRenaming, sb') <- prepareBinders sb [x] [body]
-  body' <- prepare sb' (renameFree binderRenaming body)
-  pure (Lam (renameName binderRenaming x) t body' l)
-prepare sb (Tuple elements) = Tuple <$> mapM (prepare sb) elements
-prepare sb (OutT index e) = OutT index <$> prepare sb e
-prepare sb (Quant operator binders range body l) = do
-  operator' <- prepare sb operator
-  (binderRenaming, sb') <- prepareBinders sb (map fst binders) [range, body]
-  range' <- prepare sb' (renameFree binderRenaming range)
-  body' <- prepare sb' (renameFree binderRenaming body)
+-- | Recursive worker for 'substExpr'. Entries in @sb@ replace free occurrences
+--   simultaneously. At a binder, the existing region is alpha-renamed before
+--   replacements are inserted, so newly inserted free names are not renamed.
+subst :: (Fresh m) => Substitution -> Expr -> m Expr
+subst _ e@Lit {} = pure e
+subst sb e@(Var x _ _) = pure (fromMaybe e (lookup (nameToText x) sb))
+subst sb e@(Const x _ _) = pure (fromMaybe e (lookup (nameToText x) sb))
+subst _ e@Op {} = pure e
+subst sb (Chain chain) = Chain <$> substChain sb chain
+subst sb (App function argument l) =
+  App <$> subst sb function <*> subst sb argument <*> pure l
+subst sb (Lam x t body l) = do
+  (renaming, sb') <- underBinders sb [x] [body]
+  body' <- subst sb' (renameFree renaming body)
+  pure (Lam (renameName renaming x) t body' l)
+subst sb (Tuple elements) = Tuple <$> mapM (subst sb) elements
+subst sb (OutT index e) = OutT index <$> subst sb e
+subst sb (Quant operator binders range body l) = do
+  operator' <- subst sb operator -- outside the binders' scope
+  (renaming, sb') <- underBinders sb (map fst binders) [range, body]
+  range' <- subst sb' (renameFree renaming range)
+  body' <- subst sb' (renameFree renaming body)
   pure
     ( Quant
         operator'
-        [(renameName binderRenaming x, t) | (x, t) <- binders]
+        [(renameName renaming x, t) | (x, t) <- binders]
         range'
         body'
         l
     )
-prepare sb (ArrIdx array index l) =
-  ArrIdx <$> prepare sb array <*> prepare sb index <*> pure l
-prepare sb (ArrUpd array index value l) =
+subst sb (ArrIdx array index l) =
+  ArrIdx <$> subst sb array <*> subst sb index <*> pure l
+subst sb (ArrUpd array index value l) =
   ArrUpd
-    <$> prepare sb array
-    <*> prepare sb index
-    <*> prepare sb value
+    <$> subst sb array
+    <*> subst sb index
+    <*> subst sb value
     <*> pure l
-prepare sb (Case scrutinee clauses l) =
+subst sb (Case scrutinee clauses l) =
   Case
-    <$> prepare sb scrutinee
-    <*> mapM (prepareClause sb) clauses
+    <$> subst sb scrutinee
+    <*> mapM (substClause sb) clauses
     <*> pure l
-prepare sb (Subst body table) = do
-  (binderRenaming, sb') <- prepareBinders sb (map fst table) [body]
-  body' <- prepare sb' (renameFree binderRenaming body)
-  values' <- mapM (\(x, e) -> (,) (renameName binderRenaming x) <$> prepare sb e) table
-  pure (Subst body' values')
+-- The table's domain binds over the body only, never over its values.
+subst sb (Subst body table) = do
+  (renaming, sb') <- underBinders sb (map fst table) [body]
+  body' <- subst sb' (renameFree renaming body)
+  table' <- mapM (\(x, e) -> (,) (renameName renaming x) <$> subst sb e) table
+  pure (Subst body' table')
 -- A hole is opaque. Its 'Env' is a snapshot of the scope in the elaborated
 -- source tree, so this traversal does not rewrite it when surrounding binders
--- are renamed; 'renameForSubstitution' states what that costs the caller. The
--- server retains source-derived holes separately for refinement; see
--- 'GCL.WP.sweep'.
-prepare _ e@EHole {} = pure e
+-- are renamed; 'substExpr' states what that costs the caller. The server
+-- retains source-derived holes separately for refinement; see 'GCL.WP.sweep'.
+subst _ e@EHole {} = pure e
 
-prepareChain :: (Fresh m) => Substitution -> Chain -> m Chain
-prepareChain sb (Pure e) = Pure <$> prepare sb e
-prepareChain sb (More chain operator t e) =
-  More <$> prepareChain sb chain <*> pure operator <*> pure t <*> prepare sb e
+substChain :: (Fresh m) => Substitution -> Chain -> m Chain
+substChain sb (Pure e) = Pure <$> subst sb e
+substChain sb (More chain operator t e) =
+  More <$> substChain sb chain <*> pure operator <*> pure t <*> subst sb e
 
 -- | A clause's pattern binds over its body only, never over the scrutinee.
-prepareClause :: (Fresh m) => Substitution -> CaseClause -> m CaseClause
-prepareClause sb (CaseClause pattern' body) = do
-  (binderRenaming, sb') <- prepareBinders sb (extractBinder pattern') [body]
-  body' <- prepare sb' (renameFree binderRenaming body)
-  pure (CaseClause (renamePatternBinders binderRenaming pattern') body')
+substClause :: (Fresh m) => Substitution -> CaseClause -> m CaseClause
+substClause sb (CaseClause pattern' body) = do
+  (renaming, sb') <- underBinders sb (extractBinder pattern') [body]
+  body' <- subst sb' (renameFree renaming body)
+  pure (CaseClause (renamePatternBinders renaming pattern') body')
 
--- | Apply the substitution after all capture risks have been removed.
---   Binders still hide entries with the same name; replacement
---   expressions are inserted whole, without recursively substituting into them.
-replace :: Substitution -> Expr -> Expr
-replace _ e@Lit {} = e
-replace sb e@(Var x _ _) = fromMaybe e (lookup (nameToText x) sb)
-replace sb e@(Const x _ _) = fromMaybe e (lookup (nameToText x) sb)
-replace _ e@Op {} = e
-replace sb (Chain chain) = Chain (replaceChain sb chain)
-replace sb (App function argument l) =
-  App (replace sb function) (replace sb argument) l
-replace sb (Lam x t body l) =
-  Lam x t (replace (hide [x] sb) body) l
-replace sb (Tuple elements) = Tuple (map (replace sb) elements)
-replace sb (OutT index e) = OutT index (replace sb e)
--- The operator lies outside the binders' scope.
-replace sb (Quant operator binders range body l) =
-  Quant
-    (replace sb operator)
-    binders
-    (replace inner range)
-    (replace inner body)
-    l
-  where
-    inner = hide (map fst binders) sb
-replace sb (ArrIdx array index l) =
-  ArrIdx (replace sb array) (replace sb index) l
-replace sb (ArrUpd array index value l) =
-  ArrUpd (replace sb array) (replace sb index) (replace sb value) l
-replace sb (Case scrutinee clauses l) =
-  Case (replace sb scrutinee) (map (replaceClause sb) clauses) l
--- The table's domain binds over the body only, never over its values.
-replace sb (Subst body table) =
-  Subst
-    (replace (hide (map fst table) sb) body)
-    [(x, replace sb e) | (x, e) <- table]
-replace _ e@EHole {} = e
-
-replaceChain :: Substitution -> Chain -> Chain
-replaceChain sb (Pure e) = Pure (replace sb e)
-replaceChain sb (More chain operator t e) =
-  More (replaceChain sb chain) operator t (replace sb e)
-
-replaceClause :: Substitution -> CaseClause -> CaseClause
-replaceClause sb (CaseClause pattern' body) =
-  CaseClause pattern' (replace (hide (extractBinder pattern') sb) body)
-
--- | A binder shadows entries for its names throughout its scope.
-hide :: [Name] -> [(Text, a)] -> [(Text, a)]
-hide binders = filter (\(key, _) -> Set.notMember key bound)
-  where
-    bound = Set.fromList (map nameToText binders)
-
--- | Decide which binders would capture an active replacement. The chosen
---   names are absent from the region, including its inner binders, because
---   'renameFree' itself never allocates fresh names. Binder names must be
---   distinct; type inference enforces this for source ASTs.
+-- | Choose between the three binder rules for a node that binds @binders@ over
+--   @region@. Returns the renaming to apply to the region and the substitution
+--   that is still active inside it. An empty renaming means no binder had to
+--   be renamed.
 --
 --   The binders are the ones this node introduces -- a quantifier, a pattern
 --   or a substitution table can bind several at once -- not those gathered on
---   the way down. Enclosing binders need no mention here: entries shadowed
---   by them have already been removed from the substitution, and any renaming
+--   the way down. Enclosing binders need no mention here: entries shadowed by
+--   them have already been dropped from the substitution, and any renaming
 --   they required has already been applied to the region. An enclosing name
 --   can only be captured here if it occurs in the region, where 'allNames'
 --   already forbids it.
 --
---   The returned substitution is the part of the input that can still insert
---   something inside these binders. Traversing the region with it, rather
---   than with the original, is what keeps binders from moving for nothing;
---   see the @activeSb@ filter below.
-prepareBinders :: (Fresh m) => Substitution -> [Name] -> [Expr] -> m (Renaming, Substitution)
-prepareBinders sb binders region = do
+--   Binder names must be distinct; type inference enforces this for source
+--   ASTs.
+underBinders :: (Fresh m) => Substitution -> [Name] -> [Expr] -> m (Renaming, Substitution)
+underBinders sb binders region = do
   binderRenaming <- allocate forbidden clashingBinders
   pure (binderRenaming, activeSb)
   where
     bound = Set.fromList (map nameToText binders)
     freeInRegion = foldMap freeVarsT region
 
-    -- A binder hides its own entry. An entry whose name is not free in this
-    -- region cannot insert anything here. Either way the entry cannot be
-    -- captured here, so dropping it is not what keeps the result correct --
-    -- 'replace' does that with its own 'hide'. It keeps binders from moving
-    -- for nothing:
-    --
-    --   > (\x -> \y -> x)[x := y]  ==>  \x -> \y -> x
-    --
-    -- If the shadowed @x := y@ remained active under @\x@, @y@ would count as
-    -- incoming, so the inner binder would be renamed to no purpose.
+    -- Entries that can still fire in this region. The first condition is S4:
+    -- a binder shadows an entry with the same key. The second is the added
+    -- @x in FV(M)@ condition in S5'/S6'.
     activeSb =
       filter
         (\(key, _) -> Set.notMember key bound && Set.member key freeInRegion)
@@ -253,6 +269,15 @@ prepareBinders sb binders region = do
 
     incoming = foldMap (freeVarsT . snd) activeSb
     clashingBinders = filter (\binder -> Set.member (nameToText binder) incoming) binders
+
+    -- 'renameFree' requires targets that occur nowhere in the region, binders
+    -- included, which is why 'allNames' and not just the free names.
+    --
+    -- The free-in-region condition above also establishes an invariant needed
+    -- by this single traversal: every entry carried into the region has its
+    -- key in @allNames region@. A fresh target therefore cannot equal a carried
+    -- key. Without that invariant, 'renameFree' could create occurrences that
+    -- the following 'subst' mistakes for substitution occurrences.
     forbidden = incoming <> foldMap allNames region <> bound
 
 -- | A target for each binder. Each target joins @forbidden@ before the next
@@ -281,11 +306,14 @@ freshFor forbidden binder = go (nameToText binder)
         then go (Text.snoc prefix '\'')
         else pure candidate
 
--- | Change the free occurrences named by the renaming. This allocates nothing
---   and so cannot avoid capture by itself: the caller must have chosen targets
---   absent from this expression, binders included -- 'prepareBinders' does.
---   Binders are updated separately; nested binders shadow the renaming in
---   their own scopes.
+-- | Implement R4': for each renaming @x -> y@, rewrite free occurrences of @x@
+--   as @y@. A binder named @x@ disables that renaming within its scope. The
+--   caller rewrites the binder declaration separately.
+--
+--   'renameFree' does not choose fresh targets; it assumes they are already
+--   fresh for the expression. In particular, a target must not occur as an
+--   inner binder, or that binder would capture the newly renamed occurrences.
+--   'underBinders' chooses targets that satisfy this precondition.
 renameFree :: Renaming -> Expr -> Expr
 renameFree _ e@Lit {} = e
 renameFree renaming (Var x t l) = Var (renameName renaming x) t l
@@ -325,6 +353,12 @@ renameFree renaming (Subst body table) =
     [(x, renameFree renaming e) | (x, e) <- table]
 renameFree _ e@EHole {} = e
 
+-- | A binder shadows entries for its names throughout its scope.
+hide :: [Name] -> [(Text, a)] -> [(Text, a)]
+hide binders = filter (\(key, _) -> Set.notMember key bound)
+  where
+    bound = Set.fromList (map nameToText binders)
+
 renameChain :: Renaming -> Chain -> Chain
 renameChain renaming (Pure e) = Pure (renameFree renaming e)
 renameChain renaming (More chain operator t e) =
@@ -340,10 +374,11 @@ renameName renaming name@(Name text range) =
     Nothing -> name
     Just text' -> Name text' range
 
+-- | Rewrite the binders a pattern introduces. 'renameFree' leaves every binder
+--   alone, so the caller renames them here.
 renamePatternBinders :: Renaming -> Pattern -> Pattern
 renamePatternBinders _ pattern'@PattLit {} = pattern'
-renamePatternBinders renaming (PattBinder x) =
-  PattBinder (renameName renaming x)
+renamePatternBinders renaming (PattBinder x) = PattBinder (renameName renaming x)
 renamePatternBinders _ pattern'@PattWildcard {} = pattern'
 renamePatternBinders renaming (PattTuple patterns) =
   PattTuple (map (renamePatternBinders renaming) patterns)

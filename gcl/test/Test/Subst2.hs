@@ -10,7 +10,7 @@ import GCL.WP (runWP)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Concrete.Instances.ToAbstract ()
-import Syntax.Typed.Subst2 (renameForSubstitution, substExpr)
+import Syntax.Typed.Subst2 (renameFree, substExpr)
 import qualified Syntax.Typed.Types as T
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
@@ -19,34 +19,26 @@ tests :: TestTree
 tests =
   testGroup
     "Subst2"
-    [ -- Pseudo-GCL: (case c of x -> (x, y))[y := x]
-      -- The first pass yields case c of x' -> (x', y), before inserting x.
-      testCase "first pass renames binders but does not replace occurrences" $
-        case evalState
-          ( renameForSubstitution
-              [("y", var x)]
-              (caseOf scrutinee (A.PattBinder x) (T.Tuple [var x, var y]))
-          )
-          (0 :: Int) of
-          T.Case _ [T.CaseClause (A.PattBinder binder) (T.Tuple [bound, stillY])] _ -> do
-            nameToText binder /= "x" @? "the binder must move before replacement"
-            bound @?= var binder
-            stillY @?= var y
-          result -> assertFailure ("unexpected first-pass result: " <> show result),
-      -- Pseudo-GCL: (\\x -> \\y -> i)[i := (x, y)].
-      -- Both binders move in the first pass, while the body remains i.
-      testCase "first pass handles nested binders before replacement" $
-        case evalState
-          ( renameForSubstitution
-              [("i", T.Tuple [var x, var y])]
-              (T.Lam x intType (T.Lam y intType (var i) Nothing) Nothing)
-          )
-          (0 :: Int) of
-          T.Lam outer _ (T.Lam inner _ stillI _) _ -> do
-            nameToText outer /= "x" @? "the outer binder must move"
-            nameToText inner /= "y" @? "the inner binder must move"
-            stillI @?= var i
-          result -> assertFailure ("unexpected first-pass result: " <> show result),
+    [ -- Renaming rewrites free occurrences only. Renaming the binder itself is
+      -- the caller's job, which is why nothing here renames one.
+      testCase "renaming rewrites free occurrences" $
+        renameFree [("x", "x'")] (T.Tuple [var x, var y])
+          @?= T.Tuple [var x', var y],
+      -- The textbook would rewrite this binder and its occurrence too ("all
+      -- occurrences ... whether free, bound, or binding"). We stop: that x
+      -- belongs to the inner lambda, not to the binder being renamed. Renaming
+      -- it would only put a gratuitous prime in front of the user.
+      testCase "renaming stops at a binder that shadows the source" $
+        renameFree [("x", "x'")] (T.Lam x intType (var x) Nothing)
+          @?= T.Lam x intType (var x) Nothing,
+      -- One traversal, three scope decisions: the operator is outside the
+      -- binder, so its occurrence is renamed; the binder itself is left to the
+      -- caller; the range and body are shadowed, so they stay.
+      testCase "renaming respects the quantifier's scope boundary" $
+        renameFree
+          [("x", "x'")]
+          (T.Quant (var x) [(x, intType)] (var x) (var x) Nothing)
+          @?= T.Quant (var x') [(x, intType)] (var x) (var x) Nothing,
       testCase "case-pattern binders shadow substitutions" $ do
         let clause =
               caseOf
@@ -112,7 +104,8 @@ tests =
           result -> assertFailure ("unexpected result: " <> show result),
       testCase "an inner binder that would capture is renamed" $ do
         -- Here the nested lambda does not shadow the inserted name, so entering
-        -- it with @x@ live in the range forces the lambda's own binder to move.
+        -- it with @x@ live in the range forces the lambda's own binder to be
+        -- renamed.
         let nested = T.Lam x intType (var y) Nothing
 
         case run [("y", var x)] (T.Tuple [nested, var y]) of
@@ -181,7 +174,7 @@ tests =
 
         case runIn [["x"]] [("y", range)] lambda of
           Right (T.Lam binder _ body _) -> do
-            nameToText binder /= "x" @? "the binder must move"
+            nameToText binder /= "x" @? "the binder must be renamed"
             nameToText binder /= "x0" @? "x0 is free in the range and must be rejected"
             body @?= range
           Right result -> assertFailure ("unexpected result: " <> show result)
@@ -274,7 +267,7 @@ tests =
       --   @subst y := x in ((x, y) [x \ x])
       --     ==> (x', x) [x' \ x]@
       --
-      -- The free inserted @x@ forces the table-domain binder to move. The
+      -- The free inserted @x@ forces the table-domain binder to be renamed. The
       -- table value is outside that binder's scope and keeps its own @x@.
       testCase "substitution-node binders avoid capture" $
         case run [("y", var x)] (T.Subst (T.Tuple [var x, var y]) [(x, var x)]) of
@@ -308,18 +301,6 @@ tests =
 
         case outcome of
           Left (ErrorCall _) -> pure ()
-          Right result -> assertFailure ("expected an error, got: " <> show result),
-      -- The renaming pass is exported on its own, so it carries the same
-      -- guard rather than relying on 'substExpr' to have checked first.
-      testCase "the renaming pass rejects a repeated name as well" $ do
-        outcome <-
-          try
-            ( evaluate
-                (evalState (renameForSubstitution [("x", one), ("x", two)] (var x)) (0 :: Int))
-            )
-
-        case outcome of
-          Left (ErrorCall _) -> pure ()
           Right result -> assertFailure ("expected an error, got: " <> show result)
     ]
   where
@@ -331,6 +312,7 @@ tests =
         Left err -> Left (show err)
 
     x = Name "x" Nothing
+    x' = Name "x'" Nothing
     x0 = Name "x0" Nothing
     y = Name "y" Nothing
     i = Name "i" Nothing
