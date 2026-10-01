@@ -435,7 +435,12 @@ mergeFileState moved fragment =
       fsGlobalProps = fsGlobalProps moved ++ fsGlobalProps fragment
     }
 
--- | Updates hole expression to latest refined expression in every specifications and POs
+-- | Updates the hole expression in all specifications, POs, and global
+-- properties.
+-- The selected 'hole' comes from source-derived 'fsHoles'; refinement scopes
+-- are never recovered from 'EHole' values in a PO. Resetting 'poReducedPred'
+-- to the updated 'poPred' discards whatever reduction the user had applied to
+-- that PO.
 updateHoleExprs :: Hole -> T.Expr -> [(Int, Int)] -> FileState -> FileState
 updateHoleExprs hole expr holeMapping fs =
   fs

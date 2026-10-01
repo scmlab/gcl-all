@@ -52,7 +52,10 @@ sweep program@(Program _ decs _props stmts _) = do
   let dnames = [map nameToText $ declaredNames decs]
   (_, counter, (pos, specs, warnings, redexes)) <-
     runWP (structProgram stmts) (decls, dnames) 0
-  -- collect holes from expressions
+  -- Collect authoritative hole metadata from the elaborated source program,
+  -- never from generated or transformed POs; refinement uses this separate
+  -- list. See "Syntax.Typed.Subst2" for how term-level transformations treat a
+  -- hole's 'Env'.
   let holes = collectTypedHole program
   -- update Proof Obligations with corresponding Proof Anchors
   let proofAnchors =
