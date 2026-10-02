@@ -21,7 +21,6 @@ import GCL.Range (Range, mkPos, mkRange)
 import GCL.WP (runWP)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (ArithOp (..), Name (..), Op (..), nameToText)
-import Syntax.Concrete.Instances.ToAbstract ()
 import Syntax.Typed.Instances.Free ()
 import Syntax.Typed.Subst2 (renameFree, substExpr)
 import qualified Syntax.Typed.Types as T

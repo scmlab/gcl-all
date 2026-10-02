@@ -9,7 +9,6 @@ import GCL.Range (mkPos, mkRange)
 import GCL.WP (runWP)
 import qualified Syntax.Abstract.Types as A
 import Syntax.Common.Types (Name (..), nameToText)
-import Syntax.Concrete.Instances.ToAbstract ()
 import Syntax.Typed.Subst2 (renameFree, substExpr)
 import qualified Syntax.Typed.Types as T
 import Test.Tasty (TestTree, testGroup)
