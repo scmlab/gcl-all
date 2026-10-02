@@ -8,7 +8,7 @@
 module GCL.Common where
 
 import Control.Monad.RWS (RWST (..))
-import Control.Monad.State (StateT (..))
+import Control.Monad.State (State, StateT (..), get, put)
 import Data.Either (lefts)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -76,6 +76,12 @@ freshNames = mapM freshName'
 
 class Counterous m where
   countUp :: m Int
+
+instance Counterous (State Int) where
+  countUp = do
+    counter <- get
+    put (counter + 1)
+    pure counter
 
 instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
   fresh = Text.pack . ("?m_" ++) . show <$> countUp

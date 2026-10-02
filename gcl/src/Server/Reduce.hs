@@ -6,6 +6,7 @@ import Control.Lens
 import Control.Monad.State (evalState)
 import qualified Data.Text as Text
 import Error (Error (..))
+import GCL.Common (initFreshState)
 import GCL.Predicate (PO (..))
 import Pretty.Error ()
 import Prettyprinter (layoutCompact, pretty)
@@ -25,7 +26,8 @@ import qualified Syntax.Typed.Types as T
 
 -- TODO: add env for function inline
 evalReduce :: [(Name, T.Expr)] -> T.Expr -> Redex -> T.Expr
-evalReduce env predicate redex = evalState (Syntax.Typed.Reduce.reduce env predicate redex) (0 :: Int)
+evalReduce env predicate redex =
+  evalState (Syntax.Typed.Reduce.reduce env predicate redex) initFreshState
 
 reduce :: FilePath -> Int -> Redex -> ServerM ()
 reduce filePath poIndex redex = do

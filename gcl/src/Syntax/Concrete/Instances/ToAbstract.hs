@@ -45,12 +45,6 @@ class ToAbstract a b | a -> b where
 
 type AbsM a = State Int a
 
-instance Counterous (State Int) where
-  countUp = do
-    c <- get
-    put (c + 1)
-    return c
-
 instance (ToAbstract a b) => ToAbstract (Maybe a) (Maybe b) where
   toAbstract Nothing = return Nothing
   toAbstract (Just x) = Just <$> toAbstract x
