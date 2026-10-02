@@ -123,6 +123,7 @@ library
       Syntax.Typed.Operator
       Syntax.Typed.Reduce
       Syntax.Typed.Reduce.Saturation
+      Syntax.Typed.Reduce2
       Syntax.Typed.Subst2
       Syntax.Typed.Types
       Syntax.Typed.Util
@@ -192,6 +193,7 @@ test-suite gcl-test
       Test.Move
       Test.OrigCoord
       Test.Parser
+      Test.Reduce2
       Test.Render
       Test.SrcLoc
       Test.Subst2

@@ -2,6 +2,7 @@ import System.IO (hSetEncoding, stderr, stdin, stdout, utf8)
 import qualified Test.Move as Move
 import qualified Test.OrigCoord as OrigCoord
 import qualified Test.Parser as Parser
+import qualified Test.Reduce2 as Reduce2
 import qualified Test.Render as Render
 import qualified Test.SrcLoc as SrcLoc
 import qualified Test.Subst2 as Subst2
@@ -28,6 +29,7 @@ tests =
     [ Move.tests,
       OrigCoord.tests,
       Parser.tests,
+      Reduce2.tests,
       Render.tests,
       SrcLoc.tests,
       Subst2.tests,
