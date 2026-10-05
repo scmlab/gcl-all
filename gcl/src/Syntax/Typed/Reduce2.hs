@@ -40,7 +40,7 @@ module Syntax.Typed.Reduce2
     RT,
     Match (..),
     tryReduceAt,
-    smallStep,
+    localStep,
     matchPattern,
     redexRT,
     reduciblePaths,
@@ -77,14 +77,27 @@ type RT = RTree Bool
 
 -- | Try the reduction selected by a path.
 --
--- The returned expression is the whole input expression, not merely the
--- replacement for the selected subtree.  A successful unfold may beta-reduce
--- one or more enclosing 'App' nodes while repairing exposed leading lambdas.
+-- 1. Follow the path to find the selected node and the definitions
+--    visible there.
 --
--- 'Nothing' means that the path is invalid, no reduction rule applies at the
--- selected node, or unfolding exposes a leading lambda that cannot be fully
--- consumed by enclosing applications.  In every case, the path is not
--- clickable.
+-- 2. Try to apply one reduction rule:
+--
+--     * A selected 'Var' unfolds its definition.
+--
+--     * Any other selected node tries the local 'Case', tuple projection, or
+--       explicit substitution rules in 'localStep'.
+--
+-- 3. If unfolding exposes a leading 'Lam', use enclosing function-position
+--    'App' nodes to beta-reduce until no leading lambda remains; fail if it
+--    cannot be fully consumed.
+--
+-- 4. Return the complete new 'Expr' on success, or 'Nothing' on failure.
+--
+-- The path is a reduction trigger, not a rewrite boundary.  Consuming an
+-- exposed lambda may therefore also rewrite ancestors of the selected node.
+--
+-- Failure includes an invalid path, no applicable reduction rule, or a
+-- leading lambda that cannot be fully consumed by enclosing applications.
 --
 -- Reduction may allocate fresh names while avoiding variable capture.
 tryReduceAt :: (Fresh m) => DefnEnv -> Expr -> RedexPath -> m (Maybe Expr)
@@ -102,7 +115,7 @@ tryReduceAt defnEnv whole path =
                 Nothing -> pure Nothing
                 Just whole' -> ensureNoLeadingLam whole' path
         _ -> do
-          maybeReplacement <- smallStep selected
+          maybeReplacement <- localStep selected
           case maybeReplacement of
             Nothing -> pure Nothing
             Just replacement -> pure (setAt path replacement whole)
@@ -139,6 +152,12 @@ freshMarker forbidden = go "reduce2"
 
 -- | Repair a leading lambda exposed at @currentPath@.
 --
+-- The 'App' nodes are already there: @g a b@ consists of two nested
+-- applications before any reduction.  Neither is a beta-redex while the
+-- application spine is headed by a 'Var'.  Unfolding supplies the missing
+-- 'Lam', and each repair consumes one of those applications, which were in
+-- place all along.
+--
 -- Repair can only move upward through an 'App' whose function child is the
 -- current lambda.  Every successful repair shortens the path, so this process
 -- terminates without a fuel counter.  No subtree search is needed.
@@ -170,18 +189,22 @@ betaStep _ = pure Nothing
 -- cannot produce a 'Lam'.  Splicing the result back with 'setAt' is therefore
 -- safe on its own.
 --
--- The two rules that are /not/ here are the two that break those properties.
--- Unfolding a 'Var' brings in a definition body from outside the tree, so it
--- needs capture avoidance through the ancestors and can expose a 'Lam':
--- 'tryReduceAt' owns it, via 'unfoldAt'.  Beta needs a 'Lam' in the input,
--- which the second invariant forbids, so the only betas performed are the ones
--- 'ensureNoLeadingLam' drives through 'betaStep'.
-smallStep :: (Fresh m) => Expr -> m (Maybe Expr)
-smallStep (OutT index (Tuple elements)) = pure (atMay index elements)
-smallStep (Case scrutinee clauses _) = firstMatch scrutinee clauses
-smallStep (Subst subject assignments) =
+-- Two rules are absent, for different reasons:
+--
+-- 1. Unfolding a 'Var' breaks both properties: it brings in a definition body
+--    from outside the tree, so it needs capture avoidance through the
+--    ancestors, and it can expose a 'Lam'.  'tryReduceAt' owns it, via
+--    'unfoldAt'.
+--
+-- 2. Beta would be local enough, but its pattern needs a 'Lam' in the input,
+--    which the second invariant forbids.  The only betas performed are the
+--    ones 'ensureNoLeadingLam' drives through 'betaStep'.
+localStep :: (Fresh m) => Expr -> m (Maybe Expr)
+localStep (OutT index (Tuple elements)) = pure (atMay index elements)
+localStep (Case scrutinee clauses _) = firstMatch scrutinee clauses
+localStep (Subst subject assignments) =
   Just <$> substExpr (map (first nameToText) assignments) subject
-smallStep _ = pure Nothing
+localStep _ = pure Nothing
 
 -- | The first definitely matching clause.  A refuted clause may be skipped;
 -- an undecidable one blocks later clauses because case alternatives are
