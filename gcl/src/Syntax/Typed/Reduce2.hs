@@ -9,19 +9,19 @@
 --
 -- * Expressions passed to 'tryReduceAt' are lambda-free.
 --
--- * Concrete syntax cannot introduce lambdas.  A parameterized definition is
---   elaborated as a leading 'Lam' prefix around a lambda-free body.  Unfolding
---   a definition is therefore the only operation that can introduce a 'Lam'
---   into a lambda-free input.
+-- * GCL source syntax has no lambda expressions.  A definition with
+--   parameters is elaborated as a leading 'Lam' prefix around a lambda-free
+--   body.  Unfolding a definition is therefore the only operation that can
+--   introduce a 'Lam' into a lambda-free input.
 --
--- Given these invariants, a successful 'tryReduceAt' consumes every exposed
--- leading lambda through enclosing function-position applications, so its
--- result is lambda-free.  The invariants are assumed rather than checked
--- dynamically.
+-- Given these invariants, 'tryReduceAt' succeeds only when its result is
+-- lambda-free: if a 'Lam' would survive, the path is not clickable.  Most
+-- reductions cannot produce a 'Lam' at all; an unfold that exposes one
+-- consumes it through enclosing function-position applications.
 --
--- Repair only climbs through 'App' nodes.  A lambda separated from its
--- application by any other node cannot be consumed, so such a path is reported
--- as not clickable even though a reduction exists for it.
+-- Repair only climbs through 'App' nodes, so a lambda separated from its
+-- application by any other node cannot be consumed, even though a reduction
+-- exists for it.
 --
 -- == Reduction contract
 --
