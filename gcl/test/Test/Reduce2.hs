@@ -18,18 +18,18 @@ tests =
   testGroup
     "Reduce2"
     [ testCase "an alias unfolds exactly once" $
-        run aliasEnv (var f binaryType) [] @?= Just (var g binaryType),
+        run aliasDefnEnv (var f binaryType) [] @?= Just (var g binaryType),
       testCase "a self-reference still counts as an unfold step" $
         run [(f, var f binaryType)] (var f binaryType) []
           @?= Just (var f binaryType),
       testCase "a fully applied definition repairs every leading lambda" $
-        run binaryEnv fullCall [0, 0] @?= Just (T.Tuple [var a intType, var b intType]),
+        run binaryDefnEnv fullCall [0, 0] @?= Just (T.Tuple [var a intType, var b intType]),
       testCase "a one-parameter definition consumes its single application" $
-        run unaryEnv unaryCall [0] @?= Just (var a intType),
+        run unaryDefnEnv unaryCall [0] @?= Just (var a intType),
       testCase "a partial application is not clickable" $
-        run binaryEnv partialCall [0] @?= Nothing,
+        run binaryDefnEnv partialCall [0] @?= Nothing,
       testCase "an argument cannot borrow its parent application" $
-        run binaryEnv argumentCall [1] @?= Nothing,
+        run binaryDefnEnv argumentCall [1] @?= Nothing,
       testCase "tuple projection reduces locally" $
         run [] (T.OutT 1 (T.Tuple [var a intType, var b intType])) []
           @?= Just (var b intType),
@@ -61,11 +61,11 @@ tests =
           []
           @?= Nothing,
       testCase "redex discovery and execution use the same judgement" $
-        reduciblePaths binaryEnv fullCall @?= [[0, 0]],
+        reduciblePaths binaryDefnEnv fullCall @?= [[0, 0]],
       testCase "clickability is independent of initial fresh-name state" $
         concatMap stateDependentPaths reductionCases @?= [],
       testCase "a lexical binder hides a same-named definition" $
-        run binaryEnv shadowed [2] @?= Nothing,
+        run binaryDefnEnv shadowed [2] @?= Nothing,
       testCase "unfolding through an ancestor binder avoids capture" $
         case run [(f, var i intType)] captureCandidate [2, 1] of
           Just (T.Quant _ [(binder, _)] _ (T.Tuple [bound, inserted]) _) -> do
@@ -102,20 +102,20 @@ tests =
       testCase "withPathChildren rebuilds every constructor unchanged" $
         filter (\e -> withPathChildren e (pathChildren e) /= e) everyConstructor @?= [],
       testCase "invalid paths are rejected" $
-        run binaryEnv fullCall [7] @?= Nothing
+        run binaryDefnEnv fullCall [7] @?= Nothing
     ]
 
-run :: Env -> T.Expr -> RedexPath -> Maybe T.Expr
-run env expression path =
-  evalState (tryReduceAt env expression path) initFreshState
+run :: DefnEnv -> T.Expr -> RedexPath -> Maybe T.Expr
+run defnEnv expression path =
+  evalState (tryReduceAt defnEnv expression path) initFreshState
 
 -- | Every result reachable by clicking something in @expression@, keeping only
 --   those that still contain a lambda.
-lambdasLeft :: (Env, T.Expr) -> [T.Expr]
-lambdasLeft (env, expression) =
+lambdasLeft :: (DefnEnv, T.Expr) -> [T.Expr]
+lambdasLeft (defnEnv, expression) =
   [ result
-  | path <- reduciblePaths env expression,
-    Just result <- [run env expression path],
+  | path <- reduciblePaths defnEnv expression,
+    Just result <- [run defnEnv expression path],
     hasLam result
   ]
 
@@ -123,12 +123,12 @@ hasLam :: T.Expr -> Bool
 hasLam T.Lam {} = True
 hasLam expression = any hasLam (pathChildren expression)
 
-stateDependentPaths :: (Env, T.Expr) -> [RedexPath]
-stateDependentPaths (env, expression) =
+stateDependentPaths :: (DefnEnv, T.Expr) -> [RedexPath]
+stateDependentPaths (defnEnv, expression) =
   [ path
   | path <- allPaths expression,
     varies
-      [ isJust (evalState (tryReduceAt env expression path) initialState)
+      [ isJust (evalState (tryReduceAt defnEnv expression path) initialState)
       | initialState <- [0, 1, 7, 1000 :: Int]
       ]
   ]
@@ -145,15 +145,15 @@ varies :: (Eq a) => [a] -> Bool
 varies [] = False
 varies (firstValue : rest) = any (/= firstValue) rest
 
-reductionCases :: [(Env, T.Expr)]
+reductionCases :: [(DefnEnv, T.Expr)]
 reductionCases =
-  [ (binaryEnv, fullCall),
-    (binaryEnv, partialCall),
-    (binaryEnv, argumentCall),
-    (binaryEnv, shadowed),
-    (unaryEnv, unaryCall),
-    (aliasEnv, var f binaryType),
-    (aliasEnv, T.App (var f binaryType) (var a intType) Nothing),
+  [ (binaryDefnEnv, fullCall),
+    (binaryDefnEnv, partialCall),
+    (binaryDefnEnv, argumentCall),
+    (binaryDefnEnv, shadowed),
+    (unaryDefnEnv, unaryCall),
+    (aliasDefnEnv, var f binaryType),
+    (aliasDefnEnv, T.App (var f binaryType) (var a intType) Nothing),
     ([(f, var i intType)], captureCandidate),
     ([(f, var x intType)], pendingSubst)
   ]
@@ -184,10 +184,10 @@ binaryDefinition :: T.Expr
 binaryDefinition =
   T.Lam x intType (T.Lam y intType (T.Tuple [var x intType, var y intType]) Nothing) Nothing
 
-unaryEnv, binaryEnv, aliasEnv :: Env
-unaryEnv = [(h, identity)]
-binaryEnv = [(g, binaryDefinition)]
-aliasEnv = [(f, var g binaryType), (g, binaryDefinition)]
+unaryDefnEnv, binaryDefnEnv, aliasDefnEnv :: DefnEnv
+unaryDefnEnv = [(h, identity)]
+binaryDefnEnv = [(g, binaryDefinition)]
+aliasDefnEnv = [(f, var g binaryType), (g, binaryDefinition)]
 
 unaryCall, partialCall, fullCall, argumentCall :: T.Expr
 unaryCall = T.App (var h unaryType) (var a intType) Nothing

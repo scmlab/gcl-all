@@ -4,7 +4,7 @@
 --
 -- == Invariants
 --
--- * Input 'Expr's and definition 'Env's have passed type checking.  Each
+-- * Input 'Expr's and 'DefnEnv' have passed type checking.  Each
 --   definition body has the same type as its references.
 --
 -- * Expressions passed to 'tryReduceAt' are lambda-free.
@@ -34,7 +34,7 @@
 -- presentation invariant was satisfied; it does not require the result to
 -- differ from the input.
 module Syntax.Typed.Reduce2
-  ( Env,
+  ( DefnEnv,
     RedexPath,
     RTree (..),
     RT,
@@ -63,8 +63,8 @@ import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Subst2 (substExpr)
 import Syntax.Typed.Types
 
--- | Definitions visible at a lexical position.
-type Env = [(Name, Expr)]
+-- | The definitions visible at a lexical position.
+type DefnEnv = [(Name, Expr)]
 
 -- | A path from the whole expression to the redex selected by the UI.
 type RedexPath = [Int]
@@ -87,14 +87,14 @@ type RT = RTree Bool
 -- clickable.
 --
 -- Reduction may allocate fresh names while avoiding variable capture.
-tryReduceAt :: (Fresh m) => Env -> Expr -> RedexPath -> m (Maybe Expr)
-tryReduceAt env whole path =
-  case focusAt env whole path of
+tryReduceAt :: (Fresh m) => DefnEnv -> Expr -> RedexPath -> m (Maybe Expr)
+tryReduceAt defnEnv whole path =
+  case focusAt defnEnv whole path of
     Nothing -> pure Nothing
-    Just (localEnv, selected) ->
+    Just (localDefnEnv, selected) ->
       case selected of
         Var name selectedType _ ->
-          case lookup name localEnv of
+          case lookup name localDefnEnv of
             Nothing -> pure Nothing
             Just body -> do
               unfolded <- unfoldAt whole path selectedType body
@@ -214,9 +214,9 @@ matchPattern (Tuple expressions) (PattTuple patterns)
   | otherwise = Refuted
 matchPattern Lit {} (PattTuple _) = Refuted
 matchPattern _ (PattTuple _) = Undecided
--- Constructor recognition needs constructor names in the environment.  Until
--- Env carries those separately, treating this as undecidable is sound: it
--- blocks the case instead of incorrectly falling through to a catch-all.
+-- Constructor recognition needs a separate constructor environment.  Until
+-- one is provided, treating this as undecidable is sound: it blocks the case
+-- instead of incorrectly falling through to a catch-all.
 matchPattern _ (PattConstructor _ _) = Undecided
 
 bothMatch :: Match -> Match -> Match
@@ -237,20 +237,20 @@ bothMatch (Matched left) (Matched right) = Matched (left <> right)
 -- allocation may change only a successful result, never whether 'tryReduceAt'
 -- returns 'Just' or 'Nothing'.  Every new reduction rule must preserve this
 -- invariant.
-redexRT :: Env -> Expr -> RT
-redexRT env whole = go [] whole
+redexRT :: DefnEnv -> Expr -> RT
+redexRT defnEnv whole = go [] whole
   where
     go path expression =
       Node
-        (isJust (evalState (tryReduceAt env whole path) initFreshState))
+        (isJust (evalState (tryReduceAt defnEnv whole path) initFreshState))
         ( zipWith
             (\index child -> go (path <> [index]) child)
             [0 ..]
             (pathChildren expression)
         )
 
-reduciblePaths :: Env -> Expr -> [RedexPath]
-reduciblePaths env expression = collect [] (redexRT env expression)
+reduciblePaths :: DefnEnv -> Expr -> [RedexPath]
+reduciblePaths defnEnv expression = collect [] (redexRT defnEnv expression)
   where
     collect path (Node reducible children) =
       [path | reducible]
@@ -259,13 +259,13 @@ reduciblePaths env expression = collect [] (redexRT env expression)
           | (index, child) <- zip [0 ..] children
           ]
 
--- | Safely locate a node and the definition environment visible at that node.
-focusAt :: Env -> Expr -> RedexPath -> Maybe (Env, Expr)
-focusAt env expression [] = Just (env, expression)
-focusAt env expression (index : rest) = do
+-- | Safely locate a node and the definitions visible at that node.
+focusAt :: DefnEnv -> Expr -> RedexPath -> Maybe (DefnEnv, Expr)
+focusAt defnEnv expression [] = Just (defnEnv, expression)
+focusAt defnEnv expression (index : rest) = do
   child <- atMay index (pathChildren expression)
   binders <- atMay index (childBinders expression)
-  focusAt (shadowDefinitions binders env) child rest
+  focusAt (shadowDefinitions binders defnEnv) child rest
 
 focus :: Expr -> RedexPath -> Maybe Expr
 focus expression [] = Just expression
@@ -283,7 +283,7 @@ setAt (index : rest) replacement expression = do
   where
     children = pathChildren expression
 
-shadowDefinitions :: [Name] -> Env -> Env
+shadowDefinitions :: [Name] -> DefnEnv -> DefnEnv
 shadowDefinitions binders =
   filter (\(name, _) -> name `notElem` binders)
 
