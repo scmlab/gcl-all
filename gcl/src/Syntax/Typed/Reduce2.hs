@@ -34,8 +34,7 @@
 -- from the UI.
 --
 -- A successful result means that the selected rule applied and the
--- presentation invariant was satisfied; it does not require the result to
--- differ from the input.
+-- presentation invariant was satisfied.
 module Syntax.Typed.Reduce2
   ( DefnEnv,
     RedexPath,
@@ -101,6 +100,8 @@ type RT = RTree Bool
 --
 -- Failure includes an invalid path, no applicable reduction rule, or a
 -- leading lambda that cannot be fully consumed by enclosing applications.
+-- A rule that fires is a success; no progress check is made, so the result
+-- may equal @whole@.
 --
 -- Reduction may allocate fresh names while avoiding variable capture.
 tryReduceAt :: (Fresh m) => DefnEnv -> Expr -> RedexPath -> m (Maybe Expr)
