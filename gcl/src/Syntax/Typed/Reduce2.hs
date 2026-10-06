@@ -230,6 +230,17 @@ selectCase scrutinee (CaseClause pattern' body : clauses) =
     Refuted -> selectCase scrutinee clauses
     Undecided -> pure Nothing
 
+-- | The outcome of matching one pattern against one expression.
+--
+-- Deliberately three-valued: "does not match" and "cannot determine yet" must
+-- remain distinct.  Given a symbolic @x@:
+--
+-- > case x of
+-- >   0 -> a
+-- >   _ -> b
+--
+-- the first pattern is 'Undecided'.  Treating it as 'Refuted' would incorrectly
+-- select @b@ through the wildcard without knowing whether @x@ is @0@.
 data Match
   = Matched [(Text, Expr)]
   | Refuted
