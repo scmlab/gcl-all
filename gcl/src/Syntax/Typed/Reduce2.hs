@@ -126,7 +126,7 @@ tryReduceAt defnEnv whole path =
 -- | Replace the selected definition reference without capturing free names
 -- from its body in binders above the selected path.
 --
--- A fresh placeholder is installed at the path, then ordinary
+-- A fresh placeholder variable is installed at the path, then ordinary
 -- capture-avoiding substitution replaces that placeholder in the whole
 -- expression.  Because the placeholder occurs exactly once, only binders
 -- whose scope contains the selected occurrence can be renamed.
@@ -137,15 +137,15 @@ tryReduceAt defnEnv whole path =
 -- the first invariant says has the same type anyway.
 unfoldAt :: (Fresh m) => Expr -> RedexPath -> Type -> Expr -> m (Maybe Expr)
 unfoldAt whole path selectedType body = do
-  placeholder <- freshPlaceholder (allNames whole <> allNames body)
-  let placeholderExpr = Var placeholder selectedType Nothing
-  case setAt path placeholderExpr whole of
+  placeholderName <- freshPlaceholderName (allNames whole <> allNames body)
+  let placeholder = Var placeholderName selectedType Nothing
+  case setAt path placeholder whole of
     Nothing -> pure Nothing
     Just holed ->
-      Just <$> substExpr [(nameToText placeholder, body)] holed
+      Just <$> substExpr [(nameToText placeholderName, body)] holed
 
-freshPlaceholder :: (Fresh m) => Set Text -> m Name
-freshPlaceholder forbidden = go "reduce2"
+freshPlaceholderName :: (Fresh m) => Set Text -> m Name
+freshPlaceholderName forbidden = go "reduce2"
   where
     go prefix = do
       candidate <- freshPre prefix
@@ -430,7 +430,7 @@ unsnoc [] = Nothing
 unsnoc [value] = Just ([], value)
 unsnoc (value : rest) = first (value :) <$> unsnoc rest
 
--- | All term and binder names, used to keep the unfold placeholder fresh.
+-- | All term and binder names, used to keep the unfold placeholder name fresh.
 allNames :: Expr -> Set Text
 allNames Lit {} = mempty
 allNames (Var name _ _) = Set.singleton (nameToText name)
