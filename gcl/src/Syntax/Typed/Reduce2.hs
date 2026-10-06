@@ -160,11 +160,20 @@ freshPlaceholderName forbidden = go "reduce2"
 
 -- | Repair a leading lambda exposed at @currentPath@.
 --
--- The 'App' nodes are already there: @g a b@ consists of two nested
--- applications before any reduction.  Neither is a beta-redex while the
--- application spine is headed by a 'Var'.  Unfolding supplies the missing
--- 'Lam', and each repair consumes one of those applications, which were in
--- place all along.
+-- For example, before reduction @f a b@ already consists of two nested
+-- applications:
+--
+-- >         App
+-- >        /   \
+-- >      App    b
+-- >     /   \
+-- >  Var f   a
+--
+-- If the selected @Var f@ unfolds to @Lam x (Lam y body)@, the first 'Lam'
+-- appears in the inner 'App's function position.  Repair beta-reduces that
+-- application with @a@, exposing the next 'Lam' in the outer 'App's function
+-- position, which can then beta-reduce with @b@.  Each repair therefore
+-- consumes an 'App' node that was already present in the original tree.
 --
 -- Repair can only move upward through an 'App' whose function child is the
 -- current lambda.  Every successful repair shortens the path, so this process
@@ -176,20 +185,16 @@ ensureNoLeadingLam whole currentPath =
     Just Lam {} ->
       case unsnoc currentPath of
         Just (parentPath, 0) ->
+          -- 0 is an 'App's function child
           case focus whole parentPath of
-            Just parent@(App (Lam {}) _ _) -> do
-              stepped <- betaStep parent
-              case stepped >>= \parent' -> setAt parentPath parent' whole of
+            Just (App (Lam binder _ body _) argument _) -> do
+              reduced <- substExpr [(nameToText binder, argument)] body -- beta
+              case setAt parentPath reduced whole of
                 Just whole' -> ensureNoLeadingLam whole' parentPath
                 Nothing -> pure Nothing
             _ -> pure Nothing
         _ -> pure Nothing
     Just _ -> pure (Just whole)
-
-betaStep :: (Fresh m) => Expr -> m (Maybe Expr)
-betaStep (App (Lam binder _ body _) argument _) =
-  Just <$> substExpr [(nameToText binder, argument)] body
-betaStep _ = pure Nothing
 
 -- | The rules that rewrite a node using only what its own subtree already
 -- holds.  Each one moves or copies material that is in place, so it needs
@@ -205,8 +210,8 @@ betaStep _ = pure Nothing
 --    'unfoldAt'.
 --
 -- 2. Beta would be local enough, but its pattern needs a 'Lam' in the input,
---    which the second invariant forbids.  The only betas performed are the
---    ones 'ensureNoLeadingLam' drives through 'betaStep'.
+--    which the second invariant forbids.  The only betas are the ones
+--    'ensureNoLeadingLam' performs while consuming applications.
 localStep :: (Fresh m) => Expr -> m (Maybe Expr)
 localStep (OutT index (Tuple elements)) = pure (atMay index elements)
 localStep (Case scrutinee clauses _) = firstMatch scrutinee clauses
