@@ -2,6 +2,9 @@
 
 -- | One-step expression reduction with lambda repair.
 --
+-- The UI marks the reducible spots in a proof obligation's predicate;
+-- clicking one replaces the predicate with the reduced form.
+--
 -- == Invariants
 --
 -- * Input 'Expr's and 'DefnEnv' have passed type checking.  Each
@@ -123,26 +126,26 @@ tryReduceAt defnEnv whole path =
 -- | Replace the selected definition reference without capturing free names
 -- from its body in binders above the selected path.
 --
--- A fresh marker is installed at the path, then ordinary capture-avoiding
--- substitution replaces that marker in the whole expression.  Because the
--- marker occurs exactly once, only binders whose scope contains the selected
--- occurrence can be renamed.
+-- A fresh placeholder is installed at the path, then ordinary
+-- capture-avoiding substitution replaces that placeholder in the whole
+-- expression.  Because the placeholder occurs exactly once, only binders
+-- whose scope contains the selected occurrence can be renamed.
 --
--- The marker carries the selected occurrence's type, so the intermediate
--- expression stays well-typed.  Substitution matches the marker by name and
--- never reads that type; it is not worth recomputing from the body, which the
--- first invariant says has the same type anyway.
+-- The placeholder carries the selected occurrence's type, so the intermediate
+-- expression stays well-typed.  Substitution matches the placeholder by name
+-- and never reads that type; it is not worth recomputing from the body, which
+-- the first invariant says has the same type anyway.
 unfoldAt :: (Fresh m) => Expr -> RedexPath -> Type -> Expr -> m (Maybe Expr)
 unfoldAt whole path selectedType body = do
-  marker <- freshMarker (allNames whole <> allNames body)
-  let markerExpr = Var marker selectedType Nothing
-  case setAt path markerExpr whole of
+  placeholder <- freshPlaceholder (allNames whole <> allNames body)
+  let placeholderExpr = Var placeholder selectedType Nothing
+  case setAt path placeholderExpr whole of
     Nothing -> pure Nothing
     Just holed ->
-      Just <$> substExpr [(nameToText marker, body)] holed
+      Just <$> substExpr [(nameToText placeholder, body)] holed
 
-freshMarker :: (Fresh m) => Set Text -> m Name
-freshMarker forbidden = go "reduce2"
+freshPlaceholder :: (Fresh m) => Set Text -> m Name
+freshPlaceholder forbidden = go "reduce2"
   where
     go prefix = do
       candidate <- freshPre prefix
@@ -251,6 +254,12 @@ bothMatch (Matched left) (Matched right) = Matched (left <> right)
 
 -- | Mark every path for which 'tryReduceAt' succeeds.  Marking and execution
 -- therefore share the same judgement rather than duplicating can-reduce rules.
+--
+-- Clickability is decided by trying the reduction and requiring a
+-- lambda-free result, not by asking whether the result's type is a function.
+-- Those are different questions.  @id inc@ supplies @id@'s only parameter, so
+-- no lambda remains, yet the result is function-typed; a type test refuses a
+-- reduction whose result, @inc@, is lambda-free and fine to display.
 --
 -- Every probe runs in its own fresh-name state, which is discarded with the
 -- candidate result.  Marking therefore cannot affect the names chosen by a
@@ -421,7 +430,7 @@ unsnoc [] = Nothing
 unsnoc [value] = Just ([], value)
 unsnoc (value : rest) = first (value :) <$> unsnoc rest
 
--- | All term and binder names, used to keep the temporary unfold marker fresh.
+-- | All term and binder names, used to keep the unfold placeholder fresh.
 allNames :: Expr -> Set Text
 allNames Lit {} = mempty
 allNames (Var name _ _) = Set.singleton (nameToText name)
