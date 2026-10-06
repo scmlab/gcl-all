@@ -196,22 +196,22 @@ ensureNoLeadingLam whole currentPath =
         _ -> pure Nothing
     Just _ -> pure (Just whole)
 
--- | The rules that rewrite a node using only what its own subtree already
--- holds.  Each one moves or copies material that is in place, so it needs
--- neither the environment nor the ancestors, and on a lambda-free input it
--- cannot produce a 'Lam'.  Splicing the result back with 'setAt' is therefore
--- safe on its own.
+-- | Rules that rewrite a node using only its own subtree.  They need neither
+-- 'DefnEnv' nor ancestor context.  They introduce no expression structure from
+-- outside the subtree, so on a lambda-free input they cannot produce a 'Lam'.
+-- Their results can therefore be spliced back with 'setAt' without lambda
+-- repair.
 --
--- Two rules are absent, for different reasons:
+-- Unfolding and beta reduction are handled outside 'localStep':
 --
--- 1. Unfolding a 'Var' breaks both properties: it brings in a definition body
---    from outside the tree, so it needs capture avoidance through the
---    ancestors, and it can expose a 'Lam'.  'tryReduceAt' owns it, via
---    'unfoldAt'.
+-- 1. Unfolding a 'Var' is not subtree-local: it looks up a definition body in
+--    'DefnEnv', must avoid capture through ancestors, and can expose a 'Lam'.
+--    'tryReduceAt' handles it via 'unfoldAt'.
 --
--- 2. Beta would be local enough, but its pattern needs a 'Lam' in the input,
---    which the second invariant forbids.  The only betas are the ones
---    'ensureNoLeadingLam' performs while consuming applications.
+-- 2. Beta reduction is used only for repair.  Although it is subtree-local, a
+--    beta-redex contains a 'Lam', so the lambda-free input invariant prevents
+--    one from appearing in an input to 'tryReduceAt'.  'ensureNoLeadingLam'
+--    performs beta reduction only after unfolding exposes such a redex.
 localStep :: (Fresh m) => Expr -> m (Maybe Expr)
 localStep (OutT index (Tuple elements)) = pure (atMay index elements)
 localStep (Case scrutinee clauses _) = firstMatch scrutinee clauses
