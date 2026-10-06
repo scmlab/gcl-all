@@ -214,20 +214,20 @@ ensureNoLeadingLam whole currentPath =
 --    performs beta reduction only after unfolding exposes such a redex.
 localStep :: (Fresh m) => Expr -> m (Maybe Expr)
 localStep (OutT index (Tuple elements)) = pure (atMay index elements)
-localStep (Case scrutinee clauses _) = firstMatch scrutinee clauses
+localStep (Case scrutinee clauses _) = selectCase scrutinee clauses
 localStep (Subst subject assignments) =
   Just <$> substExpr (map (first nameToText) assignments) subject
 localStep _ = pure Nothing
 
--- | The first definitely matching clause.  A refuted clause may be skipped;
--- an undecidable one blocks later clauses because case alternatives are
--- ordered.
-firstMatch :: (Fresh m) => Expr -> [CaseClause] -> m (Maybe Expr)
-firstMatch _ [] = pure Nothing
-firstMatch scrutinee (CaseClause pattern' body : clauses) =
+-- | The body of the first definitely matching clause, with its pattern
+-- binders substituted.  A refuted clause may be skipped; an undecidable one
+-- blocks later clauses because case alternatives are ordered.
+selectCase :: (Fresh m) => Expr -> [CaseClause] -> m (Maybe Expr)
+selectCase _ [] = pure Nothing
+selectCase scrutinee (CaseClause pattern' body : clauses) =
   case matchPattern scrutinee pattern' of
     Matched assignments -> Just <$> substExpr assignments body
-    Refuted -> firstMatch scrutinee clauses
+    Refuted -> selectCase scrutinee clauses
     Undecided -> pure Nothing
 
 data Match
