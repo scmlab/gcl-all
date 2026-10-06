@@ -109,6 +109,16 @@ run :: DefnEnv -> T.Expr -> RedexPath -> Maybe T.Expr
 run defnEnv expression path =
   evalState (tryReduceAt defnEnv expression path) initFreshState
 
+reduciblePaths :: DefnEnv -> T.Expr -> [RedexPath]
+reduciblePaths defnEnv expression = collect [] (redexRT defnEnv expression)
+  where
+    collect path (Node reducible children) =
+      [path | reducible]
+        <> concat
+          [ collect (path <> [index]) child
+          | (index, child) <- zip [0 ..] children
+          ]
+
 -- | Every result reachable by clicking something in @expression@, keeping only
 --   those that still contain a lambda.
 lambdasLeft :: (DefnEnv, T.Expr) -> [T.Expr]

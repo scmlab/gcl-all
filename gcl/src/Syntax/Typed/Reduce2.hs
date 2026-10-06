@@ -45,7 +45,6 @@ module Syntax.Typed.Reduce2
     localStep,
     matchPattern,
     redexRT,
-    reduciblePaths,
     pathChildren,
     childBinders,
     withPathChildren,
@@ -301,16 +300,6 @@ redexRT defnEnv whole = go [] whole
             [0 ..]
             (pathChildren expression)
         )
-
-reduciblePaths :: DefnEnv -> Expr -> [RedexPath]
-reduciblePaths defnEnv expression = collect [] (redexRT defnEnv expression)
-  where
-    collect path (Node reducible children) =
-      [path | reducible]
-        <> concat
-          [ collect (path <> [index]) child
-          | (index, child) <- zip [0 ..] children
-          ]
 
 -- | Safely locate a node and the definitions visible at that node.
 focusAt :: DefnEnv -> Expr -> RedexPath -> Maybe (DefnEnv, Expr)
