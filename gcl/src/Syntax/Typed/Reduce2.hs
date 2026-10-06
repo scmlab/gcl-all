@@ -128,8 +128,12 @@ tryReduceAt defnEnv whole path =
 --
 -- A fresh placeholder variable is installed at the path, then ordinary
 -- capture-avoiding substitution replaces that placeholder in the whole
--- expression.  Because the placeholder occurs exactly once, only binders
--- whose scope contains the selected occurrence can be renamed.
+-- expression.  Because the placeholder occurs exactly once in this
+-- intermediate expression, only binders whose scope contains the selected
+-- occurrence can be renamed.
+--
+-- The placeholder name only needs to be fresh for @whole@: 'substExpr'
+-- inserts @body@ as-is and does not traverse replacements.
 --
 -- The placeholder carries the selected occurrence's type, so the intermediate
 -- expression stays well-typed.  Substitution matches the placeholder by name
@@ -137,7 +141,7 @@ tryReduceAt defnEnv whole path =
 -- the first invariant says has the same type anyway.
 unfoldAt :: (Fresh m) => Expr -> RedexPath -> Type -> Expr -> m (Maybe Expr)
 unfoldAt whole path selectedType body = do
-  placeholderName <- freshPlaceholderName (allNames whole <> allNames body)
+  placeholderName <- freshPlaceholderName (allNames whole)
   let placeholder = Var placeholderName selectedType Nothing
   case setAt path placeholder whole of
     Nothing -> pure Nothing
