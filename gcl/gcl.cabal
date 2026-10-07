@@ -134,7 +134,7 @@ library
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       aeson
-    , base >=4.7 && <5
+    , base >=4.19 && <5
     , bytestring
     , containers
     , deepseq
@@ -164,7 +164,7 @@ executable gcl
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       aeson
-    , base >=4.7 && <5
+    , base >=4.19 && <5
     , bytestring
     , containers
     , deepseq
@@ -206,7 +206,7 @@ test-suite gcl-test
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       aeson
-    , base >=4.7 && <5
+    , base >=4.19 && <5
     , bytestring
     , containers
     , deepseq

@@ -53,6 +53,7 @@ where
 
 import Control.Monad.State (evalState)
 import Data.Bifunctor (first)
+import Data.List (unsnoc, (!?))
 import Data.Maybe (isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -212,7 +213,7 @@ ensureNoLeadingLam whole currentPath =
 --    one from appearing in an input to 'tryReduceAt'.  'ensureNoLeadingLam'
 --    performs beta reduction only after unfolding exposes such a redex.
 localStep :: (Fresh m) => Expr -> m (Maybe Expr)
-localStep (OutT index (Tuple elements)) = pure (atMay index elements)
+localStep (OutT index (Tuple elements)) = pure (elements !? index)
 localStep (Case scrutinee clauses _) = selectCase scrutinee clauses
 localStep (Subst subject assignments) =
   Just <$> substExpr (map (first nameToText) assignments) subject
@@ -305,20 +306,20 @@ redexRT defnEnv whole = go [] whole
 focusAt :: DefnEnv -> Expr -> RedexPath -> Maybe (DefnEnv, Expr)
 focusAt defnEnv expression [] = Just (defnEnv, expression)
 focusAt defnEnv expression (index : rest) = do
-  child <- atMay index (pathChildren expression)
-  binders <- atMay index (childBinders expression)
+  child <- pathChildren expression !? index
+  binders <- childBinders expression !? index
   focusAt (shadowDefinitions binders defnEnv) child rest
 
 focus :: Expr -> RedexPath -> Maybe Expr
 focus expression [] = Just expression
 focus expression (index : rest) = do
-  child <- atMay index (pathChildren expression)
+  child <- pathChildren expression !? index
   focus child rest
 
 setAt :: RedexPath -> Expr -> Expr -> Maybe Expr
 setAt [] replacement _ = Just replacement
 setAt (index : rest) replacement expression = do
-  child <- atMay index children
+  child <- children !? index
   child' <- setAt rest replacement child
   children' <- replaceAt index child' children
   pure (withPathChildren expression children')
@@ -422,23 +423,12 @@ withChainExprs chain expressions
       More (go chain' rest) operator t expression
     go _ _ = error "withChainExprs: chainExprs and rebuild disagree"
 
-atMay :: Int -> [a] -> Maybe a
-atMay index _ | index < 0 = Nothing
-atMay _ [] = Nothing
-atMay 0 (value : _) = Just value
-atMay index (_ : rest) = atMay (index - 1) rest
-
 replaceAt :: Int -> a -> [a] -> Maybe [a]
 replaceAt index _ _ | index < 0 = Nothing
 replaceAt _ _ [] = Nothing
 replaceAt 0 replacement (_ : rest) = Just (replacement : rest)
 replaceAt index replacement (value : rest) =
   (value :) <$> replaceAt (index - 1) replacement rest
-
-unsnoc :: [a] -> Maybe ([a], a)
-unsnoc [] = Nothing
-unsnoc [value] = Just ([], value)
-unsnoc (value : rest) = first (value :) <$> unsnoc rest
 
 -- | All term and binder names, used to keep the unfold placeholder name fresh.
 allNames :: Expr -> Set Text
