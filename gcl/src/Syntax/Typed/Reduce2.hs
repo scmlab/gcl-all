@@ -62,7 +62,7 @@ import qualified Data.Text as Text
 import GCL.Common (Fresh (..), initFreshState)
 import Syntax.Abstract.Types (Pattern (..), Type, extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
-import Syntax.Typed.Subst2 (substExpr)
+import Syntax.Typed.Subst2 (allNames, substExpr)
 import Syntax.Typed.Types
 
 -- | The definitions visible at a lexical position.
@@ -429,39 +429,3 @@ replaceAt _ _ [] = Nothing
 replaceAt 0 replacement (_ : rest) = Just (replacement : rest)
 replaceAt index replacement (value : rest) =
   (value :) <$> replaceAt (index - 1) replacement rest
-
--- | All term and binder names, used to keep the unfold placeholder name fresh.
-allNames :: Expr -> Set Text
-allNames Lit {} = mempty
-allNames (Var name _ _) = Set.singleton (nameToText name)
-allNames (Const name _ _) = Set.singleton (nameToText name)
-allNames Op {} = mempty
-allNames (Chain chain) = allNamesChain chain
-allNames (App function argument _) = allNames function <> allNames argument
-allNames (Lam binder _ body _) = Set.insert (nameToText binder) (allNames body)
-allNames (Tuple expressions) = foldMap allNames expressions
-allNames (OutT _ expression) = allNames expression
-allNames (Quant operator binders range body _) =
-  allNames operator
-    <> Set.fromList (map (nameToText . fst) binders)
-    <> allNames range
-    <> allNames body
-allNames (ArrIdx array index _) = allNames array <> allNames index
-allNames (ArrUpd array index value _) =
-  allNames array <> allNames index <> allNames value
-allNames (Case scrutinee clauses _) =
-  allNames scrutinee <> foldMap allNamesClause clauses
-allNames (Subst body assignments) =
-  allNames body
-    <> Set.fromList (map (nameToText . fst) assignments)
-    <> foldMap (allNames . snd) assignments
-allNames EHole {} = mempty
-
-allNamesChain :: Chain -> Set Text
-allNamesChain (Pure expression) = allNames expression
-allNamesChain (More chain _ _ expression) =
-  allNamesChain chain <> allNames expression
-
-allNamesClause :: CaseClause -> Set Text
-allNamesClause (CaseClause pattern' body) =
-  Set.fromList (map nameToText (extractBinder pattern')) <> allNames body

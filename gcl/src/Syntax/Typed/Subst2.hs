@@ -113,7 +113,7 @@
 --
 -- Renaming preserves each occurrence's type and source range; a replacement
 -- brings its own metadata.
-module Syntax.Typed.Subst2 (substExpr, renameFree) where
+module Syntax.Typed.Subst2 (substExpr, renameFree, allNames) where
 
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
