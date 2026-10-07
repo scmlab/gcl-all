@@ -56,10 +56,8 @@ import Data.Bifunctor (first)
 import Data.List (unsnoc, (!?))
 import Data.Maybe (isJust)
 import Data.Set (Set)
-import qualified Data.Set as Set
 import Data.Text (Text)
-import qualified Data.Text as Text
-import GCL.Common (Fresh (..), initFreshState)
+import GCL.Common (Fresh, freshAvoiding, initFreshState)
 import Syntax.Abstract.Types (Pattern (..), Type, extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Subst2 (allNames, substExpr)
@@ -150,13 +148,8 @@ unfoldAt whole path selectedType body = do
       Just <$> substExpr [(nameToText placeholderName, body)] holed
 
 freshPlaceholderName :: (Fresh m) => Set Text -> m Name
-freshPlaceholderName forbidden = go "reduce2"
-  where
-    go prefix = do
-      candidate <- freshPre prefix
-      if Set.member candidate forbidden
-        then go (Text.snoc prefix '\'')
-        else pure (Name candidate Nothing)
+freshPlaceholderName forbidden =
+  Name <$> freshAvoiding forbidden "reduce2" <*> pure Nothing
 
 -- | Repair a leading lambda exposed at @currentPath@.
 --
