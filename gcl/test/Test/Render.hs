@@ -3,16 +3,22 @@
 module Test.Render where
 
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Pretty
   ( docToText,
     toText,
   )
 import Prettyprinter (Pretty, pretty)
+import Render.Element (inlinesToHtml)
+import Render.Syntax.Typed (renderExprRZ, renderPOPredRZ)
+import Server.Reduce (evalReduce)
 import qualified Syntax.Abstract as A
+import qualified Syntax.Common.Types as Common
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as AT
 import Syntax.Parser (Parser)
 import qualified Syntax.Parser as Parser
+import qualified Syntax.Typed.Types as T
 import Test.Tasty
   ( TestTree,
     testGroup,
@@ -20,6 +26,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
   ( Assertion,
     testCase,
+    (@?),
     (@?=),
   )
 import Test.Util
@@ -30,7 +37,8 @@ tests :: TestTree
 tests =
   testGroup
     "Render"
-    [ expression
+    [ expression,
+      redexAnnotations
     ]
 
 --------------------------------------------------------------------------------
@@ -63,6 +71,63 @@ expression =
     run :: Text -> Assertion
     run e = prettyae e @?= e
     prettyae = docToText . pretty . ae . ce
+
+--------------------------------------------------------------------------------
+
+redexAnnotations :: TestTree
+redexAnnotations =
+  testGroup
+    "Redex annotations"
+    [ testCase "a definition reference carries the Reduce2 path" $
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"0\">f</span>"
+          (inlinesToHtml (renderExprRZ [(f, identity)] call))
+          @? "the function Var should be marked, rather than its enclosing App",
+      testCase "the server accepts the path emitted by the renderer" $
+        evalReduce [(f, identity)] call [0] @?= Just (T.Var a intType Nothing),
+      testCase "a Chain maps its leftmost expression to the last child" $
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"2\">f</span>"
+          (inlinesToHtml (renderExprRZ [(f, T.Var x intType Nothing)] chain))
+          @? "the marker should follow Chain's rightmost-first child order",
+      testCase "a top-level implication keeps its nested App path" $
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"0,1\">p</span>"
+          (inlinesToHtml (renderPOPredRZ [(p, truth)] implication))
+          @? "the implication's left operand should retain path [0,1]"
+    ]
+  where
+    f = Common.Name "f" Nothing
+    x = Common.Name "x" Nothing
+    a = Common.Name "a" Nothing
+    b = Common.Name "b" Nothing
+    p = Common.Name "p" Nothing
+    q = Common.Name "q" Nothing
+    intType = A.TBase A.TInt Nothing
+    boolType = A.TBase A.TBool Nothing
+    unaryType = A.mkArrowType intType intType
+    binaryBoolType = A.mkArrowType boolType (A.mkArrowType boolType boolType)
+    identity = T.Lam x intType (T.Var x intType Nothing) Nothing
+    call = T.App (T.Var f unaryType Nothing) (T.Var a intType Nothing) Nothing
+    chain =
+      T.Chain
+        ( T.More
+            ( T.More
+                (T.Pure (T.Var f intType Nothing))
+                (Common.ChainOp (Common.LT Nothing))
+                intType
+                (T.Var a intType Nothing)
+            )
+            (Common.ChainOp (Common.LT Nothing))
+            intType
+            (T.Var b intType Nothing)
+        )
+    truth = T.Lit (A.Bol True) boolType Nothing
+    implication =
+      T.App
+        (T.App (T.Op (Common.ArithOp (Common.ImpliesU Nothing)) binaryBoolType) (T.Var p boolType Nothing) Nothing)
+        (T.Var q boolType Nothing)
+        Nothing
 
 --------------------------------------------------------------------------------
 

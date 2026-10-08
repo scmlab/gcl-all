@@ -40,7 +40,7 @@ import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
-import Syntax.Typed.Reduce (Env)
+import Syntax.Typed.Reduce2 (DefnEnv)
 
 -- | Client-facing payload for gcl/update notification.
 -- Produced by the server after trimming internal fields (semantic tokens,
@@ -139,11 +139,11 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
     }
 
 -- | Convert server-side PO to client-side ProofObligation
-convertPO :: Env -> Int -> GCL.PO -> ProofObligation
-convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO :: DefnEnv -> Int -> GCL.PO -> ProofObligation
+convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
-    { pred = renderPredHtml env poIndex poPred,
-      reducedPred = renderPredHtml env poIndex poReducedPred,
+    { pred = renderPredHtml defnEnv poIndex poPred,
+      reducedPred = renderPredHtml defnEnv poIndex poReducedPred,
       strippedPred = poStrippedPred,
       proofExists = poProofExists,
       proofLocation = fmap toLSPRange poAnchorRange,
@@ -153,12 +153,12 @@ convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
 -- The wrapper carries data-po (PO index) so a clicked redex can be traced back
 -- to its PO; redex nodes carry data-redex (the path within this Expr).
-renderPredHtml :: Env -> Int -> GCL.Pred -> Text.Text
-renderPredHtml env poIndex e =
+renderPredHtml :: DefnEnv -> Int -> GCL.Pred -> Text.Text
+renderPredHtml defnEnv poIndex e =
   "<span class=\"gcl-expr\" data-po=\""
     <> Text.pack (show poIndex)
     <> "\">"
-    <> inlinesToHtml (renderPOPredRZ env e)
+    <> inlinesToHtml (renderPOPredRZ defnEnv e)
     <> "</span>"
 
 -- | Convert server-side Origin to client-side POOrigin
