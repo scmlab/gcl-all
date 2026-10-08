@@ -2,13 +2,21 @@
 
 module Test.Reduce2 (tests) where
 
-import Control.Monad.State (evalState)
+import Control.Monad.State (State, evalState, state)
 import Data.Maybe (isJust)
+import qualified Data.Set as Set
+import Data.Text (Text)
+import qualified Data.Text as Text
 import GCL.Common (initFreshState)
+import GCL.Predicate (PO (..))
 import GCL.Range (Range, mkPos, mkRange)
+import Pretty (toText)
+import Server.FileState (FileState (..))
+import Server.Load (loadAndDig)
 import qualified Syntax.Abstract.Types as A
-import Syntax.Common.Types (ArithOp (..), Name (..), Op (..))
+import Syntax.Common.Types (ArithOp (..), Name (..), Op (..), nameToText)
 import Syntax.Typed.Reduce2
+import Syntax.Typed.Subst2 (renameFree)
 import qualified Syntax.Typed.Types as T
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
@@ -73,21 +81,23 @@ tests =
             bound @?= var binder intType
             inserted @?= var i intType
           result -> assertFailure ("unexpected result: " <> show result),
-      -- A substitution table binds its domain over the subject, so an
-      -- occurrence there is already spoken for: it is on its way to being
-      -- replaced by the table, not a reference to a global definition.
+      -- (x, f)[x \ a]      with a definition also named x
+      --
+      -- The x in the subject is the variable the table replaces, not a
+      -- reference to the definition, so it is not clickable.
       testCase "a substitution table hides a same-named definition" $
         run [(x, var a intType)] pendingSubst [0, 0] @?= Nothing,
-      -- The same scope, seen from the other side: a definition unfolded under
-      -- the table must not be captured by it, so the table's binder is the one
-      -- that moves.
-      testCase "unfolding under a substitution table avoids capture" $
-        case run [(f, var x intType)] pendingSubst [0, 1] of
-          Just (T.Subst (T.Tuple [bound, inserted]) [(binder, _)]) -> do
-            binder /= x @? "the table binder must be renamed"
-            bound @?= var binder intType
-            inserted @?= var x intType
-          result -> assertFailure ("unexpected result: " <> show result),
+      -- f = x, where x is the global the table replaces.
+      --
+      -- (x, f)[x \ a]
+      --   = (x, x)[x \ a]      the table captures the unfolded x
+      --   = (a, a)
+      --
+      -- A table is not a lexical binder: it names the program variable the
+      -- assignment updates, which is the same x a definition body refers to.
+      testCase "unfolding under a substitution table lets the table capture" $
+        run [(f, var x intType)] pendingSubst [0, 1]
+          @?= Just (T.Subst (T.Tuple [var x intType, var x intType]) [(x, var a intType)]),
       -- Reduce2 inspects only the root of its moving focus for a lambda, which
       -- is sound because a definition body is itself lambda-free.  This pins
       -- that premise rather than any one code path: it fails as soon as a
@@ -102,8 +112,433 @@ tests =
       testCase "withPathChildren rebuilds every constructor unchanged" $
         filter (\e -> withPathChildren e (pathChildren e) /= e) everyConstructor @?= [],
       testCase "invalid paths are rejected" $
-        run binaryDefnEnv fullCall [7] @?= Nothing
+        run binaryDefnEnv fullCall [7] @?= Nothing,
+      substitutionReachesDefinitionBodies,
+      bindersStillAvoidCapture
     ]
+
+-- | Each case is a whole GCL program with one proof obligation.  'answers'
+--   clicks every redex in every order, so a single expected answer also
+--   asserts that the click order does not matter.
+--
+--   An assignment @v := e@ leaves @Q[v \ e]@ in the obligation.  A definition
+--   body's free names are the program's globals, so the pending substitution
+--   must reach them once the definition is unfolded.
+substitutionReachesDefinitionBodies :: TestTree
+substitutionReachesDefinitionBodies =
+  testGroup
+    "a substitution reaches the globals inside a definition body"
+    [ -- (Inv B)[d \ 5]
+      --   = (d + x < B)[d \ 5]
+      --   = 5 + x < B
+      testCase "a single assignment" $
+        answers
+          [ "var d, x : Int",
+            "con B : Int",
+            "{:",
+            "  Inv t = d + x < t",
+            ":}",
+            "{ True }",
+            "d := 5",
+            "{ Inv B }"
+          ]
+          @?= ["True ⇒ 5 + x < B"],
+      -- Issue 179.
+      --
+      -- (True ∧ Inv B)[r \ r + 1]
+      --   = (True ∧ A ≤ r < B)[r \ r + 1]
+      --   = True ∧ A ≤ r + 1 < B
+      testCase "issue 179" $
+        answers
+          [ "con A, B : Int",
+            "var r : Int",
+            "{:",
+            "  Inv t = A ≤ r < t",
+            ":}",
+            "{ True }",
+            "r := r + 1",
+            "{ True ∧ Inv B }"
+          ]
+          @?= ["True ⇒ True ∧ A ≤ r + 1 < B"],
+      -- K[x \ x + 1]
+      --   = (x > 0)[x \ x + 1]
+      --   = x + 1 > 0
+      testCase "a definition without parameters" $
+        answers
+          [ "var x : Int",
+            "{:",
+            "  K = x > 0",
+            ":}",
+            "{ True }",
+            "x := x + 1",
+            "{ K }"
+          ]
+          @?= ["True ⇒ x + 1 > 0"],
+      -- (F 42)[x \ x + 1]
+      --   = (G 42)[x \ x + 1]
+      --   = (x < 42)[x \ x + 1]
+      --   = x + 1 < 42
+      testCase "an alias of a definition" $
+        answers
+          [ "var x : Int",
+            "{:",
+            "  F = G",
+            "  G t = x < t",
+            ":}",
+            "{ True }",
+            "x := x + 1",
+            "{ F 42 }"
+          ]
+          @?= ["True ⇒ x + 1 < 42"],
+      -- F's parameter x is local; G's x is the global.
+      --
+      -- (F B)[x \ 1]
+      --   = (G B)[x \ 1]
+      --   = (x < B)[x \ 1]
+      --   = 1 < B
+      testCase "a wrapper whose parameter shares the global's name" $
+        answers
+          [ "var x : Int",
+            "con B : Int",
+            "{:",
+            "  F x = G x",
+            "  G t = x < t",
+            ":}",
+            "{ True }",
+            "x := 1",
+            "{ F B }"
+          ]
+          @?= ["True ⇒ 1 < B"],
+      -- ((Inv y)[y \ x])[x \ x + 1]
+      --   = ((x < y)[y \ x])[x \ x + 1]
+      --   = (x < x)[x \ x + 1]
+      --   = x + 1 < x + 1
+      testCase "two sequential assignments" $
+        answers
+          [ "var x, y : Int",
+            "{:",
+            "  Inv t = x < t",
+            ":}",
+            "{ True }",
+            "x := x + 1",
+            "; y := x",
+            "{ Inv y }"
+          ]
+          @?= ["True ⇒ x + 1 < x + 1"],
+      -- (Inv B)[x, y \ y, x]
+      --   = (x < y + B)[x, y \ y, x]
+      --   = y < x + B
+      testCase "a simultaneous assignment" $
+        answers
+          [ "var x, y : Int",
+            "con B : Int",
+            "{:",
+            "  Inv t = x < y + t",
+            ":}",
+            "{ True }",
+            "x, y := y, x",
+            "{ Inv B }"
+          ]
+          @?= ["True ⇒ y < x + B"],
+      -- The case binder r is local; Inv's r is the global, which the
+      -- assignment replaces.
+      --
+      -- (case C of r → Inv B)[r \ 7]
+      --   = (case C of r' → r < B)[r \ 7]
+      --   = case C of r' → 7 < B
+      --   = 7 < B
+      testCase "a case binder between the assignment and the definition" $
+        answers
+          [ "var r : Int",
+            "con B, C : Int",
+            "{:",
+            "  Inv t = r < t",
+            ":}",
+            "{ True }",
+            "r := 7",
+            "{ case C of r -> Inv B }"
+          ]
+          @?= ["True ⇒ 7 < B"],
+      -- The bound x is passed to Inv; Inv's own x is the global.
+      --
+      -- ⟨∀ x : True : Inv x⟩[x \ 1]
+      --   = ⟨∀ x' : True : x < x'⟩[x \ 1]
+      --   = ⟨∀ x' : True : 1 < x'⟩
+      testCase "a quantifier binder between the assignment and the definition" $
+        answers
+          [ "var x : Int",
+            "{:",
+            "  Inv t = x < t",
+            ":}",
+            "{ True }",
+            "x := 1",
+            "{ ⟨ ∀ x : True : Inv x ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : 1 < $1 ⟩"],
+      -- The same shape at type Bool.
+      --
+      -- ⟨∀ r : True : Inv r⟩[r \ True]
+      --   = ⟨∀ r' : True : r && r'⟩[r \ True]
+      --   = ⟨∀ r' : True : True && r'⟩
+      testCase "a quantifier binder over a Bool global" $
+        answers
+          [ "var r : Bool",
+            "{:",
+            "  Inv t = r && t",
+            ":}",
+            "{ True }",
+            "r := True",
+            "{ ⟨ ∀ r : True : Inv r ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Bool : True : True && $1 ⟩"],
+      -- The range mentions x directly; the body mentions it through Inv.
+      --
+      -- ⟨∀ i : 0 ≤ i < x : Inv i⟩[x \ x + 1]
+      --   = ⟨∀ i : 0 ≤ i < x : x < i⟩[x \ x + 1]
+      --   = ⟨∀ i : 0 ≤ i < x + 1 : x + 1 < i⟩
+      testCase "a quantifier whose body reaches the global only through a definition" $
+        answers
+          [ "var x : Int",
+            "{:",
+            "  Inv t = x < t",
+            ":}",
+            "{ True }",
+            "x := x + 1",
+            "{ ⟨ ∀ i : 0 ≤ i < x : Inv i ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int : 0 ≤ $1 < x + 1 : x + 1 < $1 ⟩"]
+    ]
+
+-- | Cases where a capture would be wrong: a local binder meeting a
+--   definition's global, a parameter sharing a global's name, or
+--   substitution keys incorrectly capturing free variables in replacement
+--   expressions, whether within one table or during composition. These guard the
+--   capture-avoidance that a fix for 'substitutionReachesDefinitionBodies'
+--   must keep.
+bindersStillAvoidCapture :: TestTree
+bindersStillAvoidCapture =
+  testGroup
+    "binders other than a substitution still avoid capture"
+    [ -- Issue 182.  The case binder r = C is local; Inv's r is the global.
+      --
+      -- case C of r → Inv B
+      --   = case C of r' → r < B
+      --   = r < B
+      testCase "issue 182: a case binder does not capture a definition's global" $
+        answers
+          [ "var r : Int",
+            "con B, C : Int",
+            "{:",
+            "  Inv t = r < t",
+            ":}",
+            "{ True }",
+            "skip",
+            "{ case C of r -> Inv B }"
+          ]
+          @?= ["True ⇒ r < B"],
+      -- ⟨∀ r : True : Inv r⟩
+      --   = ⟨∀ r' : True : r < r'⟩      not  ⟨∀ r : True : r < r⟩
+      testCase "a quantifier binder does not capture a definition's global" $
+        answers
+          [ "var r : Int",
+            "{:",
+            "  Inv t = r < t",
+            ":}",
+            "{ True }",
+            "skip",
+            "{ ⟨ ∀ r : True : Inv r ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : r < $1 ⟩"],
+      -- Issue 180.  The bound inv hides the definition, so nothing is
+      -- clickable.
+      --
+      -- ⟨∀ inv : True : inv B⟩      stays as it is
+      testCase "issue 180: a quantifier binder hides a same-named definition" $
+        answers
+          [ "con B : Int",
+            "{:",
+            "  inv x = x > 42",
+            ":}",
+            "{ True }",
+            "skip",
+            "{ ⟨ ∀ inv : True : inv B ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int → Bool : True : $1 B ⟩"],
+      -- No definition here.  The outer table's value x is the variable before
+      -- y := x, while the inner table's key x is the variable x := 1 updates:
+      -- two different states of x.  Composing the tables must therefore still
+      -- rename the inner key rather than let it capture the incoming x.
+      --
+      -- ((x < y)[x \ 1])[y \ x]
+      --   = (1 < y)[y \ x]
+      --   = 1 < x              not  (x < x)[x \ 1] = 1 < 1
+      testCase "composing two substitutions keeps their x apart" $
+        answers
+          [ "var x, y : Int",
+            "{ True }",
+            "y := x",
+            "; x := 1",
+            "{ x < y }"
+          ]
+          @?= ["True ⇒ 1 < x"],
+      -- Inv's x is its parameter, not the global, so only the argument changes.
+      --
+      -- (Inv x)[x \ 3]
+      --   = Inv 3
+      --   = 3 < B
+      testCase "a parameter that shares the global's name is not substituted" $
+        answers
+          [ "var x : Int",
+            "con B : Int",
+            "{:",
+            "  Inv x = x < B",
+            ":}",
+            "{ True }",
+            "x := 3",
+            "{ Inv x }"
+          ]
+          @?= ["True ⇒ 3 < B"],
+      -- P's body has no global, so only the argument changes.
+      --
+      -- (P x)[x \ x + 1]
+      --   = P (x + 1)
+      --   = B < x + 1
+      testCase "a definition without globals only sees its argument change" $
+        answers
+          [ "var x : Int",
+            "con B : Int",
+            "{:",
+            "  P t = B < t",
+            ":}",
+            "{ True }",
+            "x := x + 1",
+            "{ P x }"
+          ]
+          @?= ["True ⇒ B < x + 1"],
+      -- (r = 3)[r \ add 1 2]
+      --   = add 1 2 = 3
+      --   = 1 + 2 = 3
+      testCase "a definition call on the right of an assignment" $
+        answers
+          [ "var r : Int",
+            "{:",
+            "  add x y = x + y",
+            ":}",
+            "{ True }",
+            "r := add 1 2",
+            "{ r = 3 }"
+          ]
+          @?= ["True ⇒ 1 + 2 = 3"],
+      -- K reads x when y := K runs, before the later x := 1.
+      --
+      -- ((y = 0)[x \ 1])[y \ K]
+      --   = (y = 0)[y \ K]
+      --   = K = 0
+      --   = x = 0
+      testCase "a definition on an assignment's right reads the global before a later assignment" $
+        answers
+          [ "var x, y : Int",
+            "{:",
+            "  K = x",
+            ":}",
+            "{ True }",
+            "y := K",
+            "; x := 1",
+            "{ y = 0 }"
+          ]
+          @?= ["True ⇒ x = 0"],
+      -- Both right-hand sides read the state before the simultaneous
+      -- assignment, so K's x is not the 1 being assigned to x.
+      --
+      -- (y = 0)[x, y \ 1, K]
+      --   = K = 0
+      --   = x = 0
+      testCase "a definition on a simultaneous assignment's right reads the old global" $
+        answers
+          [ "var x, y : Int",
+            "{:",
+            "  K = x",
+            ":}",
+            "{ True }",
+            "x, y := 1, K",
+            "{ y = 0 }"
+          ]
+          @?= ["True ⇒ x = 0"],
+      -- (f a b = 0)[a \ 0]
+      --   = f 0 b = 0
+      --   = b = 0          by the first clause, f 0 y = y
+      testCase "a pattern-matching definition picks the clause the substitution enables" $
+        answers
+          [ "{:",
+            "  f : Int -> Int -> Int",
+            "  f 0 y = y",
+            "  f x y = x + y",
+            ":}",
+            "var a, b : Int",
+            "{ True }",
+            "a := 0",
+            "{ f a b = 0 }"
+          ]
+          @?= ["True ⇒ b = 0"]
+    ]
+
+-- | Load a program with exactly one proof obligation, click every redex in
+--   every order, requiring each marked path to reduce successfully, and
+--   render each predicate in which nothing is clickable any more.  See
+--   'display' for how the answers are normalised.
+answers :: [Text] -> [Text]
+answers sourceLines =
+  case loadAndDig "<test>" (Text.unlines sourceLines) of
+    Right (_, Right fileState)
+      | [po] <- fsProofObligations fileState ->
+          normalForms (fsDefinitions fileState) (poReducedPred po)
+    _ -> error "the test program must load with exactly one proof obligation"
+
+normalForms :: DefnEnv -> T.Expr -> [Text]
+normalForms defnEnv start = Set.toList (go Set.empty Set.empty [start])
+  where
+    go _ found [] = found
+    go seen found (expression : pending)
+      | key `Set.member` seen = go seen found pending
+      | Set.size seen > 1000 = error "too many reachable states; a definition may be recursive"
+      | null successors = go seen' (Set.insert (display expression) found) pending
+      | otherwise = go seen' found (successors <> pending)
+      where
+        key = toText expression
+        seen' = Set.insert key seen
+        successors = map reducePath (reduciblePaths defnEnv expression)
+        reducePath path =
+          case run defnEnv expression path of
+            Just result -> result
+            Nothing ->
+              error
+                ( "a marked redex failed to reduce at path "
+                    <> show path
+                    <> " in predicate: "
+                    <> Text.unpack key
+                )
+
+-- | Render with every quantifier binder renamed to @$1@, @$2@, … in order of
+--   appearance and runs of spaces collapsed, so that answers differing only
+--   in which fresh name a click order drew compare equal.
+display :: T.Expr -> Text
+display expression =
+  Text.unwords (Text.words (toText (evalState (canonicalBinders expression) (1 :: Int))))
+
+canonicalBinders :: T.Expr -> State Int T.Expr
+canonicalBinders (T.Quant operator binders range body l) = do
+  canonical <- mapM (const nextBinder) binders
+  let renaming = zip (map (nameToText . fst) binders) canonical
+  T.Quant
+    <$> canonicalBinders operator
+    <*> pure [(Name text r, t) | ((Name _ r, t), text) <- zip binders canonical]
+    <*> canonicalBinders (renameFree renaming range)
+    <*> canonicalBinders (renameFree renaming body)
+    <*> pure l
+  where
+    nextBinder = state (\k -> ("$" <> Text.pack (show k), k + 1))
+canonicalBinders expression =
+  withPathChildren expression <$> mapM canonicalBinders (pathChildren expression)
 
 run :: DefnEnv -> T.Expr -> RedexPath -> Maybe T.Expr
 run defnEnv expression path =
