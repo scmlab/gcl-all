@@ -39,7 +39,7 @@ reduceAt context expression path =
     Nothing -> pure Nothing
     Just (selected, frames) -> do
       candidate <- case selected of
-        Reference {} -> do
+        Atom Definition _ -> do
           body <- unfold context selected
           case body of
             Nothing -> pure Nothing

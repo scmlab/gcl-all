@@ -16,7 +16,7 @@ import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Reduce3
 import qualified Syntax.Typed.Subst3 as S
 import qualified Syntax.Typed.Types as T
-import Test.Reduce2 (answersWith, programTests)
+import Test.Reduce2 (answersWith, normalForms, programTests)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
 
@@ -27,6 +27,7 @@ tests =
     [ programTests (answersWith run reduciblePaths),
       adversarialScopes,
       smallSteps,
+      cancelledStateUpdates,
       -- (Inv B)[d \ 5] = (Inv[d \ 5]) B = 5 + x < B.
       -- The untouched global x is metadata, not a displayed identity entry.
       testCase "distributing state keeps only actual updates" $ do
@@ -261,13 +262,14 @@ smallSteps =
             [[0], [], []], -- unfold the scrutinee, select case, apply state
             [[1], [], [0]] -- apply the clause's state, select case, unfold f
           ],
-      -- f = x. An internal Reference with environment [x \ a] must unfold
-      -- to x[x \ a], just like the public pending form, without applying it.
-      testCase "unfold preserves an internal reference environment" $ do
+      -- f = x; f[x, y \ a, b] = f[x \ a]. A reference stays a leaf: the
+      -- entries it reads wait in an ordinary pending Subst, and y, which f
+      -- never reads, is dropped.
+      testCase "a state table over a reference keeps only the entries it reads" $ do
         let context = S.definitions [(f, var x)]
-            reference = S.Reference (var f) [(x, S.resolve context (var a))]
-            result = evalState (S.unfold context reference >>= traverse (S.export context)) initFreshState
-        result @?= Just (T.Subst (var x) [(x, var a)]),
+            table = [(x, S.resolve context (var a)), (y, S.resolve context (var b))]
+            result = evalState (S.substituteState context table (S.resolve context (var f)) >>= S.export context) initFreshState
+        result @?= T.Subst (var f) [(x, var a)],
       -- f = x; g = a; ⟨∀ x : True : (f[x \ a], g, x)⟩. Clicking g
       -- leaves ⟨∀ x' : True : (f[x \ a], a, x')⟩. The displayed state
       -- key x must stay distinct from the binder before f exposes its global.
@@ -285,6 +287,100 @@ smallSteps =
             bound @?= var binder
           result -> assertFailure ("unexpected quantified result: " <> show result)
     ]
+
+cancelledStateUpdates :: TestTree
+cancelledStateUpdates =
+  testGroup
+    "cancelled state updates"
+    [ -- g = x; f t = g < t. ((f[x \ y])[y \ x]) b --click f-->
+      -- g[x \ x] < b --click Subst--> g < b --click g--> x < b.
+      -- Lam repair composes the updates but leaves the resulting identity
+      -- over g for its own click; it must not silently return g < b.
+      testCase "lambda repair leaves a composed identity table clickable" $ do
+        let (env, expression) = cancelledCall
+        case run env expression [0, 0, 0] of
+          Just pending -> do
+            display pending @?= "g [ x \\ x ] < b"
+            reduciblePaths env pending @?= [[1], [1, 0]]
+            case run env pending [1] of
+              Just withoutTable -> do
+                display withoutTable @?= "g < b"
+                case run env withoutTable [1] of
+                  Just result -> do
+                    display result @?= "x < b"
+                    reduciblePaths env result @?= []
+                  Nothing -> assertFailure "g must remain available to unfold"
+              Nothing -> assertFailure "the composed identity table must have its own click"
+          Nothing -> assertFailure "f must unfold through both environments and its application",
+      -- g = x; f t = g < t. After clicking f in ((f[x \ y])[y \ x]) b,
+      -- choose g first: g[x \ x] < b -> x[x \ x] < b -> x < b.
+      -- Unfolding the parameterless g must also leave the identity pending.
+      testCase "unfolding through a composed identity retains the table" $ do
+        let (env, expression) = cancelledCall
+        case run env expression [0, 0, 0] >>= \pending -> run env pending [1, 0] of
+          Just unfolded -> do
+            display unfolded @?= "x [ x \\ x ] < b"
+            reduciblePaths env unfolded @?= [[1]]
+            case run env unfolded [1] of
+              Just result -> display result @?= "x < b"
+              Nothing -> assertFailure "the identity must disappear on its substitution click"
+          Nothing -> assertFailure "g must unfold inside the composed identity",
+      -- g = x; f t = g < t. ((f[x \ y])[y \ x]) b = x < b.
+      -- Compose the tables before unfolding f, or unfold f first and then
+      -- choose either g or its identity table: every click order must agree.
+      testCase "all click orders preserve the original global after cancellation" $ do
+        let (env, expression) = cancelledCall
+        normalForms run reduciblePaths env expression @?= ["x < b"],
+      -- g = x; (g[x \ y])[y \ x] --click outer Subst--> g[x \ x]
+      --   --click identity Subst--> g --click g--> x.
+      -- Ordinary composition also retains its subject until a later click.
+      testCase "ordinary composition leaves a generated identity pending" $ do
+        let env = [(g, var x)]
+            expression = T.Subst (T.Subst (var g) [(x, var y)]) [(y, var x)]
+            composed = T.Subst (var g) [(x, var x)]
+        run env expression [] @?= Just composed
+        reduciblePaths env composed @?= [[], [0]]
+        run env composed [] @?= Just (var g)
+        run env (var g) [] @?= Just (var x)
+        normalForms run reduciblePaths env expression @?= ["x"],
+      -- g = x; case y of x -> g[x \ x] = y.
+      -- The table key is global x, but its RHS is the local case binder x:
+      -- this is a real update, not an identity. Clicking the table first
+      -- keeps it pending and renames the binder: case y of x' -> g[x \ x'].
+      testCase "a same-named local value is not discarded as an identity" $ do
+        let env = [(g, var x)]
+            body = T.Subst (var g) [(x, var x)]
+            expression = T.Case (var y) [T.CaseClause (A.PattBinder x) body] Nothing
+        case run env expression [1] of
+          Just (T.Case scrutinee [T.CaseClause (A.PattBinder binder) (T.Subst reference [(key, value)])] _) -> do
+            scrutinee @?= var y
+            assertBool "the binder must stay distinct from the global state key" (binder /= x)
+            reference @?= var g
+            key @?= x
+            value @?= var binder
+          result -> assertFailure ("a local replacement must remain pending: " <> show result)
+        normalForms run reduciblePaths env expression @?= ["y"]
+    ]
+  where
+    -- GCL declarations/call: g = x; f t = g < t; { True } skip { f b }.
+    -- Build the intermediate ((f[x \ y])[y \ x]) b with both operations
+    -- between the definition and its application, where Lam repair is needed.
+    cancelledCall =
+      let (env, call) =
+            loaded
+              [ "var x, y, b : Int",
+                "{:",
+                "g = x",
+                "f t = g < t",
+                ":}",
+                "{ True }",
+                "skip",
+                "{ f b }"
+              ]
+       in case call of
+            T.App function argument location ->
+              (env, T.App (T.Subst (T.Subst function [(x, var y)]) [(y, var x)]) argument location)
+            _ -> error "the cancellation fixture must load a definition call"
 
 adversarialScopes :: TestTree
 adversarialScopes =

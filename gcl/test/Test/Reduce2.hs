@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.Reduce2 (tests, programTests, answersWith) where
+module Test.Reduce2 (tests, programTests, answersWith, normalForms) where
 
 import Control.Monad.State (State, evalState, state)
 import Data.Maybe (isJust)
