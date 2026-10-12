@@ -78,13 +78,29 @@ redexAnnotations :: TestTree
 redexAnnotations =
   testGroup
     "Redex annotations"
-    [ testCase "a definition reference carries the Reduce2 path" $
+    [ testCase "a definition reference carries the active reducer's path" $
         Text.isInfixOf
           "<span class=\"gcl-redex\" data-redex=\"0\">f</span>"
           (inlinesToHtml (renderExprRZ [(f, identity)] call))
           @? "the function Var should be marked, rather than its enclosing App",
       testCase "the server accepts the path emitted by the renderer" $
         evalReduce [(f, identity)] call [0] @?= Just (T.Var a intType Nothing),
+      -- f = x; f[x \ a] --click f at [0]--> x[x \ a]
+      --   --click Subst at []--> a. Both UI paths execute separate steps.
+      testCase "a pending environment keeps its substitution click after unfolding" $ do
+        let env = [(f, T.Var x intType Nothing)]
+            pending = T.Subst (T.Var f intType Nothing) [(x, T.Var a intType Nothing)]
+            unfolded = T.Subst (T.Var x intType Nothing) [(x, T.Var a intType Nothing)]
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"0\">f</span>"
+          (inlinesToHtml (renderExprRZ env pending))
+          @? "the renderer must mark the reference inside the environment"
+        evalReduce env pending [0] @?= Just unfolded
+        Text.isInfixOf
+          "data-redex=\"\""
+          (inlinesToHtml (renderExprRZ env unfolded))
+          @? "the remaining substitution must carry its root path"
+        evalReduce env unfolded [] @?= Just (T.Var a intType Nothing),
       testCase "a Chain maps its leftmost expression to the last child" $
         Text.isInfixOf
           "<span class=\"gcl-redex\" data-redex=\"2\">f</span>"

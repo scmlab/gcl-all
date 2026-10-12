@@ -14,7 +14,7 @@ import Syntax.Common
     classify,
   )
 import Syntax.Typed
-import Syntax.Typed.Reduce2
+import Syntax.Typed.Reduce3
   ( DefnEnv,
     RT,
     RTree (..),

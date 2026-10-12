@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Test.Reduce2 (tests) where
+module Test.Reduce2 (tests, programTests, answersWith) where
 
 import Control.Monad.State (State, evalState, state)
 import Data.Maybe (isJust)
@@ -165,8 +165,8 @@ tests =
         filter (\e -> withPathChildren e (pathChildren e) /= e) everyConstructor @?= [],
       testCase "invalid paths are rejected" $
         run binaryDefnEnv fullCall [7] @?= Nothing,
-      substitutionReachesDefinitionBodies,
-      bindersStillAvoidCapture
+      substitutionReachesDefinitionBodies answers,
+      bindersStillAvoidCapture answers
     ]
 
 -- | Each case is a whole GCL program with one proof obligation.  'answers'
@@ -176,15 +176,19 @@ tests =
 --   An assignment @v := e@ leaves @Q[v \ e]@ in the obligation.  A definition
 --   body's free names are the program's globals, so the pending substitution
 --   must reach them once the definition is unfolded.
-substitutionReachesDefinitionBodies :: TestTree
-substitutionReachesDefinitionBodies =
+-- | Run the same GCL source and expected normal forms against either reducer.
+programTests :: ([Text] -> [Text]) -> TestTree
+programTests solve = testGroup "definition substitution" [substitutionReachesDefinitionBodies solve, bindersStillAvoidCapture solve]
+
+substitutionReachesDefinitionBodies :: ([Text] -> [Text]) -> TestTree
+substitutionReachesDefinitionBodies solve =
   testGroup
     "a substitution reaches the globals inside a definition body"
     [ -- (Inv B)[d \ 5]
       --   = (d + x < B)[d \ 5]
       --   = 5 + x < B
       testCase "a single assignment" $
-        answers
+        solve
           [ "var d, x : Int",
             "con B : Int",
             "{:",
@@ -201,7 +205,7 @@ substitutionReachesDefinitionBodies =
       --   = (True ∧ A ≤ r < B)[r \ r + 1]
       --   = True ∧ A ≤ r + 1 < B
       testCase "issue 179" $
-        answers
+        solve
           [ "con A, B : Int",
             "var r : Int",
             "{:",
@@ -216,7 +220,7 @@ substitutionReachesDefinitionBodies =
       --   = (x > 0)[x \ x + 1]
       --   = x + 1 > 0
       testCase "a definition without parameters" $
-        answers
+        solve
           [ "var x : Int",
             "{:",
             "  K = x > 0",
@@ -231,7 +235,7 @@ substitutionReachesDefinitionBodies =
       --   = (x < 42)[x \ x + 1]
       --   = x + 1 < 42
       testCase "an alias of a definition" $
-        answers
+        solve
           [ "var x : Int",
             "{:",
             "  F = G",
@@ -249,7 +253,7 @@ substitutionReachesDefinitionBodies =
       --   = (x < B)[x \ 1]
       --   = 1 < B
       testCase "a wrapper whose parameter shares the global's name" $
-        answers
+        solve
           [ "var x : Int",
             "con B : Int",
             "{:",
@@ -266,7 +270,7 @@ substitutionReachesDefinitionBodies =
       --   = (x < x)[x \ x + 1]
       --   = x + 1 < x + 1
       testCase "two sequential assignments" $
-        answers
+        solve
           [ "var x, y : Int",
             "{:",
             "  Inv t = x < t",
@@ -281,7 +285,7 @@ substitutionReachesDefinitionBodies =
       --   = (x < y + B)[x, y \ y, x]
       --   = y < x + B
       testCase "a simultaneous assignment" $
-        answers
+        solve
           [ "var x, y : Int",
             "con B : Int",
             "{:",
@@ -299,7 +303,7 @@ substitutionReachesDefinitionBodies =
       --   = (x + 2 = 0)[x \ x + 1]
       --   = x + 1 + 2 = 0
       testCase "repeated assignments update an alias in execution order" $
-        answers
+        solve
           [ "var x : Int",
             "{:",
             "  F = K",
@@ -319,7 +323,7 @@ substitutionReachesDefinitionBodies =
       --   = case C of r' → 7 < B
       --   = 7 < B
       testCase "a case binder between the assignment and the definition" $
-        answers
+        solve
           [ "var r : Int",
             "con B, C : Int",
             "{:",
@@ -336,7 +340,7 @@ substitutionReachesDefinitionBodies =
       --   = ⟨∀ x' : True : x < x'⟩[x \ 1]
       --   = ⟨∀ x' : True : 1 < x'⟩
       testCase "a quantifier binder between the assignment and the definition" $
-        answers
+        solve
           [ "var x : Int",
             "{:",
             "  Inv t = x < t",
@@ -352,7 +356,7 @@ substitutionReachesDefinitionBodies =
       --   = ⟨∀ r' : True : r && r'⟩[r \ True]
       --   = ⟨∀ r' : True : True && r'⟩
       testCase "a quantifier binder over a Bool global" $
-        answers
+        solve
           [ "var r : Bool",
             "{:",
             "  Inv t = r && t",
@@ -368,7 +372,7 @@ substitutionReachesDefinitionBodies =
       --   = ⟨∀ i : 0 ≤ i < x : x < i⟩[x \ x + 1]
       --   = ⟨∀ i : 0 ≤ i < x + 1 : x + 1 < i⟩
       testCase "a quantifier whose body reaches the global only through a definition" $
-        answers
+        solve
           [ "var x : Int",
             "{:",
             "  Inv t = x < t",
@@ -386,8 +390,8 @@ substitutionReachesDefinitionBodies =
 --   expressions, whether within one table or during composition. These guard the
 --   capture-avoidance that a fix for 'substitutionReachesDefinitionBodies'
 --   must keep.
-bindersStillAvoidCapture :: TestTree
-bindersStillAvoidCapture =
+bindersStillAvoidCapture :: ([Text] -> [Text]) -> TestTree
+bindersStillAvoidCapture solve =
   testGroup
     "binders other than a substitution still avoid capture"
     [ -- Issue 182.  The case binder r = C is local; Inv's r is the global.
@@ -396,7 +400,7 @@ bindersStillAvoidCapture =
       --   = case C of r' → r < B
       --   = r < B
       testCase "issue 182: a case binder does not capture a definition's global" $
-        answers
+        solve
           [ "var r : Int",
             "con B, C : Int",
             "{:",
@@ -410,7 +414,7 @@ bindersStillAvoidCapture =
       -- ⟨∀ r : True : Inv r⟩
       --   = ⟨∀ r' : True : r < r'⟩      not  ⟨∀ r : True : r < r⟩
       testCase "a quantifier binder does not capture a definition's global" $
-        answers
+        solve
           [ "var r : Int",
             "{:",
             "  Inv t = r < t",
@@ -425,7 +429,7 @@ bindersStillAvoidCapture =
       --
       -- ⟨∀ inv : True : inv B⟩      stays as it is
       testCase "issue 180: a quantifier binder hides a same-named definition" $
-        answers
+        solve
           [ "con B : Int",
             "{:",
             "  inv x = x > 42",
@@ -444,7 +448,7 @@ bindersStillAvoidCapture =
       --   = (1 < y)[y \ x]
       --   = 1 < x              not  (x < x)[x \ 1] = 1 < 1
       testCase "composing two substitutions keeps their x apart" $
-        answers
+        solve
           [ "var x, y : Int",
             "{ True }",
             "y := x",
@@ -458,7 +462,7 @@ bindersStillAvoidCapture =
       --   = Inv 3
       --   = 3 < B
       testCase "a parameter that shares the global's name is not substituted" $
-        answers
+        solve
           [ "var x : Int",
             "con B : Int",
             "{:",
@@ -475,7 +479,7 @@ bindersStillAvoidCapture =
       --   = P (x + 1)
       --   = B < x + 1
       testCase "a definition without globals only sees its argument change" $
-        answers
+        solve
           [ "var x : Int",
             "con B : Int",
             "{:",
@@ -490,7 +494,7 @@ bindersStillAvoidCapture =
       --   = add 1 2 = 3
       --   = 1 + 2 = 3
       testCase "a definition call on the right of an assignment" $
-        answers
+        solve
           [ "var r : Int",
             "{:",
             "  add x y = x + y",
@@ -507,7 +511,7 @@ bindersStillAvoidCapture =
       --   = K = 0
       --   = x = 0
       testCase "a definition on an assignment's right reads the global before a later assignment" $
-        answers
+        solve
           [ "var x, y : Int",
             "{:",
             "  K = x",
@@ -525,7 +529,7 @@ bindersStillAvoidCapture =
       --   = (x = 0)[x \ 1]
       --   = 1 = 0
       testCase "a definition on an assignment's right sees an earlier assignment" $
-        answers
+        solve
           [ "var x, y : Int",
             "{:",
             "  K = x",
@@ -542,7 +546,7 @@ bindersStillAvoidCapture =
       --   = ⟨∀ x' : True : K = x'⟩
       --   = ⟨∀ x' : True : x = x'⟩
       testCase "an assignment's definition value stays free of the postcondition's binder" $
-        answers
+        solve
           [ "var x, y : Int",
             "{:",
             "  K = x",
@@ -558,7 +562,7 @@ bindersStillAvoidCapture =
       --   = ⟨∀ x' : 0 ≤ x' : K = x'⟩
       --   = ⟨∀ x' : 0 ≤ x' : x = x'⟩
       testCase "a definition passed as an argument keeps its global free" $
-        answers
+        solve
           [ "var x : Int",
             "{:",
             "  K = x",
@@ -577,7 +581,7 @@ bindersStillAvoidCapture =
       --   = ⟨∀ helper' : True : helper = helper'⟩
       --   = ⟨∀ helper' : True : x = helper'⟩
       testCase "an alias resolves its target in the definition's declaration scope" $
-        answers
+        solve
           [ "var x, y : Int",
             "{:",
             "  f = helper",
@@ -595,7 +599,7 @@ bindersStillAvoidCapture =
       --   = K = 0
       --   = x = 0
       testCase "a definition on a simultaneous assignment's right reads the old global" $
-        answers
+        solve
           [ "var x, y : Int",
             "{:",
             "  K = x",
@@ -609,7 +613,7 @@ bindersStillAvoidCapture =
       --   = f 0 b = 0
       --   = b = 0          by the first clause, f 0 y = y
       testCase "a pattern-matching definition picks the clause the substitution enables" $
-        answers
+        solve
           [ "{:",
             "  f : Int -> Int -> Int",
             "  f 0 y = y",
@@ -628,15 +632,18 @@ bindersStillAvoidCapture =
 --   render each predicate in which nothing is clickable any more.  See
 --   'display' for how the answers are normalised.
 answers :: [Text] -> [Text]
-answers sourceLines =
+answers = answersWith run reduciblePaths
+
+answersWith :: (DefnEnv -> T.Expr -> RedexPath -> Maybe T.Expr) -> (DefnEnv -> T.Expr -> [RedexPath]) -> [Text] -> [Text]
+answersWith reduce paths sourceLines =
   case loadAndDig "<test>" (Text.unlines sourceLines) of
     Right (_, Right fileState)
       | [po] <- fsProofObligations fileState ->
-          normalForms (fsDefinitions fileState) (poReducedPred po)
+          normalForms reduce paths (fsDefinitions fileState) (poReducedPred po)
     _ -> error "the test program must load with exactly one proof obligation"
 
-normalForms :: DefnEnv -> T.Expr -> [Text]
-normalForms defnEnv start = Set.toList (go Set.empty Set.empty [start])
+normalForms :: (DefnEnv -> T.Expr -> RedexPath -> Maybe T.Expr) -> (DefnEnv -> T.Expr -> [RedexPath]) -> DefnEnv -> T.Expr -> [Text]
+normalForms reduce paths defnEnv start = Set.toList (go Set.empty Set.empty [start])
   where
     go _ found [] = found
     go seen found (expression : pending)
@@ -647,9 +654,9 @@ normalForms defnEnv start = Set.toList (go Set.empty Set.empty [start])
       where
         key = toText expression
         seen' = Set.insert key seen
-        successors = map reducePath (reduciblePaths defnEnv expression)
+        successors = map reducePath (paths defnEnv expression)
         reducePath path =
-          case run defnEnv expression path of
+          case reduce defnEnv expression path of
             Just result -> result
             Nothing ->
               error

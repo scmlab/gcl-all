@@ -128,9 +128,10 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
 import GCL.Common (Fresh, freeVarsT, freshAvoiding)
-import Syntax.Abstract.Types (Pattern (..), extractBinder)
+import Syntax.Abstract.Types (extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Instances.Free ()
+import Syntax.Typed.Structure (allNames, renameName, renamePatternBinders)
 import Syntax.Typed.Types
 
 -- | Substitution is simultaneous: a replacement is never rewritten by this
@@ -369,57 +370,3 @@ renameChain renaming (More chain operator t e) =
 renameClause :: Renaming -> CaseClause -> CaseClause
 renameClause renaming (CaseClause pattern' body) =
   CaseClause pattern' (renameFree (hide (extractBinder pattern') renaming) body)
-
-renameName :: Renaming -> Name -> Name
-renameName renaming name@(Name text range) =
-  case lookup text renaming of
-    Nothing -> name
-    Just text' -> Name text' range
-
--- | Rewrite the binders a pattern introduces. 'renameFree' leaves every binder
---   alone, so the caller renames them here.
-renamePatternBinders :: Renaming -> Pattern -> Pattern
-renamePatternBinders _ pattern'@PattLit {} = pattern'
-renamePatternBinders renaming (PattBinder x) = PattBinder (renameName renaming x)
-renamePatternBinders _ pattern'@PattWildcard {} = pattern'
-renamePatternBinders renaming (PattTuple patterns) =
-  PattTuple (map (renamePatternBinders renaming) patterns)
--- A constructor name is not a binder.
-renamePatternBinders renaming (PattConstructor constructor patterns) =
-  PattConstructor constructor (map (renamePatternBinders renaming) patterns)
-
--- | Term names and binder names in a region. Free names alone are insufficient
---   when a proposed target could collide with an inner binder.
-allNames :: Expr -> Set Text
-allNames Lit {} = mempty
-allNames (Var x _ _) = Set.singleton (nameToText x)
-allNames (Const x _ _) = Set.singleton (nameToText x)
-allNames Op {} = mempty
-allNames (Chain chain) = allNamesChain chain
-allNames (App function argument _) = allNames function <> allNames argument
-allNames (Lam x _ body _) = Set.insert (nameToText x) (allNames body)
-allNames (Tuple elements) = foldMap allNames elements
-allNames (OutT _ e) = allNames e
-allNames (Quant operator binders range body _) =
-  allNames operator
-    <> Set.fromList (map (nameToText . fst) binders)
-    <> allNames range
-    <> allNames body
-allNames (ArrIdx array index _) = allNames array <> allNames index
-allNames (ArrUpd array index value _) =
-  allNames array <> allNames index <> allNames value
-allNames (Case scrutinee clauses _) =
-  allNames scrutinee <> foldMap allNamesClause clauses
-allNames (Subst body table) =
-  allNames body
-    <> Set.fromList (map (nameToText . fst) table)
-    <> foldMap (allNames . snd) table
-allNames EHole {} = mempty
-
-allNamesChain :: Chain -> Set Text
-allNamesChain (Pure e) = allNames e
-allNamesChain (More chain _ _ e) = allNamesChain chain <> allNames e
-
-allNamesClause :: CaseClause -> Set Text
-allNamesClause (CaseClause pattern' body) =
-  Set.fromList (map nameToText (extractBinder pattern')) <> allNames body

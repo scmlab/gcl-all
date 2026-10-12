@@ -57,7 +57,7 @@ import Data.Maybe (isJust)
 import Data.Set (Set)
 import Data.Text (Text)
 import GCL.Common (Fresh, freshAvoiding, initFreshState)
-import Syntax.Abstract.Types (Pattern (..), Type, extractBinder)
+import Syntax.Abstract.Types (Pattern (..), Type)
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Definition
   ( DefinitionContext,
@@ -68,17 +68,9 @@ import Syntax.Typed.Definition
     definitionEnv,
     hiddenGlobals,
   )
+import Syntax.Typed.Structure (RT, RTree (..), RedexPath, childBinders, pathChildren, replaceAt, withPathChildren)
 import Syntax.Typed.Subst2 (allNames, insertDefinition, renameFree, renameName, renamePatternBinders, substExpr)
 import Syntax.Typed.Types
-
--- | A path from the whole expression to the redex selected by the UI.
-type RedexPath = [Int]
-
--- | A redex tree has exactly the same child shape as 'pathChildren'.
-data RTree a = Node a [RTree a]
-  deriving (Eq, Show)
-
-type RT = RTree Bool
 
 -- | Try the reduction selected by a path.
 --
@@ -423,103 +415,3 @@ setAt (index : rest) replacement expression = do
 shadowDefinitions :: [Name] -> DefnEnv -> DefnEnv
 shadowDefinitions binders =
   filter (\(name, _) -> name `notElem` binders)
-
--- | The subexpressions into which a reduction path may descend, in path-index
--- order.  This is the single source of truth for path indexing in this module.
-pathChildren :: Expr -> [Expr]
-pathChildren (Lit _ _ _) = []
-pathChildren (Var _ _ _) = []
-pathChildren (Const _ _ _) = []
-pathChildren (Op _ _) = []
-pathChildren (Chain chain) = chainExprs chain
-pathChildren (App function argument _) = [function, argument]
-pathChildren (Lam _ _ body _) = [body]
-pathChildren (Tuple expressions) = expressions
-pathChildren (OutT _ expression) = [expression]
-pathChildren (Quant operator _ range body _) = [operator, range, body]
-pathChildren (ArrIdx array index _) = [array, index]
-pathChildren (ArrUpd array index value _) = [array, index, value]
-pathChildren (Case scrutinee clauses _) = scrutinee : map clauseBody clauses
-  where
-    clauseBody (CaseClause _ body) = body
-pathChildren (Subst subject assignments) = subject : map snd assignments
-pathChildren (EHole _) = []
-
--- | Binders whose scope covers each corresponding path child.
-childBinders :: Expr -> [[Name]]
-childBinders (Lam binder _ _ _) = [[binder]]
-childBinders (Quant _ binders _ _ _) = [[], names, names]
-  where
-    names = map fst binders
-childBinders (Case _ clauses _) = [] : map clauseBinders clauses
-  where
-    clauseBinders (CaseClause pattern' _) = extractBinder pattern'
-childBinders (Subst _ assignments) =
-  map fst assignments : map (const []) assignments
-childBinders expression = map (const []) (pathChildren expression)
-
--- | Rebuild an expression with its path children replaced.  The input list
--- must have the same shape and order as 'pathChildren'.
-withPathChildren :: Expr -> [Expr] -> Expr
-withPathChildren expression@(Lit _ _ _) [] = expression
-withPathChildren expression@(Var _ _ _) [] = expression
-withPathChildren expression@(Const _ _ _) [] = expression
-withPathChildren expression@(Op _ _) [] = expression
-withPathChildren expression@(EHole _) [] = expression
-withPathChildren (Chain chain) children
-  | length children == length (chainExprs chain) =
-      Chain (withChainExprs chain children)
-withPathChildren (App _ _ range) [function, argument] =
-  App function argument range
-withPathChildren (Lam binder t _ range) [body] =
-  Lam binder t body range
-withPathChildren (Tuple expressions) children
-  | length children == length expressions = Tuple children
-withPathChildren (OutT index _) [expression] = OutT index expression
-withPathChildren (Quant _ binders _ _ range) [operator, restriction, body] =
-  Quant operator binders restriction body range
-withPathChildren (ArrIdx _ _ range) [array, index] =
-  ArrIdx array index range
-withPathChildren (ArrUpd _ _ _ range) [array, index, value] =
-  ArrUpd array index value range
-withPathChildren (Case _ clauses range) (scrutinee : bodies)
-  | length bodies == length clauses =
-      Case scrutinee (zipWith withBody clauses bodies) range
-  where
-    withBody (CaseClause pattern' _) body = CaseClause pattern' body
-withPathChildren (Subst _ assignments) (subject : values)
-  | length values == length assignments =
-      Subst subject (zip (map fst assignments) values)
-withPathChildren expression children =
-  error $
-    "withPathChildren: expected "
-      <> show (length (pathChildren expression))
-      <> " children, given "
-      <> show (length children)
-
--- Chain paths are rightmost first, matching the existing renderer.
-chainExprs :: Chain -> [Expr]
-chainExprs (Pure expression) = [expression]
-chainExprs (More chain _ _ expression) = expression : chainExprs chain
-
-withChainExprs :: Chain -> [Expr] -> Chain
-withChainExprs chain expressions
-  | length expressions == length (chainExprs chain) = go chain expressions
-  | otherwise =
-      error $
-        "withChainExprs: expected "
-          <> show (length (chainExprs chain))
-          <> " operands, given "
-          <> show (length expressions)
-  where
-    go (Pure _) [expression] = Pure expression
-    go (More chain' operator t _) (expression : rest) =
-      More (go chain' rest) operator t expression
-    go _ _ = error "withChainExprs: chainExprs and rebuild disagree"
-
-replaceAt :: Int -> a -> [a] -> Maybe [a]
-replaceAt index _ _ | index < 0 = Nothing
-replaceAt _ _ [] = Nothing
-replaceAt 0 replacement (_ : rest) = Just (replacement : rest)
-replaceAt index replacement (value : rest) =
-  (value :) <$> replaceAt (index - 1) replacement rest
