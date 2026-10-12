@@ -117,6 +117,7 @@ library
       Syntax.Parser.Util
       Syntax.Substitution
       Syntax.Typed
+      Syntax.Typed.Definition
       Syntax.Typed.Instances.Free
       Syntax.Typed.Instances.Located
       Syntax.Typed.Instances.Substitution

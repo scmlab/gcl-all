@@ -98,6 +98,58 @@ tests =
       testCase "unfolding under a substitution table lets the table capture" $
         run [(f, var x intType)] pendingSubst [0, 1]
           @?= Just (T.Subst (T.Tuple [var x intType, var x intType]) [(x, var a intType)]),
+      -- Internal-AST example from this GCL program:
+      --
+      --   var x : Int
+      --   con a : Int
+      --   {: f = x :}
+      --   { True }
+      --   x := a
+      --   { f = 0 }
+      --
+      -- After distributing the assignment, the selected PO subexpression is:
+      --   f[x \ a] = x[x \ a] = a
+      -- Only f is clickable initially; its environment waits for unfolding.
+      testCase "a pending definition environment unfolds through its reference" $ do
+        let env = [(f, var x intType)]
+            expression = T.Subst (var f intType) [(x, var a intType)]
+        reduciblePaths env expression @?= [[0]]
+        case run env expression [0] of
+          Just unfolded -> run env unfolded [] @?= Just (var a intType)
+          Nothing -> assertFailure "the pending definition must unfold",
+      -- Internal-AST example from this GCL program:
+      --
+      --   var x : Int
+      --   con a, b : Int
+      --   {:
+      --     f : Int -> Int
+      --     f y = g x
+      --     g : Int -> Int
+      --     g y = f x
+      --   :}
+      --   { True }
+      --   x := b
+      --   { f a = 0 }
+      --
+      -- (f a)[x \ b]
+      --   = (f[x \ b]) a
+      --   = (g[x \ b]) b       unfold f and consume its environment and parameter
+      --
+      -- The two global x occurrences have different source ranges. Dependency
+      -- analysis must terminate despite those ranges and mutual recursion.
+      -- Check just these steps: recursive unfolding has no normal form here.
+      testCase "mutually recursive definitions retain the assigned global" $ do
+        let occurrence range = T.Var x intType (Just range)
+            body name range = T.Lam y intType (T.App (var name unaryType) (occurrence range) Nothing) Nothing
+            env = [(f, body g holeRange), (g, body f (mkRange (mkPos 2 1) (mkPos 2 2)))]
+            expression = T.Subst (T.App (var f unaryType) (var a intType) Nothing) [(x, var b intType)]
+        case run env expression [] >>= \distributed -> run env distributed [0, 0] of
+          Just (T.App (T.Subst reference [(key, value)]) argument _) -> do
+            reference @?= var g unaryType
+            key @?= x
+            value @?= var b intType
+            argument @?= var b intType
+          result -> assertFailure ("unexpected result: " <> show result),
       -- Reduce2 inspects only the root of its moving focus for a lambda, which
       -- is sound because a definition body is itself lambda-free.  This pins
       -- that premise rather than any one code path: it fails as soon as a
@@ -240,6 +292,25 @@ substitutionReachesDefinitionBodies =
             "{ Inv B }"
           ]
           @?= ["True ⇒ y < x + B"],
+      -- F = K, K = x. The later increment reads the already incremented x.
+      --
+      -- ((F = 0)[x \ x + 2])[x \ x + 1]
+      --   = ((x = 0)[x \ x + 2])[x \ x + 1]
+      --   = (x + 2 = 0)[x \ x + 1]
+      --   = x + 1 + 2 = 0
+      testCase "repeated assignments update an alias in execution order" $
+        answers
+          [ "var x : Int",
+            "{:",
+            "  F = K",
+            "  K = x",
+            ":}",
+            "{ True }",
+            "x := x + 1",
+            "; x := x + 2",
+            "{ F = 0 }"
+          ]
+          @?= ["True ⇒ x + 1 + 2 = 0"],
       -- The case binder r is local; Inv's r is the global, which the
       -- assignment replaces.
       --
@@ -447,6 +518,76 @@ bindersStillAvoidCapture =
             "{ y = 0 }"
           ]
           @?= ["True ⇒ x = 0"],
+      -- K reads x when y := K runs, after the earlier x := 1.
+      --
+      -- ((y = 0)[y \ K])[x \ 1]
+      --   = (K = 0)[x \ 1]
+      --   = (x = 0)[x \ 1]
+      --   = 1 = 0
+      testCase "a definition on an assignment's right sees an earlier assignment" $
+        answers
+          [ "var x, y : Int",
+            "{:",
+            "  K = x",
+            ":}",
+            "{ True }",
+            "x := 1",
+            "; y := K",
+            "{ y = 0 }"
+          ]
+          @?= ["True ⇒ 1 = 0"],
+      -- K's x is global; the postcondition's x is local to its quantifier.
+      --
+      -- ⟨∀ x : True : y = x⟩[y \ K]
+      --   = ⟨∀ x' : True : K = x'⟩
+      --   = ⟨∀ x' : True : x = x'⟩
+      testCase "an assignment's definition value stays free of the postcondition's binder" $
+        answers
+          [ "var x, y : Int",
+            "{:",
+            "  K = x",
+            ":}",
+            "{ True }",
+            "y := K",
+            "{ ⟨ ∀ x : True : y = x ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : x = $1 ⟩"],
+      -- Passing K through F's parameter must keep K's global x free.
+      --
+      -- F K
+      --   = ⟨∀ x' : 0 ≤ x' : K = x'⟩
+      --   = ⟨∀ x' : 0 ≤ x' : x = x'⟩
+      testCase "a definition passed as an argument keeps its global free" $
+        answers
+          [ "var x : Int",
+            "{:",
+            "  K = x",
+            "  F t = ⟨ ∀ x : 0 ≤ x : t = x ⟩",
+            ":}",
+            "{ True }",
+            "skip",
+            "{ F K }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int : 0 ≤ $1 : x = $1 ⟩"],
+      -- f = helper, helper = x. The quantifier's local helper must not hide
+      -- the definition reference introduced by unfolding f.
+      --
+      -- ⟨∀ helper : True : y = helper⟩[y \ f]
+      --   = ⟨∀ helper' : True : f = helper'⟩
+      --   = ⟨∀ helper' : True : helper = helper'⟩
+      --   = ⟨∀ helper' : True : x = helper'⟩
+      testCase "an alias resolves its target in the definition's declaration scope" $
+        answers
+          [ "var x, y : Int",
+            "{:",
+            "  f = helper",
+            "  helper = x",
+            ":}",
+            "{ True }",
+            "y := f",
+            "{ ⟨ ∀ helper : True : y = helper ⟩ }"
+          ]
+          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : x = $1 ⟩"],
       -- Both right-hand sides read the state before the simultaneous
       -- assignment, so K's x is not the 1 being assigned to x.
       --

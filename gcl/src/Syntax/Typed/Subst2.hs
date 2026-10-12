@@ -113,7 +113,15 @@
 --
 -- Renaming preserves each occurrence's type and source range; a replacement
 -- brings its own metadata.
-module Syntax.Typed.Subst2 (substExpr, renameFree, allNames) where
+module Syntax.Typed.Subst2
+  ( substExpr,
+    insertDefinition,
+    renameFree,
+    renameName,
+    renamePatternBinders,
+    allNames,
+  )
+where
 
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
@@ -162,7 +170,18 @@ substExpr :: (Fresh m) => [(Text, Expr)] -> Expr -> m Expr
 substExpr sb expr
   | hasDuplicateNames sb =
       error "substExpr: duplicate names in substitution"
-  | otherwise = subst sb expr
+  | otherwise = subst Ordinary sb expr
+
+-- | Insert a definition body at a fresh placeholder. Lexical binders must
+-- avoid capturing the body's free names, but pending program substitutions
+-- must be allowed to update its globals. This is deliberately separate from
+-- 'substExpr': beta reduction and composition still avoid table capture.
+-- The placeholder must be fresh for all names in the original expression.
+insertDefinition :: (Fresh m) => Name -> Expr -> Expr -> m Expr
+insertDefinition placeholder body =
+  subst DefinitionInsertion [(nameToText placeholder, body)]
+
+data SubstMode = Ordinary | DefinitionInsertion
 
 hasDuplicateNames :: Substitution -> Bool
 hasDuplicateNames sb =
@@ -171,25 +190,25 @@ hasDuplicateNames sb =
 -- | Recursive worker for 'substExpr'. Entries in @sb@ replace free occurrences
 --   simultaneously. At a binder, the existing region is alpha-renamed before
 --   replacements are inserted, so newly inserted free names are not renamed.
-subst :: (Fresh m) => Substitution -> Expr -> m Expr
-subst _ e@Lit {} = pure e
-subst sb e@(Var x _ _) = pure (fromMaybe e (lookup (nameToText x) sb))
-subst sb e@(Const x _ _) = pure (fromMaybe e (lookup (nameToText x) sb))
-subst _ e@Op {} = pure e
-subst sb (Chain chain) = Chain <$> substChain sb chain
-subst sb (App function argument l) =
-  App <$> subst sb function <*> subst sb argument <*> pure l
-subst sb (Lam x t body l) = do
+subst :: (Fresh m) => SubstMode -> Substitution -> Expr -> m Expr
+subst _ _ e@Lit {} = pure e
+subst _ sb e@(Var x _ _) = pure (fromMaybe e (lookup (nameToText x) sb))
+subst _ sb e@(Const x _ _) = pure (fromMaybe e (lookup (nameToText x) sb))
+subst _ _ e@Op {} = pure e
+subst mode sb (Chain chain) = Chain <$> substChain mode sb chain
+subst mode sb (App function argument l) =
+  App <$> subst mode sb function <*> subst mode sb argument <*> pure l
+subst mode sb (Lam x t body l) = do
   (renaming, sb') <- underBinders sb [x] [body]
-  body' <- subst sb' (renameFree renaming body)
+  body' <- subst mode sb' (renameFree renaming body)
   pure (Lam (renameName renaming x) t body' l)
-subst sb (Tuple elements) = Tuple <$> mapM (subst sb) elements
-subst sb (OutT index e) = OutT index <$> subst sb e
-subst sb (Quant operator binders range body l) = do
-  operator' <- subst sb operator -- outside the binders' scope
+subst mode sb (Tuple elements) = Tuple <$> mapM (subst mode sb) elements
+subst mode sb (OutT index e) = OutT index <$> subst mode sb e
+subst mode sb (Quant operator binders range body l) = do
+  operator' <- subst mode sb operator -- outside the binders' scope
   (renaming, sb') <- underBinders sb (map fst binders) [range, body]
-  range' <- subst sb' (renameFree renaming range)
-  body' <- subst sb' (renameFree renaming body)
+  range' <- subst mode sb' (renameFree renaming range)
+  body' <- subst mode sb' (renameFree renaming body)
   pure
     ( Quant
         operator'
@@ -198,41 +217,43 @@ subst sb (Quant operator binders range body l) = do
         body'
         l
     )
-subst sb (ArrIdx array index l) =
-  ArrIdx <$> subst sb array <*> subst sb index <*> pure l
-subst sb (ArrUpd array index value l) =
+subst mode sb (ArrIdx array index l) =
+  ArrIdx <$> subst mode sb array <*> subst mode sb index <*> pure l
+subst mode sb (ArrUpd array index value l) =
   ArrUpd
-    <$> subst sb array
-    <*> subst sb index
-    <*> subst sb value
+    <$> subst mode sb array
+    <*> subst mode sb index
+    <*> subst mode sb value
     <*> pure l
-subst sb (Case scrutinee clauses l) =
+subst mode sb (Case scrutinee clauses l) =
   Case
-    <$> subst sb scrutinee
-    <*> mapM (substClause sb) clauses
+    <$> subst mode sb scrutinee
+    <*> mapM (substClause mode sb) clauses
     <*> pure l
 -- The table's domain binds over the body only, never over its values.
-subst sb (Subst body table) = do
-  (renaming, sb') <- underBinders sb (map fst table) [body]
-  body' <- subst sb' (renameFree renaming body)
-  table' <- mapM (\(x, e) -> (,) (renameName renaming x) <$> subst sb e) table
+subst mode sb (Subst body table) = do
+  (renaming, sb') <- case mode of
+    Ordinary -> underBinders sb (map fst table) [body]
+    DefinitionInsertion -> pure ([], hide (map fst table) sb)
+  body' <- subst mode sb' (renameFree renaming body)
+  table' <- mapM (\(x, e) -> (,) (renameName renaming x) <$> subst mode sb e) table
   pure (Subst body' table')
 -- A hole is opaque. Its 'Env' is a snapshot of the scope in the elaborated
 -- source tree, so this traversal does not rewrite it when surrounding binders
 -- are renamed; 'substExpr' states what that costs the caller. The server
 -- retains source-derived holes separately for refinement; see 'GCL.WP.sweep'.
-subst _ e@EHole {} = pure e
+subst _ _ e@EHole {} = pure e
 
-substChain :: (Fresh m) => Substitution -> Chain -> m Chain
-substChain sb (Pure e) = Pure <$> subst sb e
-substChain sb (More chain operator t e) =
-  More <$> substChain sb chain <*> pure operator <*> pure t <*> subst sb e
+substChain :: (Fresh m) => SubstMode -> Substitution -> Chain -> m Chain
+substChain mode sb (Pure e) = Pure <$> subst mode sb e
+substChain mode sb (More chain operator t e) =
+  More <$> substChain mode sb chain <*> pure operator <*> pure t <*> subst mode sb e
 
 -- | A clause's pattern binds over its body only, never over the scrutinee.
-substClause :: (Fresh m) => Substitution -> CaseClause -> m CaseClause
-substClause sb (CaseClause pattern' body) = do
+substClause :: (Fresh m) => SubstMode -> Substitution -> CaseClause -> m CaseClause
+substClause mode sb (CaseClause pattern' body) = do
   (renaming, sb') <- underBinders sb (extractBinder pattern') [body]
-  body' <- subst sb' (renameFree renaming body)
+  body' <- subst mode sb' (renameFree renaming body)
   pure (CaseClause (renamePatternBinders renaming pattern') body')
 
 -- | Choose between the three binder rules for a node that binds @binders@ over
