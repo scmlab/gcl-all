@@ -102,7 +102,8 @@ redexAnnotations =
           @? "the remaining substitution must carry its root path"
         evalReduce env unfolded [] @?= Just (T.Var a intType Nothing),
       -- g = x; f a = g < a. ((f[x \ y])[y \ x]) b --click f-->
-      -- g[x \ x] < b. The generated table has path [1] and g has [1,0],
+      -- g[x, y \ x, x] < b. State stays conservative until g unfolds.
+      -- The generated table has path [1] and g has [1,0],
       -- following Chain's rightmost-first order. The server accepts both.
       testCase "a generated identity table keeps its own renderer and server paths" $ do
         let variable name = T.Var name intType Nothing
@@ -111,15 +112,19 @@ redexAnnotations =
             env = [(f, T.Lam a intType (less (variable g) (variable a)) Nothing), (g, variable x)]
             function = T.Subst (T.Subst (T.Var f predicateType Nothing) [(x, variable y)]) [(y, variable x)]
             expression = T.App function (variable b) Nothing
-            pending = less (T.Subst (variable g) [(x, variable x)]) (variable b)
+            table = [(x, variable x), (y, variable x)]
+            pending = less (T.Subst (variable g) table) (variable b)
+            withoutIdentity = less (T.Subst (variable g) [(y, variable x)]) (variable b)
             html = inlinesToHtml (renderExprRZ env pending)
         evalReduce env expression [0, 0, 0] @?= Just pending
         Text.isInfixOf "<span class=\"gcl-redex\" data-redex=\"1\">" html
           @? "the generated identity table must carry its own clickable path"
         Text.isInfixOf "<span class=\"gcl-redex\" data-redex=\"1,0\">g</span>" html
           @? "g must remain separately clickable inside the identity table"
-        evalReduce env pending [1] @?= Just (less (variable g) (variable b))
-        evalReduce env pending [1, 0] @?= Just (less (T.Subst (variable x) [(x, variable x)]) (variable b)),
+        evalReduce env pending [1] @?= Just withoutIdentity
+        evalReduce env pending [1, 0] @?= Just (less (T.Subst (variable x) table) (variable b))
+        (evalReduce env withoutIdentity [1, 0] >>= \unfolded -> evalReduce env unfolded [1])
+          @?= Just (less (variable x) (variable b)),
       testCase "a Chain maps its leftmost expression to the last child" $
         Text.isInfixOf
           "<span class=\"gcl-redex\" data-redex=\"2\">f</span>"

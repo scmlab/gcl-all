@@ -128,6 +128,38 @@ tests reduce mark =
     -- f = f is intentionally one unfold, even though it has no visible change.
     testCase "self-reference still counts as one unfold" $
       run [(f, var f)] (var f) [] @?= Just (var f),
+    -- An alias cycle unfolds exactly once and leaves its state operation pending.
+    testCase "a recursive alias unfolds once with pending state" $
+      run [(f, var g), (g, var f)] (T.Subst (var f) [(x, var a)]) [0]
+        @?= Just (T.Subst (var g) [(x, var a)]),
+    -- f = (x, g[x := y]); g = f. Unfolding exposes the existing state operation;
+    -- applying y := a then updates its x entry to a without unfolding g.
+    testCase "state composes after exposing a recursive definition body" $ do
+      let body = T.Tuple [var x, T.Subst (var g) [(x, var y)]]
+          env = [(f, body), (g, var f)]
+          expression = T.Subst (var f) [(y, var a), (b, var a)]
+          unfolded = T.Subst body [(y, var a), (b, var a)]
+      run env expression [0] @?= Just unfolded
+      case run env unfolded [] of
+        Just (T.Tuple [original, T.Subst reference table]) -> do
+          original @?= var x
+          reference @?= var g
+          lookup x table @?= Just (var a)
+          lookup y table @?= Just (var a)
+        result -> assertFailure ("unexpected composition: " <> show result),
+    -- The case scrutinee is the outer local x. Inserting it under a different
+    -- local binder also named x must retain that outer binding.
+    testCase "a case value avoids capture by a same-named inner local" $ do
+      let truth = T.Lit (A.Bol True) (A.TBase A.TBool Nothing) Nothing
+          quant body = T.Quant truth [(x, intType)] truth body Nothing
+          expression = quant (T.Case (var x) [T.CaseClause (A.PattBinder y) (quant (T.Tuple [var y, var x]))] Nothing)
+      case run [] expression [2] of
+        Just (T.Quant _ [(outer, _)] _ (T.Quant _ [(inner, _)] _ (T.Tuple [value, bound]) _) _) -> do
+          outer @?= x
+          assertBool "the inner binder must not capture the outer local" (inner /= outer)
+          value @?= var outer
+          bound @?= var inner
+        result -> assertFailure ("unexpected case result: " <> show result),
     -- f y = g x; g y = f x. With x := b, both the call argument and
     -- the next definition reference retain b: (f a)[x \ b] = (g[x \ b]) b.
     testCase "mutual recursion preserves state after unfolding" $ do
@@ -266,13 +298,14 @@ tests reduce mark =
                 [[0], [], []], -- unfold the scrutinee, select case, apply state
                 [[1], [], [0]] -- apply the clause's state, select case, unfold f
               ],
-          -- f = x; f[x, y \ a, b] = f[x \ a]. A reference stays a leaf: the
-          -- entries it reads wait in a pending Subst, and y, which f
-          -- never reads, is dropped.
-          testCase "a state table over a reference keeps only the entries it reads" $ do
+          -- f = x; clicking f leaves x[x, y \ a, b]. Once the global is visible,
+          -- the substitution applies x := a and discards the unused y entry.
+          testCase "unfolding exposes state for a separate substitution click" $ do
             let env = [(f, var x)]
                 expression = T.Subst (var f) [(x, var a), (y, var b)]
-            run env expression [] @?= Just (T.Subst (var f) [(x, var a)]),
+                unfolded = T.Subst (var x) [(x, var a), (y, var b)]
+            run env expression [0] @?= Just unfolded
+            run env unfolded [] @?= Just (var a),
           -- f = x; g = a; ⟨∀ x : True : (f[x \ a], g, x)⟩. Clicking g
           -- leaves ⟨∀ x' : True : (f[x \ a], a, x')⟩. The displayed state
           -- key x must stay distinct from the binder before f exposes its global.
@@ -296,23 +329,26 @@ tests reduce mark =
       testGroup
         "cancelled state updates"
         [ -- g = x; f t = g < t. ((f[x \ y])[y \ x]) b --click f-->
-          -- g[x \ x] < b --click Subst--> g < b --click g--> x < b.
+          -- The composed x := x entry remains pending over g. A conservative
+          -- reducer may also retain y := x until g's global is exposed.
           -- Lam repair composes the updates but leaves the resulting identity
           -- over g for its own click; it must not silently return g < b.
           testCase "lambda repair leaves a composed identity table clickable" $ do
             let (env, expression) = cancelledCall
             case run env expression [0, 0, 0] of
               Just pending -> do
-                display pending @?= "g [ x \\ x ] < b"
+                assertPendingIdentity g pending
                 reduciblePaths env pending @?= [[1], [1, 0]]
                 case run env pending [1] of
-                  Just withoutTable -> do
-                    display withoutTable @?= "g < b"
-                    case run env withoutTable [1] of
-                      Just result -> do
-                        display result @?= "x < b"
-                        reduciblePaths env result @?= []
-                      Nothing -> assertFailure "g must remain available to unfold"
+                  Just withoutIdentity -> do
+                    assertReference g (leftOperand withoutIdentity)
+                    case reduciblePaths env withoutIdentity of
+                      [path] -> case run env withoutIdentity path of
+                        Just result -> do
+                          assertReference x (leftOperand result)
+                          normalForms run reduciblePaths env result @?= ["x < b"]
+                        Nothing -> assertFailure "g must remain available to unfold"
+                      paths -> assertFailure ("expected only the reference click: " <> show paths)
                   Nothing -> assertFailure "the composed identity table must have its own click"
               Nothing -> assertFailure "f must unfold through both environments and its application",
           -- g = x; f t = g < t. After clicking f in ((f[x \ y])[y \ x]) b,
@@ -322,7 +358,7 @@ tests reduce mark =
             let (env, expression) = cancelledCall
             case run env expression [0, 0, 0] >>= \pending -> run env pending [1, 0] of
               Just unfolded -> do
-                display unfolded @?= "x [ x \\ x ] < b"
+                assertPendingIdentity x unfolded
                 reduciblePaths env unfolded @?= [[1]]
                 case run env unfolded [1] of
                   Just result -> display result @?= "x < b"
@@ -334,16 +370,23 @@ tests reduce mark =
           testCase "all click orders preserve the original global after cancellation" $ do
             let (env, expression) = cancelledCall
             normalForms run reduciblePaths env expression @?= ["x < b"],
-          -- g = x; (g[x \ y])[y \ x] --click outer Subst--> g[x \ x]
-          --   --click identity Subst--> g --click g--> x.
+          -- g = x; (g[x \ y])[y \ x] composes into a table containing x := x.
+          -- The subject remains g, with an optional conservative y := x entry.
           -- Ordinary composition also retains its subject until a later click.
           testCase "ordinary composition leaves a generated identity pending" $ do
             let env = [(g, var x)]
                 expression = T.Subst (T.Subst (var g) [(x, var y)]) [(y, var x)]
-                composed = T.Subst (var g) [(x, var x)]
-            run env expression [] @?= Just composed
-            reduciblePaths env composed @?= [[], [0]]
-            run env composed [] @?= Just (var g)
+            case run env expression [] of
+              Just composed@(T.Subst reference table) -> do
+                reference @?= var g
+                lookup x table @?= Just (var x)
+                reduciblePaths env composed @?= [[], [0]]
+                case run env composed [] of
+                  Just withoutIdentity -> do
+                    assertReference g withoutIdentity
+                    normalForms run reduciblePaths env withoutIdentity @?= ["x"]
+                  Nothing -> assertFailure "the composed identity must have its own click"
+              result -> assertFailure ("unexpected composition: " <> show result)
             run env (var g) [] @?= Just (var x)
             normalForms run reduciblePaths env expression @?= ["x"],
           -- g = x; case y of x -> g[x \ x] = y.
@@ -365,6 +408,22 @@ tests reduce mark =
             normalForms run reduciblePaths env expression @?= ["y"]
         ]
       where
+        leftOperand :: T.Expr -> T.Expr
+        leftOperand (T.Chain (T.More (T.Pure subject) _ _ _)) = subject
+        leftOperand _ = error "the cancellation fixture must be a comparison"
+
+        assertReference :: Name -> T.Expr -> Assertion
+        assertReference expected (T.Var name _ _) = name @?= expected
+        assertReference expected (T.Subst subject _) = assertReference expected subject
+        assertReference _ expression = assertFailure ("expected a pending reference: " <> show expression)
+
+        assertPendingIdentity :: Name -> T.Expr -> Assertion
+        assertPendingIdentity expected expression = case leftOperand expression of
+          T.Subst subject table -> do
+            assertReference expected subject
+            lookup x table @?= Just (var x)
+          subject -> assertFailure ("expected an identity table: " <> show subject)
+
         -- GCL declarations/call: g = x; f t = g < t; { True } skip { f b }.
         -- Build the intermediate ((f[x \ y])[y \ x]) b with both operations
         -- between the definition and its application, where Lam repair is needed.

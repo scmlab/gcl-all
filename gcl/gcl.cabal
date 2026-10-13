@@ -126,6 +126,7 @@ library
       Syntax.Typed.Reduce.Saturation
       Syntax.Typed.Reduce2
       Syntax.Typed.Reduce3
+      Syntax.Typed.Reduce4
       Syntax.Typed.Structure
       Syntax.Typed.Subst2
       Syntax.Typed.Subst3
@@ -202,6 +203,7 @@ test-suite gcl-test
       Test.Reduce.Support
       Test.Reduce2
       Test.Reduce3
+      Test.Reduce4
       Test.Render
       Test.SrcLoc
       Test.Subst2

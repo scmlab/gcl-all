@@ -207,6 +207,14 @@ basicTests reduce mark =
       -- changes the rebuilt expression.
       testCase "withPathChildren rebuilds every constructor unchanged" $
         filter (\e -> withPathChildren e (pathChildren e) /= e) everyConstructor @?= [],
+      -- Local reduction leaves same-named binders and existing generated-looking
+      -- globals unchanged. Internal hygiene must not alter their displayed names.
+      testCase "local reduction preserves unrelated binder names" $ do
+        let global = var (Name "?x_0" Nothing) intType
+            inner body = T.Quant truth [(x, intType)] truth (T.Tuple [var x intType, body]) Nothing
+            outer body = T.Quant truth [(x, intType)] truth (T.Tuple [var x intType, inner body]) Nothing
+            expression = outer (T.OutT 0 (T.Tuple [global, var b intType]))
+        runCase [] expression [2, 1, 2, 1] @?= Just (outer global),
       -- G x y = (x, y); G a b has no child 7, negative child, or child
       -- below the leaf G. Every such path returns Nothing.
       testCase "invalid paths are rejected" $

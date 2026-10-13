@@ -7,7 +7,7 @@ import qualified Data.Aeson.Types as JSON
 import GHC.Generics (Generic)
 import Server.Monad (ServerM)
 import Server.Reduce (reduce)
-import Syntax.Typed.Reduce3 (RedexPath)
+import Syntax.Typed.Reduce4 (RedexPath)
 
 data ReduceParams = ReduceParams
   { filePath :: FilePath,
