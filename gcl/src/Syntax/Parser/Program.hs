@@ -6,11 +6,11 @@ module Syntax.Parser.Program where
 import GCL.Range (R (..))
 import Syntax.Common.Types (Name)
 import Syntax.Concrete.Types
-  ( Pragma (..),
-    PragmaContent (..),
-    DeclType (..),
+  ( DeclType (..),
     Declaration (..),
     DefinitionBlock,
+    Pragma (..),
+    PragmaContent (..),
     Program (..),
     Stmt,
   )

@@ -153,6 +153,6 @@ instance Pretty Kind where
 instance Pretty Hole where
   pretty = fromRender
 
-instance Pretty BlockComment where
+instance Pretty Pragma where
   pretty (Proof proof proofText) =
     "{-" <> line <> pretty proof <> line <> "---" <> line <> pretty proofText <> line <> "-}"

@@ -51,7 +51,6 @@ data Program
       [Declaration] -- constant and variable declarations
       [Expr] -- global properties
       [Stmt] -- main program
-      [BlockComment]
       (Maybe Range)
   deriving (Eq, Show)
 
@@ -96,7 +95,7 @@ resolveDependency program@(A.Program _ decls exprs stmts blocks range) = do
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
-  return $ GCL.Dependency.Program sccs decls exprs stmts blocks range
+  return $ GCL.Dependency.Program sccs decls exprs stmts range
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
     toTopSortedSCC = reverse . stronglyConnComp . elems

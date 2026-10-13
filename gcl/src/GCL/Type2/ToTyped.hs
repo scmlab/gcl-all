@@ -223,7 +223,7 @@ class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
 
 instance ToTyped D.Program T.Program where
-  toTyped (D.Program defns decls exprs stmts blocks range) = do
+  toTyped (D.Program defns decls exprs stmts range) = do
     traceM $ "defns: " <> show (pretty (Graph.flattenSCCs defns))
     traceM $ "decls: " <> show (pretty decls)
     traceM $ "exprs: " <> show (pretty exprs)

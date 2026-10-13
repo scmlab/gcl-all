@@ -358,7 +358,7 @@ instance ToAbstract Hole A.Hole where
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
 
-instance {-# OVERLAPS #-} ToAbstract [Pragma] [A.BlockComment] where
+instance {-# OVERLAPS #-} ToAbstract [Pragma] [A.Pragma] where
   toAbstract =
     foldM
       ( \acc (Pragma _ content _) ->

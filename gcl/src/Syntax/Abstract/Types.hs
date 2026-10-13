@@ -30,7 +30,7 @@ data Program
       [Declaration] -- constant and variable declarations
       [Expr] -- global properties
       [Stmt] -- main program
-      [BlockComment]
+      [Pragma]
       (Maybe Range)
   deriving (Eq, Show)
 
@@ -243,6 +243,6 @@ baseTypeOfLit (Chr _) = TChar
 data Hole = Hole Text Int Range
   deriving (Eq, Show, Generic)
 
-data BlockComment
+data Pragma
   = Proof Text Text
   deriving (Eq, Show)

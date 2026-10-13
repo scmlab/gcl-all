@@ -107,11 +107,11 @@ loadAndDig filePath source = do
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
 loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
-  let abstract = C.runAbstractTransform concrete
-  abstract'@(D.Program _ _ _ _ comments _) <- first TypeError $ evalDependencyResolution abstract
+  let abstract@(A.Program _ _ _ _ pragmas _) = C.runAbstractTransform concrete
+  abstract' <- first TypeError $ evalDependencyResolution abstract
   (elaborated@(T.Program _ _ globalProps _ _), state) <- first TypeError $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
-  let proofs = getProofs comments
+  let proofs = getProofs pragmas
   let pos' = map (\po -> po {poProofExists = poStrippedPred po `elem` proofs}) pos
   return
     FileState
