@@ -197,6 +197,9 @@ test-suite gcl-test
       Test.Move
       Test.OrigCoord
       Test.Parser
+      Test.Reduce
+      Test.Reduce.Steps
+      Test.Reduce.Support
       Test.Reduce2
       Test.Reduce3
       Test.Render
