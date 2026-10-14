@@ -3,6 +3,7 @@ export default function renderSection(
   sectionBody: string,
   subtitle?: string,
   code?: string,
+  footer?: string,
 ) {
   return /* html */ `
     <div>
@@ -41,6 +42,12 @@ export default function renderSection(
           padding: 10px 12px;
           font-family: monospace;
         }
+        .section-footer {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 6px;
+          font-size: 12px;
+        }
       </style>
 
       <div class="section">
@@ -64,6 +71,7 @@ export default function renderSection(
           <div class="section-body">${sectionBody}</div>
         `
         }
+        ${footer ? `<div class="section-footer">${footer}</div>` : ""}
       </div>
     </div>
   `;
