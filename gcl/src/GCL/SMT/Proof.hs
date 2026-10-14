@@ -155,14 +155,25 @@ mkUninterpretedFunc name = build []
       error $ "Unsupported uninterpreted function type layer: " ++ show ty
 
 instance ProofBuilder T.Chain where
-  buildProof (T.Pure expr) = buildProof expr
-  buildProof (T.More chain op _ expr) = do
-    c <- buildProof chain
-    e <- buildProof expr
-    r <- opToFunc op c
-    case r of
-      SFunc f' -> f' e
-      _ -> throwError "Unable to apply on literal values"
+  buildProof chain = do
+    (lastOperand, comparisons) <- buildChain chain
+    return $ maybe lastOperand SVal comparisons
+
+-- Keep the last operand separate from the comparisons already made. The next
+-- comparison uses that operand, rather than the Boolean result of the chain.
+buildChain :: T.Chain -> BuildState (SValue, Maybe SVal)
+buildChain (T.Pure expr) = do
+  operand <- buildProof expr
+  return (operand, Nothing)
+buildChain (T.More chain op _ expr) = do
+  (prevOperand, cmp) <- buildChain chain
+  operand <- buildProof expr
+  comparisonFunction <- opToFunc op prevOperand
+  comparison <- case comparisonFunction of
+    SFunc f -> f operand >>= asVal
+    _ -> throwError "Unable to apply comparison operator"
+  let allComparisons = maybe comparison (`svAnd` comparison) cmp
+  return (operand, Just allComparisons)
 
 opToFunc :: C.Op -> (SValue -> BuildState SValue)
 opToFunc (C.ChainOp op) = case op of
