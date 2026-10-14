@@ -82,6 +82,8 @@ reduceFocused context original selected frames = do
     _ -> result
 
 repair :: (Fresh m) => Context -> Expr -> [Frame] -> m (Maybe Expr)
+-- Defensive only: elaborated definition bodies contain no Subst, and repair
+-- adds Subst only over references, so a replacement never wraps a Lam here.
 repair context (Subst subject assignments) frames
   | leadingLambda subject = do
       result <- applyState context (hiddenDefinitions frames <> domain assignments) assignments subject

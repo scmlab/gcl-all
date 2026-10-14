@@ -257,6 +257,34 @@ tests reduce mark =
                 body = T.Lam y intType (T.Tuple [var x, var y]) Nothing
                 expression = T.App (T.Subst (T.Var f unary Nothing) [(x, var a)]) (var x) Nothing
             run [(f, body)] expression [0, 0] @?= Just (T.Tuple [var a, var x]),
+          -- F t = x < t; (F x)[x, y \ x + 1, 0] = F[x, y \ x + 1, 0] (x + 1).
+          -- Only F is clickable, and one click consumes the interposed table
+          -- before beta: the argument x + 1 is not updated again, and the
+          -- unread y entry does not survive. A precise reducer drops y earlier.
+          testCase "one unfold consumes an interposed table from a loaded program" $ do
+            let (env, expression) =
+                  loaded
+                    [ "var x, y : Int",
+                      "{:",
+                      "F t = x < t",
+                      ":}",
+                      "{ True }",
+                      "x, y := x + 1, 0",
+                      "{ F x }"
+                    ]
+            case run env expression [] of
+              Just distributed@(T.App (T.Subst (T.Var ref _ _) table) argument _) -> do
+                nameToText ref @?= "F"
+                assertBool "the table holds x and at most the unread y" $
+                  map (nameToText . fst) table `elem` [["x"], ["x", "y"]]
+                display argument @?= "x + 1"
+                reduciblePaths env distributed @?= [[0, 0]]
+                case run env distributed [0, 0] of
+                  Just result -> do
+                    display result @?= "x + 1 < x + 1"
+                    reduciblePaths env result @?= []
+                  Nothing -> assertFailure "F must unfold through its table and argument"
+              result -> assertFailure ("unexpected result: " <> show result),
           -- f y z = (x, y, z); ((f[x \ a]) x)[x \ b] x = (a, b, x).
           -- Both Lams require repair: the first argument then sees b, while the
           -- last x belongs to the later call. No standalone Lam is returned.
