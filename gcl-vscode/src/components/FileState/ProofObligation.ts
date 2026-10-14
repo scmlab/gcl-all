@@ -20,45 +20,59 @@ export default function renderProofObligation(
           color: #959595;
           padding: 0 6px;
         }
-        .proof-obligation-smt-result { position: relative; display: inline-block; }
+        .proof-obligation-smt-result {
+          position: relative;
+          display: inline-block;
+          margin: 0;
+          cursor: help;
+        }
         .proof-obligation-smt-result .proof-obligation-smt-result-hover {
           visibility: hidden;
+          opacity: 0;
+          pointer-events: none;
           position: absolute;
+          z-index: 2;
+          bottom: 100%;
+          right: 0;
+          box-sizing: border-box;
+          width: max-content;
+          min-width: min(160px, calc(100vw - 56px));
+          max-width: min(340px, calc(100vw - 56px));
+          max-height: min(320px, 50vh);
+          overflow: auto;
+          padding: 8px 12px;
           background: var(--vscode-editorHoverWidget-background);
           color: var(--vscode-editorHoverWidget-foreground);
           border: 1px solid var(--vscode-editorHoverWidget-border);
-          padding: 4px 8px;
-          border-radius: 3px;
-          z-index: 1;
-          bottom: 125%;
-          left: 50%;
-          transform: translateX(-50%);
-
-          white-space: pre-line;
-          max-width: 340px;
-          min-width: 160px;
-
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          font-family: var(--vscode-editor-font-family, monospace);
+          font-size: 12px;
+          font-weight: normal;
           text-align: left;
-          line-height: 1.5;
-          padding: 8px 12px;
-          font-size: 13px;
-
-          word-wrap: break-word;
-          overflow-wrap: break-word;
+          line-height: 1.45;
+          white-space: pre-wrap;
+          overflow-wrap: anywhere;
+          transition: opacity 120ms ease;
         }
-        .proof-obligation-smt-result:hover .proof-obligation-smt-result-hover { visibility: visible; }
+        .proof-obligation-smt-result:hover .proof-obligation-smt-result-hover,
+        .proof-obligation-smt-result:focus-within .proof-obligation-smt-result-hover {
+          visibility: visible;
+          opacity: 1;
+          pointer-events: auto;
+        }
       </style>
       <table class="proof-obligation">
       <tr>
         <td class="proof-obligation-expression">${renderedExpression}</td>
       </tr>
       </table>
-      <div style="text-align: right;">
-        <p class="proof-obligation-smt-result">
-          <strong>SMT Proof: ${proofResult}<span class="proof-obligation-smt-result-hover">${proofObligation.smtResult}</span></strong>
-        </p>
-      </div>
     </div>
+  `;
+  const footer = `
+    <p class="proof-obligation-smt-result" tabindex="0">
+      <strong>SMT Proof: ${proofResult}<span class="proof-obligation-smt-result-hover">${proofObligation.smtResult}</span></strong>
+    </p>
   `;
 
   return renderSection(
@@ -67,6 +81,7 @@ export default function renderProofObligation(
     proofObligation.origin.location &&
       `at ${renderRange(proofObligation.origin.location)}`,
     `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`,
+    footer,
   );
 }
 
