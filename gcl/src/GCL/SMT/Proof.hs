@@ -51,20 +51,25 @@ import GCL.SMT.Types
   )
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Common.Types as C
+import qualified Syntax.Typed.Operator as Op
 import qualified Syntax.Typed.Types as T
 
-runProof :: T.Expr -> IO (Either String ThmResult)
-runProof expr = runExceptT $ Trans.prove $ do
-  result <- evalStateT (buildProof expr) mempty
+runProof :: [T.Expr] -> T.Expr -> IO (Either String ThmResult)
+runProof globalProps expr = runExceptT $ Trans.prove $ do
+  result <- evalStateT (buildProof prerequisite) mempty
   case result of
     SVal v -> return $ toBool v
     SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
   where
+    prerequisite = case globalProps of
+      [] -> expr
+      _ -> Op.implies (Op.conjunct globalProps) expr
+
     toBool :: SVal -> SBool
     toBool = SBV
 
-evaluateAsString :: T.Expr -> IO String
-evaluateAsString expr = either id show <$> runProof expr
+evaluateAsString :: [T.Expr] -> T.Expr -> IO String
+evaluateAsString globalProps expr = either id show <$> runProof globalProps expr
 
 instance ProofBuilder T.Expr where
   buildProof (T.Lit lit _ _) = return $ convert lit
