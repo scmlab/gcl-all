@@ -32,11 +32,6 @@ import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
 import qualified Syntax.Typed.Types as T
-import Control.Monad (forM_)
-import Control.Monad.IO.Class (liftIO)
-import GCL.SMT.Proof (evaluateAsString)
-import GCL.Predicate (PO(..))
-
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
 type DigResult = ([(Range, Text)], Text)
@@ -74,7 +69,7 @@ load filePath = do
                           po <-
                             mapM
                               ( \po -> do
-                                  smtResult <- liftIO $ evaluateAsString (poReducedPred po)
+                                  smtResult <- liftIO $ evaluateAsString (fsGlobalProps fs) (poReducedPred po)
                                   return $ po {poSMTResult = Text.pack smtResult}
                               )
                               (fsProofObligations fs)

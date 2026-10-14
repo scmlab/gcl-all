@@ -23,7 +23,7 @@ test = do
   case result of
     Left err -> print $ show err
     Right typed -> do
-      result' <- evaluateAsString typed
+      result' <- evaluateAsString [] typed
       print result'
 
 simpleLoad :: FilePath -> Text.Text -> IO (Either Error T.Expr)
