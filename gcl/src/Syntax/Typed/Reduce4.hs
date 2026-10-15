@@ -1,4 +1,4 @@
--- | One-click reduction over ordinary typed expressions.
+-- | One-click and bounded full reduction over ordinary typed expressions.
 --
 -- Lexical binders receive private, unique names while a click is evaluated.
 -- Consequently beta/case substitution cannot capture a lexical variable, and
@@ -15,6 +15,7 @@ module Syntax.Typed.Reduce4
     RTree (..),
     RT,
     tryReduceAt,
+    reduceAll,
     redexRT,
   )
 where
@@ -22,6 +23,7 @@ where
 import Control.Monad (foldM)
 import Control.Monad.State (StateT, evalState, get, modify, runStateT)
 import Control.Monad.Trans.Class (lift)
+import Data.Bifunctor (bimap)
 import Data.List ((!?))
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
@@ -59,6 +61,50 @@ tryReduceAt env expression path = do
     Nothing -> pure Nothing
     Just (selected, frames) -> reduceFocused context expression selected frames
 
+-- | Reduce the first redex in root-first 'pathChildren' order until none remain.
+-- The limit counts successful one-click reductions, including self-unfolds.
+-- 'Right' contains an expression without redexes. It may still be stuck, e.g.
+-- on a definition that is never applied; 'Left' contains the unfinished one.
+-- Non-positive limits permit no steps, but an irreducible input still succeeds.
+-- Steps keep private binder names, so the result restores the input's names
+-- once, rather than inheriting a fallback name some intermediate step needed.
+-- That restore counts from zero again, so fallback names do not grow with the
+-- number of steps. They avoid every name in the final expression; private
+-- names of earlier steps no longer occur and need not be avoided.
+reduceAll :: Int -> DefnEnv -> Expr -> Either Expr Expr
+reduceAll limit env expression =
+  bimap finish finish (evalState (prepare env expression >>= uncurry (go limit)) initFreshState)
+  where
+    finish (context, current) =
+      evalState (restore context {forbidden = allNames current} current) initFreshState
+    go remaining context current = do
+      next <- reduceOnce context current
+      case next of
+        Nothing -> pure (Right (context, current))
+        Just result
+          | remaining <= 0 -> pure (Left (context, current))
+          | otherwise -> do
+              (context', prepared) <- prepareWith (originalNames context) env result
+              go (remaining - 1) context' prepared
+
+-- Search a prepared expression. A Subst that recreates itself waits for its
+-- reference, as in 'reduceFocused', but is compared before restoring names.
+reduceOnce :: (Fresh m) => Context -> Expr -> m (Maybe Expr)
+reduceOnce context expression = search [(expression, [])]
+  where
+    search [] = pure Nothing
+    search ((selected, frames) : pending) = do
+      result <- stepFocused context selected frames
+      case (selected, result) of
+        (Subst {}, Just same) | same == expression -> deeper
+        (_, Just _) -> pure result
+        (_, Nothing) -> deeper
+      where
+        deeper =
+          search $
+            [(child, (index, selected) : frames) | (index, child) <- zip [0 ..] (pathChildren selected)]
+              <> pending
+
 redexRT :: DefnEnv -> Expr -> RT
 redexRT env expression = go [] prepared
   where
@@ -70,16 +116,19 @@ redexRT env expression = go [] prepared
 
 reduceFocused :: (Fresh m) => Context -> Expr -> Expr -> [Frame] -> m (Maybe Expr)
 reduceFocused context original selected frames = do
-  candidate <- case selected of
-    Var name _ _
-      | Just body <- definition context (hiddenDefinitions frames) name -> repair context body frames
-    _ -> fmap (flip rebuild frames) <$> localStep context (hiddenDefinitions frames) selected
-  result <- traverse (restore context) candidate
+  result <- traverse (restore context) =<< stepFocused context selected frames
   pure $ case selected of
     -- A reference's environment waits for its unfold when applying it would
     -- recreate the same displayed Subst. Self-reference unfolds still count.
     Subst {} | result == Just original -> Nothing
     _ -> result
+
+-- One rule at a prepared selection; the result keeps private binder names.
+stepFocused :: (Fresh m) => Context -> Expr -> [Frame] -> m (Maybe Expr)
+stepFocused context selected frames = case selected of
+  Var name _ _
+    | Just body <- definition context (hiddenDefinitions frames) name -> repair context body frames
+  _ -> fmap (flip rebuild frames) <$> localStep context (hiddenDefinitions frames) selected
 
 repair :: (Fresh m) => Context -> Expr -> [Frame] -> m (Maybe Expr)
 -- Defensive only: elaborated definition bodies contain no Subst, and repair
@@ -243,29 +292,36 @@ mayReadState context hidden key (Subst subject table) =
 mayReadState context hidden key expression = any (mayReadState context hidden key) (pathChildren expression)
 
 prepare :: (Fresh m) => DefnEnv -> Expr -> m (Context, Expr)
-prepare env expression = do
+prepare = prepareWith Map.empty
+
+-- 'inherited' maps private names already in the expression to the names they
+-- should restore to, so repeated steps never treat a private name as original.
+prepareWith :: (Fresh m) => Map Text Text -> DefnEnv -> Expr -> m (Context, Expr)
+prepareWith inherited env expression = do
   ((compiled, prepared), names) <- runStateT action Map.empty
   pure (Context (Map.fromList compiled) names (avoid <> Map.keysSet names), prepared)
   where
     avoid = allNames expression <> foldMap (allNames . snd) env <> Set.fromList (map (nameToText . fst) env)
+    origin name = Map.findWithDefault name name inherited
     action = do
-      compiled <- mapM (\(name, body) -> (,) name <$> freshen avoid body) env
-      prepared <- freshen avoid expression
+      compiled <- mapM (\(name, body) -> (,) name <$> freshen id avoid body) env
+      prepared <- freshen origin avoid expression
       pure (compiled, prepared)
 
 -- Alpha-convert lexical binders only. A Subst domain still denotes the
 -- original program globals; it never renames a lexical binding.
-freshen :: (Fresh m) => Set Text -> Expr -> StateT (Map Text Text) m Expr
-freshen avoid expression = do
+freshen :: (Fresh m) => (Text -> Text) -> Set Text -> Expr -> StateT (Map Text Text) m Expr
+freshen origin avoid expression = do
   (header, children) <- underScopes allocate expression
-  withPathChildren header <$> mapM (freshen avoid) children
+  withPathChildren header <$> mapM (freshen origin avoid) children
   where
     allocate names _ = mapM allocateName names
     allocateName :: (Fresh n) => Name -> StateT (Map Text Text) n (Text, Text)
     allocateName name = do
       originals <- get
-      target <- lift (freshAvoiding (avoid <> Map.keysSet originals) (nameToText name))
-      modify (Map.insert target (nameToText name))
+      let original = origin (nameToText name)
+      target <- lift (freshAvoiding (avoid <> Map.keysSet originals) original)
+      modify (Map.insert target original)
       pure (nameToText name, target)
 
 -- Undo private alpha-conversion. Keep a binder's original name unless it

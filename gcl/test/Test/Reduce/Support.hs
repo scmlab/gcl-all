@@ -9,6 +9,7 @@ module Test.Reduce.Support
     reduciblePathsWith,
     answersWith,
     normalForms,
+    normalFormText,
     loaded,
     prettyExpr,
   )
