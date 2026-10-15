@@ -3,16 +3,22 @@
 module Test.Render where
 
 import Data.Text (Text)
+import qualified Data.Text as Text
 import Pretty
   ( docToText,
     toText,
   )
 import Prettyprinter (Pretty, pretty)
+import Render.Element (inlinesToHtml)
+import Render.Syntax.Typed (renderExprRZ, renderPOPredRZ)
+import Server.Reduce (evalReduce)
 import qualified Syntax.Abstract as A
+import qualified Syntax.Common.Types as Common
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as AT
 import Syntax.Parser (Parser)
 import qualified Syntax.Parser as Parser
+import qualified Syntax.Typed.Types as T
 import Test.Tasty
   ( TestTree,
     testGroup,
@@ -20,6 +26,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
   ( Assertion,
     testCase,
+    (@?),
     (@?=),
   )
 import Test.Util
@@ -30,7 +37,8 @@ tests :: TestTree
 tests =
   testGroup
     "Render"
-    [ expression
+    [ expression,
+      redexAnnotations
     ]
 
 --------------------------------------------------------------------------------
@@ -63,6 +71,105 @@ expression =
     run :: Text -> Assertion
     run e = prettyae e @?= e
     prettyae = docToText . pretty . ae . ce
+
+--------------------------------------------------------------------------------
+
+redexAnnotations :: TestTree
+redexAnnotations =
+  testGroup
+    "Redex annotations"
+    [ testCase "a definition reference carries the active reducer's path" $
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"0\">f</span>"
+          (inlinesToHtml (renderExprRZ [(f, identity)] call))
+          @? "the function Var should be marked, rather than its enclosing App",
+      testCase "the server accepts the path emitted by the renderer" $
+        evalReduce [(f, identity)] call [0] @?= Just (T.Var a intType Nothing),
+      -- f = x; f[x \ a] --click f at [0]--> x[x \ a]
+      --   --click Subst at []--> a. Both UI paths execute separate steps.
+      testCase "a pending environment keeps its substitution click after unfolding" $ do
+        let env = [(f, T.Var x intType Nothing)]
+            pending = T.Subst (T.Var f intType Nothing) [(x, T.Var a intType Nothing)]
+            unfolded = T.Subst (T.Var x intType Nothing) [(x, T.Var a intType Nothing)]
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"0\">f</span>"
+          (inlinesToHtml (renderExprRZ env pending))
+          @? "the renderer must mark the reference inside the environment"
+        evalReduce env pending [0] @?= Just unfolded
+        Text.isInfixOf
+          "data-redex=\"\""
+          (inlinesToHtml (renderExprRZ env unfolded))
+          @? "the remaining substitution must carry its root path"
+        evalReduce env unfolded [] @?= Just (T.Var a intType Nothing),
+      -- g = x; f a = g < a. ((f[x \ y])[y \ x]) b --click f-->
+      -- g[x, y \ x, x] < b. State stays conservative until g unfolds.
+      -- The generated table has path [1] and g has [1,0],
+      -- following Chain's rightmost-first order. The server accepts both.
+      testCase "a generated identity table keeps its own renderer and server paths" $ do
+        let variable name = T.Var name intType Nothing
+            less left right = T.Chain (T.More (T.Pure left) (Common.ChainOp (Common.LT Nothing)) intType right)
+            predicateType = A.mkArrowType intType boolType
+            env = [(f, T.Lam a intType (less (variable g) (variable a)) Nothing), (g, variable x)]
+            function = T.Subst (T.Subst (T.Var f predicateType Nothing) [(x, variable y)]) [(y, variable x)]
+            expression = T.App function (variable b) Nothing
+            table = [(x, variable x), (y, variable x)]
+            pending = less (T.Subst (variable g) table) (variable b)
+            withoutIdentity = less (T.Subst (variable g) [(y, variable x)]) (variable b)
+            html = inlinesToHtml (renderExprRZ env pending)
+        evalReduce env expression [0, 0, 0] @?= Just pending
+        Text.isInfixOf "<span class=\"gcl-redex\" data-redex=\"1\">" html
+          @? "the generated identity table must carry its own clickable path"
+        Text.isInfixOf "<span class=\"gcl-redex\" data-redex=\"1,0\">g</span>" html
+          @? "g must remain separately clickable inside the identity table"
+        evalReduce env pending [1] @?= Just withoutIdentity
+        evalReduce env pending [1, 0] @?= Just (less (T.Subst (variable x) table) (variable b))
+        (evalReduce env withoutIdentity [1, 0] >>= \unfolded -> evalReduce env unfolded [1])
+          @?= Just (less (variable x) (variable b)),
+      testCase "a Chain maps its leftmost expression to the last child" $
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"2\">f</span>"
+          (inlinesToHtml (renderExprRZ [(f, T.Var x intType Nothing)] chain))
+          @? "the marker should follow Chain's rightmost-first child order",
+      testCase "a top-level implication keeps its nested App path" $
+        Text.isInfixOf
+          "<span class=\"gcl-redex\" data-redex=\"0,1\">p</span>"
+          (inlinesToHtml (renderPOPredRZ [(p, truth)] implication))
+          @? "the implication's left operand should retain path [0,1]"
+    ]
+  where
+    f = Common.Name "f" Nothing
+    g = Common.Name "g" Nothing
+    x = Common.Name "x" Nothing
+    y = Common.Name "y" Nothing
+    a = Common.Name "a" Nothing
+    b = Common.Name "b" Nothing
+    p = Common.Name "p" Nothing
+    q = Common.Name "q" Nothing
+    intType = A.TBase A.TInt Nothing
+    boolType = A.TBase A.TBool Nothing
+    unaryType = A.mkArrowType intType intType
+    binaryBoolType = A.mkArrowType boolType (A.mkArrowType boolType boolType)
+    identity = T.Lam x intType (T.Var x intType Nothing) Nothing
+    call = T.App (T.Var f unaryType Nothing) (T.Var a intType Nothing) Nothing
+    chain =
+      T.Chain
+        ( T.More
+            ( T.More
+                (T.Pure (T.Var f intType Nothing))
+                (Common.ChainOp (Common.LT Nothing))
+                intType
+                (T.Var a intType Nothing)
+            )
+            (Common.ChainOp (Common.LT Nothing))
+            intType
+            (T.Var b intType Nothing)
+        )
+    truth = T.Lit (A.Bol True) boolType Nothing
+    implication =
+      T.App
+        (T.App (T.Op (Common.ArithOp (Common.ImpliesU Nothing)) binaryBoolType) (T.Var p boolType Nothing) Nothing)
+        (T.Var q boolType Nothing)
+        Nothing
 
 --------------------------------------------------------------------------------
 
