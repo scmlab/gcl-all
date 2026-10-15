@@ -138,8 +138,8 @@ data Tok
   | TokChar Char
   | TokTrue
   | TokFalse
-  | TokBlockCommentOpen -- "{-"
-  | TokBlockCommentClose -- "-}"
+  | TokPragmaOpen -- "{-#"
+  | TokPragmaClose -- "#-}"
   | TokProofSep -- proof block separator "---"
   | TokBackslash
   deriving (Eq, Ord)
@@ -236,8 +236,8 @@ instance Show Tok where
     TokIntType -> "Int"
     TokBoolType -> "Bool"
     TokCharType -> "Char"
-    TokBlockCommentOpen -> "{-"
-    TokBlockCommentClose -> "-}"
+    TokPragmaOpen -> "{-#"
+    TokPragmaClose -> "#-}"
     TokProofSep -> "---"
     TokBackslash -> "\\"
 
@@ -331,10 +331,10 @@ tokRE =
     <$ string "{:"
       <|> TokDeclClose
     <$ string ":}"
-      <|> TokBlockCommentOpen
-    <$ string "{-"
-      <|> TokBlockCommentClose
-    <$ string "-}"
+      <|> TokPragmaOpen
+    <$ string "{-#"
+      <|> TokPragmaClose
+    <$ string "#-}"
       <|> TokProofSep
     <$ string "---"
       -- literals
@@ -492,7 +492,7 @@ lexer =
       --         <$> many (psym isSpace)
       --         <*> (many anySym <* string "-}"),
       -- meaningless tokens that are to be dumped
-      -- whitespace $ longestShortest (string "{-") $ const (many anySym <* string "-}"),
+      whitespace $ longestShortest (string "{-") $ const (many anySym <* string "-}"),
       -- single-line comment
       whitespace (longest $ string "--" <* many (psym (not . isNewline))),
       -- old-style comment block

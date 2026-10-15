@@ -51,7 +51,7 @@ data Program
       [DefinitionBlock]
       [Declaration] -- constant and variable declarations
       [Stmt] -- main program
-      [BlockComment]
+      [Pragma]
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
@@ -209,10 +209,9 @@ data Hole
   deriving (Eq, Show, Generic)
 
 -- NOTE: make this a part of parsing in case we actually need parser in the future
-data BlockComment = BlockComment (Token "{-") CommentContent (Token "-}")
+data Pragma = Pragma (Token "{-#") PragmaContent (Token "#-}")
   deriving (Eq, Show)
 
-data CommentContent
-  = Comment [R Tok]
-  | Proof [R Tok] (Token "---") [R Tok]
+data PragmaContent
+  = Proof [R Tok] (Token "---") [R Tok]
   deriving (Eq, Show)

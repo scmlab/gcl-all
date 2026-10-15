@@ -135,5 +135,5 @@ instance MaybeRanged Hole where
   maybeRangeOf (HoleQM r) = Just r
   maybeRangeOf (Hole l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
-instance MaybeRanged BlockComment where
-  maybeRangeOf (BlockComment l _ r) = maybeRangeOf l <---> maybeRangeOf r
+instance MaybeRanged Pragma where
+  maybeRangeOf (Pragma l _ r) = maybeRangeOf l <---> maybeRangeOf r

@@ -6,11 +6,11 @@ module Syntax.Parser.Program where
 import GCL.Range (R (..))
 import Syntax.Common.Types (Name)
 import Syntax.Concrete.Types
-  ( BlockComment (..),
-    CommentContent (..),
-    DeclType (..),
+  ( DeclType (..),
     Declaration (..),
     DefinitionBlock,
+    Pragma (..),
+    PragmaContent (..),
     Program (..),
     Stmt,
   )
@@ -45,7 +45,7 @@ data Construct
   = Definition DefinitionBlock
   | Declaration Declaration
   | Statement Stmt
-  | BComment BlockComment
+  | BComment Pragma
 
 program :: Parser Program
 program = do
@@ -90,14 +90,14 @@ varDecl = VarDecl <$> tokenVar <*> declType identifier
 declType :: Parser Name -> Parser DeclType
 declType name = DeclType <$> declBase name <*> optional declProp
 
-blockComment :: Parser BlockComment
+blockComment :: Parser Pragma
 blockComment =
-  BlockComment
-    <$> tokenBlockCommentOpen
-    <*> (try proofBlock <|> comment) -- TODO: how do i disable indent requirement
-    <*> tokenBlockCommentClose
+  Pragma
+    <$> tokenPragmaOpen
+    <*> try proofBlock
+    <*> tokenPragmaClose
 
-proofBlock :: Parser CommentContent
+proofBlock :: Parser PragmaContent
 proofBlock = Proof <$> proof <*> tokenProofSep <*> proofText
   where
     proof = takeWhileP (Just "proof") notTokProofSep
@@ -105,11 +105,8 @@ proofBlock = Proof <$> proof <*> tokenProofSep <*> proofText
     notTokProofSep (R _ TokProofSep) = False
     notTokProofSep _ = True
 
-    proofText = takeWhileP (Just "proof text") notTokBlockCommentClose
+    proofText = takeWhileP (Just "proof text") notTokPragmaClose
 
-comment :: Parser CommentContent
-comment = Comment <$> takeWhileP (Just "comment") notTokBlockCommentClose
-
-notTokBlockCommentClose :: R Tok -> Bool
-notTokBlockCommentClose (R _ TokBlockCommentClose) = False
-notTokBlockCommentClose _ = True
+notTokPragmaClose :: R Tok -> Bool
+notTokPragmaClose (R _ TokPragmaClose) = False
+notTokPragmaClose _ = True

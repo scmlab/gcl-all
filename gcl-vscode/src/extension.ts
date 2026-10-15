@@ -251,7 +251,7 @@ function insertProofBlock(pred: string) {
     const document = editor.document;
     const lastLine = document.lineAt(document.lineCount - 1);
 
-    const proofBlock = `\n{-\n${pred}\n---\n\n-}\n`;
+    const proofBlock = `\n{-#\n${pred}\n---\n\n#-}\n`;
 
     const applied = await editor.edit((builder) => {
       builder.insert(lastLine.range.end, proofBlock);

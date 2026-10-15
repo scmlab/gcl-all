@@ -352,12 +352,11 @@ instance ToAbstract Hole A.Hole where
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
 
-instance {-# OVERLAPS #-} ToAbstract [BlockComment] [A.BlockComment] where
+instance {-# OVERLAPS #-} ToAbstract [Pragma] [A.Pragma] where
   toAbstract =
     foldM
-      ( \acc (BlockComment _ content _) ->
+      ( \acc (Pragma _ content _) ->
           case content of
-            (Comment _) -> return acc
             (Proof proof _ proofText) -> do
               let rTokToText = docToText . toDoc . prettyWithRange . map (fmap show)
               let proof' = rTokToText proof

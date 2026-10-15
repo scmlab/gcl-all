@@ -148,11 +148,11 @@ instance PrettyWithRange (Token "]|") where
 instance PrettyWithRange (Token "_") where
   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokUnderscore) l r
 
-instance PrettyWithRange (Token "{-") where
-  prettyWithRange (Token l r) = DocWithRange (pretty $ show TokBlockCommentOpen) l r
+instance PrettyWithRange (Token "{-#") where
+  prettyWithRange (Token l r) = DocWithRange (pretty $ show TokPragmaOpen) l r
 
-instance PrettyWithRange (Token "-}") where
-  prettyWithRange (Token l r) = DocWithRange (pretty $ show TokBlockCommentClose) l r
+instance PrettyWithRange (Token "#-}") where
+  prettyWithRange (Token l r) = DocWithRange (pretty $ show TokPragmaClose) l r
 
 instance PrettyWithRange (Token "---") where
   prettyWithRange (Token l r) = DocWithRange (pretty $ show TokProofSep) l r
@@ -534,9 +534,8 @@ instance PrettyWithRange Hole where
   prettyWithRange (HoleQM l) = fromDoc (Just l) (pretty ("?" :: String))
   prettyWithRange (Hole l t r) = prettyWithRange l <> prettyWithRange (map (fmap show) t) <> prettyWithRange r
 
-instance PrettyWithRange BlockComment where
-  prettyWithRange (BlockComment l c r) = prettyWithRange l <> prettyWithRange c <> prettyWithRange r
+instance PrettyWithRange Pragma where
+  prettyWithRange (Pragma l c r) = prettyWithRange l <> prettyWithRange c <> prettyWithRange r
 
-instance PrettyWithRange CommentContent where
-  prettyWithRange (Comment t) = (prettyWithRange . map (fmap show)) t
+instance PrettyWithRange PragmaContent where
   prettyWithRange (Proof p s t) = (prettyWithRange . map (fmap show)) p <> prettyWithRange s <> (prettyWithRange . map (fmap show)) t

@@ -94,11 +94,11 @@ tokenDeclOpen = adapt TokDeclOpen "{:"
 tokenDeclClose :: Parser (Token ":}")
 tokenDeclClose = adapt TokDeclClose ":}"
 
-tokenBlockCommentOpen :: Parser (Token "{-")
-tokenBlockCommentOpen = adapt TokBlockCommentOpen "{-"
+tokenPragmaOpen :: Parser (Token "{-#")
+tokenPragmaOpen = adapt TokPragmaOpen "{-#"
 
-tokenBlockCommentClose :: Parser (Token "-}")
-tokenBlockCommentClose = adapt TokBlockCommentClose "-}"
+tokenPragmaClose :: Parser (Token "#-}")
+tokenPragmaClose = adapt TokPragmaClose "#-}"
 
 tokenProofSep :: Parser (Token "---")
 tokenProofSep = adapt TokProofSep "---"
