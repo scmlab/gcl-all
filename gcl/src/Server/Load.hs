@@ -3,6 +3,7 @@
 
 module Server.Load where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Bifunctor (first)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
@@ -14,6 +15,7 @@ import GCL.Dependency (evalDependencyResolution)
 import qualified GCL.Dependency as D
 import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
+import GCL.SMT.Proof (evaluateAsString)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
 import Server.GoToDefn (collectLocationLinks)
@@ -30,9 +32,6 @@ import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
 import qualified Syntax.Typed.Types as T
-
---------------------------------------------------------------------------------
--- Types
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
 type DigResult = ([(Range, Text)], Text)
@@ -67,8 +66,16 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
+                          po <-
+                            mapM
+                              ( \po -> do
+                                  smtResult <- liftIO $ evaluateAsString (fsGlobalProps fs) (poReducedPred po)
+                                  return $ po {poSMTResult = Text.pack smtResult}
+                              )
+                              (fsProofObligations fs)
+                          let fs' = fs {fsProofObligations = po}
                           logText "Load: sending refresh\n"
-                          setAndSendFileStateWithRefresh filePath fs
+                          setAndSendFileStateWithRefresh filePath fs'
                         Left _ -> do
                           logTextLn "Load: type/struct error"
                           setAndSendFileState filePath fs
