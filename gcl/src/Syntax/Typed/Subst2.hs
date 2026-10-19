@@ -113,14 +113,13 @@
 --
 -- Renaming preserves each occurrence's type and source range; a replacement
 -- brings its own metadata.
-module Syntax.Typed.Subst2 (substExpr, renameFree) where
+module Syntax.Typed.Subst2 (substExpr, renameFree, allNames) where
 
 import Data.Maybe (fromMaybe)
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Text (Text)
-import qualified Data.Text as Text
-import GCL.Common (Fresh (..), freeVarsT)
+import GCL.Common (Fresh, freeVarsT, freshAvoiding)
 import Syntax.Abstract.Types (Pattern (..), extractBinder)
 import Syntax.Common.Types (Name (..), nameToText)
 import Syntax.Typed.Instances.Free ()
@@ -285,26 +284,8 @@ underBinders sb binders region = do
 allocate :: (Fresh m) => Set Text -> [Name] -> m Renaming
 allocate _ [] = pure []
 allocate forbidden (binder : rest) = do
-  target <- freshFor forbidden binder
+  target <- freshAvoiding forbidden (nameToText binder)
   ((nameToText binder, target) :) <$> allocate (Set.insert target forbidden) rest
-
--- | A name outside @forbidden@. 'Fresh' only proposes one: 'Fresh WP' avoids
---   the names in its own reader scopes and hands back the prefix unchanged for
---   everything else, so every proposal is checked here.
---
---   A clash extends the prefix rather than asking again, because that instance
---   is reader-only and would answer identically forever. This loop terminates
---   if every 'freshPre' result is at least as long as its prefix: @forbidden@
---   is finite, so a long enough prefix outgrows every member. All three
---   current instances satisfy this; the 'Fresh' class does not require it.
-freshFor :: (Fresh m) => Set Text -> Name -> m Text
-freshFor forbidden binder = go (nameToText binder)
-  where
-    go prefix = do
-      candidate <- freshPre prefix
-      if Set.member candidate forbidden
-        then go (Text.snoc prefix '\'')
-        else pure candidate
 
 -- | Implement R4': for each renaming @x -> y@, rewrite free occurrences of @x@
 --   as @y@. A binder named @x@ disables that renaming within its scope. The
