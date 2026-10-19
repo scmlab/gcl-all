@@ -281,7 +281,6 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Do gds range) = toTypedDo gds range
   toTyped (A.If gds range) = toTypedIf gds range
   toTyped (A.Spec text range) = T.Spec text range <$> ask
-  toTyped (A.Proof t1 t2 range) = return (T.Proof t1 t2 range)
   toTyped (A.Alloc var exprs range) = toTypedAlloc var exprs range
   toTyped (A.HLookup name expr range) = toTypedHLookup name expr range
   toTyped (A.HMutate left right range) = toTypedHMutate left right range

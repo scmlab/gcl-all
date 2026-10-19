@@ -10,7 +10,7 @@ node_modules
 vsc-extension-quickstart.md
 **/.eslintrc.json
 
-server_log.txt
+*.log
 
 .direnv
 .tmp

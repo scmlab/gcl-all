@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -83,9 +84,11 @@ instance Collect () Highlighting AsName where
 -- Program
 
 instance Collect () Highlighting Program where
-  collect (Program as bs) = do
-    collect as
-    collect bs
+  collect (Program defns decls procs stmts pragmas) = do
+    collect defns
+    collect decls
+    collect procs
+    collect stmts
 
 --------------------------------------------------------------------------------
 -- Definition
@@ -132,6 +135,9 @@ instance Collect () Highlighting DeclType where
     collect a
     collect b
 
+instance Collect () Highlighting Procedure where
+  collect Procedure {} = undefined -- XXX: idk how this works
+
 --------------------------------------------------------------------------------
 -- SemanticTokenModifiers_t
 
@@ -168,10 +174,6 @@ instance Collect () Highlighting Stmt where
     Spec tokA _ tokB -> do
       addHighlighting J.SemanticTokenTypes_Keyword [] tokA
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
-    Proof _ _ _ range -> do
-      addHighlighting J.SemanticTokenTypes_Keyword [] range
-    -- addHighlighting J.SemanticTokenTypes_Keyword [] tokA
-    -- addHighlighting J.SemanticTokenTypes_Keyword [] tokB
     Alloc a tok tokNew _ bs _ -> do
       collect (AsVariable a)
       addHighlighting J.SemanticTokenTypes_Keyword [] tok

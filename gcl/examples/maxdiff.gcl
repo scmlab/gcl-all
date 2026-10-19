@@ -3,8 +3,8 @@ con A : array [0 .. N) of Int
 var max : Int -> Int -> Int 
 var n, r, s : Int
 
-{:  P = r = ⟨ max i j : 0 ≤ i < j < n : A i - A j ⟩
-    Q = s = ⟨ max i : 0 ≤ i < n : A i ⟩
+{:  P = r = ⟨ ↑ i j : 0 ≤ i < j < n : A i - A j ⟩
+    Q = s = ⟨ ↑ i : 0 ≤ i < n : A i ⟩
 :}
 
 r, s, n := 0, 0, 0 
@@ -12,4 +12,4 @@ r, s, n := 0, 0, 0
 do n ≠ N -> r, s := max r (s - A n), max s (A n)
             n := n + 1
 od
-{ r = ⟨ max i j : 0 ≤ i < j < N : A i - A j ⟩ }
+{ r = ⟨ ↑ i j : 0 ≤ i < j < N : A i - A j ⟩ }

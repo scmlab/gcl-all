@@ -37,6 +37,12 @@ tokenConst = adapt TokCon "reserved word \"con\""
 tokenVar :: Parser (Token "var")
 tokenVar = adapt TokVar "reserved word \"var\""
 
+tokenProc :: Parser (Token "proc")
+tokenProc = adapt TokProc "reserved word \"proc\""
+
+tokenValue :: Parser (Token "value")
+tokenValue = adapt TokValue "reserved word \"value\""
+
 tokenData :: Parser (Token "data")
 tokenData = adapt TokData "reserved word \"data\""
 
@@ -82,12 +88,6 @@ tokenHoleOpen = adapt TokHoleOpen "{!"
 tokenHoleClose :: Parser (Token "!}")
 tokenHoleClose = adapt TokHoleClose "!}"
 
--- tokenProofOpen :: Parser (Token "{-")
--- tokenProofOpen = adapt TokProofOpen "{-"
-
--- tokenProofClose :: Parser (Token "-}")
--- tokenProofClose = adapt TokProofClose "-}"
-
 tokenBlockOpen :: Parser (Token "|[")
 tokenBlockOpen = adapt TokBlockOpen "|["
 
@@ -99,6 +99,15 @@ tokenDeclOpen = adapt TokDeclOpen "{:"
 
 tokenDeclClose :: Parser (Token ":}")
 tokenDeclClose = adapt TokDeclClose ":}"
+
+tokenPragmaOpen :: Parser (Token "{-#")
+tokenPragmaOpen = adapt TokPragmaOpen "{-#"
+
+tokenPragmaClose :: Parser (Token "#-}")
+tokenPragmaClose = adapt TokPragmaClose "#-}"
+
+tokenProofSep :: Parser (Token "---")
+tokenProofSep = adapt TokProofSep "---"
 
 tokenColon :: Parser (Token ":")
 tokenColon = adapt TokColon "colon"

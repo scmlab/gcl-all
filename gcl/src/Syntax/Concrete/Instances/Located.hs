@@ -19,7 +19,7 @@ instance (MaybeRanged a, MaybeRanged c) => MaybeRanged (a, b, c) where
 --------------------------------------------------------------------------------
 
 instance MaybeRanged Program where
-  maybeRangeOf (Program a b) = maybeRangeOf a <---> maybeRangeOf b
+  maybeRangeOf (Program a b c d e) = maybeRangeOf a <---> maybeRangeOf b <---> maybeRangeOf c <---> maybeRangeOf d <---> maybeRangeOf e
 
 instance MaybeRanged Definition where
   maybeRangeOf (TypeDefn tdata _ _ _ cons) = maybeRangeOf tdata <---> maybeRangeOf cons
@@ -29,6 +29,9 @@ instance MaybeRanged Definition where
 instance MaybeRanged Declaration where
   maybeRangeOf (ConstDecl l r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (VarDecl l r) = maybeRangeOf l <---> maybeRangeOf r
+
+instance MaybeRanged Procedure where
+  maybeRangeOf (Procedure l _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged TypeDefnCtor where
   maybeRangeOf (TypeDefnCtor l r) = maybeRangeOf l <---> maybeRangeOf r
@@ -43,7 +46,11 @@ instance MaybeRanged DeclProp where
   maybeRangeOf (DeclProp l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 instance MaybeRanged DeclType where
-  maybeRangeOf (DeclType l r) = maybeRangeOf l <---> maybe Nothing maybeRangeOf r
+  maybeRangeOf (DeclType l r) = maybeRangeOf l <---> maybeRangeOf r
+
+instance MaybeRanged ProcDecl where
+  maybeRangeOf (PVarDecl l r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (PValueDecl l r) = maybeRangeOf l <---> maybeRangeOf r
 
 -------------------------------------------------------------------------------
 
@@ -58,7 +65,6 @@ instance MaybeRanged Stmt where
   maybeRangeOf (If l _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (SpecQM l) = Just l
   maybeRangeOf (Spec l _ r) = maybeRangeOf l <---> maybeRangeOf r
-  maybeRangeOf (Proof _ _ _ r) = Just r
   maybeRangeOf (Alloc l _ _ _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (HLookup l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (HMutate l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
@@ -135,3 +141,6 @@ instance MaybeRanged Lit where
 instance MaybeRanged Hole where
   maybeRangeOf (HoleQM r) = Just r
   maybeRangeOf (Hole l _ r) = maybeRangeOf l <---> maybeRangeOf r
+
+instance MaybeRanged Pragma where
+  maybeRangeOf (Pragma l _ r) = maybeRangeOf l <---> maybeRangeOf r

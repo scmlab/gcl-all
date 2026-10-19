@@ -7,6 +7,7 @@ import Control.Monad.Except
     throwError,
   )
 import Control.Monad.State (evalState)
+import Control.Monad.Trans (lift)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
 import qualified Data.Text.Encoding as TE
@@ -31,7 +32,8 @@ simpleLoad filepath source = runExceptT $ catchError run handler
   where
     run = do
       concrete <- ExceptT $ parse filepath source
-      -- lift $ print concrete
+      lift $ print concrete
+      -- traceM $ Hack.sshow concrete
       abstract <- ExceptT $ toAbstract concrete
       abstract' <- ExceptT $ toDeps abstract
       -- lift $ print abstract

@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, foldM_, when)
+import Control.Monad (foldM, when)
 import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
@@ -336,6 +336,8 @@ inferOutT i expr = do
 
 inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferQuant op@(A.Op (Hash _)) bound cond expr range = do
+  lift $ checkDuplicateNames bound
+
   -- special case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
 
@@ -370,6 +372,8 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
         return (resultSubst, typeInt, typedQuant)
     )
 inferQuant op bound cond expr range = do
+  lift $ checkDuplicateNames bound
+
   ftv <- freshTVar
 
   -- introduce new vars
@@ -382,10 +386,11 @@ inferQuant op bound cond expr range = do
         )
         bound
 
+  (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
+
   local
     (\e -> boundEnv <> e)
     ( do
-        (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
         (condSubst, typedCond) <- local (applySubstEnv opSubst) (typeCheck cond typeBool)
         (exprSubst, typedExpr) <- local (applySubstEnv (condSubst <> opSubst)) (typeCheck expr (applySubst (condSubst <> opSubst) ftv))
 
@@ -578,32 +583,7 @@ inferTupleCaseClause patterns expr = do
   return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
 
 checkDuplicateBinders :: [A.Pattern] -> Result ()
-checkDuplicateBinders pats = do
-  foldM_ (\names pat -> aux pat names) [] pats
-  where
-    aux :: A.Pattern -> [Name] -> Result [Name]
-    aux (A.PattLit _) _binders = return []
-    aux (A.PattBinder name) binders =
-      if name `elem` binders
-        then throwError $ DuplicatedIdentifiers [name]
-        else return [name]
-    aux (A.PattWildcard _) _binders = return []
-    aux (A.PattTuple ps) binders =
-      foldM
-        ( \b' p -> do
-            b'' <- aux p b'
-            return (b'' <> b')
-        )
-        binders
-        ps
-    aux (A.PattConstructor _p ps) binders =
-      foldM
-        ( \b' p' -> do
-            b'' <- aux p' b'
-            return (b'' <> b')
-        )
-        binders
-        ps
+checkDuplicateBinders = checkDuplicateNames . concatMap A.extractBinder
 
 {-
 

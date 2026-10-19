@@ -40,7 +40,7 @@ import qualified Server.Handler.Initialized as Initialized
 import qualified Server.Handler.OnDidChangeTextDocument as OnDidChangeTextDocument
 import qualified Server.Handler.SemanticTokens as SemanticTokens
 import Server.Load (load)
-import Server.Monad (ServerM, deleteFileState, deletePendingEdit, logText)
+import Server.Monad (ServerM, deleteFileState, deletePendingEdit, logText, logTextLn)
 
 -- handlers of the LSP server
 handlers :: Handlers ServerM
@@ -146,8 +146,7 @@ customRequestMiddleware customHandler = \req responder -> do
   logText $ "JSON content: " <> TextLazy.toStrict (JSONText.encodeToLazyText json) <> "\n"
   case decodeMessageParams json of
     Left err -> do
-      logText "json: decoding failed with\n"
-      logText (Text.pack . show $ JSON.encode json)
+      logTextLn $ "json: decoding failed with\n" <> Text.pack (show (JSON.encode json))
       responder (Left $ Hack.resToTRes err)
     Right params -> do
       logText "json: decoding succeeded\n"

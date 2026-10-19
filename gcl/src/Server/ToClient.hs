@@ -50,7 +50,8 @@ data ClientFileState = ClientFileState
     specs :: [Specification],
     holes :: [Hole],
     pos :: [ProofObligation],
-    warnings :: [StructWarning]
+    warnings :: [StructWarning],
+    globalProps :: [Text.Text]
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -77,7 +78,8 @@ data Hole = Hole
 data ProofObligation = ProofObligation
   { pred :: Text.Text, -- HTML (with data-redex), see renderPredHtml
     reducedPred :: Text.Text,
-    hash :: String,
+    strippedPred :: Text.Text,
+    proofExists :: Bool,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
   }
@@ -114,7 +116,8 @@ toClientFileState fs =
       specs = map convertSpec (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = zipWith (convertPO (Server.fsDefinitions fs)) [0 ..] (Server.fsProofObligations fs),
-      warnings = map convertWarning (Server.fsWarnings fs)
+      warnings = map convertWarning (Server.fsWarnings fs),
+      globalProps = map convertGlobalProp (Server.fsGlobalProps fs)
     }
 
 -- | Convert server-side Spec to client-side Specification
@@ -137,11 +140,12 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 
 -- | Convert server-side PO to client-side ProofObligation
 convertPO :: Env -> Int -> GCL.PO -> ProofObligation
-convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
     { pred = renderPredHtml env poIndex poPred,
       reducedPred = renderPredHtml env poIndex poReducedPred,
-      hash = Text.unpack poAnchorHash,
+      strippedPred = poStrippedPred,
+      proofExists = poProofExists,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
@@ -170,6 +174,9 @@ convertOrigin origin =
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
 convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
+
+convertGlobalProp :: GCL.Pred -> Text.Text
+convertGlobalProp prop = inlinesToHtml (render prop)
 
 --------------------------------------------------------------------------------
 -- JSON instances for client types

@@ -11,6 +11,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
+import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
@@ -21,11 +22,13 @@ import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, e
 import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.Reduce (collectDefinitions)
-import qualified Syntax.Concrete as C
+import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
+import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
+import qualified Syntax.Typed.Types as T
 
 --------------------------------------------------------------------------------
 -- Types
@@ -103,24 +106,29 @@ loadAndDig filePath source = do
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
 loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
-  let abstract = C.runAbstractTransform concrete
+  let abstract@(A.Program _ _ _ _ _ pragmas _) = C.runAbstractTransform concrete
   abstract' <- first TypeError $ evalDependencyResolution abstract
-  (elaborated, state) <- first TypeError $ runToTyped abstract' mempty
+  (elaborated@(T.Program _ _ globalProps _ _), state) <- first TypeError $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
+  let proofs = getProofs pragmas
+  let pos' = map (\po -> po {poProofExists = poStrippedPred po `elem` proofs}) pos
   return
     FileState
       { fsErrors = [],
         fsSpecifications = specs,
         fsHoles = holes,
-        fsProofObligations = pos,
+        fsProofObligations = pos',
         fsWarnings = warnings,
         fsIdCount = idCount,
         fsTIState = state,
         fsSemanticTokens = collectHighlighting concrete,
         fsDefinitionLinks = collectLocationLinks abstract,
         fsHoverInfos = collectHoverInfo elaborated,
-        fsDefinitions = collectDefinitions elaborated
+        fsDefinitions = collectDefinitions elaborated,
+        fsGlobalProps = globalProps
       }
+  where
+    getProofs = foldr (\(A.Proof p _) acc -> p : acc) []
 
 -- | Parse source, and if holes are found, dig them and re-parse.
 -- Returns (if holes were dug) the DigResult, and the clean concrete AST.
@@ -193,7 +201,7 @@ instance (CollectHole a) => CollectHole (SepBy s a) where
   collectHole (Delim c _ cs) = collectHole c <> collectHole cs
 
 instance CollectHole C.Program where
-  collectHole (C.Program decls stmts) = collectHole decls <> collectHole stmts
+  collectHole (C.Program defns decls procs stmts _blocks) = collectHole defns <> collectHole procs <> collectHole decls <> collectHole stmts
 
 instance CollectHole C.DefinitionBlock where
   collectHole (C.DefinitionBlock _ defs _) = collectHole defs
@@ -207,6 +215,13 @@ instance CollectHole C.DeclType where
 
 instance CollectHole C.DeclProp where
   collectHole (C.DeclProp _ expr _) = collectHole expr
+
+instance CollectHole C.Procedure where
+  collectHole (C.Procedure _ _ _ pre block post) =
+    collectHole pre <> collectHole block <> collectHole post
+
+instance CollectHole C.ProcBlock where
+  collectHole (C.ProcBlock _ program _) = collectHole program
 
 instance CollectHole C.Definition where
   collectHole (C.TypeDefn {}) = mempty
@@ -224,7 +239,6 @@ instance CollectHole C.Stmt where
   collectHole (C.If _ ss _) = collectHole ss
   collectHole (C.SpecQM range) = [(StmtHole, range)]
   collectHole (C.Spec {}) = mempty
-  collectHole (C.Proof {}) = mempty
   collectHole (C.Alloc _ _ _ _ es _) = collectHole es
   collectHole (C.HLookup _ _ _ a) = collectHole a
   collectHole (C.HMutate _ a _ b) = collectHole a <> collectHole b

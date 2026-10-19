@@ -196,7 +196,8 @@ loadConcreteFragment typeEnv idCount spec stmts = do
         fsSemanticTokens = collectHighlightingFromStmts stmts,
         fsDefinitionLinks = mempty, -- TODO: needs scope info from declarations
         fsHoverInfos = collectHoverInfoFromStmts elaborated,
-        fsDefinitions = [] -- no definitions contained in stmts
+        fsDefinitions = [], -- no definitions contained in stmts
+        fsGlobalProps = [] -- no global properties contained in stmts
       }
   where
     foldTIResult :: [(T.Stmt, Inference)] -> ([T.Stmt], Inference)
@@ -430,15 +431,22 @@ mergeFileState moved fragment =
       fsSemanticTokens = fsSemanticTokens moved ++ fsSemanticTokens fragment,
       fsDefinitionLinks = fsDefinitionLinks moved <> fsDefinitionLinks fragment,
       fsHoverInfos = fsHoverInfos moved <> fsHoverInfos fragment,
-      fsDefinitions = fsDefinitions moved ++ fsDefinitions fragment
+      fsDefinitions = fsDefinitions moved ++ fsDefinitions fragment,
+      fsGlobalProps = fsGlobalProps moved ++ fsGlobalProps fragment
     }
 
--- | Updates hole expression to latest refined expression in every specifications and POs
+-- | Updates the hole expression in all specifications, POs, and global
+-- properties.
+-- The selected 'hole' comes from source-derived 'fsHoles'; refinement scopes
+-- are never recovered from 'EHole' values in a PO. Resetting 'poReducedPred'
+-- to the updated 'poPred' discards whatever reduction the user had applied to
+-- that PO.
 updateHoleExprs :: Hole -> T.Expr -> [(Int, Int)] -> FileState -> FileState
 updateHoleExprs hole expr holeMapping fs =
   fs
     { fsSpecifications = map updateSpec (fsSpecifications fs),
-      fsProofObligations = map updatePO (fsProofObligations fs)
+      fsProofObligations = map updatePO (fsProofObligations fs),
+      fsGlobalProps = map updateGlobalProps (fsGlobalProps fs)
     }
   where
     updateSpec :: Spec -> Spec
@@ -450,9 +458,14 @@ updateHoleExprs hole expr holeMapping fs =
 
     updatePO :: PO -> PO
     updatePO po =
-      po
-        { poPred = updateExpr hole expr holeMapping (poPred po)
-        }
+      let pred' = updateExpr hole expr holeMapping (poPred po)
+       in po
+            { poPred = pred',
+              poReducedPred = pred'
+            }
+
+    updateGlobalProps :: T.Expr -> T.Expr
+    updateGlobalProps = updateExpr hole expr holeMapping
 
 updateExpr :: Hole -> T.Expr -> [(Int, Int)] -> T.Expr -> T.Expr
 updateExpr hole@(Hole holeNumber _ _ _ _) replacement holeMapping expr = case expr of

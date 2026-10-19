@@ -8,7 +8,7 @@
 module GCL.Common where
 
 import Control.Monad.RWS (RWST (..))
-import Control.Monad.State (StateT (..))
+import Control.Monad.State (State, StateT (..), get, put)
 import Data.Either (lefts)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -76,6 +76,12 @@ freshNames = mapM freshName'
 
 class Counterous m where
   countUp :: m Int
+
+instance Counterous (State Int) where
+  countUp = do
+    counter <- get
+    put (counter + 1)
+    pure counter
 
 instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
   fresh = Text.pack . ("?m_" ++) . show <$> countUp
@@ -157,7 +163,7 @@ instance Free Expr where
   freeVars (Tuple xs) = Set.unions (map freeVars xs)
   freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
-    (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList xs
+    freeVars op <> ((freeVars range <> freeVars term) \\ Set.fromList xs)
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e clauses _) = freeVars e <> Set.unions (map freeVars clauses)
@@ -198,7 +204,6 @@ instance Free Stmt where
   freeVars (Do gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (If gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (Spec _ _) = mempty
-  freeVars Proof {} = mempty
   freeVars (Alloc x es _) =
     Set.singleton x <> Set.unions (map freeVars es)
   freeVars (HLookup x e _) =
@@ -212,7 +217,8 @@ instance Free GdCmd where
     freeVars g <> Set.unions (map freeVars stmts)
 
 instance Free Program where
-  freeVars (Program _defns decls props stmts _) =
+  freeVars (Program _defns decls procs props stmts _ _) =
+    -- XXX: `freeVars` of procedures?
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 
 -- SCM: TODO: deal with defns later.

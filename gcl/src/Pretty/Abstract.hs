@@ -16,8 +16,8 @@ import Prelude hiding (Ordering (..))
 
 -- | Program
 instance Pretty Program where
-  pretty (Program _ decls props stmts _) =
-    vsep $ map pretty decls ++ map pretty props ++ map pretty stmts
+  pretty (Program _ decls procs props stmts pragmas _) =
+    vsep $ map pretty decls ++ map pretty procs ++ map pretty props ++ map pretty stmts ++ map pretty pragmas
 
 --------------------------------------------------------------------------------
 
@@ -43,6 +43,26 @@ instance Pretty Declaration where
       <> "{ "
       <> pretty p
       <> " }"
+
+instance Pretty Procedure where
+  pretty (Procedure name params pre block post) =
+    "proc "
+      <> pretty name
+      <> "("
+      <> hsep (punctuate ", " (map pretty params))
+      <> ")"
+      <> line
+      <> pretty pre
+      <> line
+      <> pretty block
+      <> line
+      <> pretty post
+
+instance Pretty ProcParam where
+  pretty (VarParam names t _) =
+    "var " <> hsep (punctuate ", " (map pretty names)) <> ": " <> pretty t
+  pretty (ValueParam names t _) =
+    "value " <> hsep (punctuate ", " (map pretty names)) <> ": " <> pretty t
 
 instance Pretty Definition where
   pretty (TypeDefn name binders qdcons _) =
@@ -84,9 +104,9 @@ instance Pretty Stmt where
   pretty (If gdCmds _) =
     "if" <> line <> vsep (map (\x -> " |" <+> pretty x <> line) gdCmds) <> "fi"
   pretty (Spec content _) = "[!" <> pretty content <> "!]"
-  pretty (Proof anchor contents _) =
-    -- "{-" <> vsep (map (\x -> pretty x <> line) anchors) <> "-}"
-    "{- #" <> pretty anchor <> line <> pretty contents <> line <> "-}"
+  -- pretty (Proof anchor contents _) =
+  --   -- "{-" <> vsep (map (\x -> pretty x <> line) anchors) <> "-}"
+  --   "{- #" <> pretty anchor <> line <> pretty contents <> line <> "-}"
   pretty (Alloc x es _) =
     pretty x
       <+> ":="
@@ -152,3 +172,7 @@ instance Pretty Kind where
 -- | Kind
 instance Pretty Hole where
   pretty = fromRender
+
+instance Pretty Pragma where
+  pretty (Proof proof proofText) =
+    "{-" <> line <> pretty proof <> line <> "---" <> line <> pretty proofText <> line <> "-}"
