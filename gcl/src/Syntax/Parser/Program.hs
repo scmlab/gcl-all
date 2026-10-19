@@ -3,12 +3,24 @@
 
 module Syntax.Parser.Program where
 
-import qualified Data.Either as Either
-import qualified Hack
-import Syntax.Common (Name)
-import Syntax.Concrete hiding (Op)
+import GCL.Range (R (..))
+import Syntax.Common.Types (Name)
+import Syntax.Concrete.Types
+  ( DeclType (..),
+    Declaration (..),
+    DefinitionBlock,
+    Pragma (..),
+    PragmaContent (..),
+    ProcBlock (..),
+    ProcDecl (..),
+    ProcParam (..),
+    Procedure (..),
+    Program (..),
+    Stmt,
+  )
 import Syntax.Parser.Basics
 import Syntax.Parser.Definition
+import Syntax.Parser.Lexer (Tok (..))
 import Syntax.Parser.Stmt
 import Syntax.Parser.Token
 import Syntax.Parser.Types
@@ -33,27 +45,40 @@ import Prelude hiding
 -- Program
 --------------------------------------------------------------------------------
 
+data Construct
+  = Definition DefinitionBlock
+  | Declaration Declaration
+  | Procedure' Procedure
+  | Statement Stmt
+  | Pragma' Pragma
+
 program :: Parser Program
 program = do
   mixed <-
     sepByAlignmentOrSemi
       ( choice
-          [ Left <$> declOrDefnBlock,
-            Right <$> statement program
+          [ Declaration <$> declaration <?> "declaration",
+            Definition <$> definitionBlock <?> "definition block",
+            Procedure' <$> procedure <?> "procedure block",
+            Statement <$> statement program,
+            Pragma' <$> pragma <?> "pragma block"
           ]
       )
 
-  let (decls, stmts) = Either.partitionEithers mixed
+  let (defns, decls, procs, stmts, blocks) =
+        foldr
+          ( \c (defns', decls', procs', stmts', prags') ->
+              case c of
+                Definition defn -> (defn : defns', decls', procs', stmts', prags')
+                Declaration decl -> (defns', decl : decls', procs', stmts', prags')
+                Procedure' proc -> (defns', decls', proc : procs', stmts', prags')
+                Statement stmt -> (defns', decls', procs', stmt : stmts', prags')
+                Pragma' prag -> (defns', decls', procs', stmts', prag : prags')
+          )
+          ([], [], [], [], [])
+          mixed
 
-  return $ Program decls stmts
-
-declOrDefnBlock :: Parser (Hack.Choice3 Declaration DefinitionBlock Procedure)
-declOrDefnBlock =
-  choice
-    [ Hack.A <$> declaration <?> "declaration",
-      Hack.B <$> definitionBlock <?> "definition block",
-      Hack.C <$> procedure <?> "procedure"
-    ]
+  return $ Program defns decls procs stmts blocks
 
 --------------------------------------------------------------------------------
 -- Declaration
@@ -89,3 +114,24 @@ pValueDecl = PValueDecl <$> tokenValue <*> declBase identifier
 
 procBlock :: Parser ProcBlock
 procBlock = ProcBlock <$> tokenBlockOpen <*> program <*> tokenBlockClose
+
+pragma :: Parser Pragma
+pragma =
+  Pragma
+    <$> tokenPragmaOpen
+    <*> try proofBlock
+    <*> tokenPragmaClose
+
+proofBlock :: Parser PragmaContent
+proofBlock = Proof <$> proof <*> tokenProofSep <*> proofText
+  where
+    proof = takeWhileP (Just "proof") notTokProofSep
+
+    notTokProofSep (R _ TokProofSep) = False
+    notTokProofSep _ = True
+
+    proofText = takeWhileP (Just "proof text") notTokPragmaClose
+
+notTokPragmaClose :: R Tok -> Bool
+notTokPragmaClose (R _ TokPragmaClose) = False
+notTokPragmaClose _ = True

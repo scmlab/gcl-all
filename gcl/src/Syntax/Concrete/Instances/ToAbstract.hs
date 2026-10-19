@@ -9,13 +9,13 @@
 module Syntax.Concrete.Instances.ToAbstract where
 
 import Control.Arrow ((***))
+import Control.Monad (foldM)
 import Control.Monad.State
 import Data.Bitraversable (Bitraversable (bitraverse))
 import qualified Data.List as List
 import qualified Data.Text as Text
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range (..), rangeOf, (<--->))
-import qualified Hack
 import Pretty.Util
   ( PrettyWithRange (prettyWithRange),
     docToText,
@@ -45,12 +45,6 @@ class ToAbstract a b | a -> b where
 
 type AbsM a = State Int a
 
-instance Counterous (State Int) where
-  countUp = do
-    c <- get
-    put (c + 1)
-    return c
-
 instance (ToAbstract a b) => ToAbstract (Maybe a) (Maybe b) where
   toAbstract Nothing = return Nothing
   toAbstract (Just x) = Just <$> toAbstract x
@@ -64,21 +58,20 @@ instance (ToAbstract a b) => ToAbstract [a] [b] where
 instance ToAbstract Name Name where
   toAbstract = return
 
-instance (ToAbstract a1 b1, ToAbstract a2 b2, ToAbstract a3 b3) => ToAbstract (Hack.Choice3 a1 a2 a3) (Hack.Choice3 b1 b2 b3) where
-  toAbstract (Hack.A a) = Hack.A <$> toAbstract a
-  toAbstract (Hack.B b) = Hack.B <$> toAbstract b
-  toAbstract (Hack.C c) = Hack.C <$> toAbstract c
-
 --------------------------------------------------------------------------------
 
 -- | Program
 instance ToAbstract Program A.Program where
-  toAbstract prog@(Program ds stmts') = do
-    (decls, defns, procs) <- (\(a, b, c) -> (a, concat b, c)) . Hack.partitionChoice3 <$> mapM toAbstract ds
+  toAbstract prog@(Program defns' decls' procs' stmts' pragmas') = do
+    -- (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
+    defns <- concat <$> mapM toAbstract defns'
+    decls <- mapM toAbstract decls'
+    procs <- mapM toAbstract procs'
     let (globProps, assertions) = ConstExpr.pickGlobals decls
     let pre = [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
-    return $ A.Program defns decls procs globProps (pre ++ stmts) (maybeRangeOf prog)
+    pragmas <- toAbstract pragmas'
+    return $ A.Program defns decls procs globProps (pre ++ stmts) pragmas (maybeRangeOf prog)
 
 --------------------------------------------------------------------------------
 
@@ -230,7 +223,6 @@ instance ToAbstract Stmt A.Stmt where
       toAbstract' (Spec l xs r) = do
         let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
         return $ const (A.Spec text (rangeOf l <> rangeOf r))
-      toAbstract' (Proof anchor contents _ r) = return $ const (A.Proof anchor contents r)
       toAbstract' (Alloc p _ _ _ es _) = A.Alloc p <$> toAbstract es
       toAbstract' (HLookup x _ _ e) = A.HLookup x <$> toAbstract e
       toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
@@ -380,3 +372,16 @@ instance ToAbstract Hole A.Hole where
     holeNumber <- countUp
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
+
+instance {-# OVERLAPS #-} ToAbstract [Pragma] [A.Pragma] where
+  toAbstract =
+    foldM
+      ( \acc (Pragma _ content _) ->
+          case content of
+            (Proof proof _ proofText) -> do
+              let rTokToText = docToText . toDoc . prettyWithRange . map (fmap show)
+              let proof' = rTokToText proof
+              let proofText' = rTokToText proofText
+              return (A.Proof proof' proofText' : acc)
+      )
+      []

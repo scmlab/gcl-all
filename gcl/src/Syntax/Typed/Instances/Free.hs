@@ -11,6 +11,7 @@ import Data.Set
   )
 import qualified Data.Set as Set
 import GCL.Common
+import Syntax.Abstract.Types (extractBinder)
 import Syntax.Typed.Types
 
 instance Free Expr where
@@ -24,7 +25,7 @@ instance Free Expr where
   freeVars (Tuple es) = Set.unions (map freeVars es)
   freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
-    (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList (map fst xs)
+    freeVars op <> ((freeVars range <> freeVars term) \\ Set.fromList (map fst xs))
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e cs _) = freeVars e <> Set.unions (map freeVars cs)
@@ -35,7 +36,8 @@ instance Free Expr where
   freeVars EHole {} = mempty
 
 instance Free CaseClause where
-  freeVars (CaseClause _ expr) = freeVars expr
+  freeVars (CaseClause pattern' expr) =
+    freeVars expr \\ Set.fromList (extractBinder pattern')
 
 -- instance Free FuncClause where
 --   freeVars (FuncClause _ expr) = freeVars expr

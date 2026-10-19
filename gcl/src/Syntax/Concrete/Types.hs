@@ -7,12 +7,10 @@
 
 module Syntax.Concrete.Types where
 
-import Data.Text (Text)
 import GCL.Range (MaybeRanged (..), Pos, R, Range, Ranged (..), mkRange)
 import GHC.Base (Symbol)
 import GHC.Generics (Generic)
-import qualified Hack
-import Syntax.Common (ArithOp, ChainOp, Name, TypeOp)
+import Syntax.Common.Types (ArithOp, ChainOp, Name, TypeOp)
 import Syntax.Parser.Lexer (Tok)
 import Prelude hiding (Ordering (..))
 
@@ -52,8 +50,11 @@ data SepBy (sep :: Symbol) a = Head a | Delim a (Token sep) (SepBy sep a)
 -- | Program
 data Program
   = Program
-      [Hack.Choice3 Declaration DefinitionBlock Procedure] -- constant and variable declarations
+      [DefinitionBlock]
+      [Declaration] -- constant and variable declarations
+      [Procedure]
       [Stmt] -- main program
+      [Pragma]
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
@@ -122,7 +123,6 @@ data Stmt
   | If (Token "if") (SepBy "|" GdCmd) (Token "fi")
   | SpecQM Range -- ? to be rewritten as [!!]
   | Spec (Token "[!") [R Tok] (Token "!]")
-  | Proof Text Text Text Range -- anchor, the content of the block, the whole proof block (for pretty's reconstruction)
   | Alloc Name (Token ":=") (Token "new") (Token "(") (SepBy "," Expr) (Token ")")
   | HLookup Name (Token ":=") (Token "*") Expr
   | HMutate (Token "*") Expr (Token ":=") Expr
@@ -207,7 +207,6 @@ type QuantOp' = Either ArithOp Name
 data CaseClause = CaseClause Pattern TokArrows Expr
   deriving (Eq, Show, Generic)
 
--- NOTE: current not in use
 data Pattern
   = PattLit Lit
   | PattParen (Token "(") Pattern (Token ")") -- pattern wrapped inside a pair of parenthesis
@@ -229,3 +228,11 @@ data Hole
   = HoleQM Range
   | Hole (Token "{!") [R Tok] (Token "!}")
   deriving (Eq, Show, Generic)
+
+-- NOTE: make this a part of parsing in case we actually need parser in the future
+data Pragma = Pragma (Token "{-#") PragmaContent (Token "#-}")
+  deriving (Eq, Show)
+
+data PragmaContent
+  = Proof [R Tok] (Token "---") [R Tok]
+  deriving (Eq, Show)

@@ -115,16 +115,14 @@ function createClient(): LanguageClient {
   const env = gclProcessEnv();
 
   const serverOptions: ServerOptions = {
-    // TODO: Temporarily enable logging in both run and debug modes
+    // The server logs to stderr in both run and debug modes.
     run: {
       command: gclPath,
-      args: [`--out=./gcl_server.log`],
       options: { env },
       transport: TransportKind.stdio,
     },
     debug: {
       command: gclPath,
-      args: [`--out=./gcl_server.log`],
       options: { env },
       transport: TransportKind.stdio,
     },

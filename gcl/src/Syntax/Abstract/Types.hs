@@ -31,6 +31,7 @@ data Program
       [Procedure]
       [Expr] -- global properties
       [Stmt] -- main program
+      [Pragma]
       (Maybe Range)
   deriving (Eq, Show)
 
@@ -86,7 +87,6 @@ data Stmt
   | Do [GdCmd] (Maybe Range)
   | If [GdCmd] (Maybe Range)
   | Spec Text Range
-  | Proof Text Text Range
   | -- pointer operations
     Alloc Name [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
   | HLookup Name Expr (Maybe Range) --  x := *e
@@ -253,3 +253,7 @@ baseTypeOfLit (Chr _) = TChar
 -- | Hole
 data Hole = Hole Text Int Range
   deriving (Eq, Show, Generic)
+
+data Pragma
+  = Proof Text Text
+  deriving (Eq, Show)

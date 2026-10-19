@@ -83,13 +83,12 @@ instance Collect () Highlighting AsName where
 --------------------------------------------------------------------------------
 -- Program
 
-instance (Collect () Highlighting a, Collect () Highlighting b, Collect () Highlighting c) => Collect () Highlighting (Hack.Choice3 a b c) where
-  collect = Hack.choice3 collect collect collect
-
 instance Collect () Highlighting Program where
-  collect (Program as bs) = do
-    collect as
-    collect bs
+  collect (Program defns decls procs stmts pragmas) = do
+    collect defns
+    collect decls
+    collect procs
+    collect stmts
 
 --------------------------------------------------------------------------------
 -- Definition
@@ -175,10 +174,6 @@ instance Collect () Highlighting Stmt where
     Spec tokA _ tokB -> do
       addHighlighting J.SemanticTokenTypes_Keyword [] tokA
       addHighlighting J.SemanticTokenTypes_Keyword [] tokB
-    Proof _ _ _ range -> do
-      addHighlighting J.SemanticTokenTypes_Keyword [] range
-    -- addHighlighting J.SemanticTokenTypes_Keyword [] tokA
-    -- addHighlighting J.SemanticTokenTypes_Keyword [] tokB
     Alloc a tok tokNew _ bs _ -> do
       collect (AsVariable a)
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
