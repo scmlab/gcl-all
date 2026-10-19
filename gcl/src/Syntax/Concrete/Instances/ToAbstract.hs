@@ -227,6 +227,7 @@ instance ToAbstract Stmt A.Stmt where
       toAbstract' (HLookup x _ _ e) = A.HLookup x <$> toAbstract e
       toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
       toAbstract' (Dispose _ e) = A.Dispose <$> toAbstract e
+      toAbstract' (Block _ p _) = A.Block <$> toAbstract p
 
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =

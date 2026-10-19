@@ -192,6 +192,8 @@ instance Collect () Highlighting Stmt where
     Dispose tok a -> do
       addHighlighting J.SemanticTokenTypes_Keyword [] tok
       collect a
+    -- TODO:
+    Block {} -> return ()
 
 instance Collect () Highlighting GdCmd where
   collect (GdCmd a tok bs) = do

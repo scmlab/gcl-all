@@ -69,6 +69,7 @@ instance MaybeRanged Stmt where
   maybeRangeOf (HLookup l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (HMutate l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (Dispose l r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (Block l _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 --------------------------------------------------------------------------------
 
