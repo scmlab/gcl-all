@@ -22,9 +22,8 @@
 -- reductions cannot produce a 'Lam' at all; an unfold that exposes one
 -- consumes it through enclosing function-position applications.
 --
--- Repair only climbs through 'App' nodes, so a lambda separated from its
--- application by any other node cannot be consumed, even though a reduction
--- exists for it.
+-- Repair consumes pending 'Subst' environments and enclosing 'App' nodes.
+-- Other nodes still prevent a lambda from reaching its application.
 --
 -- == Reduction contract
 --
@@ -58,22 +57,20 @@ import Data.Maybe (isJust)
 import Data.Set (Set)
 import Data.Text (Text)
 import GCL.Common (Fresh, freshAvoiding, initFreshState)
-import Syntax.Abstract.Types (Pattern (..), Type, extractBinder)
+import Syntax.Abstract.Types (Pattern (..), Type)
 import Syntax.Common.Types (Name (..), nameToText)
-import Syntax.Typed.Subst2 (allNames, substExpr)
+import Syntax.Typed.Definition
+  ( DefinitionContext,
+    DefnEnv,
+    binderRenaming,
+    closeDefinitions,
+    definitionContext,
+    definitionEnv,
+    hiddenGlobals,
+  )
+import Syntax.Typed.Structure (RT, RTree (..), RedexPath, childBinders, pathChildren, replaceAt, withPathChildren)
+import Syntax.Typed.Subst2 (allNames, insertDefinition, renameFree, renameName, renamePatternBinders, substExpr)
 import Syntax.Typed.Types
-
--- | The definitions visible at a lexical position.
-type DefnEnv = [(Name, Expr)]
-
--- | A path from the whole expression to the redex selected by the UI.
-type RedexPath = [Int]
-
--- | A redex tree has exactly the same child shape as 'pathChildren'.
-data RTree a = Node a [RTree a]
-  deriving (Eq, Show)
-
-type RT = RTree Bool
 
 -- | Try the reduction selected by a path.
 --
@@ -87,9 +84,8 @@ type RT = RTree Bool
 --     * Any other selected node tries the local 'Case', tuple projection, or
 --       explicit substitution rules in 'localStep'.
 --
--- 3. If unfolding exposes a leading 'Lam', use enclosing function-position
---    'App' nodes to beta-reduce until no leading lambda remains; fail if it
---    cannot be fully consumed.
+-- 3. If unfolding exposes a leading 'Lam', consume pending substitutions
+--    and enclosing function-position applications until no lambda remains.
 --
 -- 4. Return the complete new 'Expr' on success, or 'Nothing' on failure.
 --
@@ -103,8 +99,11 @@ type RT = RTree Bool
 --
 -- Reduction may allocate fresh names while avoiding variable capture.
 tryReduceAt :: (Fresh m) => DefnEnv -> Expr -> RedexPath -> m (Maybe Expr)
-tryReduceAt defnEnv whole path =
-  case focusAt defnEnv whole path of
+tryReduceAt defnEnv = tryReduceWith (definitionContext defnEnv)
+
+tryReduceWith :: (Fresh m) => DefinitionContext -> Expr -> RedexPath -> m (Maybe Expr)
+tryReduceWith context whole path =
+  case focusAt (definitionEnv context) whole path of
     Nothing -> pure Nothing
     Just (localDefnEnv, selected) ->
       case selected of
@@ -112,26 +111,28 @@ tryReduceAt defnEnv whole path =
           case lookup name localDefnEnv of
             Nothing -> pure Nothing
             Just body -> do
-              unfolded <- unfoldAt whole path selectedType body
+              closed <- closeDefinitions context (definitionEnv context) body
+              unfolded <- unfoldAt whole path selectedType closed
               case unfolded of
                 Nothing -> pure Nothing
-                Just whole' -> ensureNoLeadingLam whole' path
-        _ -> do
-          maybeReplacement <- localStep selected
-          case maybeReplacement of
-            Nothing -> pure Nothing
-            Just replacement -> pure (setAt path replacement whole)
+                Just whole' -> ensureNoLeadingLam context whole' path
+        Subst {} -> preparedStepAt context whole path
+        Case {} -> preparedStepAt context whole path
+        OutT _ (Tuple _) -> preparedStepAt context whole path
+        _ -> pure Nothing
 
 -- | Replace the selected definition reference without capturing free names
--- from its body in binders above the selected path.
+-- from its body in lexical binders above the selected path. Pending program
+-- substitutions deliberately capture those globals, so unfolding before or
+-- after distributing a substitution observes the same state.
 --
--- A fresh placeholder variable is installed at the path, then ordinary
--- capture-avoiding substitution replaces that placeholder in the whole
--- expression.  Because the placeholder occurs exactly once in this
+-- A fresh placeholder variable is installed at the path, then definition
+-- insertion replaces that placeholder in the whole expression. Because the
+-- placeholder occurs exactly once in this
 -- intermediate expression, only binders whose scope contains the selected
 -- occurrence can be renamed.
 --
--- The placeholder name only needs to be fresh for @whole@: 'substExpr'
+-- The placeholder name only needs to be fresh for @whole@: 'insertDefinition'
 -- inserts @body@ as-is and does not traverse replacements.
 --
 -- The placeholder carries the selected occurrence's type, so the intermediate
@@ -145,7 +146,7 @@ unfoldAt whole path selectedType body = do
   case setAt path placeholder whole of
     Nothing -> pure Nothing
     Just holed ->
-      Just <$> substExpr [(nameToText placeholderName, body)] holed
+      Just <$> insertDefinition placeholderName body holed
 
 freshPlaceholderName :: (Fresh m) => Set Text -> m Name
 freshPlaceholderName forbidden =
@@ -168,11 +169,10 @@ freshPlaceholderName forbidden =
 -- position, which can then beta-reduce with @b@.  Each repair therefore
 -- consumes an 'App' node that was already present in the original tree.
 --
--- Repair can only move upward through an 'App' whose function child is the
--- current lambda.  Every successful repair shortens the path, so this process
--- terminates without a fuel counter.  No subtree search is needed.
-ensureNoLeadingLam :: (Fresh m) => Expr -> RedexPath -> m (Maybe Expr)
-ensureNoLeadingLam whole currentPath =
+-- Repair moves upward through a pending substitution's subject or an
+-- application's function child. Every repair shortens the path.
+ensureNoLeadingLam :: (Fresh m) => DefinitionContext -> Expr -> RedexPath -> m (Maybe Expr)
+ensureNoLeadingLam context whole currentPath =
   case focus whole currentPath of
     Nothing -> pure Nothing
     Just Lam {} ->
@@ -180,20 +180,112 @@ ensureNoLeadingLam whole currentPath =
         Just (parentPath, 0) ->
           -- 0 is an 'App's function child
           case focus whole parentPath of
-            Just (App (Lam binder _ body _) argument _) -> do
-              reduced <- substExpr [(nameToText binder, argument)] body -- beta
-              case setAt parentPath reduced whole of
-                Just whole' -> ensureNoLeadingLam whole' parentPath
+            Just (App Lam {} _ _) -> do
+              -- Closing the argument exposes globals hidden behind aliases
+              -- before beta substitution performs capture avoidance.
+              prepared <- prepareAt context whole parentPath
+              case prepared of
+                Just (whole', _, App (Lam binder _ body _) argument _) -> do
+                  reduced <- substExpr [(nameToText binder, argument)] body
+                  case setAt parentPath reduced whole' of
+                    Just whole'' -> ensureNoLeadingLam context whole'' parentPath
+                    Nothing -> pure Nothing
+                _ -> pure Nothing
+            Just (Subst _ _) -> do
+              reduced <- preparedStepAt context whole parentPath
+              case reduced of
+                Just whole' -> ensureNoLeadingLam context whole' parentPath
                 Nothing -> pure Nothing
             _ -> pure Nothing
         _ -> pure Nothing
     Just _ -> pure (Just whole)
+
+-- | Close references before ordinary substitution, case selection, or tuple
+-- projection. A substitution attached directly to a definition stays pending
+-- until its reference unfolds; repeatedly returning the same node would make
+-- it a useless clickable redex.
+preparedStepAt :: (Fresh m) => DefinitionContext -> Expr -> RedexPath -> m (Maybe Expr)
+preparedStepAt context whole path = do
+  prepared <- prepareAt context whole path
+  case prepared of
+    Nothing -> pure Nothing
+    Just (whole', env, selected) ->
+      case selected of
+        Subst (Var name _ _) table
+          | name `notElem` map fst table, isJust (lookup name env) -> pure Nothing
+        _ -> do
+          replacement <- localStep selected
+          pure (replacement >>= \expression -> setAt path expression whole')
+
+-- | Closing a detached subtree can expose globals that collide with lexical
+-- ancestors. Rename those ancestors in the old tree first, preserving its
+-- bound occurrences, then introduce the new environments at the same path.
+prepareAt :: (Fresh m) => DefinitionContext -> Expr -> RedexPath -> m (Maybe (Expr, DefnEnv, Expr))
+prepareAt context whole path =
+  case focusAt (definitionEnv context) whole path of
+    Nothing -> pure Nothing
+    Just (env, selected) -> do
+      renamed <- avoidHiddenCaptureAt context (hiddenGlobals context env selected) whole path
+      case renamed of
+        Nothing -> pure Nothing
+        Just whole' ->
+          case focusAt (definitionEnv context) whole' path of
+            Nothing -> pure Nothing
+            Just (env', selected') -> do
+              closed <- closeDefinitions context env' selected'
+              pure (Just (whole', env', closed))
+
+avoidHiddenCaptureAt :: (Fresh m) => DefinitionContext -> Set Text -> Expr -> RedexPath -> m (Maybe Expr)
+avoidHiddenCaptureAt context incoming whole = go whole
+  where
+    go expression [] = pure (Just expression)
+    go expression (index : rest) =
+      case childBinders expression !? index of
+        Nothing -> pure Nothing
+        Just binders -> do
+          renaming <- case expression of
+            Subst {} -> pure [] -- these keys update the definition's globals
+            _ -> binderRenaming context whole binders incoming
+          let renamed = renameScoped index renaming expression
+              children = pathChildren renamed
+          case children !? index of
+            Nothing -> pure Nothing
+            Just child -> do
+              result <- go child rest
+              pure $ do
+                child' <- result
+                children' <- replaceAt index child' children
+                pure (withPathChildren renamed children')
+
+-- A quantifier's binders cover both range and body; a case pattern covers
+-- only its own clause. Renaming must update all of that scope, not just the
+-- path leading to the selected node.
+renameScoped :: Int -> [(Text, Text)] -> Expr -> Expr
+renameScoped _ renaming (Lam name t body range) =
+  Lam (renameName renaming name) t (renameFree renaming body) range
+renameScoped _ renaming (Quant operator binders range body location) =
+  Quant
+    operator
+    [(renameName renaming name, t) | (name, t) <- binders]
+    (renameFree renaming range)
+    (renameFree renaming body)
+    location
+renameScoped index renaming expression@(Case scrutinee clauses range) =
+  case clauses !? (index - 1) of
+    Just (CaseClause pattern' body) ->
+      case replaceAt (index - 1) (CaseClause (renamePatternBinders renaming pattern') (renameFree renaming body)) clauses of
+        Just clauses' -> Case scrutinee clauses' range
+        Nothing -> expression
+    Nothing -> expression
+renameScoped _ _ expression = expression
 
 -- | Rules that rewrite a node using only its own subtree.  They need neither
 -- 'DefnEnv' nor ancestor context.  They introduce no expression structure from
 -- outside the subtree, so on a lambda-free input they cannot produce a 'Lam'.
 -- Their results can therefore be spliced back with 'setAt' without lambda
 -- repair.
+-- 'tryReduceAt' closes definition references before these rules run, so their
+-- ordinary substitution can see the globals hidden inside definitions.
 --
 -- Unfolding and beta reduction are handled outside 'localStep':
 --
@@ -286,9 +378,10 @@ bothMatch (Matched left) (Matched right) = Matched (left <> right)
 redexRT :: DefnEnv -> Expr -> RT
 redexRT defnEnv whole = go [] whole
   where
+    context = definitionContext defnEnv
     go path expression =
       Node
-        (isJust (evalState (tryReduceAt defnEnv whole path) initFreshState))
+        (isJust (evalState (tryReduceWith context whole path) initFreshState))
         ( zipWith
             (\index child -> go (path <> [index]) child)
             [0 ..]
@@ -322,103 +415,3 @@ setAt (index : rest) replacement expression = do
 shadowDefinitions :: [Name] -> DefnEnv -> DefnEnv
 shadowDefinitions binders =
   filter (\(name, _) -> name `notElem` binders)
-
--- | The subexpressions into which a reduction path may descend, in path-index
--- order.  This is the single source of truth for path indexing in this module.
-pathChildren :: Expr -> [Expr]
-pathChildren (Lit _ _ _) = []
-pathChildren (Var _ _ _) = []
-pathChildren (Const _ _ _) = []
-pathChildren (Op _ _) = []
-pathChildren (Chain chain) = chainExprs chain
-pathChildren (App function argument _) = [function, argument]
-pathChildren (Lam _ _ body _) = [body]
-pathChildren (Tuple expressions) = expressions
-pathChildren (OutT _ expression) = [expression]
-pathChildren (Quant operator _ range body _) = [operator, range, body]
-pathChildren (ArrIdx array index _) = [array, index]
-pathChildren (ArrUpd array index value _) = [array, index, value]
-pathChildren (Case scrutinee clauses _) = scrutinee : map clauseBody clauses
-  where
-    clauseBody (CaseClause _ body) = body
-pathChildren (Subst subject assignments) = subject : map snd assignments
-pathChildren (EHole _) = []
-
--- | Binders whose scope covers each corresponding path child.
-childBinders :: Expr -> [[Name]]
-childBinders (Lam binder _ _ _) = [[binder]]
-childBinders (Quant _ binders _ _ _) = [[], names, names]
-  where
-    names = map fst binders
-childBinders (Case _ clauses _) = [] : map clauseBinders clauses
-  where
-    clauseBinders (CaseClause pattern' _) = extractBinder pattern'
-childBinders (Subst _ assignments) =
-  map fst assignments : map (const []) assignments
-childBinders expression = map (const []) (pathChildren expression)
-
--- | Rebuild an expression with its path children replaced.  The input list
--- must have the same shape and order as 'pathChildren'.
-withPathChildren :: Expr -> [Expr] -> Expr
-withPathChildren expression@(Lit _ _ _) [] = expression
-withPathChildren expression@(Var _ _ _) [] = expression
-withPathChildren expression@(Const _ _ _) [] = expression
-withPathChildren expression@(Op _ _) [] = expression
-withPathChildren expression@(EHole _) [] = expression
-withPathChildren (Chain chain) children
-  | length children == length (chainExprs chain) =
-      Chain (withChainExprs chain children)
-withPathChildren (App _ _ range) [function, argument] =
-  App function argument range
-withPathChildren (Lam binder t _ range) [body] =
-  Lam binder t body range
-withPathChildren (Tuple expressions) children
-  | length children == length expressions = Tuple children
-withPathChildren (OutT index _) [expression] = OutT index expression
-withPathChildren (Quant _ binders _ _ range) [operator, restriction, body] =
-  Quant operator binders restriction body range
-withPathChildren (ArrIdx _ _ range) [array, index] =
-  ArrIdx array index range
-withPathChildren (ArrUpd _ _ _ range) [array, index, value] =
-  ArrUpd array index value range
-withPathChildren (Case _ clauses range) (scrutinee : bodies)
-  | length bodies == length clauses =
-      Case scrutinee (zipWith withBody clauses bodies) range
-  where
-    withBody (CaseClause pattern' _) body = CaseClause pattern' body
-withPathChildren (Subst _ assignments) (subject : values)
-  | length values == length assignments =
-      Subst subject (zip (map fst assignments) values)
-withPathChildren expression children =
-  error $
-    "withPathChildren: expected "
-      <> show (length (pathChildren expression))
-      <> " children, given "
-      <> show (length children)
-
--- Chain paths are rightmost first, matching the existing renderer.
-chainExprs :: Chain -> [Expr]
-chainExprs (Pure expression) = [expression]
-chainExprs (More chain _ _ expression) = expression : chainExprs chain
-
-withChainExprs :: Chain -> [Expr] -> Chain
-withChainExprs chain expressions
-  | length expressions == length (chainExprs chain) = go chain expressions
-  | otherwise =
-      error $
-        "withChainExprs: expected "
-          <> show (length (chainExprs chain))
-          <> " operands, given "
-          <> show (length expressions)
-  where
-    go (Pure _) [expression] = Pure expression
-    go (More chain' operator t _) (expression : rest) =
-      More (go chain' rest) operator t expression
-    go _ _ = error "withChainExprs: chainExprs and rebuild disagree"
-
-replaceAt :: Int -> a -> [a] -> Maybe [a]
-replaceAt index _ _ | index < 0 = Nothing
-replaceAt _ _ [] = Nothing
-replaceAt 0 replacement (_ : rest) = Just (replacement : rest)
-replaceAt index replacement (value : rest) =
-  (value :) <$> replaceAt (index - 1) replacement rest
