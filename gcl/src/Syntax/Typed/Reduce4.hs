@@ -88,7 +88,7 @@ reduceAll limit env expression =
               go (remaining - 1) context' prepared
 
 -- Search a prepared expression. A Subst that recreates itself waits for its
--- reference, as in 'reduceFocused', but is compared before restoring names.
+-- opaque subject, as in 'reduceFocused', but is compared before restoring names.
 reduceOnce :: (Fresh m) => Context -> Expr -> m (Maybe Expr)
 reduceOnce context expression = search [(expression, [])]
   where
@@ -118,8 +118,8 @@ reduceFocused :: (Fresh m) => Context -> Expr -> Expr -> [Frame] -> m (Maybe Exp
 reduceFocused context original selected frames = do
   result <- traverse (restore context) =<< stepFocused context selected frames
   pure $ case selected of
-    -- A reference's environment waits for its unfold when applying it would
-    -- recreate the same displayed Subst. Self-reference unfolds still count.
+    -- An opaque subject's state waits for unfolding or refinement when applying
+    -- it would recreate the same displayed Subst. Self-reference unfolds count.
     Subst {} | result == Just original -> Nothing
     _ -> result
 
@@ -132,7 +132,7 @@ stepFocused context selected frames = case selected of
 
 repair :: (Fresh m) => Context -> Expr -> [Frame] -> m (Maybe Expr)
 -- Defensive only: elaborated definition bodies contain no Subst, and repair
--- adds Subst only over references, so a replacement never wraps a Lam here.
+-- adds Subst only over references or holes, never wrapping a Lam here.
 repair context (Subst subject assignments) frames
   | leadingLambda subject = do
       result <- applyState context (hiddenDefinitions frames <> domain assignments) assignments subject
@@ -213,14 +213,18 @@ combine (Matched left) (Matched right) = Matched (left <> right)
 
 -- State values are simultaneous. At an existing Subst, update only its values
 -- and compose the tables; leave execution of the subject for another click.
--- An unexpanded reference keeps every non-identity update until it unfolds.
+-- References and holes keep every non-identity update until their bodies are known.
 applyState :: (Fresh m) => Context -> Set Name -> Substitution -> Expr -> m Expr
 applyState _ _ [] expression = pure expression
-applyState context hidden table expression@(Var name _ _)
-  | Just _ <- definition context hidden name =
+applyState context hidden table expression
+  | opaque expression =
       pure $ case filter (not . identityEntry context hidden) table of
         [] -> expression
         pending -> Subst expression pending
+  where
+    opaque (Var name _ _) = isJust (definition context hidden name)
+    opaque EHole {} = True
+    opaque _ = False
 applyState context _ table expression@(Var name _ _)
   | not (privateName context name) = pure (maybe expression id (lookup name table))
 applyState context _ table expression@(Const name _ _)
@@ -276,14 +280,15 @@ identityEntry _ _ _ = False
 domain :: Substitution -> Set Name
 domain = Set.fromList . map fst
 
--- Inspect the displayed Expr only. A definition reference may read any global;
--- its body is neither visited nor followed through aliases before unfolding.
+-- Inspect the displayed Expr only. References and holes may read any global;
+-- definition bodies are neither visited nor followed through aliases here.
 mayReadState :: Context -> Set Name -> Name -> Expr -> Bool
 mayReadState context hidden key (Var name _ _)
   | privateName context name = False
   | isJust (definition context hidden name) = True
   | otherwise = name == key
 mayReadState context _ key (Const name _ _) = not (privateName context name) && name == key
+mayReadState _ _ _ EHole {} = True
 mayReadState context hidden key (Subst subject table) =
   (Set.notMember key (domain table) && mayReadState context hidden' key subject)
     || any (\(target, value) -> mayReadState context hidden' target subject && mayReadState context hidden key value) table
