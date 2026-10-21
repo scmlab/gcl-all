@@ -172,29 +172,6 @@ instance ProofBuilder T.Expr where
         ALL -> svNot condVal `svOr` exprVal
         EX -> condVal `svAnd` exprVal
       _ -> throwError $ "Not a valid quantifier expression"
-  buildProof (T.Subst expr redexes) = do
-    -- Proof building for Subst is as follow:
-    -- The requirement for VarsMap (in the state) should be equivalant
-    -- for before and after state of Subst proof building.
-    --
-    -- The actual progress is as follow:
-    -- Retreive the state first, and builds redex expressions and put into
-    -- state by the accompanied name, then builds the substituted expression.
-    -- Finally, restore the state from the state retreived at the beginning of
-    -- proof building, and return the expression.
-    originalVars <- get
-    substs <-
-      mapM
-        ( \(name, substExpr) -> do
-            substExpr' <- buildProof substExpr
-            return (name, substExpr')
-        )
-        redexes
-    vars <- get
-    put (foldr (\(name, v) m -> Map.insert name v m) vars substs)
-    expr' <- buildProof expr
-    put originalVars
-    return expr'
   buildProof expr = throwError $ "Unsupported expression: " ++ show expr
 
 genVariable :: Quantifier -> C.Name -> A.Type -> BuildState SValue

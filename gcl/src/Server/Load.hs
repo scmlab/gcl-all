@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Server.Load where
@@ -12,7 +11,6 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
-import qualified GCL.Dependency as D
 import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.SMT.Proof (evaluateAsString)
@@ -31,6 +29,7 @@ import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
+import Syntax.Typed.Reduce4 (DefnEnv, reduceAll)
 import qualified Syntax.Typed.Types as T
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
@@ -66,10 +65,13 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
+                          let defnEnv = fsDefinitions fs
+                          let reducedGlobalProps = map (tryReduce defnEnv) (fsGlobalProps fs)
                           po <-
                             mapM
                               ( \po -> do
-                                  smtResult <- liftIO $ evaluateAsString (fsGlobalProps fs) (poReducedPred po)
+                                  let reducedPred = tryReduce defnEnv (poReducedPred po)
+                                  smtResult <- liftIO $ evaluateAsString reducedGlobalProps reducedPred
                                   return $ po {poSMTResult = Text.pack smtResult}
                               )
                               (fsProofObligations fs)
@@ -98,6 +100,9 @@ load filePath = do
                                 pendingFileState = fs
                               }
       logText "Load: end\n"
+
+tryReduce :: DefnEnv -> T.Expr -> T.Expr
+tryReduce defnEnv = either id id . reduceAll 5 defnEnv
 
 --------------------------------------------------------------------------------
 -- Main pipeline

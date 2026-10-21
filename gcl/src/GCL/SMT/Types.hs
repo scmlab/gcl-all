@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 
-module GCL.SMT.Types (Convert (convert), ProofBuilder (..), ExceptableSymbolic, VarMap, BuildState, SValue (..)) where
+module GCL.SMT.Types (Convert (convert), ProofBuilder (..), ExceptableSymbolic, BuildState, SValue (..)) where
 
 import Control.Monad.Except (ExceptT)
 import Control.Monad.State (StateT)
@@ -14,6 +14,7 @@ import GHC.Generics (Generic)
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Common.Types as C
 
+-- Reuse the same SBV value for every occurrence of a source variable.
 type ExceptableSymbolic = StateT VarMap (SymbolicT (ExceptT String IO))
 
 type VarMap = Map C.Name SValue
@@ -39,7 +40,7 @@ instance Convert Bool SValue where
 
 -- FIXME(ChAoS): Somehow svChar is not visible?
 instance Convert Char SValue where
-  convert c = undefined
+  convert _ = undefined
 
 instance Convert A.Lit SValue where
   convert (A.Num n) = convert n
