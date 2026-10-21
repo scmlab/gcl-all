@@ -49,6 +49,7 @@ data Program
   = Program
       [SCC A.Definition] -- definitions (the functional language part)
       [Declaration] -- constant and variable declarations
+      [Procedure]
       [Expr] -- global properties
       [Stmt] -- main program
       (Maybe Range)
@@ -90,13 +91,13 @@ evalDependencyResolution :: A.Program -> Either TypeError GCL.Dependency.Program
 evalDependencyResolution abstract = evalState (runExceptT (resolveDependency abstract)) mempty
 
 resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
-resolveDependency program@(A.Program _ decls _procs exprs stmts _pragmas range) = do
+resolveDependency program@(A.Program _ decls procs exprs stmts _pragmas range) = do
   -- XXX: procs dependency?
   forM_ decls checkDeclDuplications
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
-  return $ GCL.Dependency.Program sccs decls exprs stmts range
+  return $ GCL.Dependency.Program sccs decls procs exprs stmts range
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
     toTopSortedSCC = reverse . stronglyConnComp . elems

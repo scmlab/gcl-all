@@ -304,6 +304,8 @@ instance PrettyWithRange Stmt where
   prettyWithRange (Dispose l e) = prettyWithRange l <> prettyWithRange e
   prettyWithRange (Block l p r) =
     prettyWithRange l <> prettyWithRange p <> prettyWithRange r
+  prettyWithRange (ProcCall x l a r) =
+    prettyWithRange x <> prettyWithRange l <> prettyWithRange a <> prettyWithRange r
 
 instance Pretty GdCmd where
   pretty = toDoc . prettyWithRange

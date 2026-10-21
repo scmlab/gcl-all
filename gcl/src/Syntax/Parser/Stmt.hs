@@ -53,7 +53,8 @@ statement program =
       conditional program,
       specQM,
       spec,
-      programBlock program
+      programBlock program,
+      procCall
     ]
     <?> "statement"
 
@@ -168,3 +169,11 @@ programBlock program =
     <$> tokenBlockOpen
     <*> program
     <*> tokenBlockClose
+
+procCall :: Parser Stmt
+procCall =
+  ProcCall
+    <$> identifier
+    <*> tokenParenOpen
+    <*> sepByComma expression
+    <*> tokenParenClose

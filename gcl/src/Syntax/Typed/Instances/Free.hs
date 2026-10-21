@@ -72,6 +72,7 @@ instance Free Stmt where
   freeVars (HMutate e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (Dispose e _) = freeVars e
   freeVars (Block prog _) = freeVars prog
+  freeVars (ProcCall _ _ _) = undefined -- XXX: freeVars for T.ProcCall?
 
 instance Free GdCmd where
   freeVars (GdCmd g stmts _) =

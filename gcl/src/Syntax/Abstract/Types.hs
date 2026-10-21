@@ -93,6 +93,7 @@ data Stmt
   | HMutate Expr Expr (Maybe Range) --  *e1 := e2
   | Dispose Expr (Maybe Range) --  dispose e
   | Block Program (Maybe Range)
+  | ProcCall Name [Expr] (Maybe Range)
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr [Stmt] (Maybe Range)

@@ -244,6 +244,7 @@ instance CollectHole C.Stmt where
   collectHole (C.HMutate _ a _ b) = collectHole a <> collectHole b
   collectHole (C.Dispose _ a) = collectHole a
   collectHole (C.Block _ program _) = collectHole program
+  collectHole (C.ProcCall _ _ args _) = collectHole args
 
 instance CollectHole C.GdCmd where
   collectHole (GdCmd expr _ stmts) = collectHole expr <> collectHole stmts

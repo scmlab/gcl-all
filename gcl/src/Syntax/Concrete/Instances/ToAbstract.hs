@@ -228,6 +228,7 @@ instance ToAbstract Stmt A.Stmt where
       toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
       toAbstract' (Dispose _ e) = A.Dispose <$> toAbstract e
       toAbstract' (Block _ p _) = A.Block <$> toAbstract p
+      toAbstract' (ProcCall p _ as _) = A.ProcCall p <$> toAbstract as
 
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =

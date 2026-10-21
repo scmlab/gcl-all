@@ -223,7 +223,7 @@ class ToTyped a t | a -> t where
   toTyped :: a -> TIMonad t
 
 instance ToTyped D.Program T.Program where
-  toTyped (D.Program defns decls exprs stmts range) = do
+  toTyped (D.Program defns decls procs exprs stmts range) = do
     traceM $ "defns: " <> show (pretty (Graph.flattenSCCs defns))
     traceM $ "decls: " <> show (pretty decls)
     traceM $ "exprs: " <> show (pretty exprs)
@@ -254,7 +254,7 @@ instance ToTyped D.Program T.Program where
         (declEnv, [])
         defns
 
-    let newEnv = defnEnv <> declEnv
+    let newEnv = defnEnv
     traceM $ "env:\n" <> show newEnv
 
     typedDecls <- local (const newEnv) (mapM toTyped decls)
@@ -288,6 +288,7 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.Block program range) = do
     program' <- lift $ evalDependencyResolution program
     T.Block <$> toTyped program' <*> pure range
+  toTyped (A.ProcCall name args range) = toTypedProcCall name args range
 
 toTypedAssign :: [Either Name A.Hole] -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedAssign names exprs range
@@ -413,6 +414,10 @@ toTypedDispose :: A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedDispose expr range = do
   (s, typedExpr) <- typeCheck expr typeInt
   return $ T.Dispose (applySubstExpr s typedExpr) range
+
+toTypedProcCall :: Name -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
+toTypedProcCall name args range = do
+  undefined
 
 instance ToTyped A.GdCmd T.GdCmd where
   toTyped (A.GdCmd expr stmts range) = do

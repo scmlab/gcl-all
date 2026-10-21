@@ -178,6 +178,7 @@ instance CollectTypedHole Stmt where
   collectTypedHole (HMutate _ expr _) = collectTypedHole expr
   collectTypedHole (Dispose expr _) = collectTypedHole expr
   collectTypedHole (Block program _) = collectTypedHole program
+  collectTypedHole (ProcCall name args _) = undefined -- XXX: collectTypedHole for ProcCall?
 
 instance CollectTypedHole GdCmd where
   collectTypedHole (GdCmd guard body _) = collectTypedHole guard <> collectTypedHole body

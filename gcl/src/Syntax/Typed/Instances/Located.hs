@@ -36,6 +36,7 @@ instance MaybeRanged Stmt where
   maybeRangeOf (HMutate _ _ l) = l
   maybeRangeOf (Dispose _ l) = l
   maybeRangeOf (Block _ l) = l
+  maybeRangeOf (ProcCall _ _ l) = l
 
 instance MaybeRanged GdCmd where
   maybeRangeOf (GdCmd _ _ l) = l

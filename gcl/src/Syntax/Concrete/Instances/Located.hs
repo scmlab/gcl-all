@@ -70,6 +70,7 @@ instance MaybeRanged Stmt where
   maybeRangeOf (HMutate l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (Dispose l r) = maybeRangeOf l <---> maybeRangeOf r
   maybeRangeOf (Block l _ r) = maybeRangeOf l <---> maybeRangeOf r
+  maybeRangeOf (ProcCall l _ _ r) = maybeRangeOf l <---> maybeRangeOf r
 
 --------------------------------------------------------------------------------
 

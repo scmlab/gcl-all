@@ -194,6 +194,8 @@ instance Collect () Highlighting Stmt where
       collect a
     -- TODO:
     Block {} -> return ()
+    -- TODO:
+    ProcCall {} -> return ()
 
 instance Collect () Highlighting GdCmd where
   collect (GdCmd a tok bs) = do

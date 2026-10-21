@@ -117,6 +117,7 @@ instance Pretty Stmt where
   pretty (HMutate e1 e2 _) = pretty e1 <> "*" <+> ":=" <+> pretty e2
   pretty (Dispose e _) = "free" <+> pretty e
   pretty (Block p _) = "|[" <+> pretty p <+> "]|"
+  pretty (ProcCall x args _) = pretty x <> "(" <> pretty args <> ")"
 
 instance Pretty GdCmd where
   pretty (GdCmd guard body _) =

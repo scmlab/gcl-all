@@ -122,6 +122,7 @@ instance Collect Typed.Stmt where -- TODO: Display hover info for names.
   collect (Typed.HMutate e1 e2 _) = collect e1 <> collect e2
   collect (Typed.Dispose expr _) = collect expr
   collect (Typed.Block program _) = collect program
+  collect (Typed.ProcCall name args _) = undefined -- XXX: collect for ProcCall?
 
 instance Collect Typed.GdCmd where
   collect (Typed.GdCmd gd stmts _) = collect gd <> foldMap collect stmts
