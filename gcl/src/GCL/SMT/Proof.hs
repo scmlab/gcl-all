@@ -13,13 +13,14 @@ import qualified Data.Map as Map
 import Data.SBV
   ( Kind (KBool, KBounded, KChar, KUnbounded),
     SBool,
+    SInteger,
     ThmResult,
+    isConcrete,
   )
 import Data.SBV.Dynamic
   ( Quantifier (..),
     SVal,
     svAnd,
-    svAsInteger,
     svDivide,
     svEqual,
     svExp,
@@ -54,22 +55,91 @@ import qualified Syntax.Common.Types as C
 import qualified Syntax.Typed.Operator as Op
 import qualified Syntax.Typed.Types as T
 
-runProof :: [T.Expr] -> T.Expr -> IO (Either String ThmResult)
-runProof globalProps expr = runExceptT $ Trans.prove $ do
-  result <- evalStateT (buildProof prerequisite) mempty
+runProof :: T.Expr -> IO (Either String ThmResult)
+runProof expr = runExceptT $ Trans.prove $ do
+  result <- evalStateT (buildProof expr) mempty
   case result of
     SVal v -> return $ toBool v
     SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
   where
-    prerequisite = case globalProps of
-      [] -> expr
-      _ -> Op.implies (Op.conjunct globalProps) expr
-
     toBool :: SVal -> SBool
     toBool = SBV
 
 evaluateAsString :: [T.Expr] -> T.Expr -> IO String
-evaluateAsString globalProps expr = either id show <$> runProof globalProps expr
+evaluateAsString globalProps expr = do
+  let (expr', stripped) = stripImplies (Op.implies (Op.conjunct globalProps) expr)
+  result <- runProof expr'
+  return $ case result of
+    Left err -> err
+    Right proofResult
+      -- A counterexample may rely on an assumption that was stripped.
+      | stripped && show proofResult /= "Q.E.D." -> "Unknown"
+      | otherwise -> show proofResult
+
+-- Strip only comparison conjuncts with symbolic exponents, and report whether
+-- an assumption was removed so a counterexample cannot be shown as definite.
+stripImplies :: T.Expr -> (T.Expr, Bool)
+stripImplies (T.App (T.App op lhs lr) rhs rr)
+  | isImplication op =
+      let (lhs', stripped) = stripConjuncts lhs
+          (rhs', stripped') = stripImplies rhs
+       in (T.App (T.App op lhs' lr) rhs' rr, stripped || stripped')
+stripImplies expr = (expr, False)
+
+stripConjuncts :: T.Expr -> (T.Expr, Bool)
+stripConjuncts (T.App (T.App op lhs lr) rhs rr)
+  | isConjunction op =
+      let (lhs', stripped) = stripConjuncts lhs
+          (rhs', stripped') = stripConjuncts rhs
+       in (T.App (T.App op lhs' lr) rhs' rr, stripped || stripped')
+stripConjuncts expr = stripExpr expr
+
+stripExpr :: T.Expr -> (T.Expr, Bool)
+stripExpr expr@(T.Chain (T.More {})) =
+  let symbolic = hasSymbolicExponent expr
+   in (if symbolic then Op.true else expr, symbolic)
+stripExpr expr = (expr, False)
+
+hasSymbolicExponent :: T.Expr -> Bool
+hasSymbolicExponent = anyExpr symbolicPower
+  where
+    symbolicPower (T.App (T.App (T.Op (C.ArithOp (C.Exp _)) _) _ _) exponentExpr _) =
+      hasSymbolic exponentExpr
+    symbolicPower _ = False
+
+hasSymbolic :: T.Expr -> Bool
+hasSymbolic = anyExpr isVariable
+  where
+    isVariable T.Var {} = True
+    isVariable T.Const {} = True
+    isVariable _ = False
+
+anyExpr :: (T.Expr -> Bool) -> T.Expr -> Bool
+anyExpr predicate expr =
+  predicate expr || case expr of
+    T.App function argument _ -> visit function || visit argument
+    T.Chain chain -> visitChain chain
+    T.Lam _ _ body _ -> visit body
+    T.Tuple elements -> any visit elements
+    T.OutT _ inner -> visit inner
+    T.Quant op _ condition body _ -> any visit [op, condition, body]
+    T.ArrIdx array index _ -> visit array || visit index
+    T.ArrUpd array index value _ -> any visit [array, index, value]
+    T.Case value clauses _ -> visit value || any (\(T.CaseClause _ body) -> visit body) clauses
+    T.Subst body redexes -> visit body || any (visit . snd) redexes
+    _ -> False
+  where
+    visit = anyExpr predicate
+    visitChain (T.Pure operand) = visit operand
+    visitChain (T.More chain _ _ operand) = visitChain chain || visit operand
+
+isImplication, isConjunction :: T.Expr -> Bool
+isImplication (T.Op (C.ArithOp (C.Implies _)) _) = True
+isImplication (T.Op (C.ArithOp (C.ImpliesU _)) _) = True
+isImplication _ = False
+isConjunction (T.Op (C.ArithOp (C.Conj _)) _) = True
+isConjunction (T.Op (C.ArithOp (C.ConjU _)) _) = True
+isConjunction _ = False
 
 instance ProofBuilder T.Expr where
   buildProof (T.Lit lit _ _) = return $ convert lit
@@ -209,10 +279,10 @@ opToFunc (C.ArithOp op) = case op of
     curry'
       ( \x y -> do
           x' <- asVal x
-          y' <- svFromIntegral (KBounded False 32) <$> asVal y
-          case svAsInteger y' of
-            Just _ -> return $ convert $ svExp x' y'
-            Nothing -> throwError "Unsupported exponential operation: RHS must be concrete value"
+          y' <- asVal y
+          if isConcrete (SBV y' :: SInteger)
+            then return $ convert $ svExp x' (svFromIntegral (KBounded False 32) y')
+            else throwError "Unknown"
       )
   _ -> return $ throwError $ "Unsupported arith op: " <> show op
 opToFunc (C.TypeOp _) = return $ throwError "Type Op is not yet implemented"

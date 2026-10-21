@@ -7,7 +7,12 @@ export default function renderProofObligation(
 ): string {
   const renderedExpression = `<span>${proofObligation.reducedPred}</span>`;
   const isQED = proofObligation.smtResult === "Q.E.D.";
-  const proofResult = isQED ? "Q.E.D." : "Failed";
+  const isFalsifiable = proofObligation.smtResult.startsWith("Falsifiable");
+  const proofResult = isQED ? "Q.E.D." : isFalsifiable ? "Failed" : "Unknown";
+  const proofDetails =
+    proofObligation.smtResult === "Unknown"
+      ? "The SMT prover cannot determine this proof because an exponent is symbolic."
+      : proofObligation.smtResult;
   const sectionBody: string = /*html */ `
     <div>
       <style scoped>
@@ -71,7 +76,7 @@ export default function renderProofObligation(
   `;
   const footer = `
     <p class="proof-obligation-smt-result" tabindex="0">
-      <strong>SMT Proof: ${proofResult}<span class="proof-obligation-smt-result-hover">${proofObligation.smtResult}</span></strong>
+      <strong>SMT Proof: ${proofResult}<span class="proof-obligation-smt-result-hover">${proofDetails}</span></strong>
     </p>
   `;
 
