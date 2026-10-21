@@ -1,0 +1,61 @@
+{-# LANGUAGE OverloadedStrings #-}
+
+module GCL.SMT.Test where
+
+import Control.Monad.Error.Class (MonadError (..))
+import Control.Monad.Except (ExceptT (..))
+import Control.Monad.State (evalState)
+import Control.Monad.Trans.Except (runExceptT)
+import qualified Data.Text as Text
+import Debug.Trace (trace)
+import Error (Error (..))
+import GCL.SMT.Proof (evaluateAsString)
+import qualified GCL.Type2.ToTyped as Type2
+import qualified Hack
+import qualified Syntax.Abstract.Types as A
+import qualified Syntax.Concrete as C
+import qualified Syntax.Parser as Parser
+import qualified Syntax.Typed.Types as T
+
+test :: IO ()
+test = do
+  result <- simpleLoad "DONT CARE" "False => True"
+  case result of
+    Left err -> print $ show err
+    Right typed -> do
+      result' <- evaluateAsString [] typed
+      print result'
+
+simpleLoad :: FilePath -> Text.Text -> IO (Either Error T.Expr)
+simpleLoad filepath source = runExceptT $ catchError run handler
+  where
+    run = do
+      concrete <- ExceptT $ parse filepath source
+      -- lift $ print concrete
+      abstract <- ExceptT $ toAbstract concrete
+      -- lift $ print abstract
+      -- typed <- ExceptT $ typecheck abstract
+      typed <- ExceptT $ toTyped2 abstract
+      -- lift $ print typed
+      return typed
+    handler err =
+      trace (Hack.sshow err) (throwError err)
+
+    parse :: FilePath -> Text.Text -> IO (Either Error C.Expr)
+    parse filepath' source' =
+      case Parser.scanAndParse Parser.expression filepath' source' of
+        Left err -> do
+          -- TODO: more error reporting here
+          return $ Left (ParseError err)
+        Right concrete -> return $ Right concrete
+
+    toAbstract :: C.Expr -> IO (Either Error A.Expr)
+    toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
+
+    toTyped2 :: A.Expr -> IO (Either Error T.Expr)
+    toTyped2 abstract =
+      case Type2.runToTyped abstract mempty of
+        Left err -> do
+          -- TODO: more error reporting here
+          return $ Left (TypeError err)
+        Right (typed, _) -> return $ Right typed

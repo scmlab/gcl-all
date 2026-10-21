@@ -436,7 +436,7 @@ alphaEqTests =
   testGroup
     "alphaEq"
     [ testCase name (alphaEq a b @?= expected)
-    | (name, expected, a, b) <- alphaEqCases
+      | (name, expected, a, b) <- alphaEqCases
     ]
 
 prop_freshenAlpha :: Property

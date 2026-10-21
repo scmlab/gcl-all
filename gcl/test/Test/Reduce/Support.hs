@@ -45,7 +45,7 @@ reduciblePathsWith mark env expression = collect [] (mark env expression)
       [path | reducible]
         <> concat
           [ collect (path <> [index]) child
-          | (index, child) <- zip [0 ..] children
+            | (index, child) <- zip [0 ..] children
           ]
 
 -- | Load a program with one PO and explore all marked click orders.
