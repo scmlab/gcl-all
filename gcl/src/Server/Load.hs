@@ -66,22 +66,7 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
-                          started <- liftIO getMonotonicTimeNSec
-                          -- All proof obligations in this load share two seconds.
-                          let deadline = toInteger started + 2000 * 1000000
-                          let defnEnv = fsDefinitions fs
-                          let reducedGlobalProps = map (tryReduce defnEnv) (fsGlobalProps fs)
-                          po <-
-                            mapM
-                              ( \po -> do
-                                  let reducedPred = tryReduce defnEnv (poReducedPred po)
-                                  now <- liftIO getMonotonicTimeNSec
-                                  let remainingMs = (deadline - toInteger now) `div` 1000000
-                                  smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred
-                                  return $ po {poSMTResult = Text.pack smtResult}
-                              )
-                              (fsProofObligations fs)
-                          let fs' = fs {fsProofObligations = po}
+                          fs' <- evalSMTProofs fs
                           logText "Load: sending refresh\n"
                           setAndSendFileStateWithRefresh filePath fs'
                         Left _ -> do
@@ -96,6 +81,10 @@ load filePath = do
                               errFs = emptyFileStateWithErrors [convertedErr]
                           setAndSendFileState filePath errFs
                         Right _ -> do
+                          -- FIXME(ChAoS): evalSMTProofs may delays up to 5 seconds per PO
+                          -- should we lower the limit or use multiple Z3 to solve to avoid
+                          -- racing edit?
+                          fs' <- evalSMTProofs fs
                           logText "Load: holes dug, sending edit\n"
                           sendEditTextsWithVersion filePath vfsVersion edits
                           logText "Load: setting pending edit\n"
@@ -103,12 +92,33 @@ load filePath = do
                             filePath
                             PendingEdit
                               { expectedContent = newSource,
-                                pendingFileState = fs
+                                pendingFileState = fs'
                               }
       logText "Load: end\n"
 
-tryReduce :: DefnEnv -> T.Expr -> T.Expr
-tryReduce defnEnv = either id id . reduceAll 5 defnEnv
+evalSMTProofs :: FileState -> ServerM FileState
+evalSMTProofs fs = do
+  logText "Load: start evaluating proof obligations in SMT prover"
+  started <- liftIO getMonotonicTimeNSec
+  -- All proof obligations in this load share two seconds.
+  let deadline = toInteger started + 2000 * 1000000
+  let defnEnv = fsDefinitions fs
+  let reducedGlobalProps = map (tryReduce defnEnv) (fsGlobalProps fs)
+  po <-
+    mapM
+      ( \po -> do
+          let reducedPred = tryReduce defnEnv (poReducedPred po)
+          now <- liftIO getMonotonicTimeNSec
+          let remainingMs = (deadline - toInteger now) `div` 1000000
+          smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred
+          return $ po {poSMTResult = Text.pack smtResult}
+      )
+      (fsProofObligations fs)
+  logText "Load: evaluated all proof obligations in SMT prover"
+  return $ fs {fsProofObligations = po}
+  where
+    tryReduce :: DefnEnv -> T.Expr -> T.Expr
+    tryReduce defnEnv = either id id . reduceAll 5 defnEnv
 
 --------------------------------------------------------------------------------
 -- Main pipeline

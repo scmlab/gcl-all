@@ -192,21 +192,21 @@ genVariable quant name@(C.Name t _) ty = do
         put (Map.insert name lit vars)
         lift $ return lit
       A.TApp (A.TApp (A.TOp (C.Arrow _)) _ _) _ _ -> do
-        lift $ return $ mkUninterpretedFunc (Text.unpack t) ty
+        mkUninterpretedFunc (Text.unpack t) ty
       _ -> throwError "Unsupported type lookup"
 
-mkUninterpretedFunc :: String -> A.Type -> SValue
+mkUninterpretedFunc :: String -> A.Type -> BuildState SValue
 mkUninterpretedFunc name = build []
   where
-    build :: [SVal] -> A.Type -> SValue
+    build :: [SVal] -> A.Type -> BuildState SValue
     build collected (A.TApp (A.TApp (A.TOp (C.Arrow _)) _argTy _) retTy _) =
-      SFunc $ \arg -> do
+      return $ SFunc $ \arg -> do
         arg' <- asVal arg
-        return $ build (arg' : collected) retTy
+        build (arg' : collected) retTy
     build collected (A.TBase base _) =
-      SVal $ svUninterpreted (baseTyToKind base) name (UINone True) (reverse collected)
+      return $ SVal $ svUninterpreted (baseTyToKind base) name (UINone True) (reverse collected)
     build _ ty =
-      error $ "Unsupported uninterpreted function type layer: " ++ show ty
+      throwError $ "Unsupported uninterpreted function type layer: " ++ show ty
 
 instance ProofBuilder T.Chain where
   buildProof chain = do
