@@ -8,9 +8,17 @@ export default function renderProofObligation(
   const renderedExpression = `<span>${proofObligation.reducedPred}</span>`;
   const isQED = proofObligation.smtResult === "Q.E.D.";
   const isFalsifiable = proofObligation.smtResult.startsWith("Falsifiable");
-  const proofResult = isQED ? "Q.E.D." : isFalsifiable ? "Failed" : "Unknown";
-  const proofDetails =
-    proofObligation.smtResult === "Unknown"
+  const isTimeout = proofObligation.smtResult === "Timeout";
+  const proofResult = isQED
+    ? "Q.E.D."
+    : isFalsifiable
+      ? "Failed"
+      : isTimeout
+        ? "Timeout"
+        : "Unknown";
+  const proofDetails = isTimeout
+    ? "The SMT prover exceeded the time limit for this proof."
+    : proofObligation.smtResult === "Unknown"
       ? "The SMT prover cannot determine this proof because an exponent is symbolic."
       : proofObligation.smtResult;
   const sectionBody: string = /*html */ `

@@ -14,7 +14,9 @@ import Data.SBV
   ( Kind (KBool, KBounded, KChar, KUnbounded),
     SBool,
     SInteger,
-    ThmResult,
+    SMTReasonUnknown (UnknownTimeOut),
+    SMTResult (Unknown),
+    ThmResult (..),
     isConcrete,
   )
 import Data.SBV.Dynamic
@@ -57,6 +59,8 @@ import qualified Syntax.Typed.Types as T
 
 runProof :: T.Expr -> IO (Either String ThmResult)
 runProof expr = runExceptT $ Trans.prove $ do
+  -- Give each proof obligation a two-second solver timeout.
+  Trans.setTimeOut 2000
   result <- evalStateT (buildProof expr) mempty
   case result of
     SVal v -> return $ toBool v
@@ -71,6 +75,7 @@ evaluateAsString globalProps expr = do
   result <- runProof expr'
   return $ case result of
     Left err -> err
+    Right (ThmResult (Unknown _ UnknownTimeOut)) -> "Timeout"
     Right proofResult
       -- A counterexample may rely on an assumption that was stripped.
       | stripped && show proofResult /= "Q.E.D." -> "Unknown"
