@@ -1,8 +1,8 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Server.Load where
 
+import Control.Monad.IO.Class (liftIO)
 import Data.Bifunctor (first)
 import qualified Data.IntMap as IntMap
 import Data.List (sortBy)
@@ -11,11 +11,12 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
-import qualified GCL.Dependency as D
 import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
+import GCL.SMT.Proof (evaluateAsString)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
+import GHC.Clock (getMonotonicTimeNSec)
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -29,10 +30,8 @@ import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
+import Syntax.Typed.Reduce4 (DefnEnv, reduceAll)
 import qualified Syntax.Typed.Types as T
-
---------------------------------------------------------------------------------
--- Types
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
 type DigResult = ([(Range, Text)], Text)
@@ -67,8 +66,9 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
+                          fs' <- evalSMTProofs fs
                           logText "Load: sending refresh\n"
-                          setAndSendFileStateWithRefresh filePath fs
+                          setAndSendFileStateWithRefresh filePath fs'
                         Left _ -> do
                           logTextLn "Load: type/struct error"
                           setAndSendFileState filePath fs
@@ -81,6 +81,10 @@ load filePath = do
                               errFs = emptyFileStateWithErrors [convertedErr]
                           setAndSendFileState filePath errFs
                         Right _ -> do
+                          -- FIXME(ChAoS): evalSMTProofs may delays up to 5 seconds per PO
+                          -- should we lower the limit or use multiple Z3 to solve to avoid
+                          -- racing edit?
+                          fs' <- evalSMTProofs fs
                           logText "Load: holes dug, sending edit\n"
                           sendEditTextsWithVersion filePath vfsVersion edits
                           logText "Load: setting pending edit\n"
@@ -88,9 +92,33 @@ load filePath = do
                             filePath
                             PendingEdit
                               { expectedContent = newSource,
-                                pendingFileState = fs
+                                pendingFileState = fs'
                               }
       logText "Load: end\n"
+
+evalSMTProofs :: FileState -> ServerM FileState
+evalSMTProofs fs = do
+  logText "Load: start evaluating proof obligations in SMT prover"
+  started <- liftIO getMonotonicTimeNSec
+  -- All proof obligations in this load share two seconds.
+  let deadline = toInteger started + 2000 * 1000000
+  let defnEnv = fsDefinitions fs
+  let reducedGlobalProps = map (tryReduce defnEnv) (fsGlobalProps fs)
+  po <-
+    mapM
+      ( \po -> do
+          let reducedPred = tryReduce defnEnv (poReducedPred po)
+          now <- liftIO getMonotonicTimeNSec
+          let remainingMs = (deadline - toInteger now) `div` 1000000
+          smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred
+          return $ po {poSMTResult = Text.pack smtResult}
+      )
+      (fsProofObligations fs)
+  logText "Load: evaluated all proof obligations in SMT prover"
+  return $ fs {fsProofObligations = po}
+  where
+    tryReduce :: DefnEnv -> T.Expr -> T.Expr
+    tryReduce defnEnv = either id id . reduceAll 5 defnEnv
 
 --------------------------------------------------------------------------------
 -- Main pipeline
