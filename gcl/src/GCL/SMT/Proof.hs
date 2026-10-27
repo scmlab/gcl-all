@@ -10,6 +10,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (runExceptT)
 import Control.Monad.Trans.State.Lazy (evalStateT, get, put)
 import qualified Data.Map as Map
+import Data.Maybe (isNothing)
 import Data.SBV
   ( Kind (KBool, KBounded, KChar, KUnbounded),
     SBool,
@@ -83,8 +84,8 @@ evaluateAsString timeoutMs globalProps expr
           | stripped && show proofResult /= "Q.E.D." -> "Unknown"
           | otherwise -> show proofResult
 
--- Strip only comparison conjuncts with symbolic exponents, and report whether
--- an assumption was removed so a counterexample cannot be shown as definite.
+-- Strip assumption conjuncts with unsupported quantifiers or symbolic powers,
+-- and report whether one was removed so a counterexample is not definite.
 stripImplies :: T.Expr -> (T.Expr, Bool)
 stripImplies (T.App (T.App op lhs lr) rhs rr)
   | isImplication op =
@@ -102,10 +103,18 @@ stripConjuncts (T.App (T.App op lhs lr) rhs rr)
 stripConjuncts expr = stripExpr expr
 
 stripExpr :: T.Expr -> (T.Expr, Bool)
+stripExpr expr
+  | hasUnsupportedQuantifier expr = (Op.true, True)
 stripExpr expr@(T.Chain (T.More {})) =
   let symbolic = hasSymbolicExponent expr
    in (if symbolic then Op.true else expr, symbolic)
 stripExpr expr = (expr, False)
+
+hasUnsupportedQuantifier :: T.Expr -> Bool
+hasUnsupportedQuantifier = anyExpr unsupportedQuantifier
+  where
+    unsupportedQuantifier (T.Quant op _ _ _ _) = isNothing (quantifierKind op)
+    unsupportedQuantifier _ = False
 
 hasSymbolicExponent :: T.Expr -> Bool
 hasSymbolicExponent = anyExpr symbolicPower
@@ -162,13 +171,9 @@ instance ProofBuilder T.Expr where
       SFunc func -> func r'
       _ -> throwError "Unable to apply on literal values"
   buildProof (T.Quant opExpr bounds condExpr expr _) = do
-    quant <- case opExpr of
-      T.Op (C.ArithOp (C.Conj _)) _ -> return ALL
-      T.Op (C.ArithOp (C.ConjU _)) _ -> return ALL
-      T.Op (C.ArithOp (C.Disj _)) _ -> return EX
-      T.Op (C.ArithOp (C.DisjU _)) _ -> return EX
-      op@(T.Op _ _) -> throwError $ "Not a valid quantifier operator: " <> show op
-      expr' -> throwError $ "Not a valid quantifier operator expression: " <> show expr'
+    quant <- case quantifierKind opExpr of
+      Just supported -> return supported
+      Nothing -> throwError "Unknown.\n  Unsupported quantifier."
     originalVars <- get
     forM_ bounds (uncurry (genVariable quant))
     condExpr' <- buildProof condExpr
@@ -312,3 +317,10 @@ baseTyToKind baseTy = case baseTy of
   A.TInt -> KUnbounded
   A.TBool -> KBool
   A.TChar -> KChar
+
+quantifierKind :: T.Expr -> Maybe Quantifier
+quantifierKind (T.Op (C.ArithOp (C.Conj _)) _) = Just ALL
+quantifierKind (T.Op (C.ArithOp (C.ConjU _)) _) = Just ALL
+quantifierKind (T.Op (C.ArithOp (C.Disj _)) _) = Just EX
+quantifierKind (T.Op (C.ArithOp (C.DisjU _)) _) = Just EX
+quantifierKind _ = Nothing -- FIXME(ChAoS): Implement all quantifiers.
