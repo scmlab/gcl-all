@@ -57,10 +57,9 @@ import qualified Syntax.Common.Types as C
 import qualified Syntax.Typed.Operator as Op
 import qualified Syntax.Typed.Types as T
 
-runProof :: T.Expr -> IO (Either String ThmResult)
-runProof expr = runExceptT $ Trans.prove $ do
-  -- Give each proof obligation a two-second solver timeout.
-  Trans.setTimeOut 2000
+runProof :: Integer -> T.Expr -> IO (Either String ThmResult)
+runProof timeoutMs expr = runExceptT $ Trans.prove $ do
+  Trans.setTimeOut timeoutMs
   result <- evalStateT (buildProof expr) mempty
   case result of
     SVal v -> return $ toBool v
@@ -69,17 +68,20 @@ runProof expr = runExceptT $ Trans.prove $ do
     toBool :: SVal -> SBool
     toBool = SBV
 
-evaluateAsString :: [T.Expr] -> T.Expr -> IO String
-evaluateAsString globalProps expr = do
-  let (expr', stripped) = stripImplies (Op.implies (Op.conjunct globalProps) expr)
-  result <- runProof expr'
-  return $ case result of
-    Left err -> err
-    Right (ThmResult (Unknown _ UnknownTimeOut)) -> "Timeout"
-    Right proofResult
-      -- A counterexample may rely on an assumption that was stripped.
-      | stripped && show proofResult /= "Q.E.D." -> "Unknown"
-      | otherwise -> show proofResult
+-- | A non-positive millisecond budget skips the solver entirely.
+evaluateAsString :: Integer -> [T.Expr] -> T.Expr -> IO String
+evaluateAsString timeoutMs globalProps expr
+  | timeoutMs <= 0 = return "Timeout"
+  | otherwise = do
+      let (expr', stripped) = stripImplies (Op.implies (Op.conjunct globalProps) expr)
+      result <- runProof timeoutMs expr'
+      return $ case result of
+        Left err -> err
+        Right (ThmResult (Unknown _ UnknownTimeOut)) -> "Timeout"
+        Right proofResult
+          -- A counterexample may rely on an assumption that was stripped.
+          | stripped && show proofResult /= "Q.E.D." -> "Unknown"
+          | otherwise -> show proofResult
 
 -- Strip only comparison conjuncts with symbolic exponents, and report whether
 -- an assumption was removed so a counterexample cannot be shown as definite.

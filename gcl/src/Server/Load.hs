@@ -16,6 +16,7 @@ import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.SMT.Proof (evaluateAsString)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
+import GHC.Clock (getMonotonicTimeNSec)
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -65,13 +66,18 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
+                          started <- liftIO getMonotonicTimeNSec
+                          -- All proof obligations in this load share two seconds.
+                          let deadline = toInteger started + 2000 * 1000000
                           let defnEnv = fsDefinitions fs
                           let reducedGlobalProps = map (tryReduce defnEnv) (fsGlobalProps fs)
                           po <-
                             mapM
                               ( \po -> do
                                   let reducedPred = tryReduce defnEnv (poReducedPred po)
-                                  smtResult <- liftIO $ evaluateAsString reducedGlobalProps reducedPred
+                                  now <- liftIO getMonotonicTimeNSec
+                                  let remainingMs = (deadline - toInteger now) `div` 1000000
+                                  smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred
                                   return $ po {poSMTResult = Text.pack smtResult}
                               )
                               (fsProofObligations fs)
