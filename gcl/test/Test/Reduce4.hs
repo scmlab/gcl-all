@@ -5,6 +5,7 @@ module Test.Reduce4 (tests) where
 import Data.Bifunctor (bimap)
 import qualified Data.Text as Text
 import GCL.Predicate (PO (..))
+import GCL.Range (mkPos, mkRange)
 import Server.FileState (FileState (..))
 import Server.Load (loadAndDig)
 import qualified Syntax.Abstract.Types as A
@@ -12,7 +13,7 @@ import Syntax.Common.Types (Name (..))
 import qualified Syntax.Typed.Reduce4 as Reduce4
 import qualified Syntax.Typed.Types as T
 import qualified Test.Reduce as Shared
-import Test.Reduce.Support (normalFormText, prettyExpr, reduciblePathsWith, runWith)
+import Test.Reduce.Support (loaded, normalFormText, normalForms, prettyExpr, reduciblePathsWith, runWith)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
 
@@ -22,7 +23,8 @@ tests =
     "Reduce4"
     [ Shared.tests "shared contract" Reduce4.tryReduceAt Reduce4.redexRT,
       fullReduction,
-      conservativeReferences
+      conservativeReferences,
+      pendingHoles
     ]
 
 fullReduction :: TestTree
@@ -156,6 +158,54 @@ conservativeReferences =
   where
     run = runWith Reduce4.tryReduceAt
     paths = reduciblePathsWith Reduce4.redexRT
+
+pendingHoles :: TestTree
+pendingHoles =
+  testGroup
+    "pending hole state"
+    [ testCase "state propagation preserves a hole and its source metadata" $ do
+        let expression = T.Subst (T.Tuple [hole, var x]) [(x, var a), (y, var y)]
+            expected = T.Tuple [T.Subst hole [(x, var a)], var a]
+        run [] expression [] @?= Just expected
+        paths [] expected @?= [],
+      testCase "a pending hole table waits for refinement" $ do
+        let pending = T.Subst hole [(x, var a)]
+        run [] pending [] @?= Nothing
+        paths [] pending @?= []
+        Reduce4.reduceAll 0 [] pending @?= Right pending,
+      testCase "empty and identity tables can still be removed from a hole" $
+        mapM_
+          ( \table -> do
+              let expression = T.Subst hole table
+              paths [] expression @?= [[]]
+              run [] expression [] @?= Just hole
+          )
+          [[], [(x, var x)]],
+      testCase "a pending hole table can reduce its replacement expressions" $ do
+        let env = [(f, var x)]
+            expression = T.Subst hole [(x, var f)]
+            identity = T.Subst hole [(x, var x)]
+        paths env expression @?= [[1]]
+        run env expression [1] @?= Just identity
+        run env identity [] @?= Just hole,
+      testCase "composition retains outer updates that a hole may read" $ do
+        let expression = T.Subst (T.Subst hole [(y, var b)]) [(x, var a)]
+            expected = T.Subst hole [(y, var b), (x, var a)]
+        run [] expression [] @?= Just expected
+        paths [] expected @?= []
+        Reduce4.reduceAll 1 [] expression @?= Right expected,
+      -- x := x + 1; y := ? { y = x }. The hole is evaluated after x's update;
+      -- reducing either table first must keep that update pending over it.
+      testCase "all click orders preserve the state of an assignment hole" $ do
+        let (env, expression) = loaded ["var x, y : Int", "{ True }", "x := x + 1", "y := ?", "{ y = x }"]
+            expected = "{! !}₀ [ x \\ x + 1 ] = x + 1"
+        normalForms run paths env expression @?= [expected]
+        fmap prettyExpr (Reduce4.reduceAll 100 env expression) @?= Right expected
+    ]
+  where
+    run = runWith Reduce4.tryReduceAt
+    paths = reduciblePathsWith Reduce4.redexRT
+    hole = T.EHole (T.Hole "hole" 0 (A.TBase A.TInt Nothing) (mkRange (mkPos 1 1) (mkPos 1 2)) mempty)
 
 f, g, x, y, a, b :: Name
 f = Name "f" Nothing
