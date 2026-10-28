@@ -52,7 +52,7 @@ definitionContext env = DefinitionContext env (fixedPoint Map.empty) forbidden
     step known =
       Map.fromList
         [ (name, Map.restrictKeys direct (Map.keysSet (freeGlobals env known Set.empty body)))
-        | (name, body) <- env
+          | (name, body) <- env
         ]
     fixedPoint known =
       let next = step known

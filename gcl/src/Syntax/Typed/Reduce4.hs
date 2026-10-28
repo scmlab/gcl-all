@@ -233,9 +233,9 @@ applyState context hidden table (Subst subject earlier) = do
   values <- mapM (\(key, value) -> (,) key <$> applyState context hidden table value) earlier
   let remaining =
         [ entry
-        | entry@(key, _) <- table,
-          Set.notMember key (domain earlier),
-          mayReadState context (hidden <> domain earlier) key subject
+          | entry@(key, _) <- table,
+            Set.notMember key (domain earlier),
+            mayReadState context (hidden <> domain earlier) key subject
         ]
   pure (Subst subject (values <> remaining))
 applyState context hidden table expression =
@@ -383,7 +383,7 @@ underScopes choose expression = foldM under (expression, pathChildren expression
       renaming <- choose names [children !! position | position <- positions]
       let renamed =
             [ if elem position positions then renameVariables renaming child else child
-            | (position, child) <- zip [0 ..] children
+              | (position, child) <- zip [0 ..] children
             ]
       pure (renameHeader index renaming header, renamed)
 
@@ -401,7 +401,7 @@ renameHeader index renaming (Case scrutinee clauses range) =
   Case
     scrutinee
     [ if position == index then CaseClause (renamePatternBinders renaming pattern') body else clause
-    | (position, clause@(CaseClause pattern' body)) <- zip [1 ..] clauses
+      | (position, clause@(CaseClause pattern' body)) <- zip [1 ..] clauses
     ]
     range
 renameHeader _ _ expression = expression
