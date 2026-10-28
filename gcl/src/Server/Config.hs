@@ -17,14 +17,15 @@ data Config = Config
 defaultConfig :: Config
 defaultConfig = Config {smtTimeoutMs = 2000, smtReductionLimit = 100}
 
+-- Public setting keys keep SMT uppercase for VS Code's generated titles.
 -- Missing fields preserve the previous values for clients sending partial updates.
 parseConfig :: Config -> Value -> Either Text Config
 parseConfig previous = first Text.pack . parseEither (withObject "gcl-vscode settings" parse)
   where
     parse settings =
       Config
-        <$> (settings .:? "smtTimeoutMs" .!= smtTimeoutMs previous >>= positiveLimit "smtTimeoutMs")
-        <*> (settings .:? "smtReductionLimit" .!= smtReductionLimit previous >>= positiveLimit "smtReductionLimit")
+        <$> (settings .:? "SMTTimeoutMs" .!= smtTimeoutMs previous >>= positiveLimit "SMTTimeoutMs")
+        <*> (settings .:? "SMTReductionLimit" .!= smtReductionLimit previous >>= positiveLimit "SMTReductionLimit")
 
 positiveLimit :: (Integral a) => String -> a -> Parser a
 positiveLimit name value

@@ -134,9 +134,10 @@ function createClient(): LanguageClient {
     documentSelector: [{ scheme: "file", language: "gcl" }],
     initializationOptions: () => {
       const settings = vscode.workspace.getConfiguration("gcl-vscode");
+      // Match the public keys returned by workspace/configuration.
       return {
-        smtTimeoutMs: settings.get<number>("smtTimeoutMs"),
-        smtReductionLimit: settings.get<number>("smtReductionLimit"),
+        SMTTimeoutMs: settings.get<number>("SMTTimeoutMs"),
+        SMTReductionLimit: settings.get<number>("SMTReductionLimit"),
       };
     },
     synchronize: {

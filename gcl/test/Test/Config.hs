@@ -14,14 +14,14 @@ tests =
     "Server configuration"
     [ testCase "empty settings use the defaults" $
         parseConfig defaultConfig (object []) @?= Right (Config 2000 100),
-      testCase "both limits can be configured" $
-        parseConfig defaultConfig (object ["smtTimeoutMs" .= (350 :: Int), "smtReductionLimit" .= (50 :: Int)])
+      testCase "both uppercase SMT settings can be configured" $
+        parseConfig defaultConfig (object ["SMTTimeoutMs" .= (350 :: Int), "SMTReductionLimit" .= (50 :: Int)])
           @?= Right (Config 350 50),
       testCase "a partial update preserves the other limit" $
-        parseConfig (Config 350 50) (object ["smtReductionLimit" .= (10 :: Int)])
+        parseConfig (Config 350 50) (object ["SMTReductionLimit" .= (10 :: Int)])
           @?= Right (Config 350 10),
       testCase "explicit defaults reset previous settings" $
-        parseConfig (Config 350 50) (object ["smtTimeoutMs" .= (2000 :: Int), "smtReductionLimit" .= (100 :: Int)])
+        parseConfig (Config 350 50) (object ["SMTTimeoutMs" .= (2000 :: Int), "SMTReductionLimit" .= (100 :: Int)])
           @?= Right defaultConfig,
       testCase "unrelated extension settings are ignored" $
         parseConfig defaultConfig (object ["gclPath" .= String "/tmp/gcl", "trace" .= object ["server" .= String "verbose"]])
@@ -29,7 +29,7 @@ tests =
       testCase "both limits reject invalid values" $
         mapM_
           (\key -> mapM_ (\value -> assertBool (show (key, value)) (isLeft (parseConfig defaultConfig (object [key .= value])))) invalidValues)
-          ["smtTimeoutMs", "smtReductionLimit"],
+          ["SMTTimeoutMs", "SMTReductionLimit"],
       testCase "non-object settings are rejected" $
         assertBool "expected a settings object" (isLeft (parseConfig defaultConfig (String "invalid")))
     ]
