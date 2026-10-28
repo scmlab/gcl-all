@@ -132,6 +132,13 @@ function createClient(): LanguageClient {
   const clientOptions: LanguageClientOptions = {
     // Register the server for `.gcl` documents
     documentSelector: [{ scheme: "file", language: "gcl" }],
+    initializationOptions: () => {
+      const settings = vscode.workspace.getConfiguration("gcl-vscode");
+      return {
+        smtTimeoutMs: settings.get<number>("smtTimeoutMs"),
+        smtReductionLimit: settings.get<number>("smtReductionLimit"),
+      };
+    },
     synchronize: {
       // Notify the server about file changes to '.gcl' files contained in the workspace
       fileEvents: vscode.workspace.createFileSystemWatcher("**/.gcl"),

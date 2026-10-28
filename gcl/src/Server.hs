@@ -9,6 +9,8 @@ import qualified Language.LSP.Protocol.Types as LSP hiding
     TextDocumentSyncClientCapabilities (..),
   )
 import Language.LSP.Server
+import Server.Config (Config)
+import qualified Server.Config as Config
 import Server.Handler (handlers)
 import Server.Monad (GlobalState, initGlobalEnv, runServerMLogError)
 
@@ -20,12 +22,12 @@ runOnStdio = do
   env <- initGlobalEnv
   runServer (serverDefn env)
 
-serverDefn :: GlobalState -> ServerDefinition ()
+serverDefn :: GlobalState -> ServerDefinition Config
 serverDefn env =
   ServerDefinition
-    { defaultConfig = (),
-      configSection = Text.pack "", -- FIXME: idk what the put here
-      parseConfig = const $ pure $ Right (),
+    { defaultConfig = Config.defaultConfig,
+      configSection = Text.pack "gcl-vscode",
+      parseConfig = Config.parseConfig,
       onConfigChange = const $ pure (),
       doInitialize = \ctxEnv _req -> pure $ Right ctxEnv,
       staticHandlers = \_caps -> handlers,

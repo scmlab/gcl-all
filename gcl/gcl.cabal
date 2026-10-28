@@ -66,6 +66,7 @@ library
       Render.Syntax.Common
       Render.Syntax.Typed
       Server
+      Server.Config
       Server.FileState
       Server.GoToDefn
       Server.Handler
@@ -198,6 +199,7 @@ test-suite gcl-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.Config
       Test.Move
       Test.OrigCoord
       Test.Parser

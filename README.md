@@ -14,6 +14,18 @@
 5. Press `Ctrl + F5` to launch the extension + LSP server in a new window
 
 
+## SMT settings
+The following VS Code settings can be set in User or Workspace settings:
+
+```json
+{
+  "gcl-vscode.smtTimeoutMs": 2000,
+  "gcl-vscode.smtReductionLimit": 100
+}
+```
+
+Changes apply on the next GCL Reload without restarting the server. All proof obligations in a load share the time budget; each global property and proof obligation has its own reduction step limit. Reduction and solver startup may add overhead beyond the time budget.
+
 ## Codespaces
 1. Select "Code -> Codespaces -> Create codespace on main" and wait for 5 to 10 minutes. If it hangs, delete it and start over again.
 2. Click "Open Workspace", or open "gcl-all.code-workspace" and click "Open Workspace"

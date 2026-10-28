@@ -81,6 +81,22 @@
             "default": "",
             "description": "Path to the `gcl` LSP executable. Leave empty to use the binary bundled with the extension; set a path to override (e.g. a locally built `gcl`)."
           },
+          "gcl-vscode.smtTimeoutMs": {
+            "type": "integer",
+            "default": 2000,
+            "minimum": 1,
+            "maximum": 2147483647,
+            "scope": "window",
+            "description": "Time budget in milliseconds shared by all proof obligations in each load. Reduction and solver startup may add overhead. Changes apply on the next GCL Reload."
+          },
+          "gcl-vscode.smtReductionLimit": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 2147483647,
+            "scope": "window",
+            "description": "Maximum reduction steps per expression before SMT solving. Applies separately to each global property and proof obligation. Changes apply on the next GCL Reload."
+          },
           "gcl-vscode.trace.server": {
             "type": "string",
             "enum": [
