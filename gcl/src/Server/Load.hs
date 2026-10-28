@@ -17,6 +17,8 @@ import GCL.SMT.Proof (evaluateAsString)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
 import GHC.Clock (getMonotonicTimeNSec)
+import Language.LSP.Server (getConfig)
+import Server.Config (Config (..))
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -30,7 +32,7 @@ import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
 import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
-import Syntax.Typed.Reduce4 (DefnEnv, reduceAll)
+import Syntax.Typed.Reduce4 (reduceAll)
 import qualified Syntax.Typed.Types as T
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
@@ -81,9 +83,6 @@ load filePath = do
                               errFs = emptyFileStateWithErrors [convertedErr]
                           setAndSendFileState filePath errFs
                         Right _ -> do
-                          -- FIXME(ChAoS): evalSMTProofs may delays up to 5 seconds per PO
-                          -- should we lower the limit or use multiple Z3 to solve to avoid
-                          -- racing edit?
                           fs' <- evalSMTProofs fs
                           logText "Load: holes dug, sending edit\n"
                           sendEditTextsWithVersion filePath vfsVersion edits
@@ -98,16 +97,18 @@ load filePath = do
 
 evalSMTProofs :: FileState -> ServerM FileState
 evalSMTProofs fs = do
+  config <- getConfig
   logText "Load: start evaluating proof obligations in SMT prover"
   started <- liftIO getMonotonicTimeNSec
-  -- All proof obligations in this load share two seconds.
-  let deadline = toInteger started + 2000 * 1000000
+  -- All proof obligations share one time budget and configuration snapshot.
+  let deadline = toInteger started + smtTimeoutMs config * 1000000
   let defnEnv = fsDefinitions fs
-  let reducedGlobalProps = map (tryReduce defnEnv) (fsGlobalProps fs)
+  let tryReduce = either id id . reduceAll (smtReductionLimit config) defnEnv
+  let reducedGlobalProps = map tryReduce (fsGlobalProps fs)
   po <-
     mapM
       ( \po -> do
-          let reducedPred = tryReduce defnEnv (poReducedPred po)
+          let reducedPred = tryReduce (poReducedPred po)
           now <- liftIO getMonotonicTimeNSec
           let remainingMs = (deadline - toInteger now) `div` 1000000
           smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred
@@ -116,9 +117,6 @@ evalSMTProofs fs = do
       (fsProofObligations fs)
   logText "Load: evaluated all proof obligations in SMT prover"
   return $ fs {fsProofObligations = po}
-  where
-    tryReduce :: DefnEnv -> T.Expr -> T.Expr
-    tryReduce defnEnv = either id id . reduceAll 5 defnEnv
 
 --------------------------------------------------------------------------------
 -- Main pipeline
