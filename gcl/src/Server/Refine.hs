@@ -44,6 +44,7 @@ import Server.Move (applyMovesToFileState, mkLSPMove)
 import Server.Notification.Update (setAndSendFileState)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.SrcLoc (toLSPRange)
+import Server.Util (evalSMTProofs)
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -93,7 +94,8 @@ refine filePath cursor = do
                       movedFs = applyMovesToFileState [lspMove] fs
                       newSource = applyEdits source edits
                       newFs = mergeFileState movedFs fragmentFs
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+                  newFs' <- evalSMTProofs newFs
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
                   setPendingEdit filePath pending
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
@@ -125,7 +127,8 @@ refine filePath cursor = do
                             fsTIState = state
                           }
                       newFs' = updateHoleExprs hole typedExpr holeMapping newFs
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
+                  newFs'' <- evalSMTProofs newFs'
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs''}
                   setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
