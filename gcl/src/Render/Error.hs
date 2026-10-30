@@ -109,7 +109,7 @@ instance RenderSection TypeError where
       ]
 
 instance RenderSection StructError where
-  renderSection (MissingAssertion loc) =
+  renderSection (MissingInvariant loc) =
     Section
       Red
       [ Header "Missing Loop Invariant" loc,

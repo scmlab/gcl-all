@@ -325,7 +325,7 @@ convertTypeError (Type.PatternArityMismatch e a l) =
 
 -- | Client-side StructError
 data StructError
-  = MissingAssertion {location :: Maybe LSP.Range}
+  = MissingInvariant {location :: Maybe LSP.Range}
   | MissingPostcondition {location :: Maybe LSP.Range}
   | MultiDimArrayAsgnNotImp {location :: Maybe LSP.Range}
   | LocalVarExceedScope {location :: Maybe LSP.Range}
@@ -334,8 +334,8 @@ data StructError
 
 -- | Convert server-side StructError to client-side StructError
 convertStructError :: WP.StructError -> StructError
-convertStructError (WP.MissingAssertion l) =
-  MissingAssertion {location = fmap toLSPRange l}
+convertStructError (WP.MissingInvariant l) =
+  MissingInvariant {location = fmap toLSPRange l}
 convertStructError (WP.MissingPostcondition l) =
   MissingPostcondition {location = fmap toLSPRange l}
 convertStructError (WP.MultiDimArrayAsgnNotImp l) =

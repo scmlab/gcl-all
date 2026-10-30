@@ -42,6 +42,7 @@ import Syntax.Typed.Operator
     true,
   )
 import Syntax.Typed.Util (declaredNamesTypes, getGuards, syntaxSubst, syntaxSubst')
+import GCL.WP.Types (StructError(MissingInvariant))
 
 wpFunctions ::
   TstructSegs ->
@@ -94,7 +95,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
     wp (AAssign (Var x t _) i e _) post =
       return $ syntaxSubst [x] [ArrUpd (nameVar x t) i e Nothing] post
     wp (AAssign _ _ _ l) _ = throwError (MultiDimArrayAsgnNotImp l)
-    wp (Do _ l) _ = throwError $ MissingAssertion l -- shouldn't happen
+    wp (Do _ l) _ = throwError $ MissingInvariant l
     wp (If gcmds _) post = do
       pres <- forM gcmds $ \(GdCmd guard body _) ->
         (guard `implies`) <$> wpStmts body post
