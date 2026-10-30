@@ -123,7 +123,7 @@ function gclProcessEnv(): NodeJS.ProcessEnv | undefined {
   if (!extensionContext) return undefined;
 
   const env = { ...process.env };
-  process.env["SBV_Z3"] = resolveZ3Path(extensionContext);
+  env["SBV_Z3"] = resolveZ3Path(extensionContext);
 
   return env;
 }
