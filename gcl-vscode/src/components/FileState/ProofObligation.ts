@@ -9,18 +9,17 @@ export default function renderProofObligation(
   const isQED = proofObligation.smtResult === "Q.E.D.";
   const isFalsifiable = proofObligation.smtResult.startsWith("Falsifiable");
   const isTimeout = proofObligation.smtResult === "Timeout";
+  const isUnknown = proofObligation.smtResult.startsWith("Unknown");
   const proofResult = isQED
-    ? "Q.E.D."
+    ? "Verified"
     : isFalsifiable
-      ? "Failed"
+      ? "Falsified"
       : isTimeout
-        ? "Timeout"
-        : "Unknown";
+        ? "⏱"
+        : "?";
   const proofDetails = isTimeout
-    ? "The SMT prover exceeded the time limit for this proof."
-    : proofObligation.smtResult === "Unknown"
-      ? "The SMT prover cannot determine this proof because an exponent is symbolic."
-      : proofObligation.smtResult;
+    ? "Timeout.\n\nThe SMT prover exceeded the time limit for this proof."
+    : proofObligation.smtResult;
   const sectionBody: string = /*html */ `
     <div>
       <style scoped>
@@ -33,10 +32,39 @@ export default function renderProofObligation(
           color: #959595;
           padding: 0 6px;
         }
+        
+      </style>
+      <table class="proof-obligation">
+      <tr>
+        <td class="proof-obligation-expression">${renderedExpression}</td>
+      </tr>
+      </table>
+    </div>
+  `;
+  const smtResultHover = !isQED
+    ? `<span class="proof-obligation-smt-result-hover">${proofDetails}</span>`
+    : "";
+  const codeButton = isTimeout || isUnknown
+    ? `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`
+    : "";
+  const code = `
+    <div>
+      <style scoped>
+        .proof-obligation-smt-controls {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .proof-obligation-smt-controls .proof {
+          width: auto;
+          flex: none;
+        }
         .proof-obligation-smt-result {
           position: relative;
           display: inline-block;
           margin: 0;
+        }
+        .proof-obligation-smt-result.has-details {
           cursor: help;
         }
         .proof-obligation-smt-result .proof-obligation-smt-result-hover {
@@ -75,17 +103,13 @@ export default function renderProofObligation(
           pointer-events: auto;
         }
       </style>
-      <table class="proof-obligation">
-      <tr>
-        <td class="proof-obligation-expression">${renderedExpression}</td>
-      </tr>
-      </table>
+      <div class="proof-obligation-smt-controls">
+        <p class="proof-obligation-smt-result ${!isQED ? `has-details tabindex="0"` : ""}>
+          <strong ${isFalsifiable ? `style="color: lightcoral"` : ""}>${proofResult}${smtResultHover}</strong>
+        </p>
+        ${codeButton}
+      </div>
     </div>
-  `;
-  const footer = `
-    <p class="proof-obligation-smt-result" tabindex="0">
-      <strong>SMT Proof: ${proofResult}<span class="proof-obligation-smt-result-hover">${proofDetails}</span></strong>
-    </p>
   `;
 
   return renderSection(
@@ -93,8 +117,7 @@ export default function renderProofObligation(
     sectionBody,
     proofObligation.origin.location &&
     `at ${renderRange(proofObligation.origin.location)}`,
-    `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`,
-    footer,
+    code,
   );
 }
 
