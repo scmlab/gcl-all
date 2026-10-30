@@ -77,6 +77,41 @@ function resolveGclPath(context: vscode.ExtensionContext | undefined): string {
 }
 
 /**
+ * Resolves the path to the `z3` LSP executable:
+ *   1. An explicit `z3-vscode.gclPath` setting wins (power users / dev builds).
+ *   2. Otherwise the binary bundled in the platform-specific VSIX (bin/z3).
+ *   3. Otherwise fall back to `z3` on PATH.
+ */
+function resolveZ3Path(context: vscode.ExtensionContext | undefined): string {
+  const configured = vscode.workspace
+    .getConfiguration("gcl-vscode")
+    .get<string>("SMTProverPath")
+    ?.trim();
+  if (configured) return configured;
+
+  if (context) {
+    const bundled = path.join(
+      context.extensionPath,
+      "bin",
+      process.platform === "win32" ? "z3.exe" : "z3",
+    );
+    if (fs.existsSync(bundled)) {
+      // Packaging into a VSIX can drop the executable bit; restore it.
+      if (process.platform !== "win32") {
+        try {
+          fs.chmodSync(bundled, 0o755);
+        } catch {
+          // best-effort: a spawn error later will surface the real problem
+        }
+      }
+      return bundled;
+    }
+  }
+
+  return "z3";
+}
+
+/**
  * Builds the environment for the spawned `gcl` process so it can find the
  * `z3` solver bundled alongside the binary in the VSIX's `bin/` directory.
  * gcl reaches z3 through sbv, which by default looks up `z3` on PATH, so we
@@ -87,26 +122,9 @@ function resolveGclPath(context: vscode.ExtensionContext | undefined): string {
 function gclProcessEnv(): NodeJS.ProcessEnv | undefined {
   if (!extensionContext) return undefined;
 
-  const binDir = path.join(extensionContext.extensionPath, "bin");
-
-  // Packaging into a VSIX can drop the executable bit on the bundled z3;
-  // restore it (best-effort — a spawn error later would surface a real issue).
-  if (process.platform !== "win32") {
-    try {
-      fs.chmodSync(path.join(binDir, "z3"), 0o755);
-    } catch {
-      // no bundled z3 (or already executable); nothing to do
-    }
-  }
-
-  // Update PATH under its existing key casing (Windows commonly uses `Path`);
-  // spreading process.env into a plain object loses the case-insensitive
-  // lookup, so blindly setting `env.PATH` could add a duplicate key that the
-  // child process ignores.
   const env = { ...process.env };
-  const pathKey =
-    Object.keys(env).find((k) => k.toLowerCase() === "path") ?? "PATH";
-  env[pathKey] = binDir + path.delimiter + (env[pathKey] ?? "");
+  process.env["SBV_Z3"] = resolveZ3Path(extensionContext);
+
   return env;
 }
 
