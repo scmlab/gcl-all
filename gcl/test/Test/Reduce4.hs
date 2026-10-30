@@ -62,16 +62,16 @@ fullReduction =
       testCase "the result restores binder names only an intermediate step had to avoid" $ do
         let (env, start) = loadOne ["var x : Int", "{:", "  K = x", ":}", "{ True }", "x := 1", "{ ⟨ ∀ x : True : K = x ⟩ }"]
             result limit = bimap prettyExpr prettyExpr (Reduce4.reduceAll limit env start)
-        result 1 @?= Left "True ⇒ ⟨ ∀ ?x_0 : Int : True : K [ x \\ 1 ] = ?x_0 ⟩"
-        result 2 @?= Left "True ⇒ ⟨ ∀ ?x_0 : Int : True : x [ x \\ 1 ] = ?x_0 ⟩"
-        result 3 @?= Right "True ⇒ ⟨ ∀ x : Int : True : 1 = x ⟩",
+        result 1 @?= Left "True ⇒ ⟨ ∀ ?x_0 : True : K [ x \\ 1 ] = ?x_0 ⟩"
+        result 2 @?= Left "True ⇒ ⟨ ∀ ?x_0 : True : x [ x \\ 1 ] = ?x_0 ⟩"
+        result 3 @?= Right "True ⇒ ⟨ ∀ x : True : 1 = x ⟩",
       -- F t = ⟨∀ x : 0 ≤ x : t < x⟩; x := x + 1 { F x }. The argument reads the
       -- global x inside the binder, so even the result needs a fallback name.
       -- Its number restarts after the steps instead of counting their binders.
       testCase "an unavoidable fallback name does not grow with the steps taken" $ do
         let (env, start) = loadOne ["var x : Int", "{:", "  F t = ⟨ ∀ x : 0 ≤ x : t < x ⟩", ":}", "x := x + 1", "{ F x }"]
         fmap prettyExpr (Reduce4.reduceAll 1000 env start)
-          @?= Right "True ⇒ ⟨ ∀ ?x_0 : Int : 0 ≤ ?x_0 : x + 1 < ?x_0 ⟩",
+          @?= Right "True ⇒ ⟨ ∀ ?x_0 : 0 ≤ ?x_0 : x + 1 < ?x_0 ⟩",
       -- f = x; case b of 0 -> (a, a); x -> (f, x). Unfolding f puts the global x
       -- under the clause binder, which therefore needs a fallback name. That
       -- name must avoid a free ?x_0 in its scope, which it would capture, and

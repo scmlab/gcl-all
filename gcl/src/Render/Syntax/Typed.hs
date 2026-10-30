@@ -49,11 +49,13 @@ handleExpr n (App (Op (ArithOp op) _) e _) = case classify (ArithOp op) of -- un
 handleExpr n (App f e _) =
   -- should only be normal applications
   parensIf n Nothing $ renderPrec HOLEApp f <+> renderPrec AppHOLE e
-handleExpr prec (Lam p t q _) =
+handleExpr prec (Lam p _ q _) =
   let ifparens = case prec of
         NoContext -> id
         _ -> parensE
-   in ifparens $ "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> render q
+   in ifparens $ "λ" <+> render p <+> "→" <+> render q
+                 -- "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> render q
+                 -- SCM: omit the type
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
 handleExpr n (OutT i e) =
@@ -77,13 +79,9 @@ handleExpr _ (Quant op xs r t _) =
     renderQOp (Op op' _) = render op'
     renderQOp op' = render op'
     renderBinders [] = ""
-    renderBinders [(x, t)] = render x <+> " : " <+> render t
-    renderBinders ((x, t) : xs) =
-      render x
-        <+> " : "
-        <+> render t
-        <+> ";"
-        <+> renderBinders xs
+    renderBinders [(x, _)] = render x
+    renderBinders ((x, _) : xs) =
+      render x <+> renderBinders xs
 handleExpr _ (ArrIdx e1 e2 _) = render e1 <> "[" <> render e2 <> "]"
 handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"
@@ -174,11 +172,11 @@ handleExprRZ n rz (App (Op (ArithOp op) _) e _) = case classify (ArithOp op) of 
 handleExprRZ n rz (App f e _) =
   -- normal applications
   markRedex rz $ parensIf n Nothing $ handleExprRZ HOLEApp (down rz 0) f <+> handleExprRZ AppHOLE (down rz 1) e
-handleExprRZ prec rz (Lam p t q _) =
+handleExprRZ prec rz (Lam p _ q _) =
   let ifparens = case prec of
         NoContext -> id
         _ -> parensE
-   in markRedex rz $ ifparens $ "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> handleExprRZ NoContext (down rz 0) q
+   in markRedex rz $ ifparens $ "λ" <+> render p <+> "→" <+> handleExprRZ NoContext (down rz 0) q
 handleExprRZ _ rz (Tuple ps) =
   markRedex rz $ "(" <+> punctuateE "," (zipWith (\i p -> handleExprRZ NoContext (down rz i) p) [0 ..] ps) <+> ")"
 handleExprRZ n rz (OutT i e) =
@@ -203,9 +201,9 @@ handleExprRZ _ rz (Quant op xs r t _) =
     renderQOp _ (Op op' _) = render op'
     renderQOp opRZ op' = handleExprRZ NoContext opRZ op'
     renderBinders [] = ""
-    renderBinders [(x, t')] = render x <+> " : " <+> render t'
-    renderBinders ((x, t') : xs') =
-      render x <+> " : " <+> render t' <+> ";" <+> renderBinders xs'
+    renderBinders [(x, _)] = render x
+    renderBinders ((x, _) : xs') =
+      render x <+> renderBinders xs'
 handleExprRZ _ rz (ArrIdx e1 e2 _) =
   markRedex rz $ handleExprRZ NoContext (down rz 0) e1 <> "[" <> handleExprRZ NoContext (down rz 1) e2 <> "]"
 handleExprRZ _ rz (ArrUpd e1 e2 e3 _) =
