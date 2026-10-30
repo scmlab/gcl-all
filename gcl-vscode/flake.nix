@@ -37,6 +37,7 @@
             packages = with pkgs; [
               nodejs
               pnpm
+              z3
             ];
           };
         }

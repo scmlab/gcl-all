@@ -81,6 +81,11 @@
             "default": "",
             "description": "Path to the `gcl` LSP executable. Leave empty to use the binary bundled with the extension; set a path to override (e.g. a locally built `gcl`)."
           },
+          "gcl-vscode.SMTProverPath": {
+            "type": "string",
+            "default": "",
+            "description": "Path to the `z3` LSP executable. Leave empty to use the binary bundled with the extension; set a path to override (e.g. a locally installed `z3`)."
+          },
           "gcl-vscode.SMTTimeoutMs": {
             "type": "integer",
             "default": 2000,

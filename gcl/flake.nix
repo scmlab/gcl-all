@@ -19,6 +19,7 @@
 
       devTools = [
         stack-wrapped
+        pkgs.z3
         pkgs.zlib
         pkgs.ormolu
 
