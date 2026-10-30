@@ -14,7 +14,6 @@ import GCL.Common
 import GCL.Predicate (Pred)
 import GCL.Range (MaybeRanged (..))
 import GCL.WP.Types
-import GCL.WP.Types (StructError (MissingInvariant))
 import GCL.WP.Util
 import Syntax.Abstract.Operator (tInt)
 import Syntax.Abstract.Types (Type (..))
