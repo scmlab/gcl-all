@@ -15,7 +15,7 @@ button {
   border: var(--vscode-button-border);
   border-radius: var(--vscode-cornerRadius-small);
   padding: var(--input-padding-vertical) var(--input-padding-horizontal);
-  width: 100%;
+  width: auto;
   text-align: center;
   outline: 1px solid transparent;
   outline-offset: 2px !important;
