@@ -7,11 +7,13 @@
 
 module Syntax.Concrete.Instances.ToAbstract where
 
-import Control.Arrow ((***))
 import Control.Monad (foldM)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.State
 import Data.Bitraversable (Bitraversable (bitraverse))
+import Data.Foldable (Foldable (foldMap'))
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Text as Text
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range (..), rangeOf, (<--->))
@@ -27,6 +29,7 @@ import Syntax.Common (ArithOp, Name (..))
 import Syntax.Concrete.Instances.Located ()
 import Syntax.Concrete.Types
 import qualified Syntax.ConstExpr as ConstExpr
+import Syntax.Parser.Error (ParseError (SyntacticError))
 
 --------------------------------------------------------------------------------
 
@@ -35,14 +38,14 @@ type HoleCount = Int
 -- | Abstract Syntax Transformer Monad
 type AbstractTransformerM = State HoleCount
 
-runAbstractTransform :: (ToAbstract a b) => a -> b
-runAbstractTransform a = evalState (toAbstract a) 0
+runAbstractTransform :: (ToAbstract a b) => a -> Either ParseError b
+runAbstractTransform a = evalState (runExceptT (toAbstract a)) 0
 
 -- | Typeclass for converting Syntax.Concrete to Syntax.Abstract
 class ToAbstract a b | a -> b where
   toAbstract :: a -> AbsM b
 
-type AbsM a = State Int a
+type AbsM a = ExceptT ParseError (State Int) a
 
 instance (ToAbstract a b) => ToAbstract (Maybe a) (Maybe b) where
   toAbstract Nothing = return Nothing
@@ -80,10 +83,13 @@ instance ToAbstract DefinitionBlock [A.Definition] where
     (++) <$> mapM tdefToAbs tdefs <*> vdefsToAbs vdefs
 
 splitTypeValDefns :: [Definition] -> ([Definition], [Definition])
-splitTypeValDefns [] = ([], [])
-splitTypeValDefns (d@(TypeDefn {}) : ds) = ((d :) *** id) (splitTypeValDefns ds)
-splitTypeValDefns (d@(ValDefnSig {}) : ds) = (id *** (d :)) (splitTypeValDefns ds)
-splitTypeValDefns (d@(ValDefn {}) : ds) = (id *** (d :)) (splitTypeValDefns ds)
+splitTypeValDefns =
+  foldMap'
+    ( \d -> case d of
+        TypeDefn {} -> ([d], [])
+        ValDefnSig {} -> ([], [d])
+        ValDefn {} -> ([], [d])
+    )
 
 tdefToAbs :: Definition -> AbsM A.Definition
 tdefToAbs (TypeDefn tok name binders _ cons) = do
@@ -128,9 +134,14 @@ sepByToList (Delim a _ as) = a : sepByToList as
 
 desugarDefn :: (Name, Maybe Type, [Definition]) -> AbsM A.Definition
 desugarDefn (name, ty, defns) = do
-  A.ValDefn name
-    <$> toAbstract ty
-    <*> (desugarClauses (maybeRangeOf defns) =<< mapM extractFnClause defns)
+  clauses <- mapM extractFnClause defns
+
+  case clauses of
+    [] -> throwError $ SyntacticError ((Nothing, "no function body found") :| []) "" -- XXX: wtf is this error
+    cs ->
+      A.ValDefn name
+        <$> toAbstract ty
+        <*> desugarClauses (maybeRangeOf defns) cs
 
 extractFnClause :: Definition -> AbsM ([A.Pattern], A.Expr)
 extractFnClause (ValDefn _ ptns _ body) =
@@ -154,7 +165,7 @@ desugarClauses _ [(ptns, body)]
     patternBinder (A.PattBinder x) = Just x
     patternBinder _ = Nothing
 desugarClauses range clauses = do
-  fnames <- freshNames (replicate arity (Text.pack "arg"))
+  fnames <- lift $ freshNames (replicate arity (Text.pack "arg"))
   return $ wrapLam fnames (mkCase fnames)
   where
     arity = maximum (map (length . fst) clauses)
@@ -348,7 +359,7 @@ instance (ToAbstract a b) => ToAbstract (SepBy sep a) [b] where
 instance ToAbstract Hole A.Hole where
   toAbstract (HoleQM _) = error "HoleQM should be digged before calling toAbstract"
   toAbstract (Syntax.Concrete.Types.Hole l xs r) = do
-    holeNumber <- countUp
+    holeNumber <- lift countUp
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
 

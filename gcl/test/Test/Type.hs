@@ -289,9 +289,12 @@ inferSource source =
   case Parser.scanAndParse Parser.expression "<test>" source of
     Left _ -> error "parse failure in test source"
     Right concrete ->
-      case runTI (infer (AT.runAbstractTransform concrete)) mempty mkInference of
-        Left err -> Left err
-        Right ((_, ty, _), _) -> Right ty
+      case AT.runAbstractTransform concrete of
+        Left _ -> error "parse failure in test source"
+        Right abstract ->
+          case runTI (infer abstract) mempty mkInference of
+            Left err -> Left err
+            Right ((_, ty, _), _) -> Right ty
 
 -- | Type-check the body of the first definition in a program's definition
 --   block, so a test goes through the same desugaring a user's file does.
@@ -300,9 +303,12 @@ inferDefinition source =
   case Parser.scanAndParse Parser.program "<test>" source of
     Left _ -> error "parse failure in test source"
     Right concrete ->
-      case AT.runAbstractTransform concrete :: A.Program of
-        A.Program (A.ValDefn _ _ body : _) _ _ _ _ _ ->
-          case runTI (infer body) mempty mkInference of
-            Left err -> Left err
-            Right ((_, ty, _), _) -> Right ty
-        _ -> error "expected a value definition in test source"
+      case AT.runAbstractTransform concrete of
+        Left _ -> error "parse failure in test source"
+        Right abstract ->
+          case abstract of
+            A.Program (A.ValDefn _ _ body : _) _ _ _ _ _ ->
+              case runTI (infer body) mempty mkInference of
+                Left err -> Left err
+                Right ((_, ty, _), _) -> Right ty
+            _ -> error "expected a value definition in test source"
