@@ -104,8 +104,8 @@ export default function renderProofObligation(
         }
       </style>
       <div class="proof-obligation-smt-controls">
-        <p class="proof-obligation-smt-result ${!isQED ? `has-details tabindex="0"` : ""}>
-          <strong ${isFalsifiable ? `style="color: lightcoral"` : ""}>${proofResult}${smtResultHover}</strong>
+        <p class="proof-obligation-smt-result${isQED ? "" : " has-details"}" ${isQED ? "" : 'tabindex="0"'}>
+          <span ${isFalsifiable ? `style="color: lightcoral"` : ""}>${proofResult}${smtResultHover}</span>
         </p>
         ${codeButton}
       </div>
