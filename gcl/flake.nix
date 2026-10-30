@@ -17,6 +17,7 @@
         ormolu
 
         stack-wrapped
+        pkgs.z3
         pkgs.zlib
       ];
 

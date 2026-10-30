@@ -3,6 +3,7 @@
 
 module GCL.SMT.Proof (evaluateAsString) where
 
+import Control.Exception (ErrorCall, catch)
 import Control.Monad (forM_)
 import Control.Monad.Except (MonadError (..))
 import Control.Monad.IO.Class (liftIO)
@@ -59,18 +60,22 @@ import qualified Syntax.Typed.Operator as Op
 import qualified Syntax.Typed.Types as T
 
 runProof :: Integer -> T.Expr -> IO (Either String ThmResult)
-runProof timeoutMs expr = runExceptT $ Trans.prove $ do
-  Trans.setTimeOut timeoutMs
-  result <- evalStateT (buildProof expr) mempty
-  case result of
-    SVal v -> return $ toBool v
-    SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
+runProof timeoutMs expr =
+   catch
+        ( runExceptT $ Trans.prove $ do
+            Trans.setTimeOut timeoutMs
+            result <- evalStateT (buildProof expr) mempty
+            case result of
+              SVal v -> return $ toBool v
+              SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
+        )
+        (\e -> return $ Left $ show (e :: ErrorCall))
   where
     toBool :: SVal -> SBool
     toBool = SBV
 
 -- | A non-positive millisecond budget skips the solver entirely.
-evaluateAsString :: Integer -> [T.Expr] -> T.Expr -> IO String
+evaluateAsString :: Integer -> [T.Expr] -> T.Expr -> IO String -- XXX: merging `Either` to a `String` is probably a bad idea
 evaluateAsString timeoutMs globalProps expr
   | timeoutMs <= 0 = return "Timeout"
   | otherwise = do
