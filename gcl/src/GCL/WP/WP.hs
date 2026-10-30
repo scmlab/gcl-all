@@ -14,6 +14,7 @@ import GCL.Common
 import GCL.Predicate (Pred)
 import GCL.Range (MaybeRanged (..))
 import GCL.WP.Types
+import GCL.WP.Types (StructError (MissingInvariant))
 import GCL.WP.Util
 import Syntax.Abstract.Operator (tInt)
 import Syntax.Abstract.Types (Type (..))
@@ -42,7 +43,6 @@ import Syntax.Typed.Operator
     true,
   )
 import Syntax.Typed.Util (declaredNamesTypes, getGuards, syntaxSubst, syntaxSubst')
-import GCL.WP.Types (StructError(MissingInvariant))
 
 wpFunctions ::
   TstructSegs ->

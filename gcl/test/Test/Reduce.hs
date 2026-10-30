@@ -757,9 +757,9 @@ lambdasLeft ::
   [T.Expr]
 lambdasLeft reduce paths (defnEnv, expression) =
   [ result
-  | path <- paths defnEnv expression,
-    Just result <- [reduce defnEnv expression path],
-    hasLam result
+    | path <- paths defnEnv expression,
+      Just result <- [reduce defnEnv expression path],
+      hasLam result
   ]
 
 hasLam :: T.Expr -> Bool
@@ -772,11 +772,11 @@ stateDependentPaths ::
   [RedexPath]
 stateDependentPaths reduce (defnEnv, expression) =
   [ path
-  | path <- allPaths expression,
-    varies
-      [ isJust (evalState (reduce defnEnv expression path) initialState)
-      | initialState <- [0, 1, 7, 1000 :: Int]
-      ]
+    | path <- allPaths expression,
+      varies
+        [ isJust (evalState (reduce defnEnv expression path) initialState)
+          | initialState <- [0, 1, 7, 1000 :: Int]
+        ]
   ]
 
 allPaths :: T.Expr -> [RedexPath]
@@ -784,7 +784,7 @@ allPaths expression =
   []
     : concat
       [ map (index :) (allPaths child)
-      | (index, child) <- zip [0 ..] (pathChildren expression)
+        | (index, child) <- zip [0 ..] (pathChildren expression)
       ]
 
 varies :: (Eq a) => [a] -> Bool

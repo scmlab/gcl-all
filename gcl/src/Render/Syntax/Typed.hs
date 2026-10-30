@@ -54,8 +54,6 @@ handleExpr prec (Lam p _ q _) =
         NoContext -> id
         _ -> parensE
    in ifparens $ "λ" <+> render p <+> "→" <+> render q
-                 -- "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> render q
-                 -- SCM: omit the type
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
 handleExpr n (OutT i e) =
