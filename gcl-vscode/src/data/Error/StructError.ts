@@ -2,7 +2,7 @@ import { Range } from "vscode-languageclient";
 
 export interface StructError {
   tag:
-    | "MissingAssertion"
+    | "MissingInvariant"
     | "MissingPostcondition"
     | "MultiDimArrayAsgnNotImp"
     | "LocalVarExceedScope";

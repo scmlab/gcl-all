@@ -489,7 +489,7 @@ tests reduce mark =
                 "d := x",
                 "{ Inv B }"
               ]
-              @?= ["True ⇒ ⟨ ∀ $1 : Int : 0 ≤ $1 : $1 < B + x ⟩"],
+              @?= ["True ⇒ ⟨ ∀ $1 : 0 ≤ $1 : $1 < B + x ⟩"],
           -- P = x > 0; Q t = x < t; x, y := y, x.
           -- (P ∧ Q y)[x, y \ y, x] = y > 0 ∧ y < x.
           testCase "two definitions read the same swapped global" $
@@ -519,7 +519,7 @@ tests reduce mark =
                 "; x := y",
                 "{ ⟨ ∀ y : True : x = y ⟩ }"
               ]
-              @?= ["True ⇒ ⟨ ∀ $1 : Int : True : x + y = $1 ⟩"],
+              @?= ["True ⇒ ⟨ ∀ $1 : True : x + y = $1 ⟩"],
           -- K = x; x := x + 1; { ⟨∀ x : 0 ≤ x : ⟨∀ x : True : K = x⟩⟩ }.
           -- Both binders stay local; only K's global is incremented:
           -- ⟨∀ x' : 0 ≤ x' : ⟨∀ x'' : True : x + 1 = x''⟩⟩.
@@ -533,7 +533,7 @@ tests reduce mark =
                 "x := x + 1",
                 "{ ⟨ ∀ x : 0 ≤ x : ⟨ ∀ x : True : K = x ⟩ ⟩ }"
               ]
-              @?= ["True ⇒ ⟨ ∀ $1 : Int : 0 ≤ $1 : ⟨ ∀ $2 : Int : True : x + 1 = $2 ⟩ ⟩"],
+              @?= ["True ⇒ ⟨ ∀ $1 : 0 ≤ $1 : ⟨ ∀ $2 : True : x + 1 = $2 ⟩ ⟩"],
           -- F = G; G = K; K t = r < t; r := r + 1.
           -- (case C of r -> F r)[r \ r + 1] = r + 1 < C.
           testCase "state crosses an alias chain and a case binder" $
@@ -563,7 +563,7 @@ tests reduce mark =
                 "skip",
                 "{ ⟨ ∀ c : True : F c ⟩ }"
               ]
-              @?= ["True ⇒ ⟨ ∀ $1 : Int : True : c < $1 ⟩"]
+              @?= ["True ⇒ ⟨ ∀ $1 : True : c < $1 ⟩"]
         ]
 
 display :: T.Expr -> Text

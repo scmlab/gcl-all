@@ -177,7 +177,7 @@ convertTypeError ers (PatternArityMismatch expected actual mr) =
   PatternArityMismatch expected actual (convertMaybeRange ers mr)
 
 convertStructError :: [EditRegion] -> StructError -> StructError
-convertStructError ers (MissingAssertion mr) = MissingAssertion (convertMaybeRange ers mr)
+convertStructError ers (MissingInvariant mr) = MissingInvariant (convertMaybeRange ers mr)
 convertStructError ers (MissingPostcondition mr) = MissingPostcondition (convertMaybeRange ers mr)
 convertStructError ers (MultiDimArrayAsgnNotImp mr) = MultiDimArrayAsgnNotImp (convertMaybeRange ers mr)
 convertStructError ers (LocalVarExceedScope mr) = LocalVarExceedScope (convertMaybeRange ers mr)

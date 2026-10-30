@@ -272,7 +272,7 @@ applyMovesToTypeError moves (PatternArityMismatch expected actual mr) =
   PatternArityMismatch expected actual (shiftMaybeRangeOrFreeze moves mr)
 
 applyMovesToStructError :: [GCLMove] -> StructError -> StructError
-applyMovesToStructError moves (MissingAssertion mr) = MissingAssertion (shiftContainerMaybeRangeOrFreeze moves mr)
+applyMovesToStructError moves (MissingInvariant mr) = MissingInvariant (shiftContainerMaybeRangeOrFreeze moves mr)
 applyMovesToStructError moves (MissingPostcondition mr) = MissingPostcondition (shiftMaybeRangeOrFreeze moves mr)
 applyMovesToStructError moves (MultiDimArrayAsgnNotImp mr) = MultiDimArrayAsgnNotImp (shiftMaybeRangeOrFreeze moves mr)
 applyMovesToStructError moves (LocalVarExceedScope mr) = LocalVarExceedScope (shiftMaybeRangeOrFreeze moves mr)

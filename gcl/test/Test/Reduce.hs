@@ -470,7 +470,7 @@ substitutionReachesDefinitionBodies solve =
             "x := 1",
             "{ ⟨ ∀ x : True : Inv x ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : 1 < $1 ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : True : 1 < $1 ⟩"],
       -- The same shape at type Bool.
       --
       -- ⟨∀ r : True : Inv r⟩[r \ True]
@@ -486,7 +486,7 @@ substitutionReachesDefinitionBodies solve =
             "r := True",
             "{ ⟨ ∀ r : True : Inv r ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Bool : True : True && $1 ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : True : True && $1 ⟩"],
       -- The range mentions x directly; the body mentions it through Inv.
       --
       -- ⟨∀ i : 0 ≤ i < x : Inv i⟩[x \ x + 1]
@@ -502,7 +502,7 @@ substitutionReachesDefinitionBodies solve =
             "x := x + 1",
             "{ ⟨ ∀ i : 0 ≤ i < x : Inv i ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int : 0 ≤ $1 < x + 1 : x + 1 < $1 ⟩"]
+          @?= ["True ⇒ ⟨ ∀ $1 : 0 ≤ $1 < x + 1 : x + 1 < $1 ⟩"]
     ]
 
 -- | Cases where a capture would be wrong: a local binder meeting a
@@ -544,7 +544,7 @@ bindersStillAvoidCapture solve =
             "skip",
             "{ ⟨ ∀ r : True : Inv r ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : r < $1 ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : True : r < $1 ⟩"],
       -- Issue 180.  The bound inv hides the definition, so nothing is
       -- clickable.
       --
@@ -559,7 +559,7 @@ bindersStillAvoidCapture solve =
             "skip",
             "{ ⟨ ∀ inv : True : inv B ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int → Bool : True : $1 B ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : True : $1 B ⟩"],
       -- No definition here.  The outer table's value x is the variable before
       -- y := x, while the inner table's key x is the variable x := 1 updates:
       -- two different states of x.  Composing the tables must therefore still
@@ -676,7 +676,7 @@ bindersStillAvoidCapture solve =
             "y := K",
             "{ ⟨ ∀ x : True : y = x ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : x = $1 ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : True : x = $1 ⟩"],
       -- Passing K through F's parameter must keep K's global x free.
       --
       -- F K
@@ -693,7 +693,7 @@ bindersStillAvoidCapture solve =
             "skip",
             "{ F K }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int : 0 ≤ $1 : x = $1 ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : 0 ≤ $1 : x = $1 ⟩"],
       -- f = helper, helper = x. The quantifier's local helper must not hide
       -- the definition reference introduced by unfolding f.
       --
@@ -712,7 +712,7 @@ bindersStillAvoidCapture solve =
             "y := f",
             "{ ⟨ ∀ helper : True : y = helper ⟩ }"
           ]
-          @?= ["True ⇒ ⟨ ∀ $1 : Int : True : x = $1 ⟩"],
+          @?= ["True ⇒ ⟨ ∀ $1 : True : x = $1 ⟩"],
       -- Both right-hand sides read the state before the simultaneous
       -- assignment, so K's x is not the 1 being assigned to x.
       --
