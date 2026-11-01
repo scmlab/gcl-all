@@ -77,11 +77,13 @@ evaluateAsString timeoutMs globalProps expr
       let (expr', stripped) = stripImplies (Op.implies (Op.conjunct globalProps) expr)
       result <- runProof timeoutMs expr'
       return $ case result of
-        Left err -> err
+        Left err -> "Unknown.\n\n" <> err
         Right (ThmResult (Unknown _ UnknownTimeOut)) -> "Timeout"
         Right proofResult
           -- A counterexample may rely on an assumption that was stripped.
-          | stripped && show proofResult /= "Q.E.D." -> "Unknown"
+          | stripped && show proofResult /= "Q.E.D." ->
+              "Unknown.\n\nUnsupported hypotheses were omitted\
+              \, and the result does not establish whether the original proof obligation holds."
           | otherwise -> show proofResult
 
 -- Strip assumption conjuncts with unsupported quantifiers or symbolic powers,
@@ -173,7 +175,7 @@ instance ProofBuilder T.Expr where
   buildProof (T.Quant opExpr bounds condExpr expr _) = do
     quant <- case quantifierKind opExpr of
       Just supported -> return supported
-      Nothing -> throwError "Unknown.\n  Unsupported quantifier."
+      Nothing -> throwError "Unsupported quantifier."
     originalVars <- get
     forM_ bounds (uncurry (genVariable quant))
     condExpr' <- buildProof condExpr
@@ -271,7 +273,7 @@ opToFunc (C.ArithOp op) = case op of
           y' <- asVal y
           if isConcrete (SBV y' :: SInteger)
             then return $ convert $ svExp x' (svFromIntegral (KBounded False 32) y')
-            else throwError "Unknown"
+            else throwError "The SMT solver cannot handle symbolic exponents."
       )
   _ -> return $ throwError $ "Unsupported arith op: " <> show op
 opToFunc (C.TypeOp _) = return $ throwError "Type Op is not yet implemented"
