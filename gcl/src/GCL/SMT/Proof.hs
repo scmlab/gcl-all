@@ -82,12 +82,11 @@ evaluateAsString timeoutMs globalProps expr
         Right proofResult
           -- A counterexample may rely on an assumption that was stripped.
           | stripped && show proofResult /= "Q.E.D." ->
-              "Unknown.\n\nUnsupported hypotheses were omitted\
+              "Unknown.\n\nSome hypotheses were omitted\
               \, and the result does not establish whether the original proof obligation holds."
           | otherwise -> show proofResult
 
--- Strip assumption conjuncts with unsupported quantifiers or symbolic powers,
--- and report whether one was removed so a counterexample is not definite.
+-- Replace assumption conjuncts containing unsupported expressions with True.
 stripImplies :: T.Expr -> (T.Expr, Bool)
 stripImplies (T.App (T.App op lhs lr) rhs rr)
   | isImplication op =
@@ -106,21 +105,19 @@ stripConjuncts expr = stripExpr expr
 
 stripExpr :: T.Expr -> (T.Expr, Bool)
 stripExpr expr
-  | hasUnsupportedQuantifier expr = (Op.true, True)
-stripExpr expr@(T.Chain (T.More {})) =
-  let symbolic = hasSymbolicExponent expr
-   in (if symbolic then Op.true else expr, symbolic)
+  | hasStripTarget expr = (Op.true, True)
 stripExpr expr = (expr, False)
 
-hasUnsupportedQuantifier :: T.Expr -> Bool
-hasUnsupportedQuantifier = anyExpr unsupportedQuantifier
+hasStripTarget :: T.Expr -> Bool
+hasStripTarget = anyExpr (\e -> unsupportedQuantifier e || isApplication e || symbolicPower e)
   where
     unsupportedQuantifier (T.Quant op _ _ _ _) = isNothing (quantifierKind op)
     unsupportedQuantifier _ = False
 
-hasSymbolicExponent :: T.Expr -> Bool
-hasSymbolicExponent = anyExpr symbolicPower
-  where
+    isApplication (T.App (T.Var {}) _ _) = True
+    isApplication (T.App (T.Const {}) _ _) = True
+    isApplication _ = False
+
     symbolicPower (T.App (T.App (T.Op (C.ArithOp (C.Exp _)) _) _ _) exponentExpr _) =
       hasSymbolic exponentExpr
     symbolicPower _ = False
