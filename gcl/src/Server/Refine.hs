@@ -206,7 +206,7 @@ loadConcreteFragment typeEnv idCount spec stmts = do
 loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error (T.Subst, T.Expr, [Hole], Inference)
 loadConcreteHoleFragment typeEnv ty expr constraint state = do
   let abstract = C.runAbstractTransform expr
-  ((subst, expr'), state') <- first TypeError (runTI (typeCheck' abstract ty) typeEnv state)
+  ((subst, expr'), state') <- first TypeError (runTI (typeCheck' abstract ty) (typeEnv, mempty) state)
   case constraint expr' of
     Nothing -> Right (subst, expr', collectTypedHole expr', state')
     Just err -> Left $ HoleError err

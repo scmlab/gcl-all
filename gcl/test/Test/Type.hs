@@ -248,7 +248,7 @@ tests =
             restriction = A.Lit (A.Bol True) Nothing
             quantifier = A.Quant occurrence [i] restriction occurrence Nothing
 
-        case runTI (infer quantifier) env mkInference of
+        case runTI (infer quantifier) (env, mempty) mkInference of
           Left err -> assertFailure $ "unexpected inference failure: " <> show err
           Right ((_, resultType, T.Quant typedOperator [(_, binderType)] _ _ _), _) -> do
             typeOf typedOperator @?= operatorType

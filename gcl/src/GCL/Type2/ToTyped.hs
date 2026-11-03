@@ -6,7 +6,7 @@
 
 module GCL.Type2.ToTyped where
 
-import Control.Monad (foldM, unless, void, when)
+import Control.Monad (foldM, unless, void, when, zipWithM)
 import Data.Bifunctor (Bifunctor (..))
 import Data.Either (lefts)
 import Data.Graph (SCC)
@@ -18,17 +18,19 @@ import Debug.Trace
 import GCL.Dependency (evalDependencyResolution)
 import qualified GCL.Dependency as D
 import GCL.Range (MaybeRanged (maybeRangeOf), Range)
-import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeToKind)
+import GCL.Type2.Infer (checkDuplicateNames, infer, instantiate, typeCheck, typeCheck', typeToKind)
 import GCL.Type2.Subst (applySubst, applySubstEnv, applySubstExpr)
 import GCL.Type2.Types
   ( Env,
     Inference,
     TIMonad,
     TypeError (..),
-    ask,
+    askEnv,
+    askPEnv,
     freshTVar,
     lift,
     local,
+    localEnv,
     mkInference,
     runTI,
     throwError,
@@ -65,7 +67,7 @@ validateType _ = return ()
 
 findName :: Name -> TIMonad ()
 findName name = do
-  env <- ask
+  env <- askEnv
   traceM $ show env
   case Map.lookup name env of
     Just _ -> return ()
@@ -79,7 +81,7 @@ validateInterval (A.Interval begin end _) = validateEndpoint begin >> validateEn
 
 collectSccDefns :: SCC A.Definition -> TIMonad (Env, [T.Definition])
 collectSccDefns defns = do
-  env <- ask
+  env <- askEnv
   let names = fmap (\case (A.TypeDefn name _ _ _) -> name; (A.ValDefn name _ _) -> name) defns
 
   stubEnv <-
@@ -93,7 +95,7 @@ collectSccDefns defns = do
 
   foldM
     ( \(accEnv, accDefns) defn -> do
-        (env', typedDefn) <- local (const accEnv) (collectDefnToEnv defn)
+        (env', typedDefn) <- localEnv (const accEnv) (collectDefnToEnv defn)
         return (env' <> accEnv, typedDefn : accDefns)
     )
     (stubEnv <> env, [])
@@ -189,7 +191,7 @@ collectDefnToEnv (A.ValDefn name sig expr) = do
       -- and finally we unify the two to get the correct recursive function type
       (s1, exprTy, typedExpr) <- infer expr'
 
-      env <- ask
+      env <- askEnv
       let ty = case Map.lookup name env of
             Just (A.Forall _ ty') -> applySubst s1 ty'
             Nothing -> error "impossible"
@@ -224,11 +226,7 @@ class ToTyped a t | a -> t where
 
 instance ToTyped D.Program T.Program where
   toTyped (D.Program defns decls procs exprs stmts range) = do
-    traceM $ "defns: " <> show (pretty (Graph.flattenSCCs defns))
-    traceM $ "decls: " <> show (pretty decls)
-    traceM $ "exprs: " <> show (pretty exprs)
-    traceM $ "stmts: " <> show (pretty stmts)
-    env <- ask
+    env <- askEnv
 
     -- NOTE: we split getting decls into two parts:
     -- con N : Int { ... }
@@ -238,7 +236,7 @@ instance ToTyped D.Program T.Program where
     declEnv <-
       foldM
         ( \env' decl -> do
-            declEnv' <- local (const env') (collectDeclToEnv decl)
+            declEnv' <- localEnv (const env') (collectDeclToEnv decl)
             return (declEnv' <> env')
         )
         env
@@ -248,18 +246,18 @@ instance ToTyped D.Program T.Program where
     (defnEnv, typedDefns) <-
       foldM
         ( \(env', typedDefns') defn -> do
-            (defnEnv, typedDefns) <- local (const env') (collectSccDefns defn)
+            (defnEnv, typedDefns) <- localEnv (const env') (collectSccDefns defn)
             return (defnEnv <> env', typedDefns ++ typedDefns')
         )
         (declEnv, [])
         defns
 
     let newEnv = defnEnv
-    traceM $ "env:\n" <> show newEnv
+    let newPEnv = mempty
 
-    typedDecls <- local (const newEnv) (mapM toTyped decls)
-    typedExprs <- local (const newEnv) (mapM toTyped exprs)
-    typedStmts <- local (const newEnv) (mapM toTyped stmts)
+    typedDecls <- local (const (newEnv, newPEnv)) (mapM toTyped decls)
+    typedExprs <- local (const (newEnv, newPEnv)) (mapM toTyped exprs)
+    typedStmts <- local (const (newEnv, newPEnv)) (mapM toTyped stmts)
 
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
 
@@ -280,7 +278,7 @@ instance ToTyped A.Stmt T.Stmt where
   toTyped (A.LoopInvariant e1 e2 range) = toTypedLoopInvariant e1 e2 range
   toTyped (A.Do gds range) = toTypedDo gds range
   toTyped (A.If gds range) = toTypedIf gds range
-  toTyped (A.Spec text range) = T.Spec text range <$> ask
+  toTyped (A.Spec text range) = T.Spec text range <$> askEnv
   toTyped (A.Alloc var exprs range) = toTypedAlloc var exprs range
   toTyped (A.HLookup name expr range) = toTypedHLookup name expr range
   toTyped (A.HMutate left right range) = toTypedHMutate left right range
@@ -303,7 +301,7 @@ toTypedAssign names exprs range
       throwError $ RedundantNames (drop (length exprs) names')
   | length names < length exprs = throwError $ RedundantExprs (drop (length names) exprs)
   | otherwise = do
-      env <- ask
+      env <- askEnv
       lift $ checkDuplicateNames $ lefts names
       let assignments = zip names exprs
       (names', typedExprs) <-
@@ -331,8 +329,8 @@ toTypedAAssign :: A.Expr -> A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedAAssign arr index expr range = do
   ftv <- freshTVar
   (sa, typedArr) <- typeCheck arr (typeInt `typeToType` ftv)
-  (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
-  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr ftv)
+  (si, typedIndex) <- localEnv (applySubstEnv sa) (typeCheck index typeInt)
+  (se, typedExpr) <- localEnv (applySubstEnv (si <> sa)) (typeCheck expr ftv)
 
   let resultSubst = se <> si <> sa
   let resultStmt =
@@ -353,7 +351,7 @@ toTypedAssert expr range = do
 toTypedLoopInvariant :: A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedLoopInvariant e1 e2 range = do
   (e1Subst, typedE1) <- typeCheck e1 typeBool
-  (e2Subst, typedE2) <- local (applySubstEnv e1Subst) (typeCheck e2 typeInt)
+  (e2Subst, typedE2) <- localEnv (applySubstEnv e1Subst) (typeCheck e2 typeInt)
   let resultSubst = e2Subst <> e1Subst
   let resultStmt =
         T.LoopInvariant
@@ -375,7 +373,7 @@ toTypedIf gds range = do
 
 toTypedAlloc :: Name -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedAlloc var exprs range = do
-  env <- ask
+  env <- askEnv
   ty <- case Map.lookup var env of
     Just scheme -> instantiate scheme
     Nothing -> throwError $ NotInScope var
@@ -384,7 +382,7 @@ toTypedAlloc var exprs range = do
   (resultSubst, typedExprs) <-
     foldM
       ( \(s', typedExprs') expr -> do
-          (exprSubst, typedExpr) <- local (applySubstEnv s') (typeCheck expr typeInt)
+          (exprSubst, typedExpr) <- localEnv (applySubstEnv s') (typeCheck expr typeInt)
           return (exprSubst <> s', typedExpr : typedExprs')
       )
       (s, [])
@@ -394,20 +392,20 @@ toTypedAlloc var exprs range = do
 
 toTypedHLookup :: Name -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedHLookup name expr range = do
-  env <- ask
+  env <- askEnv
   ty <- case Map.lookup name env of
     Just scheme -> instantiate scheme
     Nothing -> throwError $ NotInScope name
 
   s1 <- lift $ unify ty typeInt (maybeRangeOf name)
-  (s2, typedExpr) <- local (applySubstEnv s1) (typeCheck expr typeInt)
+  (s2, typedExpr) <- localEnv (applySubstEnv s1) (typeCheck expr typeInt)
 
   return $ T.HLookup name (applySubstExpr (s2 <> s1) typedExpr) range
 
 toTypedHMutate :: A.Expr -> A.Expr -> Maybe Range -> TIMonad T.Stmt
 toTypedHMutate left right range = do
   (s1, typedLeft) <- typeCheck left typeInt
-  (s2, typedRight) <- local (applySubstEnv s1) (typeCheck right typeInt)
+  (s2, typedRight) <- localEnv (applySubstEnv s1) (typeCheck right typeInt)
   return $ T.HMutate (applySubstExpr (s2 <> s1) typedLeft) (applySubstExpr (s2 <> s1) typedRight) range
 
 toTypedDispose :: A.Expr -> Maybe Range -> TIMonad T.Stmt
@@ -417,7 +415,15 @@ toTypedDispose expr range = do
 
 toTypedProcCall :: Name -> [A.Expr] -> Maybe Range -> TIMonad T.Stmt
 toTypedProcCall name args range = do
-  undefined
+  pEnv <- askPEnv
+
+  sig <- case Map.lookup name pEnv of
+    Just s -> return s
+    Nothing -> throwError $ NotInScope name
+
+  typedExprs <- map snd <$> zipWithM typeCheck' args sig
+
+  return $ T.ProcCall name typedExprs range
 
 instance ToTyped A.GdCmd T.GdCmd where
   toTyped (A.GdCmd expr stmts range) = do
@@ -438,4 +444,4 @@ instance ToTyped A.Expr T.Expr where
     return typed'
 
 runToTyped :: (ToTyped a t) => a -> Env -> Either TypeError (t, Inference)
-runToTyped a env = runTI (toTyped a) env mkInference
+runToTyped a env = runTI (toTyped a) (env, mempty) mkInference
