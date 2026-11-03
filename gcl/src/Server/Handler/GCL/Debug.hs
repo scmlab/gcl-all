@@ -24,15 +24,17 @@ instance JSON.ToJSON DebugParams
 
 handler :: DebugParams -> ServerM ()
 handler DebugParams {filePath} = do
-  -- Show the PATH this server process actually received (set by the VS Code
-  -- extension, which prepends the bundled bin/ dir) and whether `z3` resolves
-  -- on it. findExecutable does the same PATH search sbv uses to locate z3.
-  logTextLn ">>>> gcl.debug: PATH / z3"
+  -- Show the environment and executable SBV uses to locate Z3.
+  -- SBV_Z3 overrides the default command name; otherwise SBV uses "z3".
+  logTextLn ">>>> gcl.debug: PATH / SBV_Z3"
   mPath <- liftIO (lookupEnv "PATH")
   logTextLn $ Text.pack $ "PATH=" ++ maybe "(unset)" id mPath
-  mZ3 <- liftIO (findExecutable "z3")
-  logTextLn $ Text.pack $ "findExecutable z3 => " ++ maybe "NOT FOUND" id mZ3
-  logTextLn "<<<< gcl.debug: PATH / z3"
+  mSolver <- liftIO (lookupEnv "SBV_Z3")
+  logTextLn $ Text.pack $ "SBV_Z3=" ++ maybe "(unset)" id mSolver
+  let solver = maybe "z3" id mSolver
+  mZ3 <- liftIO (findExecutable solver)
+  logTextLn $ Text.pack $ "findExecutable " ++ show solver ++ " => " ++ maybe "NOT FOUND" id mZ3
+  logTextLn "<<<< gcl.debug: PATH / SBV_Z3"
 
   logTextLn ">>>> gcl.debug: FileState"
   maybeFs <- getFileState filePath
