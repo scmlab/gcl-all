@@ -52,6 +52,7 @@ import qualified Language.LSP.Protocol.Message as LSP
 import qualified Language.LSP.Protocol.Types as LSP
 import qualified Language.LSP.Server as LSP
 import qualified Language.LSP.VFS as LSP
+import Server.Config (Config)
 import Server.FileState
 import qualified Server.SrcLoc as SrcLoc
 import System.IO (hFlush, stderr)
@@ -71,13 +72,13 @@ initGlobalEnv =
 
 --------------------------------------------------------------------------------
 
-type ServerM = LSP.LspT () (ReaderT GlobalState IO)
+type ServerM = LSP.LspT Config (ReaderT GlobalState IO)
 
-runServerM :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
+runServerM :: GlobalState -> LSP.LanguageContextEnv Config -> ServerM a -> IO a
 runServerM globalState ctxEnv program = runReaderT (LSP.runLspT ctxEnv program) globalState
 
 -- Wrap runServerM with error logging
-runServerMLogError :: GlobalState -> LSP.LanguageContextEnv () -> ServerM a -> IO a
+runServerMLogError :: GlobalState -> LSP.LanguageContextEnv Config -> ServerM a -> IO a
 runServerMLogError globalState ctxEnv program =
   catch (runServerM globalState ctxEnv program) handleException
   where

@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Server.Load where
@@ -22,6 +21,7 @@ import Server.Monad (FileState (..), HoleKind (..), PendingEdit (..), ServerM, e
 import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.Reduce (collectDefinitions)
+import Server.Util (evalSMTProofs)
 import qualified Syntax.Abstract.Types as A
 import qualified Syntax.Concrete.Instances.ToAbstract as C
 import Syntax.Concrete.Types (GdCmd (..), SepBy (..))
@@ -29,9 +29,6 @@ import qualified Syntax.Concrete.Types as C
 import qualified Syntax.Parser as Parser
 import Syntax.Parser.Error (ParseError)
 import qualified Syntax.Typed.Types as T
-
---------------------------------------------------------------------------------
--- Types
 
 -- | Result of digging holes: (edits in original coordinates, new source after edits)
 type DigResult = ([(Range, Text)], Text)
@@ -66,8 +63,9 @@ load filePath = do
                       logText "Load: no holes, setting file state directly\n"
                       case eitherFs of
                         Right _ -> do
+                          fs' <- evalSMTProofs fs
                           logText "Load: sending refresh\n"
-                          setAndSendFileStateWithRefresh filePath fs
+                          setAndSendFileStateWithRefresh filePath fs'
                         Left _ -> do
                           logTextLn "Load: type/struct error"
                           setAndSendFileState filePath fs
@@ -80,6 +78,7 @@ load filePath = do
                               errFs = emptyFileStateWithErrors [convertedErr]
                           setAndSendFileState filePath errFs
                         Right _ -> do
+                          fs' <- evalSMTProofs fs
                           logText "Load: holes dug, sending edit\n"
                           sendEditTextsWithVersion filePath vfsVersion edits
                           logText "Load: setting pending edit\n"
@@ -87,7 +86,7 @@ load filePath = do
                             filePath
                             PendingEdit
                               { expectedContent = newSource,
-                                pendingFileState = fs
+                                pendingFileState = fs'
                               }
       logText "Load: end\n"
 
@@ -106,7 +105,7 @@ loadAndDig filePath source = do
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
 loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
-  let abstract@(A.Program _ _ _ _ _ pragmas _) = C.runAbstractTransform concrete
+  abstract@(A.Program _ _ _ _ _ pragmas _) <- first ParseError $ C.runAbstractTransform concrete
   abstract' <- first TypeError $ evalDependencyResolution abstract
   (elaborated@(T.Program _ _ globalProps _ _), state) <- first TypeError $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated

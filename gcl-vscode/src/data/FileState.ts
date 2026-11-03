@@ -31,6 +31,7 @@ export interface IProofObligation {
   reducedPred: Predicate;
   strippedPred: Predicate;
   proofExists: Boolean;
+  smtResult: string;
   proofLocation?: Range;
   origin: {
     tag:

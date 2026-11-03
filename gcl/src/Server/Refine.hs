@@ -44,6 +44,7 @@ import Server.Move (applyMovesToFileState, mkLSPMove)
 import Server.Notification.Update (setAndSendFileState)
 import Server.OrigCoord (convertError, prepareEdits)
 import Server.SrcLoc (toLSPRange)
+import Server.Util (evalSMTProofs)
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
 import qualified Syntax.Concrete.Instances.ToAbstract as C
@@ -93,7 +94,8 @@ refine filePath cursor = do
                       movedFs = applyMovesToFileState [lspMove] fs
                       newSource = applyEdits source edits
                       newFs = mergeFileState movedFs fragmentFs
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs}
+                  newFs' <- evalSMTProofs newFs
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
                   setPendingEdit filePath pending
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
@@ -125,7 +127,8 @@ refine filePath cursor = do
                             fsTIState = state
                           }
                       newFs' = updateHoleExprs hole typedExpr holeMapping newFs
-                      pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
+                  newFs'' <- evalSMTProofs newFs'
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs''}
                   setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
@@ -179,7 +182,7 @@ refineHoleAndDig filePath hole source state = do
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
 loadConcreteFragment typeEnv idCount spec stmts = do
-  let abstract = C.runAbstractTransform stmts
+  abstract <- first ParseError $ C.runAbstractTransform stmts
   result <- first TypeError (mapM (`runToTyped` typeEnv) abstract)
   let (elaborated, state) = foldTIResult result
   (pos, specs, holes, warnings, idCount') <-
@@ -205,7 +208,7 @@ loadConcreteFragment typeEnv idCount spec stmts = do
 
 loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error (T.Subst, T.Expr, [Hole], Inference)
 loadConcreteHoleFragment typeEnv ty expr constraint state = do
-  let abstract = C.runAbstractTransform expr
+  abstract <- first ParseError $ C.runAbstractTransform expr
   ((subst, expr'), state') <- first TypeError (runTI (typeCheck' abstract ty) (typeEnv, mempty) state)
   case constraint expr' of
     Nothing -> Right (subst, expr', collectTypedHole expr', state')

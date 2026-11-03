@@ -21,15 +21,14 @@ import Server.Monad
   )
 import Server.Notification.Update (setAndSendFileState)
 import Syntax.Common.Types (Name)
-import Syntax.Typed.Reduce (Redex, reduce)
+import Syntax.Typed.Reduce4 (DefnEnv, RedexPath, tryReduceAt)
 import qualified Syntax.Typed.Types as T
 
--- TODO: add env for function inline
-evalReduce :: [(Name, T.Expr)] -> T.Expr -> Redex -> T.Expr
-evalReduce env predicate redex =
-  evalState (Syntax.Typed.Reduce.reduce env predicate redex) initFreshState
+evalReduce :: DefnEnv -> T.Expr -> RedexPath -> Maybe T.Expr
+evalReduce defnEnv predicate redex =
+  evalState (tryReduceAt defnEnv predicate redex) initFreshState
 
-reduce :: FilePath -> Int -> Redex -> ServerM ()
+reduce :: FilePath -> Int -> RedexPath -> ServerM ()
 reduce filePath poIndex redex = do
   maybePending <- getPendingEdit filePath
   case maybePending of
@@ -46,7 +45,10 @@ reduce filePath poIndex redex = do
             let pos = fsProofObligations fs
             let po = pos ^?! element poIndex
             let pred' = poReducedPred po
-            let reducedPred = evalReduce (fsDefinitions fs) pred' redex
+            reducedPred <-
+              case evalReduce (fsDefinitions fs) pred' redex of
+                Nothing -> Left [Others "Reduce" "Selected expression is not reducible." Nothing]
+                Just result' -> Right result'
             let po' = po {poReducedPred = reducedPred}
             let fs' = fs {fsProofObligations = pos & element poIndex .~ po'}
 

@@ -81,14 +81,8 @@ handlers =
             deleteFileState filePath
             deletePendingEdit filePath
         logText "SMethod_TextDocumentDidClose end\n",
-      -- "workspace/didChangeConfiguration"
-      notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> do
-        logText "SMethod_WorkspaceDidChangeConfiguration start\n"
-
-        -- TODO: this handler is only a stub because VSCode complains
-        -- maybe add something here in the future
-
-        logText "SMethod_WorkspaceDidChangeConfiguration end\n",
+      -- The LSP library updates the configuration before invoking this handler.
+      notificationHandler LSP.SMethod_WorkspaceDidChangeConfiguration $ \_ntf -> pure (),
       -- "textDocument/completion" - auto-completion
       requestHandler LSP.SMethod_TextDocumentCompletion $ \req responder -> do
         let completionContext = req ^. LSP.params . LSP.context

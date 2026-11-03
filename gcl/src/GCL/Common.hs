@@ -65,6 +65,23 @@ class (Monad m) => Fresh m where
   freshPreS :: String -> m Text
   freshPreS pref = freshPre (Text.pack pref)
 
+-- | Ask 'Fresh' for a name outside @forbidden@.  A clash extends the prefix
+-- rather than asking again with the same one, because a reader-only instance
+-- may otherwise return the same candidate forever.
+--
+-- This terminates when every 'freshPre' result is at least as long as its
+-- prefix: @forbidden@ is finite, so a long enough prefix outgrows every
+-- member.  All current instances satisfy this condition, but the 'Fresh' class
+-- does not require it.
+freshAvoiding :: (Fresh m) => Set Text -> Text -> m Text
+freshAvoiding forbidden = go
+  where
+    go prefix = do
+      candidate <- freshPre prefix
+      if Set.member candidate forbidden
+        then go (Text.snoc prefix '\'')
+        else pure candidate
+
 freshName :: (Fresh m, MaybeRanged a) => Text -> a -> m Name
 freshName prefix l = Name <$> freshPre prefix <*> pure (maybeRangeOf l)
 

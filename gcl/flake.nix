@@ -1,23 +1,29 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # pinned against this specific commit so we don't have to rebuild GHC from scratch
+    nixpkgs-005433b.url = "github:NixOS/nixpkgs/005433b926e16227259a1843015b5b2b7f7d1fc3";
     utils.url = "github:numtide/flake-utils";
   };
-  outputs = { self, nixpkgs, utils }: utils.lib.eachDefaultSystem (system:
+  outputs = { self, nixpkgs, nixpkgs-005433b, utils }: utils.lib.eachDefaultSystem (system:
     let
       pkgs = import nixpkgs {
         inherit system;
       };
 
-      hPkgs = pkgs.haskell.packages."ghc984";
+      pkgs-005433b = import nixpkgs-005433b {
+        inherit system;
+      };
 
-      devTools = with hPkgs; [
-        ghc
-        haskell-language-server
-        ormolu
+      hPkgs = pkgs-005433b.haskell.packages."ghc984";
 
+      devTools = [
         stack-wrapped
         pkgs.zlib
+        pkgs.ormolu
+
+        hPkgs.ghc
+        hPkgs.haskell-language-server
       ];
 
       stack-wrapped = pkgs.symlinkJoin {
