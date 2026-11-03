@@ -61,15 +61,15 @@ import qualified Syntax.Typed.Types as T
 
 runProof :: Integer -> T.Expr -> IO (Either String ThmResult)
 runProof timeoutMs expr =
-   catch
-        ( runExceptT $ Trans.prove $ do
-            Trans.setTimeOut timeoutMs
-            result <- evalStateT (buildProof expr) mempty
-            case result of
-              SVal v -> return $ toBool v
-              SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
-        )
-        (\e -> return $ Left $ show (e :: ErrorCall))
+  catch
+    ( runExceptT $ Trans.prove $ do
+        Trans.setTimeOut timeoutMs
+        result <- evalStateT (buildProof expr) mempty
+        case result of
+          SVal v -> return $ toBool v
+          SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
+    )
+    (\e -> return $ Left $ show (e :: ErrorCall))
   where
     toBool :: SVal -> SBool
     toBool = SBV
