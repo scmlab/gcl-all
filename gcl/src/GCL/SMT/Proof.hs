@@ -106,10 +106,7 @@ stripConjuncts expr = stripExpr expr
 
 stripExpr :: T.Expr -> (T.Expr, Bool)
 stripExpr expr
-  | hasUnsupportedQuantifier expr = (Op.true, True)
-stripExpr expr@(T.Chain (T.More {})) =
-  let symbolic = hasSymbolicExponent expr
-   in (if symbolic then Op.true else expr, symbolic)
+  | hasUnsupportedQuantifier expr || hasSymbolicExponent expr = (Op.true, True)
 stripExpr expr = (expr, False)
 
 hasUnsupportedQuantifier :: T.Expr -> Bool
