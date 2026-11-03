@@ -303,7 +303,7 @@ translatePos (Pos lineStart colStart) (Pos lineOff colOff) =
 
 -- | Sweep a fragment using the spec's pre/post conditions.
 sweepFragment :: Int -> Spec -> [T.Stmt] -> Either StructError ([PO], [Spec], [Hole], [StructWarning], Int)
-sweepFragment counter (Specification _ pre post _ _) impl =
+sweepFragment counter Specification {specPreCond = pre, specPostCond = post} impl =
   second
     ( \(_, counter', (pos, specs, sws, _redexes)) ->
         (pos, specs, collectTypedHole impl, sws, counter')
@@ -443,7 +443,7 @@ mergeFileState moved fragment =
 -- The selected 'hole' comes from source-derived 'fsHoles'; refinement scopes
 -- are never recovered from 'EHole' values in a PO. Resetting 'poReducedPred'
 -- to the updated 'poPred' discards whatever reduction the user had applied to
--- that PO.
+-- that PO. Specification display conditions are reset in the same way.
 updateHoleExprs :: Hole -> T.Expr -> [(Int, Int)] -> FileState -> FileState
 updateHoleExprs hole expr holeMapping fs =
   fs
@@ -454,10 +454,14 @@ updateHoleExprs hole expr holeMapping fs =
   where
     updateSpec :: Spec -> Spec
     updateSpec spec =
-      spec
-        { specPreCond = updateExpr hole expr holeMapping (specPreCond spec),
-          specPostCond = updateExpr hole expr holeMapping (specPostCond spec)
-        }
+      let pre = updateExpr hole expr holeMapping (specPreCond spec)
+          post = updateExpr hole expr holeMapping (specPostCond spec)
+       in spec
+            { specPreCond = pre,
+              specPostCond = post,
+              specReducedPreCond = pre,
+              specReducedPostCond = post
+            }
 
     updatePO :: PO -> PO
     updatePO po =
