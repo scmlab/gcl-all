@@ -77,8 +77,8 @@ function resolveGclPath(context: vscode.ExtensionContext | undefined): string {
 }
 
 /**
- * Resolves the path to the `z3` LSP executable:
- *   1. An explicit `z3-vscode.gclPath` setting wins (power users / dev builds).
+ * Resolves the path to the Z3 SMT solver executable:
+ *   1. An explicit `gcl-vscode.SMTProverPath` setting wins (power users / dev builds).
  *   2. Otherwise the binary bundled in the platform-specific VSIX (bin/z3).
  *   3. Otherwise fall back to `z3` on PATH.
  */
@@ -112,12 +112,8 @@ function resolveZ3Path(context: vscode.ExtensionContext | undefined): string {
 }
 
 /**
- * Builds the environment for the spawned `gcl` process so it can find the
- * `z3` solver bundled alongside the binary in the VSIX's `bin/` directory.
- * gcl reaches z3 through sbv, which by default looks up `z3` on PATH, so we
- * unconditionally prepend bin/ to PATH. This is harmless when no bundled z3
- * is present (dev builds via gclPath): the lookup simply falls through to the
- * rest of PATH.
+ * Builds the environment for the spawned `gcl` process.
+ * Sets `SBV_Z3` so SBV uses the resolved Z3 executable.
  */
 function gclProcessEnv(): NodeJS.ProcessEnv | undefined {
   if (!extensionContext) return undefined;
