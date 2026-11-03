@@ -95,7 +95,7 @@ instance Eq Stmt where
 -- | Proof obligation
 data PO = PO
   { poPred :: Pred, -- the single proposition `pre ⇒ post`
-    poReducedPred :: Pred,
+    poReducedPred :: Pred, -- display-only reduction state
     poStrippedPred :: Text, -- pred without surrounding rendered html
     poProofExists :: Bool,
     poSMTResult :: Text,
