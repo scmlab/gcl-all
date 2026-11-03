@@ -28,8 +28,10 @@ data Program
   = Program
       [Definition] -- definitions (the functional language part)
       [Declaration] -- constant and variable declarations
+      [Procedure]
       [Expr] -- global properties
       [Stmt] -- main program
+      [Pragma]
       (Maybe Range)
   deriving (Eq, Show)
 
@@ -65,6 +67,16 @@ data Declaration
 
 --------------------------------------------------------------------------------
 
+data Procedure = Procedure Name [ProcParam] Expr Program Expr
+  deriving (Eq, Show)
+
+data ProcParam
+  = VarParam [Name] Type (Maybe Range)
+  | ValueParam [Name] Type (Maybe Range)
+  deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+
 data Stmt
   = Skip (Maybe Range)
   | Abort (Maybe Range)
@@ -75,13 +87,13 @@ data Stmt
   | Do [GdCmd] (Maybe Range)
   | If [GdCmd] (Maybe Range)
   | Spec Text Range
-  | Proof Text Text Range
   | -- pointer operations
     Alloc Name [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
   | HLookup Name Expr (Maybe Range) --  x := *e
   | HMutate Expr Expr (Maybe Range) --  *e1 := e2
   | Dispose Expr (Maybe Range) --  dispose e
   | Block Program (Maybe Range)
+  | ProcCall Name [Expr] (Maybe Range)
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
@@ -242,3 +254,7 @@ baseTypeOfLit (Chr _) = TChar
 -- | Hole
 data Hole = Hole Text Int Range
   deriving (Eq, Show, Generic)
+
+data Pragma
+  = Proof Text Text
+  deriving (Eq, Show)

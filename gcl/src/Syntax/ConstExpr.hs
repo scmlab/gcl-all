@@ -1,31 +1,44 @@
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
+
 module Syntax.ConstExpr where
 
-import Data.Char (isLower)
 import Data.List (partition)
-import Data.Maybe
-  ( listToMaybe,
-    mapMaybe,
-  )
-import qualified Data.Set as Set
-import qualified Data.Text as Text
+import Data.Maybe (mapMaybe)
 import GCL.Common (freeVars)
-import Syntax.Abstract
-import Syntax.Common
-  ( Name,
-    nameToText,
-  )
+import Pretty.Typed ()
+import Syntax.Abstract.Types (Declaration (..), Expr)
+import Syntax.Common.Types (Name)
+
+data DeclType = Const | Var
+  deriving (Show)
+
+type Env = [(Name, DeclType)]
 
 pickGlobals :: [Declaration] -> ([Expr], [Expr])
-pickGlobals = partition isGlobalProp . mapMaybe extractAssertion
+pickGlobals decls =
+  partition (isGlobalProp env') (mapMaybe extractAssertion decls)
   where
-    -- An assertion is a global prop
-    -- if all of its free variables are of CONSTANTS
-    isGlobalProp :: Expr -> Bool
-    isGlobalProp assertion = Set.null $ Set.filter nameIsVar (freeVars assertion)
+    -- if each `Declaration` contained one name we probably wouldn't need this
+    env' =
+      concatMap
+        ( \case
+            ConstDecl names _ _ _ -> map (,Const) names
+            VarDecl names _ _ _ -> map (,Var) names
+        )
+        decls
 
-    nameIsVar :: Name -> Bool
-    nameIsVar name =
-      maybe False isLower (listToMaybe (Text.unpack (nameToText name)))
+    -- An assertion is a global property
+    -- if all of its free variables are of CONSTANTS
+    isGlobalProp :: Env -> Expr -> Bool
+    isGlobalProp env assertion = all (isConst env) (freeVars assertion)
+
+    isConst :: Env -> Name -> Bool
+    isConst env name =
+      case lookup name env of
+        Just Const -> True
+        Just Var -> False
+        Nothing -> error "should not happen"
 
     -- Extracts both the assertion and those declared names
     extractAssertion :: Declaration -> Maybe Expr

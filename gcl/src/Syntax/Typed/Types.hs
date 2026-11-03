@@ -49,6 +49,7 @@ data Stmt
   | HMutate Expr Expr (Maybe Range) --  *e1 := e2
   | Dispose Expr (Maybe Range) --  dispose e
   | Block Program (Maybe Range)
+  | ProcCall Name [Expr] (Maybe Range)
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
@@ -95,5 +96,9 @@ data KindedType
   deriving (Show, Eq)
 
 data Hole
-  = Hole Text Int Type Range Env
+  = -- | The trailing 'Env' is a snapshot of the term scope recorded when the
+    --   hole was elaborated. It is authoritative for the elaborated source
+    --   tree; see "Syntax.Typed.Subst2" for how term-level transformations
+    --   treat it.
+    Hole Text Int Type Range Env
   deriving (Eq, Show)

@@ -115,16 +115,14 @@ function createClient(): LanguageClient {
   const env = gclProcessEnv();
 
   const serverOptions: ServerOptions = {
-    // TODO: Temporarily enable logging in both run and debug modes
+    // The server logs to stderr in both run and debug modes.
     run: {
       command: gclPath,
-      args: [`--out=./gcl_server.log`],
       options: { env },
       transport: TransportKind.stdio,
     },
     debug: {
       command: gclPath,
-      args: [`--out=./gcl_server.log`],
       options: { env },
       transport: TransportKind.stdio,
     },
@@ -134,6 +132,14 @@ function createClient(): LanguageClient {
   const clientOptions: LanguageClientOptions = {
     // Register the server for `.gcl` documents
     documentSelector: [{ scheme: "file", language: "gcl" }],
+    initializationOptions: () => {
+      const settings = vscode.workspace.getConfiguration("gcl-vscode");
+      // Match the public keys returned by workspace/configuration.
+      return {
+        SMTTimeoutMs: settings.get<number>("SMTTimeoutMs"),
+        SMTReductionLimit: settings.get<number>("SMTReductionLimit"),
+      };
+    },
     synchronize: {
       // Notify the server about file changes to '.gcl' files contained in the workspace
       fileEvents: vscode.workspace.createFileSystemWatcher("**/.gcl"),

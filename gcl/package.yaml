@@ -12,7 +12,7 @@ extra-source-files:
   - README.md
 
 dependencies:
-  - base >= 4.7 && < 5
+  - base >= 4.19 && < 5
   - aeson
   - bytestring
   - containers
@@ -21,8 +21,6 @@ dependencies:
   - parser-combinators
   - prettyprinter
   - mtl
-  - network
-  - network-simple
   - srcloc
   - text
   - lexer-applicative

@@ -3,9 +3,13 @@
 
 module Syntax.Parser.Stmt where
 
-import qualified Data.Text as Text
 import GCL.Range
-import Syntax.Concrete hiding (Op)
+import Syntax.Concrete.Types
+  ( GdCmd (..),
+    Program,
+    SepBy,
+    Stmt (..),
+  )
 import Syntax.Parser.Basics
 import Syntax.Parser.Expr
 import Syntax.Parser.Lexer
@@ -36,7 +40,6 @@ statement :: Parser Program -> Parser Stmt
 statement program =
   choice
     [ skip,
-      proofBlock,
       abort,
       try assertion,
       loopInvariant,
@@ -50,7 +53,8 @@ statement program =
       conditional program,
       specQM,
       spec,
-      programBlock program
+      programBlock program,
+      procCall
     ]
     <?> "statement"
 
@@ -140,40 +144,6 @@ spec =
     notTokSpecClose (R _ TokSpecClose) = False
     notTokSpecClose _ = True
 
-proofBlock :: Parser Stmt
-proofBlock = do
-  ((proofAnchor, contents, whole), r) <- getRange $ extract extractProof
-  return $ Proof (Text.pack proofAnchor) (Text.pack contents) (Text.pack whole) r
-  where
-    extractProof (TokProof anchor contents whole) = Just (anchor, contents, whole)
-    extractProof _ = Nothing
-
--- proofAnchors :: Parser Stmt
--- proofAnchors =
---   Proof
---     <$> tokenProofOpen
---     <*> many proofAnchor
---     <*> tokenProofClose
---  where
---   proofAnchor :: Parser ProofAnchor
---   proofAnchor = do
---     (hash, range) <- getRange $ extract extractHash
---     skipProof
---     return $ ProofAnchor hash range
-
---   skipProof :: Parser ()
---   skipProof = void $ takeWhileP
---     (Just "anything other than '-]' or another proof anchor")
---     notTokProofCloseOrProofAnchor
-
---   notTokProofCloseOrProofAnchor :: L Tok -> Bool
---   notTokProofCloseOrProofAnchor (L _ TokProofClose     ) = False
---   notTokProofCloseOrProofAnchor (L _ (TokProofAnchor _)) = False
---   notTokProofCloseOrProofAnchor _                        = True
-
---   extractHash (TokProofAnchor s) = Just (Text.pack s)
---   extractHash _                  = Nothing
-
 alloc :: Parser Stmt
 alloc =
   Alloc
@@ -199,3 +169,11 @@ programBlock program =
     <$> tokenBlockOpen
     <*> program
     <*> tokenBlockClose
+
+procCall :: Parser Stmt
+procCall =
+  ProcCall
+    <$> identifier
+    <*> tokenParenOpen
+    <*> sepByComma expression
+    <*> tokenParenClose

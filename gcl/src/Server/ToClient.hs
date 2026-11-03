@@ -40,7 +40,7 @@ import qualified Server.Monad as Server
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
-import Syntax.Typed.Reduce (Env)
+import Syntax.Typed.Reduce4 (DefnEnv)
 
 -- | Client-facing payload for gcl/update notification.
 -- Produced by the server after trimming internal fields (semantic tokens,
@@ -50,7 +50,8 @@ data ClientFileState = ClientFileState
     specs :: [Specification],
     holes :: [Hole],
     pos :: [ProofObligation],
-    warnings :: [StructWarning]
+    warnings :: [StructWarning],
+    globalProps :: [Text.Text]
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -77,7 +78,9 @@ data Hole = Hole
 data ProofObligation = ProofObligation
   { pred :: Text.Text, -- HTML (with data-redex), see renderPredHtml
     reducedPred :: Text.Text,
-    hash :: String,
+    strippedPred :: Text.Text,
+    proofExists :: Bool,
+    smtResult :: Text.Text,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
   }
@@ -114,7 +117,8 @@ toClientFileState fs =
       specs = map convertSpec (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = zipWith (convertPO (Server.fsDefinitions fs)) [0 ..] (Server.fsProofObligations fs),
-      warnings = map convertWarning (Server.fsWarnings fs)
+      warnings = map convertWarning (Server.fsWarnings fs),
+      globalProps = map convertGlobalProp (Server.fsGlobalProps fs)
     }
 
 -- | Convert server-side Spec to client-side Specification
@@ -136,12 +140,14 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
     }
 
 -- | Convert server-side PO to client-side ProofObligation
-convertPO :: Env -> Int -> GCL.PO -> ProofObligation
-convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO :: DefnEnv -> Int -> GCL.PO -> ProofObligation
+convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
-    { pred = renderPredHtml env poIndex poPred,
-      reducedPred = renderPredHtml env poIndex poReducedPred,
-      hash = Text.unpack poAnchorHash,
+    { pred = renderPredHtml defnEnv poIndex poPred,
+      reducedPred = renderPredHtml defnEnv poIndex poReducedPred,
+      strippedPred = poStrippedPred,
+      proofExists = poProofExists,
+      smtResult = poSMTResult,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
@@ -149,12 +155,12 @@ convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poAnchorHash, 
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
 -- The wrapper carries data-po (PO index) so a clicked redex can be traced back
 -- to its PO; redex nodes carry data-redex (the path within this Expr).
-renderPredHtml :: Env -> Int -> GCL.Pred -> Text.Text
-renderPredHtml env poIndex e =
+renderPredHtml :: DefnEnv -> Int -> GCL.Pred -> Text.Text
+renderPredHtml defnEnv poIndex e =
   "<span class=\"gcl-expr\" data-po=\""
     <> Text.pack (show poIndex)
     <> "\">"
-    <> inlinesToHtml (renderPOPredRZ env e)
+    <> inlinesToHtml (renderPOPredRZ defnEnv e)
     <> "</span>"
 
 -- | Convert server-side Origin to client-side POOrigin
@@ -170,6 +176,9 @@ convertOrigin origin =
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
 convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
+
+convertGlobalProp :: GCL.Pred -> Text.Text
+convertGlobalProp prop = inlinesToHtml (render prop)
 
 --------------------------------------------------------------------------------
 -- JSON instances for client types
@@ -316,7 +325,7 @@ convertTypeError (Type.PatternArityMismatch e a l) =
 
 -- | Client-side StructError
 data StructError
-  = MissingAssertion {location :: Maybe LSP.Range}
+  = MissingInvariant {location :: Maybe LSP.Range}
   | MissingPostcondition {location :: Maybe LSP.Range}
   | MultiDimArrayAsgnNotImp {location :: Maybe LSP.Range}
   | LocalVarExceedScope {location :: Maybe LSP.Range}
@@ -325,8 +334,8 @@ data StructError
 
 -- | Convert server-side StructError to client-side StructError
 convertStructError :: WP.StructError -> StructError
-convertStructError (WP.MissingAssertion l) =
-  MissingAssertion {location = fmap toLSPRange l}
+convertStructError (WP.MissingInvariant l) =
+  MissingInvariant {location = fmap toLSPRange l}
 convertStructError (WP.MissingPostcondition l) =
   MissingPostcondition {location = fmap toLSPRange l}
 convertStructError (WP.MultiDimArrayAsgnNotImp l) =

@@ -222,7 +222,8 @@ fitsIndentReq tokToCheck indentReq = case indentReq of
                       TokBlockClose, -- ']|'
                       TokGuardBar, -- '|'
                       TokSpecClose, -- '!]'
-                      -- , TokProofClose  -- '-}'
+                      TokPragmaClose, -- '#-}'
+                      TokProofSep, -- '---'
                       TokDeclClose -- ':}'
                     ]
          )

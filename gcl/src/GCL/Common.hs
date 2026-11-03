@@ -8,7 +8,7 @@
 module GCL.Common where
 
 import Control.Monad.RWS (RWST (..))
-import Control.Monad.State (StateT (..))
+import Control.Monad.State (State, StateT (..), get, put)
 import Data.Either (lefts)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -65,6 +65,23 @@ class (Monad m) => Fresh m where
   freshPreS :: String -> m Text
   freshPreS pref = freshPre (Text.pack pref)
 
+-- | Ask 'Fresh' for a name outside @forbidden@.  A clash extends the prefix
+-- rather than asking again with the same one, because a reader-only instance
+-- may otherwise return the same candidate forever.
+--
+-- This terminates when every 'freshPre' result is at least as long as its
+-- prefix: @forbidden@ is finite, so a long enough prefix outgrows every
+-- member.  All current instances satisfy this condition, but the 'Fresh' class
+-- does not require it.
+freshAvoiding :: (Fresh m) => Set Text -> Text -> m Text
+freshAvoiding forbidden = go
+  where
+    go prefix = do
+      candidate <- freshPre prefix
+      if Set.member candidate forbidden
+        then go (Text.snoc prefix '\'')
+        else pure candidate
+
 freshName :: (Fresh m, MaybeRanged a) => Text -> a -> m Name
 freshName prefix l = Name <$> freshPre prefix <*> pure (maybeRangeOf l)
 
@@ -76,6 +93,12 @@ freshNames = mapM freshName'
 
 class Counterous m where
   countUp :: m Int
+
+instance Counterous (State Int) where
+  countUp = do
+    counter <- get
+    put (counter + 1)
+    pure counter
 
 instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
   fresh = Text.pack . ("?m_" ++) . show <$> countUp
@@ -157,7 +180,7 @@ instance Free Expr where
   freeVars (Tuple xs) = Set.unions (map freeVars xs)
   freeVars (OutT _ e) = freeVars e
   freeVars (Quant op xs range term _) =
-    (freeVars op <> freeVars range <> freeVars term) \\ Set.fromList xs
+    freeVars op <> ((freeVars range <> freeVars term) \\ Set.fromList xs)
   freeVars (ArrIdx e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (ArrUpd e1 e2 e3 _) = freeVars e1 <> freeVars e2 <> freeVars e3
   freeVars (Case e clauses _) = freeVars e <> Set.unions (map freeVars clauses)
@@ -198,7 +221,6 @@ instance Free Stmt where
   freeVars (Do gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (If gdcmds _) = Set.unions (map freeVars gdcmds)
   freeVars (Spec _ _) = mempty
-  freeVars Proof {} = mempty
   freeVars (Alloc x es _) =
     Set.singleton x <> Set.unions (map freeVars es)
   freeVars (HLookup x e _) =
@@ -206,13 +228,15 @@ instance Free Stmt where
   freeVars (HMutate e1 e2 _) = freeVars e1 <> freeVars e2
   freeVars (Dispose e _) = freeVars e
   freeVars (Block prog _) = freeVars prog
+  freeVars (ProcCall _ args _) = Set.unions (map freeVars args) -- XXX: freeVars of ProcCall?
 
 instance Free GdCmd where
   freeVars (GdCmd g stmts _) =
     freeVars g <> Set.unions (map freeVars stmts)
 
 instance Free Program where
-  freeVars (Program _defns decls props stmts _) =
+  freeVars (Program _defns decls procs props stmts _ _) =
+    -- XXX: `freeVars` of procedures?
     foldMap freeVars decls <> foldMap freeVars props <> foldMap freeVars stmts
 
 -- SCM: TODO: deal with defns later.

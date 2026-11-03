@@ -49,6 +49,7 @@ data Program
   = Program
       [SCC A.Definition] -- definitions (the functional language part)
       [Declaration] -- constant and variable declarations
+      [Procedure]
       [Expr] -- global properties
       [Stmt] -- main program
       (Maybe Range)
@@ -90,12 +91,13 @@ evalDependencyResolution :: A.Program -> Either TypeError GCL.Dependency.Program
 evalDependencyResolution abstract = evalState (runExceptT (resolveDependency abstract)) mempty
 
 resolveDependency :: A.Program -> DepMonad GCL.Dependency.Program
-resolveDependency program@(A.Program _ decls exprs stmts range) = do
+resolveDependency program@(A.Program _ decls procs exprs stmts _pragmas range) = do
+  -- XXX: procs dependency?
   forM_ decls checkDeclDuplications
   unresolvedDeps <- resolveProgram program
   resolvedDeps <- mapM validateDependency unresolvedDeps
   let sccs = concatMap toTopSortedSCC resolvedDeps
-  return $ GCL.Dependency.Program sccs decls exprs stmts range
+  return $ GCL.Dependency.Program sccs decls procs exprs stmts range
   where
     toTopSortedSCC :: ResolvedDepMap -> [SCC A.Definition]
     toTopSortedSCC = reverse . stronglyConnComp . elems
@@ -121,7 +123,7 @@ resolveDependency program@(A.Program _ decls exprs stmts range) = do
       modify $ second $ const declMap'
 
 resolveProgram :: A.Program -> DepMonad [UnresolvedDepMap]
-resolveProgram (A.Program defs _ _ _ _) = do
+resolveProgram (A.Program defs _ _ _ _ _ _) = do
   -- Do this in 2 pass, as TypeDefnCtor must be collected first in type resolution pass
   -- then we can distinguish them in term resolution pass.
   typeDeps <- foldM resolveTypeDefinitions mempty defs

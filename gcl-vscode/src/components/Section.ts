@@ -3,8 +3,9 @@ export default function renderSection(
   sectionBody: string,
   subtitle?: string,
   code?: string,
+  footer?: string,
 ) {
-  return /* html */ ` 
+  return /* html */ `
     <div>
       <style scoped>
         .section {
@@ -13,6 +14,9 @@ export default function renderSection(
           margin: 0px 10px;
         }
         .section-header {
+          display: flex;
+          align-items: center;
+          gap: 0.5em;
           margin: 10px 0px;
         }
         .header-title {
@@ -28,7 +32,7 @@ export default function renderSection(
         .header-code {
           color: #959595;
           font-weight: bold;
-          float: right;
+          margin-left: auto;
           font-size: 12px;
         }
         .section-body {
@@ -38,20 +42,28 @@ export default function renderSection(
           padding: 10px 12px;
           font-family: monospace;
         }
+        .section-footer {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 6px;
+          font-size: 12px;
+        }
       </style>
 
       <div class="section">
         <div class="section-header">
-          <span>
-            <span class="header-title">${title}</span>
-            ${
-              subtitle
-                ? /*html*/ `
-              <span class="header-subtitle">${subtitle}</span>`
-                : ""
-            }
-            ${code ? /*html*/ `<span class="header-code">#${code}</span>` : ""}
-          </span>
+          <span class="header-title">${title}</span>
+          ${
+            subtitle
+              ? /*html*/ `
+            <span class="header-subtitle">${subtitle}</span>`
+              : ""
+          }
+          ${
+            code
+              ? `<div class="header-code">${code}</div>`
+              : ""
+          }
         </div>
         ${
           sectionBody &&
@@ -59,6 +71,7 @@ export default function renderSection(
           <div class="section-body">${sectionBody}</div>
         `
         }
+        ${footer ? `<div class="section-footer">${footer}</div>` : ""}
       </div>
     </div>
   `;

@@ -10,6 +10,7 @@ export interface ClientFileState {
   specs: ISpecification[];
   pos: IProofObligation[];
   warnings: IStructWarning[];
+  globalProps: Predicate[];
 }
 
 export interface ISpecification {
@@ -28,7 +29,9 @@ export interface IHole {
 export interface IProofObligation {
   pred: Predicate;
   reducedPred: Predicate;
-  hash: string;
+  strippedPred: Predicate;
+  proofExists: Boolean;
+  smtResult: string;
   proofLocation?: Range;
   origin: {
     tag:
