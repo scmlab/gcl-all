@@ -95,7 +95,7 @@ instance Eq Stmt where
 -- | Proof obligation
 data PO = PO
   { poPred :: Pred, -- the single proposition `pre ⇒ post`
-    poReducedPred :: Pred,
+    poReducedPred :: Pred, -- display-only reduction state
     poStrippedPred :: Text, -- pred without surrounding rendered html
     poProofExists :: Bool,
     poSMTResult :: Text,
@@ -164,16 +164,19 @@ data Spec = Specification
   { specID :: Int,
     specPreCond :: Pred,
     specPostCond :: Pred,
+    -- Display-only reductions; refinement always uses the original conditions.
+    specReducedPreCond :: Pred,
+    specReducedPostCond :: Pred,
     specRange :: Range,
     specTypeEnv :: Env
   }
   deriving (Eq, Show, Generic)
 
 instance MaybeRanged Spec where
-  maybeRangeOf (Specification _ _ _ r _) = Just r
+  maybeRangeOf Specification {specRange = r} = Just r
 
 instance Ranged Spec where
-  rangeOf (Specification _ _ _ r _) = r
+  rangeOf Specification {specRange = r} = r
 
 data Hole = Hole
   { holeID :: Int,

@@ -26,7 +26,7 @@ import GCL.Predicate
   ( Origin (..),
     PO (..),
     Pred,
-    Spec (Specification),
+    Spec (..),
   )
 import GCL.Range (Range)
 import GCL.Type2.Types (Env)
@@ -112,7 +112,17 @@ tellSpec p q typeEnv l = do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q
   i <- countUp
-  tell ([], [Specification i p q l typeEnv], [], mempty)
+  let spec =
+        Specification
+          { specID = i,
+            specPreCond = p,
+            specPostCond = q,
+            specReducedPreCond = p,
+            specReducedPostCond = q,
+            specRange = l,
+            specTypeEnv = typeEnv
+          }
+  tell ([], [spec], [], mempty)
 
 throwWarning :: StructWarning -> WP ()
 throwWarning warning = tell ([], [], [warning], mempty)

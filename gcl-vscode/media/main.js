@@ -6,14 +6,18 @@ const vscode = acquireVsCodeApi();
 function handleReduce(event) {
   event.stopPropagation();
 
-  const el = event.target;
+  const el = event.currentTarget;
 
-  const redex = el.dataset.redex.split(",").map(Number);
-  const po = Number(el.closest(".gcl-expr").dataset.po);
+  const redex =
+    el.dataset.redex === "" ? [] : el.dataset.redex.split(",").map(Number);
+  const expression = el.closest(".gcl-expr");
+  const target = expression.dataset.target;
 
   vscode.postMessage({
     action: "reduce",
-    po,
+    ...(target
+      ? { target: JSON.parse(target) }
+      : { po: Number(expression.dataset.po) }),
     redex,
   });
 }

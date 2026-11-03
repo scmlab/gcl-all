@@ -26,7 +26,8 @@ evalSMTProofs fs = do
   po <-
     mapM
       ( \po -> do
-          let reducedPred = tryReduce (poReducedPred po)
+          -- Display reductions must not affect the starting point for SMT.
+          let reducedPred = tryReduce (poPred po)
           now <- liftIO getMonotonicTimeNSec
           let remainingMs = (deadline - toInteger now) `div` 1000000
           smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred

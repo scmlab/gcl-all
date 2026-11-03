@@ -21,7 +21,7 @@ instance RenderSection StructWarning where
       Section Yellow [Header "Bound Missing" (Just range), Paragraph (render x)]
 
 instance RenderSection Spec where
-  renderSection (Specification _ pre post range _) =
+  renderSection Specification {specPreCond = pre, specPostCond = post, specRange = range} =
     Section
       Blue
       [ Header "Precondition" (Just range),

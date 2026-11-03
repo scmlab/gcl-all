@@ -19,9 +19,11 @@ where
 import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingleConstructors, (.=))
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Text as JSONText
 import Data.List.NonEmpty (toList)
 import qualified Data.Text as T
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as LazyText
 import qualified Error
 import qualified GCL.Predicate as GCL
 import GCL.Range (MaybeRanged (..), Range)
@@ -35,8 +37,9 @@ import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Render.Class (Render (..))
 import Render.Element (inlinesToHtml)
-import Render.Syntax.Typed (renderPOPredRZ)
+import Render.Syntax.Typed (renderExprRZ, renderPOPredRZ)
 import qualified Server.Monad as Server
+import qualified Server.Reduce.Types as Reduce
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
@@ -61,6 +64,9 @@ data Specification = Specification
   { specID :: String,
     preCondition :: String,
     postCondition :: String,
+    -- HTML of the current display conditions, including clickable redexes.
+    reducedPreCond :: Text.Text,
+    reducedPostCond :: Text.Text,
     specRange :: LSP.Range
   }
   deriving stock (Show, Generic)
@@ -77,7 +83,7 @@ data Hole = Hole
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
   { pred :: Text.Text, -- HTML (with data-redex), see renderPredHtml
-    reducedPred :: Text.Text,
+    reducedPred :: Text.Text, -- HTML of the current display predicate.
     strippedPred :: Text.Text,
     proofExists :: Bool,
     smtResult :: Text.Text,
@@ -114,7 +120,7 @@ toClientFileState :: Server.FileState -> ClientFileState
 toClientFileState fs =
   ClientFileState
     { errors = map convertError (Server.fsErrors fs),
-      specs = map convertSpec (Server.fsSpecifications fs),
+      specs = map (convertSpec (Server.fsDefinitions fs)) (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = zipWith (convertPO (Server.fsDefinitions fs)) [0 ..] (Server.fsProofObligations fs),
       warnings = map convertWarning (Server.fsWarnings fs),
@@ -122,14 +128,25 @@ toClientFileState fs =
     }
 
 -- | Convert server-side Spec to client-side Specification
-convertSpec :: GCL.Spec -> Specification
-convertSpec (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specRange}) =
+convertSpec :: DefnEnv -> GCL.Spec -> Specification
+convertSpec defnEnv (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specReducedPreCond, GCL.specReducedPostCond, GCL.specRange}) =
   Specification
     { specID = show specID,
       preCondition = show $ pretty specPreCond,
       postCondition = show $ pretty specPostCond,
+      reducedPreCond = renderSpecPredHtml (Reduce.SpecificationPrecondition specID) specReducedPreCond,
+      reducedPostCond = renderSpecPredHtml (Reduce.SpecificationPostcondition specID) specReducedPostCond,
       specRange = toLSPRange specRange
     }
+  where
+    renderSpecPredHtml target expr =
+      -- Targets contain only fixed constructor names and numeric IDs, so their
+      -- JSON is safe inside this single-quoted HTML attribute.
+      "<span class=\"gcl-expr\" data-target='"
+        <> LazyText.toStrict (JSONText.encodeToLazyText target)
+        <> "'>"
+        <> inlinesToHtml (renderExprRZ defnEnv expr)
+        <> "</span>"
 
 convertHole :: GCL.Hole -> Hole
 convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =

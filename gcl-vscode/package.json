@@ -127,7 +127,8 @@
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src --ext ts",
     "format": "prettier . --write",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "test:webview": "node --test test/webview.test.cjs"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
