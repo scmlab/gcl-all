@@ -44,7 +44,7 @@ jobs:
             vsceTarget: linux-arm64
             z3Asset: z3-4.16.0-arm64-glibc-2.38
             z3Bin: z3
-          - os: macos-14            # Apple Silicon (arm64)
+          - os: macos-15            # Apple Silicon (arm64)
             target: macos-arm64
             bin: gcl
             vsceTarget: darwin-arm64
