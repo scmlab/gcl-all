@@ -9,9 +9,11 @@ import Data.Either (isLeft)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Data.Text.Encoding as Text
-import GCL.Predicate (PO (..), Spec (..))
-import qualified GCL.Predicate as GCL
 import GCL.Range (mkPos, mkRange)
+import GCL.Spec (Spec (..))
+import qualified GCL.Spec as GCL
+import GCL.WP.Types (PO (..))
+import qualified GCL.WP.Types as GCL
 import qualified Language.LSP.Protocol.Types as LSP
 import Server.FileState (FileState (..), emptyFileStateWithErrors)
 import qualified Server.Handler.GCL.Reduce as Handler
@@ -152,7 +154,7 @@ originalSpec =
     post = T.Subst (Op.lt (Op.nameVar x tInt) (Op.number 10)) [(x, Op.number 2)]
 
 originalPO :: PO
-originalPO = PO predicate predicate "original proof text" False "existing result" Nothing Nothing
+originalPO = PO predicate predicate "original proof text" False "existing result" Nothing [] Nothing
   where
     predicate = specPreCond originalSpec
 

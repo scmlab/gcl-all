@@ -6,7 +6,6 @@ import Control.Arrow (first)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
 import GCL.Common
-import GCL.Predicate (Pred)
 import GCL.WP.Types
 import GCL.WP.Util
 import Syntax.Common (nameToText)

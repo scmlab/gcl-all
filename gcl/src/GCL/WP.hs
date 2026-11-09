@@ -14,15 +14,12 @@ import Data.IntMap (IntMap)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Text (Text)
-import GCL.Predicate
+import GCL.Range (MaybeRanged (..))
+import GCL.Spec
   ( HoleError (..),
-    InfMode (..),
-    PO (..),
-    Pred,
     Spec (..),
   )
-import qualified GCL.Predicate as P
-import GCL.Range (MaybeRanged (..))
+import qualified GCL.Spec as P
 import GCL.WP.SP
 import GCL.WP.Struct
 import GCL.WP.Types
@@ -42,7 +39,7 @@ runWP ::
   Either
     StructError
     (a, Int, ([PO], [Spec], [StructWarning], IntMap (Int, Expr)))
-runWP p decls counter = runExcept $ runRWST p decls counter
+runWP p (decls, scopes) counter = runExcept $ runRWST p (decls, scopes, []) counter
 
 sweep ::
   Program ->

@@ -10,10 +10,10 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
-import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
+import GCL.WP.Types (PO (..))
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)

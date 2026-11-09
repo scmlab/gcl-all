@@ -11,7 +11,6 @@ import GCL.Common
     freshName,
     freshName',
   )
-import GCL.Predicate (Pred)
 import GCL.Range (MaybeRanged (..))
 import GCL.WP.Types
 import GCL.WP.Util

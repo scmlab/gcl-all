@@ -3,8 +3,8 @@
 module Render.Predicate where
 
 import qualified Data.Text as Text
-import GCL.Predicate
 import GCL.Range (MaybeRanged (..))
+import GCL.Spec
 import GCL.WP.Types
 import Render.Class
 import Render.Element
@@ -34,7 +34,7 @@ instance RenderSection Spec where
 -- annotations. Interactive PO rendering goes through Server.ToClient with
 -- fsDefinitions, so no definition environment is needed here.
 instance RenderSection PO where
-  renderSection (PO _predicate reducedPredicate _ _ _ _ origin) =
+  renderSection (PO _predicate reducedPredicate _ _ _ _ _ origin) =
     Section Plain $
       [ Header
           "" -- (Text.pack $ show $ render origin)

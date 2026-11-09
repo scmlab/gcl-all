@@ -2,15 +2,11 @@
 
 module GCL.WP.Struct where
 
-import Control.Arrow (first, second)
 import Control.Applicative ((<|>))
+import Control.Arrow (first, second)
 import Control.Monad (forM_)
 import Data.Text (Text)
 import GCL.Common (freshName)
-import GCL.Predicate
-  ( InfMode (..),
-    Pred,
-  )
 import GCL.Range (MaybeRanged (..))
 import GCL.WP.Types
 import GCL.WP.Util
@@ -24,9 +20,9 @@ import Syntax.Typed.Operator
   ( conj,
     conjunct,
     disjunct,
-    implies,
     eqq,
     gte,
+    implies,
     lt,
     neg,
   )
@@ -97,23 +93,44 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
     struct (pre, _) s@(AAssign _ _ _ l) post = do
       tellPO l . (pre `implies`) =<< wp s post
     struct (pre, _) (If gcmds l) post = do
-      tellPO l (pre `implies` disjunctGuards gcmds)
-      forM_ gcmds $ \(GdCmd guard body _) ->
-        structStmts Primary (pre `conj` guard, Nothing) body post
+      footPrint
+        (IfTotal l)
+        (tellPO l (pre `implies` disjunctGuards gcmds))
+      footPrint
+        (IfBranch l)
+        ( forM_ gcmds $ \(GdCmd guard body _) ->
+            structStmts Primary (pre `conj` guard, Nothing) body post
+        )
     struct (inv, Just bnd) (Do gcmds l) post = do
       let guards = getGuards gcmds
-      tellPO l (conjunct (inv : map neg guards) `implies` post)
-      forM_ gcmds (structGdcmdInduct inv)
-      tellPO l
-        ((inv `conj` disjunct guards) `implies` (bnd `gte` Lit (Num 0) tInt Nothing))
-      forM_ gcmds (structGdcmdBnd inv bnd)
+      footPrint
+        (LoopInvBase l)
+        (tellPO l (conjunct (inv : map neg guards) `implies` post))
+      footPrint
+        (LoopInvInd l)
+        (forM_ gcmds (structGdcmdInduct inv))
+      footPrint
+        (LoopTermBase l)
+        ( tellPO
+            l
+            ( (inv `conj` disjunct guards)
+                `implies` (bnd `gte` Lit (Num 0) tInt Nothing)
+            )
+        )
+      footPrint
+        (LoopTermInd l)
+        (forM_ gcmds (structGdcmdBnd inv bnd))
     struct (inv, Nothing) (Do gcmds l) post = do
       case l of
         Nothing -> return ()
         Just rng -> throwWarning (MissingBound rng)
       let guards = getGuards gcmds
-      tellPO l (conjunct (inv : map neg guards) `implies` post)
-      forM_ gcmds (structGdcmdInduct inv)
+      footPrint
+        (LoopInvBase l)
+        (tellPO l (conjunct (inv : map neg guards) `implies` post))
+      footPrint
+        (LoopInvInd l)
+        (forM_ gcmds (structGdcmdInduct inv))
     struct _ Proof {} _ = return ()
     struct (pre, _) (Block prog _) post = structBlock pre prog post
     struct (pre, _) s@(Alloc _ _ l) post = do

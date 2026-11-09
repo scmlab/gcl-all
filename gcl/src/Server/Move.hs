@@ -23,10 +23,10 @@ import Control.Monad (foldM)
 import Data.Maybe (mapMaybe)
 import qualified Data.Text as T
 import Error (Error (..))
-import GCL.Predicate (Hole (..), Origin (..), PO (..), Spec (..))
 import GCL.Range (MaybeRanged (..), Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine, posOrd, rangeEnd, rangeStart)
+import GCL.Spec (Hole (..), Spec (..))
 import GCL.Type2.Types (TypeError (..))
-import GCL.WP.Types (StructError (..), StructWarning (..))
+import GCL.WP.Types (PO (..), StructError (..), StructWarning (..))
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as LSP
 import Server.FileState (FileState (..))
@@ -317,6 +317,7 @@ applyMovesToWarning :: [GCLMove] -> StructWarning -> StructWarning
 applyMovesToWarning moves (MissingBound oldRange) =
   MissingBound (shiftContainerRangeOrFreeze moves oldRange)
 
+{-
 setOriginRange :: Maybe Range -> Origin -> Origin
 setOriginRange l (AtAbort _) = AtAbort l
 setOriginRange l (AtSkip _) = AtSkip l
@@ -327,3 +328,4 @@ setOriginRange l (AtIf _) = AtIf l
 setOriginRange l (AtLoop _) = AtLoop l
 setOriginRange l (AtTermination _) = AtTermination l
 setOriginRange l (Explain h e i p _) = Explain h e i p l
+-}

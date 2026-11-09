@@ -25,8 +25,8 @@ import qualified Data.Text as T
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as LazyText
 import qualified Error
-import qualified GCL.Predicate as GCL
 import GCL.Range (MaybeRanged (..), Range)
+import qualified GCL.Spec as GCL
 import qualified GCL.Type2.Types as Type
 import qualified GCL.WP.Types as GCL
 import qualified GCL.WP.Types as WP
