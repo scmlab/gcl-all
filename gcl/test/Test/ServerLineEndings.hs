@@ -7,7 +7,7 @@ import qualified Data.Text as Text
 import GCL.Predicate (Spec (..))
 import GCL.Range (mkPos, mkRange)
 import Server.FileState (FileState (..))
-import Server.Load (applyEdits, loadAndDig, parseAndDig, withSourceLineEndings)
+import Server.Load (applyEdits, eolOf, loadAndDig, parseAndDig)
 import Server.Refine (refineAndDig)
 import Test.Tasty (TestTree, testGroup)
 import Test.Tasty.HUnit
@@ -26,8 +26,8 @@ tests =
             newSource @?= "[!\n\n!]"
           Nothing -> assertFailure "expected a hole-digging edit",
       testCase "mixed source line endings use the first newline" $ do
-        withSourceLineEndings "first\nsecond\r\n" "a\r\nb\n" @?= "a\nb\n"
-        withSourceLineEndings "first\r\nsecond\n" "a\r\nb\n" @?= "a\r\nb\r\n"
+        eolOf "first\nsecond\r\n" @?= "\n"
+        eolOf "first\r\nsecond\n" @?= "\r\n"
     ]
 
 pipelineTests :: String -> Text -> TestTree

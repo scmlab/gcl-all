@@ -149,31 +149,30 @@ parseAndDig filePath source = do
         Right concrete -> Right (concrete, collectHole concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
-        edits = digEdits src holeList
+        edits = digEdits (eolOf src) holeList
 
 --------------------------------------------------------------------------------
 -- Hole digging
 
--- | Hole-digging edits, with replacement text in the source's line endings.
+-- | Hole-digging edits, using the supplied EOL (LF or CRLF) for generated text.
 digEdits :: Text -> [(HoleKind, Range)] -> [(Range, Text)]
-digEdits source = map (\(kind, range) -> (range, withSourceLineEndings source (diggedText kind range)))
+digEdits eol holes =
+  map (\(kind, range) -> (range, diggedText eol kind range)) holes
 
--- | Use the source's first line ending for generated text, defaulting to LF
--- when the source has no newline. Normalize CRLF first to avoid doubling CR.
-withSourceLineEndings :: Text -> Text -> Text
-withSourceLineEndings source = Text.replace "\n" eol . Text.replace "\r\n" "\n"
+-- | The source's first line ending, defaulting to LF when there is no newline.
+eolOf :: Text -> Text
+eolOf source
+  | not (Text.null rest) && "\r" `Text.isSuffixOf` firstLine = "\r\n"
+  | otherwise = "\n"
   where
     (firstLine, rest) = Text.breakOn "\n" source
-    eol
-      | not (Text.null rest) && "\r" `Text.isSuffixOf` firstLine = "\r\n"
-      | otherwise = "\n"
 
--- | Replacement text for a hole. Callers adapt its LF line endings to the source.
-diggedText :: HoleKind -> Range -> Text
-diggedText StmtHole range = "[!\n" <> ind <> "\n" <> ind <> "!]"
+-- | Replacement text for a hole, using the supplied EOL (LF or CRLF).
+diggedText :: Text -> HoleKind -> Range -> Text
+diggedText eol StmtHole range = Text.intercalate eol ["[!", ind, ind <> "!]"]
   where
     ind = Text.replicate (posCol (rangeStart range) - 1) " "
-diggedText ExprHole _ = "{! !}"
+diggedText _ ExprHole _ = "{! !}"
 
 -- | Apply a list of non-overlapping edits to source text.
 -- Edits must not overlap. They are applied using positions in the original source,
