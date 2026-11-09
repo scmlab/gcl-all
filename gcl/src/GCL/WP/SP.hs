@@ -61,7 +61,7 @@ spFunctions (structSegs, struct) = spSStmts
           pre'' <- spSStmts (pre', bnd') ss
           spSegs' (pre'', Nothing) segs'
         spSegs' (pre', bnd') (SSpec (Spec _ range tenv) : segs') = do
-          tellSpec pre' pre' tenv range
+          tellSpec range pre' pre' tenv
           spSegs' (pre', bnd') segs'
         spSegs' _ _ = error "missing case in spSegs'"
 

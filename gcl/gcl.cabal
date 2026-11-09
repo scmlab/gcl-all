@@ -41,7 +41,6 @@ library
       GCL.Type2.Types
       GCL.Type2.Unify
       GCL.WP
-      GCL.WP.Explanation
       GCL.WP.SP
       GCL.WP.Struct
       GCL.WP.Types

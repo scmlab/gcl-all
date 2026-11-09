@@ -299,11 +299,11 @@ applyMovesToSpec moves spec@Specification {specRange = oldRange} = do
 -- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPred 裡面的位置資訊
 applyMovesToPO :: [GCLMove] -> PO -> PO
 applyMovesToPO moves po@PO {poOrigin} =
-  case maybeRangeOf poOrigin of
+  case poOrigin of
     Nothing -> po
     Just oldRange ->
       let newRange = shiftContainerRangeOrFreeze moves oldRange
-       in po {poOrigin = setOriginRange (Just newRange) poOrigin}
+       in po {poOrigin = Just newRange}
 
 -- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
 applyMovesToHole :: [GCLMove] -> Hole -> Maybe Hole

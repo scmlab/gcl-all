@@ -60,12 +60,6 @@ instance Pretty GdCmd where
 -}
 --------------------------------------------------------------------------------
 
--- | Origin
-instance Pretty Origin where
-  pretty = fromRender
-
---------------------------------------------------------------------------------
-
 -- | Obligation & Specification
 instance Pretty PO where
   pretty = fromRenderSection

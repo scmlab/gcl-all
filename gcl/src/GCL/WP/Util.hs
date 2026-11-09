@@ -39,7 +39,7 @@ import Syntax.Common
   ( nameToText,
   )
 import Syntax.Typed
-import Syntax.Typed.Operator (disjunct, implies)
+import Syntax.Typed.Operator (disjunct)
 import Syntax.Typed.Util
 
 -- Syntax Manipulation
@@ -95,20 +95,13 @@ disjunctGuards = disjunct . getGuards
 
 -- PO handling
 
-tellPO :: Pred -> Pred -> Origin -> WP ()
-tellPO p q origin = unless (p == q) $ do
-  -- p' <- substitute [] [] p
-  -- q' <- substitute [] [] q
-  let predicate = implies p q
-  let strippedPred = renderStrict $ layoutPretty (LayoutOptions Unbounded) $ pretty predicate
+tellPO ::  Maybe Range -> Pred -> WP ()
+tellPO loc p = do
+  let strippedPred = renderStrict $ layoutPretty (LayoutOptions Unbounded) $ pretty p
+  tell ([PO p p strippedPred False "" Nothing loc], [], [], mempty)
 
-  tell ([PO predicate predicate strippedPred False "" Nothing origin], [], [], mempty)
-
-tellPO' :: Origin -> Pred -> Pred -> WP ()
-tellPO' l p q = tellPO p q l
-
-tellSpec :: Pred -> Pred -> Env -> Range -> WP ()
-tellSpec p q typeEnv l = do
+tellSpec :: Range -> Pred -> Pred -> Env -> WP ()
+tellSpec l p q typeEnv = do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q
   i <- countUp

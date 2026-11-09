@@ -60,7 +60,7 @@ wpFunctions structSegs = (wpSegs, wpSStmts, wp)
       wpSStmts ss post'
     wpSegs (SSpec (Spec _ range tenv) : segs) post = do
       post' <- wpSegs segs post
-      tellSpec post' post' tenv range
+      tellSpec range post' post' tenv
       return post'
     wpSegs (SAsrt (Assert p _) : segs) post = do
       structSegs (p, Nothing) segs post

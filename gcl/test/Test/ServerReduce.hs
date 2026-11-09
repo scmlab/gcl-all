@@ -152,7 +152,7 @@ originalSpec =
     post = T.Subst (Op.lt (Op.nameVar x tInt) (Op.number 10)) [(x, Op.number 2)]
 
 originalPO :: PO
-originalPO = PO predicate predicate "original proof text" False "existing result" Nothing (GCL.AtSpec Nothing)
+originalPO = PO predicate predicate "original proof text" False "existing result" Nothing Nothing
   where
     predicate = specPreCond originalSpec
 

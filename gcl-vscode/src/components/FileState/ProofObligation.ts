@@ -32,7 +32,7 @@ export default function renderProofObligation(
           color: #959595;
           padding: 0 6px;
         }
-        
+
       </style>
       <table class="proof-obligation">
       <tr>
@@ -115,8 +115,8 @@ export default function renderProofObligation(
   return renderSection(
     "Proof Obligation",
     sectionBody,
-    proofObligation.origin.location &&
-    `at ${renderRange(proofObligation.origin.location)}`,
+    proofObligation.origin &&
+    `at ${renderRange(proofObligation.origin)}`,
     code,
   );
 }

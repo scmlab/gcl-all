@@ -38,19 +38,7 @@ export interface IProofObligation {
   proofExists: Boolean;
   smtResult: string;
   proofLocation?: Range;
-  origin: {
-    tag:
-      | "Abort"
-      | "Skip"
-      | "Spec"
-      | "Assignment"
-      | "Assertion"
-      | "Conditional"
-      | "Loop Invariant"
-      | "Loop Termination";
-    location?: Range;
-    explanation?: string;
-  };
+  origin?: Range;
 }
 
 export type IStructWarning = MissingBound;

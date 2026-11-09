@@ -88,7 +88,7 @@ data ProofObligation = ProofObligation
     proofExists :: Bool,
     smtResult :: Text.Text,
     proofLocation :: Maybe LSP.Range,
-    origin :: POOrigin
+    origin :: Maybe LSP.Range
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -166,7 +166,7 @@ convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStripped
       proofExists = poProofExists,
       smtResult = poSMTResult,
       proofLocation = fmap toLSPRange poAnchorRange,
-      origin = convertOrigin poOrigin
+      origin = fmap toLSPRange poOrigin
     }
 
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
@@ -179,16 +179,6 @@ renderPredHtml defnEnv poIndex e =
     <> "\">"
     <> inlinesToHtml (renderPOPredRZ defnEnv e)
     <> "</span>"
-
--- | Convert server-side Origin to client-side POOrigin
--- Uses the Render instance to get the tag name and MaybeRanged to get location
-convertOrigin :: GCL.Origin -> POOrigin
-convertOrigin origin =
-  POOrigin
-    { tag = Text.pack (show (render origin)),
-      location = fmap toLSPRange (maybeRangeOf origin),
-      explanation = Nothing
-    }
 
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
