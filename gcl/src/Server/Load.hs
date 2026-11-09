@@ -149,12 +149,26 @@ parseAndDig filePath source = do
         Right concrete -> Right (concrete, collectHole concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
-        edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
+        edits = digEdits src holeList
 
 --------------------------------------------------------------------------------
 -- Hole digging
 
--- | Replacement text for a hole, matching the behaviour of Server.Monad.digHoles.
+-- | Hole-digging edits, with replacement text in the source's line endings.
+digEdits :: Text -> [(HoleKind, Range)] -> [(Range, Text)]
+digEdits source = map (\(kind, range) -> (range, withSourceLineEndings source (diggedText kind range)))
+
+-- | Use the source's first line ending for generated text, defaulting to LF
+-- when the source has no newline. Normalize CRLF first to avoid doubling CR.
+withSourceLineEndings :: Text -> Text -> Text
+withSourceLineEndings source = Text.replace "\n" eol . Text.replace "\r\n" "\n"
+  where
+    (firstLine, rest) = Text.breakOn "\n" source
+    eol
+      | not (Text.null rest) && "\r" `Text.isSuffixOf` firstLine = "\r\n"
+      | otherwise = "\n"
+
+-- | Replacement text for a hole. Callers adapt its LF line endings to the source.
 diggedText :: HoleKind -> Range -> Text
 diggedText StmtHole range = "[!\n" <> ind <> "\n" <> ind <> "!]"
   where

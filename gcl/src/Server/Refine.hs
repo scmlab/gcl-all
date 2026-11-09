@@ -26,7 +26,7 @@ import Prettyprinter (layoutCompact, pretty)
 import Prettyprinter.Render.Text (renderStrict)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
-import Server.Load (applyEdits, collectHole, diggedText)
+import Server.Load (applyEdits, collectHole, digEdits)
 import Server.Monad
   ( FileState (..),
     PendingEdit (..),
@@ -164,7 +164,7 @@ refineAndDig filePath idCount spec source = do
     Left (Others "Refine" "The first line in the spec must be blank." (Just implRange))
   let implStart = rangeStart implRange
 
-  (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath implStart implText
+  (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath source implStart implText
   return (finalImplText, innerEditsRel, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
 refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error (T.Subst, T.Expr, [Hole], Inference))
@@ -176,7 +176,7 @@ refineHoleAndDig filePath hole source state = do
       implText = Text.strip $ extractText implRange source
       implStart = rangeStart implRange
 
-  (finalImplText, innerEditsRel, expr) <- parseAndDigHoleFragment filePath implStart implText
+  (finalImplText, innerEditsRel, expr) <- parseAndDigHoleFragment filePath source implStart implText
   return (finalImplText, innerEditsRel, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr (holeConstraint hole) state)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
@@ -219,11 +219,12 @@ loadConcreteHoleFragment typeEnv ty expr constraint state = do
 -- then absolute positions (fragmentStart) for the returned stmts.
 -- Returns (finalImplText, innerEditsRel, stmts), where innerEditsRel are the
 -- hole-digging edits in (1,1)-based coordinates relative to implText.
-parseAndDigFragment :: FilePath -> Pos -> Text -> Either Error (Text, [(Range, Text)], [C.Stmt])
-parseAndDigFragment filePath fragmentStart implText = do
+-- The source is only used to choose line endings for the dug text.
+parseAndDigFragment :: FilePath -> Text -> Pos -> Text -> Either Error (Text, [(Range, Text)], [C.Stmt])
+parseAndDigFragment filePath source fragmentStart implText = do
   -- TODO: reduce parsing
   (_, holes1) <- parseRelative implText
-  let innerEditsRel = map (\(kind, range) -> (range, diggedText kind range)) holes1
+  let innerEditsRel = digEdits source holes1
   case holes1 of
     [] -> do
       stmts <- parseAbsolute implText
@@ -241,10 +242,10 @@ parseAndDigFragment filePath fragmentStart implText = do
       return (stmts, collectHole stmts)
     parseAbsolute = parseFragmentStmts filePath fragmentStart
 
-parseAndDigHoleFragment :: FilePath -> Pos -> Text -> Either Error (Text, [(Range, Text)], C.Expr)
-parseAndDigHoleFragment filePath fragmentStart implText = do
+parseAndDigHoleFragment :: FilePath -> Text -> Pos -> Text -> Either Error (Text, [(Range, Text)], C.Expr)
+parseAndDigHoleFragment filePath source fragmentStart implText = do
   (_, holes1) <- parseRelative implText
-  let innerEditsRel = map (\(kind, range) -> (range, diggedText kind range)) holes1
+  let innerEditsRel = digEdits source holes1
   case holes1 of
     [] -> do
       expr <- parseAbsolute implText
