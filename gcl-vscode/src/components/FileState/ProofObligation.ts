@@ -84,7 +84,14 @@ export default function renderProofObligation(
           restFootPrints
             .map(
               (footPrint) =>
-                `<span class="footprint-hover-item">${renderFootPrint(footPrint)}</span>`,
+                `
+                <span class="footprint-hover-item">
+                  <strong>
+                    ${footPrint.tag}
+                  </strong>
+                  ${footPrint.range ? ` at ${renderRange(footPrint.range)}` : ""}
+                </span>
+                `
             )
             .join("")
         }
@@ -94,16 +101,16 @@ export default function renderProofObligation(
   const subtitle = firstFootPrint
     ? `
       <span ${restFootPrints.length > 0 ? 'class="proof-obligation-hover-trigger" tabindex="0"' : ""}>
-        ${renderFootPrint(firstFootPrint)}
+        ${firstFootPrint.range ? ` at ${renderRange(firstFootPrint.range)}` : ""}
         ${footPrintHover}
       </span>
       `
     : proofObligation.origin
-      ? `at ${renderRange(proofObligation.origin)}`
+      ? `${renderRange(proofObligation.origin)}`
       : "";
 
   return renderSection(
-    "Proof Obligation",
+    firstFootPrint ? firstFootPrint.tag : "",
     sectionBody,
     subtitle,
     code,
