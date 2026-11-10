@@ -1,6 +1,10 @@
-import { IProofObligation } from "../../data/FileState";
+import { IFootPrint, IProofObligation } from "../../data/FileState";
 import { renderRange } from "../Range";
 import renderSection from "../Section";
+
+function renderFootPrint(footPrint: IFootPrint): string {
+  return `${footPrint.tag}${footPrint.range ? ` at ${renderRange(footPrint.range)}` : ""}`;
+}
 
 export default function renderProofObligation(
   proofObligation: IProofObligation,
@@ -42,7 +46,7 @@ export default function renderProofObligation(
     </div>
   `;
   const smtResultHover = !isQED
-    ? `<span class="proof-obligation-smt-result-hover">${proofDetails}</span>`
+    ? `<span class="proof-obligation-hover-box proof-obligation-hover-box--smt">${proofDetails}</span>`
     : "";
   const codeButton = isTimeout || isUnknown
     ? `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`
@@ -60,51 +64,11 @@ export default function renderProofObligation(
           flex: none;
         }
         .proof-obligation-smt-result {
-          position: relative;
-          display: inline-block;
           margin: 0;
-        }
-        .proof-obligation-smt-result.has-details {
-          cursor: help;
-        }
-        .proof-obligation-smt-result .proof-obligation-smt-result-hover {
-          visibility: hidden;
-          opacity: 0;
-          pointer-events: none;
-          position: absolute;
-          z-index: 2;
-          bottom: 100%;
-          right: 0;
-          box-sizing: border-box;
-          width: max-content;
-          min-width: min(160px, calc(100vw - 56px));
-          max-width: min(340px, calc(100vw - 56px));
-          max-height: min(320px, 50vh);
-          overflow: auto;
-          padding: 8px 12px;
-          background: var(--vscode-editorHoverWidget-background);
-          color: var(--vscode-editorHoverWidget-foreground);
-          border: 1px solid var(--vscode-editorHoverWidget-border);
-          border-radius: 4px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-          font-family: var(--vscode-editor-font-family, monospace);
-          font-size: 12px;
-          font-weight: normal;
-          text-align: left;
-          line-height: 1.45;
-          white-space: pre-wrap;
-          overflow-wrap: anywhere;
-          transition: opacity 120ms ease;
-        }
-        .proof-obligation-smt-result:hover .proof-obligation-smt-result-hover,
-        .proof-obligation-smt-result:focus-within .proof-obligation-smt-result-hover {
-          visibility: visible;
-          opacity: 1;
-          pointer-events: auto;
         }
       </style>
       <div class="proof-obligation-smt-controls">
-        <p class="proof-obligation-smt-result${isQED ? "" : " has-details"}" ${isQED ? "" : 'tabindex="0"'}>
+        <p class="proof-obligation-smt-result${isQED ? "" : " proof-obligation-hover-trigger"}" ${isQED ? "" : 'tabindex="0"'}>
           <span ${isFalsifiable ? `style="color: lightcoral"` : ""}>${proofResult}${smtResultHover}</span>
         </p>
         ${codeButton}
@@ -112,11 +76,36 @@ export default function renderProofObligation(
     </div>
   `;
 
+  const [firstFootPrint, ...restFootPrints] = proofObligation.footPrints;
+  const footPrintHover = restFootPrints.length > 0
+    ? `
+      <span class="proof-obligation-hover-box proof-obligation-hover-box--footprints">
+        ${
+          restFootPrints
+            .map(
+              (footPrint) =>
+                `<span class="footprint-hover-item">${renderFootPrint(footPrint)}</span>`,
+            )
+            .join("")
+        }
+      </span>
+      `
+    : "";
+  const subtitle = firstFootPrint
+    ? `
+      <span ${restFootPrints.length > 0 ? 'class="proof-obligation-hover-trigger" tabindex="0"' : ""}>
+        ${renderFootPrint(firstFootPrint)}
+        ${footPrintHover}
+      </span>
+      `
+    : proofObligation.origin
+      ? `at ${renderRange(proofObligation.origin)}`
+      : "";
+
   return renderSection(
     "Proof Obligation",
     sectionBody,
-    proofObligation.origin &&
-    `at ${renderRange(proofObligation.origin)}`,
+    subtitle,
     code,
   );
 }

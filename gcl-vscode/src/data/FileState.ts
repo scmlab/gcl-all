@@ -38,8 +38,20 @@ export interface IProofObligation {
   proofExists: Boolean;
   smtResult: string;
   proofLocation?: Range;
+  footPrints: IFootPrint[];
   origin?: Range;
 }
+
+export type IFootPrint = {
+  tag:
+    | "IfTotal"
+    | "IfBranch"
+    | "LoopInvBase"
+    | "LoopInvInd"
+    | "LoopTermBase"
+    | "LoopTermInd";
+  range?: Range;
+};
 
 export type IStructWarning = MissingBound;
 
