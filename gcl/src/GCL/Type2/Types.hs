@@ -16,7 +16,10 @@ module GCL.Type2.Types
     reader,
     ask,
     asks,
+    askEnv,
+    askPEnv,
     local,
+    localEnv,
     -- State
     state,
     get,
@@ -49,6 +52,7 @@ import Control.Monad.RWS
     modify,
     runRWST,
   )
+import Data.Bifunctor (first)
 import Data.Map (Map)
 import Data.Text (pack)
 import GCL.Common (Counterous (..), Fresh (..))
@@ -90,6 +94,8 @@ type Subst = Map TyVar A.Type
 
 type Env = Map TmVar A.Scheme
 
+type PEnv = Map Name [A.Type] -- enviroment for declared procedures
+
 type Result = Either TypeError
 
 type RSE r s = RWST r () s Result
@@ -111,12 +117,13 @@ newtype Inference = Inference
 mkInference :: Inference
 mkInference = Inference 0
 
-type TIMonad = RSE Env Inference
+type TIMonad = RSE (Env, PEnv) Inference
 
-runTI :: TIMonad a -> Env -> Inference -> Result (a, Inference)
+-- XXX: leaky, why is this used more than runToTyped?
+runTI :: TIMonad a -> (Env, PEnv) -> Inference -> Result (a, Inference)
 runTI = runRSE
 
-evalTI :: TIMonad a -> Env -> Inference -> Result a
+evalTI :: TIMonad a -> (Env, PEnv) -> Inference -> Result a
 evalTI = evalRSE
 
 instance Counterous TIMonad where
@@ -146,3 +153,13 @@ typeInt = A.TBase A.TInt Nothing
 
 typeBool :: A.Type
 typeBool = A.TBase A.TBool Nothing
+
+askEnv :: TIMonad Env
+askEnv = fst <$> ask
+
+askPEnv :: TIMonad PEnv
+askPEnv = snd <$> ask
+
+localEnv :: (Env -> Env) -> TIMonad a -> TIMonad a
+localEnv f m = do
+  local (first f) m

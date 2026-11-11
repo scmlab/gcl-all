@@ -1,8 +1,7 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module Syntax.Parser
-  ( Parser (..),
+  ( Parser,
     scanAndParse,
     parse,
     parseWithTokList,
@@ -18,7 +17,7 @@ import Data.List.NonEmpty (NonEmpty)
 import Data.Text (Text)
 import GCL.Range
 import Language.Lexer.Applicative (TokenStream (TsEof, TsToken))
-import Syntax.Concrete hiding (Op)
+import Syntax.Concrete.Types (Stmt)
 import Syntax.Parser.Error
 import Syntax.Parser.Expr (expression)
 import Syntax.Parser.Lexer

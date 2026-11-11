@@ -80,7 +80,7 @@ instance MaybeRanged StructWarning where
   maybeRangeOf (MissingBound rng) = Just rng
 
 data StructError
-  = MissingAssertion (Maybe Range)
+  = MissingInvariant (Maybe Range)
   | MissingPostcondition (Maybe Range)
   | MultiDimArrayAsgnNotImp (Maybe Range)
   | -- Assignment to multi-dimensional array not implemented.
@@ -89,7 +89,7 @@ data StructError
   deriving (Eq, Show, Generic)
 
 instance MaybeRanged StructError where
-  maybeRangeOf (MissingAssertion l) = l
+  maybeRangeOf (MissingInvariant l) = l
   maybeRangeOf (MissingPostcondition l) = l
   maybeRangeOf (MultiDimArrayAsgnNotImp l) = l
   maybeRangeOf (LocalVarExceedScope l) = l

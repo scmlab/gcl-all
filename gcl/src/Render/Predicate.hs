@@ -21,7 +21,7 @@ instance RenderSection StructWarning where
       Section Yellow [Header "Bound Missing" (Just range), Paragraph (render x)]
 
 instance RenderSection Spec where
-  renderSection (Specification _ pre post range _) =
+  renderSection Specification {specPreCond = pre, specPostCond = post, specRange = range} =
     Section
       Blue
       [ Header "Precondition" (Just range),
@@ -78,13 +78,11 @@ exprOfPred p = case p of
 -- annotations. Interactive PO rendering goes through Server.ToClient with
 -- fsDefinitions, so no definition environment is needed here.
 instance RenderSection PO where
-  renderSection (PO _predicate reducedPredicate anchorHash anchorLoc origin) =
+  renderSection (PO _predicate reducedPredicate _ _ _ _ origin) =
     Section Plain $
-      [ HeaderWithButtons
+      [ Header
           (Text.pack $ show $ render origin)
           (maybeRangeOf origin)
-          anchorHash
-          anchorLoc
       ]
         <> [Code (renderPOPredRZ [] reducedPredicate)]
         <> explanation

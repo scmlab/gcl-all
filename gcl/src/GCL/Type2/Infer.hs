@@ -6,7 +6,7 @@
 
 module GCL.Type2.Infer where
 
-import Control.Monad (foldM, foldM_, when)
+import Control.Monad (foldM, when)
 import Data.List (intercalate, sort)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.List.NonEmpty as NE
@@ -24,11 +24,11 @@ import GCL.Type2.Types
     Subst,
     TIMonad,
     TypeError (..),
-    ask,
+    askEnv,
     freshTVar,
     freshTyVar,
     lift,
-    local,
+    localEnv,
     throwError,
     typeBool,
     typeInt,
@@ -72,7 +72,7 @@ instantiate (A.Forall tvs ty) = do
 
 generalize :: A.Type -> TIMonad A.Scheme
 generalize ty = do
-  env <- ask
+  env <- askEnv
   let fVars = freeVars ty `Set.difference` freeVars env
   return $ A.Forall (Set.toAscList fVars) ty
 
@@ -121,7 +121,7 @@ typeToKind A.TArray {} = return $ A.TType `typeToType` A.TType
 typeToKind A.TTuple {} = undefined
 typeToKind (A.TOp (Arrow _)) = return $ A.TType `typeToType` A.TType `typeToType` A.TType
 typeToKind (A.TData name _) = do
-  env <- ask
+  env <- askEnv
   case Map.lookup name env of
     Just (A.Forall _ k) -> return k
     Nothing -> throwError $ NotInScope name
@@ -180,7 +180,7 @@ inferLit lit range =
 
 inferVar :: Name -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferVar name range = do
-  env <- ask
+  env <- askEnv
   case Map.lookup name env of
     Just scheme -> do
       ty <- instantiate scheme
@@ -191,7 +191,7 @@ inferVar name range = do
 inferHole :: A.Hole -> TIMonad (Subst, A.Type, T.Hole)
 inferHole (A.Hole text holeNumber range) = do
   ty <- freshTVar
-  env <- ask
+  env <- askEnv
   return (mempty, ty, T.Hole text holeNumber ty range env)
 
 {-
@@ -227,7 +227,7 @@ inferChain (A.More chain@A.More {} op2 e2 l2) = do
   opTy <- getChainOpType op2
   (chainSubst, ty1, typedChain) <- inferChain chain
 
-  (s2, ty2, typedE2) <- local (applySubstEnv chainSubst) (infer e2)
+  (s2, ty2, typedE2) <- localEnv (applySubstEnv chainSubst) (infer e2)
   --- SCM:  ty1 -> s2 ty1 ?
   s3 <- lift $ unify opTy (ty1 `typeToType` ty2 `typeToType` typeBool) l2
   let resultSubst = s3 <> s2 <> chainSubst
@@ -238,7 +238,7 @@ inferChain (A.More chain@A.More {} op2 e2 l2) = do
 inferChain (A.More (A.Pure e1 _l1) op e2 l2) = do
   opTy <- getChainOpType op
   (s1, ty1, typedE1) <- infer e1
-  (s2, ty2, typedE2) <- local (applySubstEnv s1) (infer e2)
+  (s2, ty2, typedE2) <- localEnv (applySubstEnv s1) (infer e2)
 
   -- i think we should check if `ty1` == `ty2` == `opTy`?
   --                  SCM:  ty1 -> s2 ty1 ?
@@ -266,7 +266,7 @@ inferApp :: A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferApp e1 e2 range = do
   ftv <- freshTVar
   (s1, ty1, typedE1) <- infer e1
-  (s2, ty2, typedE2) <- local (applySubstEnv s1) (infer e2)
+  (s2, ty2, typedE2) <- localEnv (applySubstEnv s1) (infer e2)
 
   s3 <- lift $ unify (applySubst s2 ty1) (ty2 `typeToType` ftv) range
   let resultSubst = s3 <> s2 <> s1
@@ -283,7 +283,7 @@ inferApp e1 e2 range = do
 inferLam :: Name -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferLam param body range = do
   paramTy <- freshTVar
-  (bodySubst, bodyTy, typedBody) <- local (Map.insert param (A.Forall [] paramTy)) (infer body)
+  (bodySubst, bodyTy, typedBody) <- localEnv (Map.insert param (A.Forall [] paramTy)) (infer body)
 
   let paramTy' = applySubst bodySubst paramTy
   let returnTy = paramTy' `typeToType` bodyTy
@@ -295,7 +295,7 @@ inferTuple exprs = do
   (exprsSubst, exprsTy, typedExprs) <-
     foldM
       ( \(accSubst, accTy, typed) expr -> do
-          (exprSubst, exprTy, typedExpr) <- local (applySubstEnv accSubst) (infer expr)
+          (exprSubst, exprTy, typedExpr) <- localEnv (applySubstEnv accSubst) (infer expr)
           return (exprSubst <> accSubst, exprTy : accTy, typedExpr : typed)
       )
       (mempty, [], [])
@@ -336,6 +336,8 @@ inferOutT i expr = do
 
 inferQuant :: A.Expr -> [Name] -> A.Expr -> A.Expr -> Maybe Range -> TIMonad (Subst, A.Type, T.Expr)
 inferQuant op@(A.Op (Hash _)) bound cond expr range = do
+  lift $ checkDuplicateNames bound
+
   -- special case for `⟨ # bound : cond : expr ⟩`
   (_, _, typedOp) <- infer op -- I am lazy and this specific path is cheap
 
@@ -349,15 +351,15 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
         )
         bound
 
-  local
+  localEnv
     (\e -> boundEnv <> e)
     ( do
         (condSubst, typedCond) <- typeCheck cond typeBool
-        (exprSubst, typedExpr) <- local (applySubstEnv condSubst) (typeCheck expr typeBool)
+        (exprSubst, typedExpr) <- localEnv (applySubstEnv condSubst) (typeCheck expr typeBool)
 
         let resultSubst = exprSubst <> condSubst
 
-        env' <- applySubstEnv resultSubst <$> ask
+        env' <- applySubstEnv resultSubst <$> askEnv
         let bound' =
               map
                 ( \name ->
@@ -370,6 +372,8 @@ inferQuant op@(A.Op (Hash _)) bound cond expr range = do
         return (resultSubst, typeInt, typedQuant)
     )
 inferQuant op bound cond expr range = do
+  lift $ checkDuplicateNames bound
+
   ftv <- freshTVar
 
   -- introduce new vars
@@ -382,16 +386,17 @@ inferQuant op bound cond expr range = do
         )
         bound
 
-  local
+  (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
+
+  localEnv
     (\e -> boundEnv <> e)
     ( do
-        (opSubst, typedOp) <- typeCheck op (ftv `typeToType` ftv `typeToType` ftv)
-        (condSubst, typedCond) <- local (applySubstEnv opSubst) (typeCheck cond typeBool)
-        (exprSubst, typedExpr) <- local (applySubstEnv (condSubst <> opSubst)) (typeCheck expr (applySubst (condSubst <> opSubst) ftv))
+        (condSubst, typedCond) <- localEnv (applySubstEnv opSubst) (typeCheck cond typeBool)
+        (exprSubst, typedExpr) <- localEnv (applySubstEnv (condSubst <> opSubst)) (typeCheck expr (applySubst (condSubst <> opSubst) ftv))
 
         let resultSubst = exprSubst <> condSubst <> opSubst
 
-        env' <- applySubstEnv resultSubst <$> ask
+        env' <- applySubstEnv resultSubst <$> askEnv
         let bound' =
               map
                 ( \name ->
@@ -421,7 +426,7 @@ inferArrIdx arr index range = do
 
   ftv <- freshTVar
   (sa, typedArr) <- typeCheck arr (typeInt `typeToType` ftv)
-  (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
+  (si, typedIndex) <- localEnv (applySubstEnv sa) (typeCheck index typeInt)
 
   let resultSubst = si <> sa
   return (resultSubst, applySubst resultSubst ftv, T.ArrIdx typedArr typedIndex range)
@@ -450,8 +455,8 @@ inferArrUpd arr index expr range = do
     let interval' = case exprTy of A.TArray i _ _ -> i; _ -> error "impossible"
     s2 <- lift $ unify exprTy (typeInt `typeToType` ftv) (maybeRangeOf arr)
     return (s2 <> s1, typedExpr, interval')
-  (si, typedIndex) <- local (applySubstEnv sa) (typeCheck index typeInt)
-  (se, typedExpr) <- local (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv)) -- SCM: I think you need (si (sa ftv))
+  (si, typedIndex) <- localEnv (applySubstEnv sa) (typeCheck index typeInt)
+  (se, typedExpr) <- localEnv (applySubstEnv (si <> sa)) (typeCheck expr (applySubst si ftv)) -- SCM: I think you need (si (sa ftv))
   let resultSubst = se <> si <> sa
   return (resultSubst, A.TArray interval (applySubst resultSubst ftv) range, T.ArrUpd typedArr typedIndex typedExpr range)
 
@@ -501,7 +506,7 @@ inferCaseClause pattern expr ty = do
 
   (patSubst, patEnv) <- bindPattern pattern ty
 
-  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+  (exprSubst, exprTy, typedExpr) <- localEnv (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
 
   let resultSubst = exprSubst <> patSubst
 
@@ -553,7 +558,7 @@ inferTupleCaseClause patterns expr = do
           -- XXX: because the number of arguments is unknown if the signature is not provided
           -- we can only use freshTVar and subst later
           ftv' <- freshTVar
-          -- XXX: patterns shouldn't affect each other so `local` is not needed?
+          -- XXX: patterns shouldn't affect each other so `localEnv` is not needed?
           (patSubst, patEnv) <- bindPattern pat ftv'
 
           let patTy = applySubst patSubst ftv'
@@ -568,7 +573,7 @@ inferTupleCaseClause patterns expr = do
       )
       (mempty, mempty, ftv)
       (reverse patterns) -- XXX: patterns shouldn't affect each other so `reverse` is fine here?
-  (exprSubst, exprTy, typedExpr) <- local (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
+  (exprSubst, exprTy, typedExpr) <- localEnv (\e -> patEnv <> applySubstEnv patSubst e) (infer expr)
 
   unifySubst <- lift $ unify ftv exprTy (maybeRangeOf expr)
 
@@ -578,32 +583,7 @@ inferTupleCaseClause patterns expr = do
   return (resultSubst, applySubst (unifySubst <> exprSubst) ty, resultExpr)
 
 checkDuplicateBinders :: [A.Pattern] -> Result ()
-checkDuplicateBinders pats = do
-  foldM_ (\names pat -> aux pat names) [] pats
-  where
-    aux :: A.Pattern -> [Name] -> Result [Name]
-    aux (A.PattLit _) _binders = return []
-    aux (A.PattBinder name) binders =
-      if name `elem` binders
-        then throwError $ DuplicatedIdentifiers [name]
-        else return [name]
-    aux (A.PattWildcard _) _binders = return []
-    aux (A.PattTuple ps) binders =
-      foldM
-        ( \b' p -> do
-            b'' <- aux p b'
-            return (b'' <> b')
-        )
-        binders
-        ps
-    aux (A.PattConstructor _p ps) binders =
-      foldM
-        ( \b' p' -> do
-            b'' <- aux p' b'
-            return (b'' <> b')
-        )
-        binders
-        ps
+checkDuplicateBinders = checkDuplicateNames . concatMap A.extractBinder
 
 {-
 
@@ -654,7 +634,7 @@ bindPattern pat@(A.PattTuple ps) ty = do
       (zip ps tys) -- was `reverse tys` to compensate for inferTuple reversing its elements; now that inferTuple keeps source order, this must match in order too
   return (patsSubst, patsEnv)
 bindPattern (A.PattConstructor ctorName pats) ty = do
-  env <- ask
+  env <- askEnv
 
   patTy <- case Map.lookup ctorName env of
     Just scheme -> instantiate scheme

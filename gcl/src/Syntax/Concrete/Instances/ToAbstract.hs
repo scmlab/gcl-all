@@ -2,17 +2,19 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
 
 module Syntax.Concrete.Instances.ToAbstract where
 
-import Control.Arrow ((***))
+import Control.Monad (foldM)
+import Control.Monad.Except (ExceptT, runExceptT, throwError)
 import Control.Monad.State
-import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable (Bitraversable (bitraverse))
-import Data.Either (partitionEithers)
+import Data.Foldable (Foldable (foldMap'))
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Text as Text
 import GCL.Common
 import GCL.Range (MaybeRanged (maybeRangeOf), Range (..), rangeOf, (<--->))
@@ -21,13 +23,14 @@ import Pretty.Util
     docToText,
     toDoc,
   )
-import qualified Syntax.Abstract as A
 import qualified Syntax.Abstract.Operator as A
+import qualified Syntax.Abstract.Types as A
 import Syntax.Abstract.Util
-import Syntax.Common (ArithOp, Name (..))
+import Syntax.Common.Types (ArithOp, Name (..))
 import Syntax.Concrete.Instances.Located ()
 import Syntax.Concrete.Types
 import qualified Syntax.ConstExpr as ConstExpr
+import Syntax.Parser.Error (ParseError (SyntacticError))
 
 --------------------------------------------------------------------------------
 
@@ -36,20 +39,14 @@ type HoleCount = Int
 -- | Abstract Syntax Transformer Monad
 type AbstractTransformerM = State HoleCount
 
-runAbstractTransform :: (ToAbstract a b) => a -> b
-runAbstractTransform a = evalState (toAbstract a) 0
+runAbstractTransform :: (ToAbstract a b) => a -> Either ParseError b
+runAbstractTransform a = evalState (runExceptT (toAbstract a)) 0
 
 -- | Typeclass for converting Syntax.Concrete to Syntax.Abstract
 class ToAbstract a b | a -> b where
   toAbstract :: a -> AbsM b
 
-type AbsM a = State Int a
-
-instance Counterous (State Int) where
-  countUp = do
-    c <- get
-    put (c + 1)
-    return c
+type AbsM a = ExceptT ParseError (State Int) a
 
 instance (ToAbstract a b) => ToAbstract (Maybe a) (Maybe b) where
   toAbstract Nothing = return Nothing
@@ -68,12 +65,16 @@ instance ToAbstract Name Name where
 
 -- | Program
 instance ToAbstract Program A.Program where
-  toAbstract prog@(Program ds stmts') = do
-    (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
+  toAbstract prog@(Program defns' decls' procs' stmts' pragmas') = do
+    -- (decls, defns) <- second concat . partitionEithers <$> mapM toAbstract ds
+    defns <- concat <$> mapM toAbstract defns'
+    decls <- mapM toAbstract decls'
+    procs <- mapM toAbstract procs'
     let (globProps, assertions) = ConstExpr.pickGlobals decls
     let pre = [A.Assert (A.conjunct assertions) Nothing | not (null assertions)]
     stmts <- toAbstract stmts'
-    return $ A.Program defns decls globProps (pre ++ stmts) (maybeRangeOf prog)
+    pragmas <- toAbstract pragmas'
+    return $ A.Program defns decls procs globProps (pre ++ stmts) pragmas (maybeRangeOf prog)
 
 --------------------------------------------------------------------------------
 
@@ -84,10 +85,13 @@ instance ToAbstract DefinitionBlock [A.Definition] where
     (++) <$> mapM tdefToAbs tdefs <*> vdefsToAbs vdefs
 
 splitTypeValDefns :: [Definition] -> ([Definition], [Definition])
-splitTypeValDefns [] = ([], [])
-splitTypeValDefns (d@(TypeDefn {}) : ds) = ((d :) *** id) (splitTypeValDefns ds)
-splitTypeValDefns (d@(ValDefnSig {}) : ds) = (id *** (d :)) (splitTypeValDefns ds)
-splitTypeValDefns (d@(ValDefn {}) : ds) = (id *** (d :)) (splitTypeValDefns ds)
+splitTypeValDefns =
+  foldMap'
+    ( \d -> case d of
+        TypeDefn {} -> ([d], [])
+        ValDefnSig {} -> ([], [d])
+        ValDefn {} -> ([], [d])
+    )
 
 tdefToAbs :: Definition -> AbsM A.Definition
 tdefToAbs (TypeDefn tok name binders _ cons) = do
@@ -132,9 +136,14 @@ sepByToList (Delim a _ as) = a : sepByToList as
 
 desugarDefn :: (Name, Maybe Type, [Definition]) -> AbsM A.Definition
 desugarDefn (name, ty, defns) = do
-  A.ValDefn name
-    <$> toAbstract ty
-    <*> (desugarClauses (maybeRangeOf defns) =<< mapM extractFnClause defns)
+  clauses <- mapM extractFnClause defns
+
+  case clauses of
+    [] -> throwError $ SyntacticError ((Nothing, "no function body found") :| []) "" -- XXX: wtf is this error
+    cs ->
+      A.ValDefn name
+        <$> toAbstract ty
+        <*> desugarClauses (maybeRangeOf defns) cs
 
 extractFnClause :: Definition -> AbsM ([A.Pattern], A.Expr)
 extractFnClause (ValDefn _ ptns _ body) =
@@ -158,7 +167,7 @@ desugarClauses _ [(ptns, body)]
     patternBinder (A.PattBinder x) = Just x
     patternBinder _ = Nothing
 desugarClauses range clauses = do
-  fnames <- freshNames (replicate arity (Text.pack "arg"))
+  fnames <- lift $ freshNames (replicate arity (Text.pack "arg"))
   return $ wrapLam fnames (mkCase fnames)
   where
     arity = maximum (map (length . fst) clauses)
@@ -187,6 +196,26 @@ withRange f x = ($ maybeRangeOf x) <$> f x
 
 --------------------------------------------------------------------------------
 
+-- | Procedure
+instance ToAbstract Procedure A.Procedure where
+  toAbstract (Procedure _ name params pre block post) =
+    A.Procedure name <$> toAbstractParams params <*> toAbstract pre <*> toAbstractBlock block <*> toAbstract post
+    where
+      toAbstractParams (ProcParam _ params' _) =
+        mapM
+          ( \case
+              d@(PVarDecl _ base) -> do
+                (names, ty) <- toAbstract base
+                return $ A.VarParam names ty (maybeRangeOf d)
+              d@(PValueDecl _ base) -> do
+                (names, ty) <- toAbstract base
+                return $ A.ValueParam names ty (maybeRangeOf d)
+          )
+          $ sepByToList params'
+      toAbstractBlock (ProcBlock _ program _) = toAbstract program
+
+--------------------------------------------------------------------------------
+
 -- | Statement
 instance ToAbstract Stmt A.Stmt where
   toAbstract stmt = withRange toAbstract' stmt
@@ -205,12 +234,12 @@ instance ToAbstract Stmt A.Stmt where
       toAbstract' (Spec l xs r) = do
         let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
         return $ const (A.Spec text (rangeOf l <> rangeOf r))
-      toAbstract' (Proof anchor contents _ r) = return $ const (A.Proof anchor contents r)
       toAbstract' (Alloc p _ _ _ es _) = A.Alloc p <$> toAbstract es
       toAbstract' (HLookup x _ _ e) = A.HLookup x <$> toAbstract e
       toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
       toAbstract' (Dispose _ e) = A.Dispose <$> toAbstract e
       toAbstract' (Block _ p _) = A.Block <$> toAbstract p
+      toAbstract' (ProcCall p _ as _) = A.ProcCall p <$> toAbstract as
 
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =
@@ -353,6 +382,19 @@ instance (ToAbstract a b) => ToAbstract (SepBy sep a) [b] where
 instance ToAbstract Hole A.Hole where
   toAbstract (HoleQM _) = error "HoleQM should be digged before calling toAbstract"
   toAbstract (Syntax.Concrete.Types.Hole l xs r) = do
-    holeNumber <- countUp
+    holeNumber <- lift countUp
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
+
+instance {-# OVERLAPS #-} ToAbstract [Pragma] [A.Pragma] where
+  toAbstract =
+    foldM
+      ( \acc (Pragma _ content _) ->
+          case content of
+            (Proof proof _ proofText) -> do
+              let rTokToText = docToText . toDoc . prettyWithRange . map (fmap show)
+              let proof' = rTokToText proof
+              let proofText' = rTokToText proofText
+              return (A.Proof proof' proofText' : acc)
+      )
+      []

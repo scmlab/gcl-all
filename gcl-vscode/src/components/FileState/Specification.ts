@@ -2,11 +2,6 @@ import { ISpecification } from "../../data/FileState";
 import { renderRange } from "../Range";
 import renderSection from "../Section";
 
-// id: number;
-// preCondition: Predicate;
-// postCondition: Predicate;
-// specRange: Range;
-
 export default function renderSpecification(specification: ISpecification) {
   const sectionBody: string = /*html */ `
     <div>
@@ -20,11 +15,11 @@ export default function renderSpecification(specification: ISpecification) {
       <table class="proof-obligation">
         <tr>
           <td class="proof-point">Assume.</td>
-          <td>${specification.preCondition}</td>
+          <td>${specification.reducedPreCond}</td>
         </tr>
         <tr>
           <td class="proof-point">Require.</td>
-          <td>${specification.postCondition}</td>
+          <td>${specification.reducedPostCond}</td>
         </tr>
       </table>
     </div>

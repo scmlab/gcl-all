@@ -29,6 +29,9 @@ library
       GCL.Predicate
       GCL.Predicate.Util
       GCL.Range
+      GCL.SMT.Proof
+      GCL.SMT.Test
+      GCL.SMT.Types
       GCL.Type
       GCL.Type2.Infer
       GCL.Type2.Infer.BuiltIn
@@ -63,6 +66,7 @@ library
       Render.Syntax.Common
       Render.Syntax.Typed
       Server
+      Server.Config
       Server.FileState
       Server.GoToDefn
       Server.Handler
@@ -85,13 +89,14 @@ library
       Server.Notification.Update
       Server.OrigCoord
       Server.Reduce
+      Server.Reduce.Types
       Server.Refine
       Server.SrcLoc
       Server.ToClient
+      Server.Util
       Syntax.Abstract
       Syntax.Abstract.Instances.Json
       Syntax.Abstract.Instances.Located
-      Syntax.Abstract.Instances.Substitution
       Syntax.Abstract.Operator
       Syntax.Abstract.Types
       Syntax.Abstract.Util
@@ -118,12 +123,19 @@ library
       Syntax.Parser.Util
       Syntax.Substitution
       Syntax.Typed
+      Syntax.Typed.Definition
       Syntax.Typed.Instances.Free
       Syntax.Typed.Instances.Located
       Syntax.Typed.Instances.Substitution
       Syntax.Typed.Operator
       Syntax.Typed.Reduce
       Syntax.Typed.Reduce.Saturation
+      Syntax.Typed.Reduce2
+      Syntax.Typed.Reduce3
+      Syntax.Typed.Reduce4
+      Syntax.Typed.Structure
+      Syntax.Typed.Subst2
+      Syntax.Typed.Subst3
       Syntax.Typed.Types
       Syntax.Typed.Util
   other-modules:
@@ -133,7 +145,7 @@ library
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       aeson
-    , base >=4.7 && <5
+    , base >=4.19 && <5
     , bytestring
     , containers
     , deepseq
@@ -144,8 +156,6 @@ library
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , prettyprinter
     , random
@@ -165,7 +175,7 @@ executable gcl
   ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       aeson
-    , base >=4.7 && <5
+    , base >=4.19 && <5
     , bytestring
     , containers
     , deepseq
@@ -177,8 +187,6 @@ executable gcl
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , prettyprinter
     , random
@@ -193,11 +201,22 @@ test-suite gcl-test
   type: exitcode-stdio-1.0
   main-is: Test.hs
   other-modules:
+      Test.Config
       Test.Move
       Test.OrigCoord
       Test.Parser
+      Test.Reduce
+      Test.Reduce.Steps
+      Test.Reduce.Support
+      Test.Reduce2
+      Test.Reduce3
+      Test.Reduce4
       Test.Render
+      Test.ServerLineEndings
+      Test.ServerReduce
       Test.SrcLoc
+      Test.Subst2
+      Test.Subst2Property
       Test.Type
       Test.Util
       Paths_gcl
@@ -206,7 +225,7 @@ test-suite gcl-test
   ghc-options: -Wall -Werror=incomplete-patterns -fno-warn-orphans
   build-depends:
       aeson
-    , base >=4.7 && <5
+    , base >=4.19 && <5
     , bytestring
     , containers
     , deepseq
@@ -219,8 +238,6 @@ test-suite gcl-test
     , lsp
     , megaparsec >=9.2
     , mtl
-    , network
-    , network-simple
     , parser-combinators
     , pretty-simple
     , prettyprinter

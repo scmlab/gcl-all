@@ -1,7 +1,8 @@
 import { Range } from "vscode-languageclient";
 import { Error } from "./Error";
 
-type Predicate = string;
+type Predicate = string; // Plain text (pretty-printed).
+type Html = string; // Rendered HTML fragment.
 type Type = string;
 
 export interface ClientFileState {
@@ -10,12 +11,16 @@ export interface ClientFileState {
   specs: ISpecification[];
   pos: IProofObligation[];
   warnings: IStructWarning[];
+  globalProps: Html[];
 }
 
 export interface ISpecification {
   specID: string;
   preCondition: Predicate;
   postCondition: Predicate;
+  // Current display conditions, including clickable redexes.
+  reducedPreCond: Html;
+  reducedPostCond: Html;
   specRange: Range;
 }
 
@@ -26,9 +31,12 @@ export interface IHole {
 }
 
 export interface IProofObligation {
-  pred: Predicate;
-  reducedPred: Predicate;
-  hash: string;
+  pred: Html;
+  // Current display predicate, including clickable redexes.
+  reducedPred: Html;
+  strippedPred: Predicate;
+  proofExists: Boolean;
+  smtResult: string;
   proofLocation?: Range;
   origin: {
     tag:

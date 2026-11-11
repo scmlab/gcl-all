@@ -14,14 +14,12 @@ import Syntax.Common
     classify,
   )
 import Syntax.Typed
-import Syntax.Typed.Reduce
-  ( Env,
-    RZ,
-    currentPath,
-    descend,
-    initRZ,
-    isRedex,
-    redexRT_sat,
+import Syntax.Typed.Reduce4
+  ( DefnEnv,
+    RT,
+    RTree (..),
+    RedexPath,
+    redexRT,
   )
 
 ------------------------------------------------------------------------------
@@ -51,11 +49,11 @@ handleExpr n (App (Op (ArithOp op) _) e _) = case classify (ArithOp op) of -- un
 handleExpr n (App f e _) =
   -- should only be normal applications
   parensIf n Nothing $ renderPrec HOLEApp f <+> renderPrec AppHOLE e
-handleExpr prec (Lam p t q _) =
+handleExpr prec (Lam p _ q _) =
   let ifparens = case prec of
         NoContext -> id
         _ -> parensE
-   in ifparens $ "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> render q
+   in ifparens $ "λ" <+> render p <+> "→" <+> render q
 handleExpr _ (Tuple ps) =
   "(" <+> punctuateE "," (map render ps) <+> ")"
 handleExpr n (OutT i e) =
@@ -79,13 +77,9 @@ handleExpr _ (Quant op xs r t _) =
     renderQOp (Op op' _) = render op'
     renderQOp op' = render op'
     renderBinders [] = ""
-    renderBinders [(x, t)] = render x <+> " : " <+> render t
-    renderBinders ((x, t) : xs) =
-      render x
-        <+> " : "
-        <+> render t
-        <+> ";"
-        <+> renderBinders xs
+    renderBinders [(x, _)] = render x
+    renderBinders ((x, _) : xs) =
+      render x <+> renderBinders xs
 handleExpr _ (ArrIdx e1 e2 _) = render e1 <> "[" <> render e2 <> "]"
 handleExpr _ (ArrUpd e1 e2 e3 _) =
   "(" <+> render e1 <+> ":" <+> render e2 <+> "↣" <+> render e3 <+> ")"
@@ -108,22 +102,39 @@ handleExpr n (Subst e subs) =
 -- | Render an Expr to Inlines, threading the redexRT zipper so that redex
 -- nodes get wrapped (via `redexE`) with their path. Layout mirrors
 -- `handleExpr` exactly; the only addition is the per-node redex marking.
-renderExprRZ :: Env -> Expr -> Inlines
-renderExprRZ env e = handleExprRZ NoContext (initRZ [] (redexRT_sat env e)) e
+renderExprRZ :: DefnEnv -> Expr -> Inlines
+renderExprRZ defnEnv e = handleExprRZ NoContext (initRZ [] (redexRT defnEnv e)) e
 
 -- | Render a PO predicate. When the top-level operator is `⇒`, break it onto
 -- two lines (`P ⇒` / `Q`); otherwise fall back to `renderExprRZ`. The zipper
 -- paths mirror the binary-operator case in `handleExprRZ` so redex marking
 -- stays consistent.
-renderPOPredRZ :: Env -> Expr -> Inlines
-renderPOPredRZ env e@(App (App (Op (ArithOp op@(ImpliesU _)) _) left _) right _) =
-  let rz = initRZ [] (redexRT_sat env e)
+renderPOPredRZ :: DefnEnv -> Expr -> Inlines
+renderPOPredRZ defnEnv e@(App (App (Op (ArithOp op@(ImpliesU _)) _) left _) right _) =
+  let rz = initRZ [] (redexRT defnEnv e)
    in markRedex rz $
         vertE
           [ handleExprRZ (HOLEOp (ArithOp op)) (down (down rz 0) 1) left <+> render op,
             handleExprRZ (OpHOLE (ArithOp op)) (down rz 1) right
           ]
-renderPOPredRZ env e = renderExprRZ env e
+renderPOPredRZ defnEnv e = renderExprRZ defnEnv e
+
+-- | A cursor into an 'RT'.  The path is stored in reverse while descending so
+-- extending it is constant-time; 'currentPath' restores the UI-facing order.
+type RZ = ([Int], RT)
+
+initRZ :: RedexPath -> RT -> RZ
+initRZ prefix rt = (reverse prefix, rt)
+
+isRedex :: RZ -> Bool
+isRedex (_, Node reducible _) = reducible
+
+currentPath :: RZ -> RedexPath
+currentPath (reversedPath, _) = reverse reversedPath
+
+descend :: RZ -> [RZ]
+descend (reversedPath, Node _ children) =
+  zipWith (\index child -> (index : reversedPath, child)) [0 ..] children
 
 -- | Wrap with a redex marker iff the current zipper node is a redex.
 markRedex :: RZ -> Inlines -> Inlines
@@ -159,11 +170,11 @@ handleExprRZ n rz (App (Op (ArithOp op) _) e _) = case classify (ArithOp op) of 
 handleExprRZ n rz (App f e _) =
   -- normal applications
   markRedex rz $ parensIf n Nothing $ handleExprRZ HOLEApp (down rz 0) f <+> handleExprRZ AppHOLE (down rz 1) e
-handleExprRZ prec rz (Lam p t q _) =
+handleExprRZ prec rz (Lam p _ q _) =
   let ifparens = case prec of
         NoContext -> id
         _ -> parensE
-   in markRedex rz $ ifparens $ "λ (" <+> render p <+> " : " <+> render t <+> ") →" <+> handleExprRZ NoContext (down rz 0) q
+   in markRedex rz $ ifparens $ "λ" <+> render p <+> "→" <+> handleExprRZ NoContext (down rz 0) q
 handleExprRZ _ rz (Tuple ps) =
   markRedex rz $ "(" <+> punctuateE "," (zipWith (\i p -> handleExprRZ NoContext (down rz i) p) [0 ..] ps) <+> ")"
 handleExprRZ n rz (OutT i e) =
@@ -171,26 +182,26 @@ handleExprRZ n rz (OutT i e) =
 handleExprRZ _ rz (Quant op xs r t _) =
   markRedex rz $
     "⟨"
-      <+> renderQOp op
+      <+> renderQOp (down rz 0) op
       <+> renderBinders xs
       <+> ":"
-      <+> handleExprRZ NoContext (down rz 0) r
+      <+> handleExprRZ NoContext (down rz 1) r
       <+> ":"
-      <+> handleExprRZ NoContext (down rz 1) t
+      <+> handleExprRZ NoContext (down rz 2) t
       <+> "⟩"
   where
-    renderQOp (Op (ArithOp (Conj _)) _) = "∀"
-    renderQOp (Op (ArithOp (ConjU _)) _) = "∀"
-    renderQOp (Op (ArithOp (Disj _)) _) = "∃"
-    renderQOp (Op (ArithOp (DisjU _)) _) = "∃"
-    renderQOp (Op (ArithOp (Add _)) _) = "Σ"
-    renderQOp (Op (ArithOp (Mul _)) _) = "Π"
-    renderQOp (Op op' _) = render op'
-    renderQOp op' = render op'
+    renderQOp _ (Op (ArithOp (Conj _)) _) = "∀"
+    renderQOp _ (Op (ArithOp (ConjU _)) _) = "∀"
+    renderQOp _ (Op (ArithOp (Disj _)) _) = "∃"
+    renderQOp _ (Op (ArithOp (DisjU _)) _) = "∃"
+    renderQOp _ (Op (ArithOp (Add _)) _) = "Σ"
+    renderQOp _ (Op (ArithOp (Mul _)) _) = "Π"
+    renderQOp _ (Op op' _) = render op'
+    renderQOp opRZ op' = handleExprRZ NoContext opRZ op'
     renderBinders [] = ""
-    renderBinders [(x, t')] = render x <+> " : " <+> render t'
-    renderBinders ((x, t') : xs') =
-      render x <+> " : " <+> render t' <+> ";" <+> renderBinders xs'
+    renderBinders [(x, _)] = render x
+    renderBinders ((x, _) : xs') =
+      render x <+> renderBinders xs'
 handleExprRZ _ rz (ArrIdx e1 e2 _) =
   markRedex rz $ handleExprRZ NoContext (down rz 0) e1 <> "[" <> handleExprRZ NoContext (down rz 1) e2 <> "]"
 handleExprRZ _ rz (ArrUpd e1 e2 e3 _) =

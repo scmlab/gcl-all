@@ -133,7 +133,7 @@ expression = do
           Const <$> upper,
           Quant
             <$> choice [Left <$> tokenQuantOpen, Right <$> tokenQuantOpenU]
-            <*> choice [Left <$> arithOp, Right <$> identifier]
+            <*> (Left <$> quantifierOp)
             <*> some lower
             <*> tokenColon
             <*> expression
@@ -159,32 +159,49 @@ expression = do
         helper a [] = a
         helper a ((o, x, c) : xs) = helper (Arr a o x c) xs
 
-    arithOp :: Parser ArithOp
-    arithOp =
+    -- The operators a quantifier may aggregate with.
+    --
+    -- Deliberately narrow. An aggregation needs an identity -- its range may be
+    -- empty -- along with associativity and commutativity, since the range is a
+    -- set and so fixes no order. The tool can only carry that table for
+    -- operators it knows, and the language offers no way for a user-defined name
+    -- to supply one. Hence names are refused here, as are built-in operators
+    -- that do not meet those requirements.
+    --
+    -- Two admitted operators are not fully covered by that argument: "↑" and "↓"
+    -- have no identity over unbounded Int, so what an empty range means for them
+    -- is still open. They are admitted because the examples rely on them, and
+    -- narrowing the slot does not make that gap worse.
+    --
+    -- "#" is admitted although the reasoning above does not describe it:
+    -- ⟨ # x : R : T ⟩ counts rather than folds, and inferQuant gives it its own
+    -- typing rule.
+    --
+    -- This restriction applies to surface syntax only. Abstract and typed Quant
+    -- still store the operator as an arbitrary Expr, while some downstream code
+    -- may rely on parser-produced operators being built-ins. Before admitting
+    -- names or other forms here, audit every Quant consumer, especially
+    -- free-variable/substitution handling and reduction/render path indexing.
+    quantifierOp :: Parser ArithOp
+    quantifierOp =
       choice
-        [ Implies . Just <$> symbol TokImpl,
-          ImpliesU . Just <$> symbol TokImplU,
-          Conj . Just <$> symbol TokConj,
-          ConjU . Just <$> symbol TokConjU,
-          Disj . Just <$> symbol TokDisj,
-          DisjU . Just <$> symbol TokDisjU,
-          Neg . Just <$> symbol TokNeg,
-          NegU . Just <$> symbol TokNegU,
-          Add . Just <$> symbol TokAdd,
-          Sub . Just <$> symbol TokSub,
-          Mul . Just <$> symbol TokMul,
-          Div . Just <$> symbol TokDiv,
-          Mod . Just <$> symbol TokMod,
-          Max . Just <$> symbol TokMax,
-          Min . Just <$> symbol TokMin,
-          Exp . Just <$> symbol TokExp,
-          Add . Just <$> symbol TokSum,
-          Mul . Just <$> symbol TokProd,
-          Conj . Just <$> symbol TokForall,
-          Disj . Just <$> symbol TokExist,
-          Hash . Just <$> symbol TokHash
+        -- Grouped by constructor, because several spellings share one: that is
+        -- why "Σ" and "∃" come back out of the pretty-printer as "+" and "||".
+        [ Add . Just <$> symbol TokAdd, -- "+"
+          Add . Just <$> symbol TokSum, -- "Σ"
+          Mul . Just <$> symbol TokMul, -- "*"
+          Mul . Just <$> symbol TokProd, -- "∏"
+          Conj . Just <$> symbol TokConj, -- "&&"
+          Conj . Just <$> symbol TokForall, -- "∀"
+          ConjU . Just <$> symbol TokConjU, -- "∧"
+          Disj . Just <$> symbol TokDisj, -- "||"
+          Disj . Just <$> symbol TokExist, -- "∃"
+          DisjU . Just <$> symbol TokDisjU, -- "∨"
+          Max . Just <$> symbol TokMax, -- "↑"
+          Min . Just <$> symbol TokMin, -- "↓"
+          Hash . Just <$> symbol TokHash -- "#"
         ]
-        <?> "arithmetic operator"
+        <?> "quantifier operator"
 
 pattern' :: Parser Pattern
 pattern' =

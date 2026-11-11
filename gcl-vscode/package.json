@@ -3,7 +3,7 @@
   "displayName": "gcl-vscode",
   "description": "An Interactive Formal Verification tool for Guarded Command Language",
   "publisher": "scmlab",
-  "version": "0.0.1",
+  "version": "0.0.5",
   "packageManager": "pnpm@11.3.0",
   "repository": {
     "type": "git",
@@ -59,17 +59,17 @@
       {
         "command": "gcl.reload",
         "key": "ctrl+c ctrl+l",
-        "when": "!editorHasSelection && editorTextFocus"
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
       },
       {
         "command": "gcl.refine",
         "key": "ctrl+c ctrl+r",
-        "when": "!editorHasSelection && editorTextFocus"
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
       },
       {
         "command": "gcl.debug",
         "key": "ctrl+c ctrl+/",
-        "when": "editorTextFocus"
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
       }
     ],
     "configuration": [
@@ -79,7 +79,28 @@
           "gcl-vscode.gclPath": {
             "type": "string",
             "default": "",
-            "description": "Path to the `gcl` LSP executable. Leave empty to use the binary bundled with the extension; set a path to override (e.g. a locally built `gcl`)."
+            "description": "Path to the `gcl` LSP executable. Leave empty to use the binary bundled with the extension; set a path to override (e.g. a locally built `gcl`). Changes apply after running Developer: Reload Window."
+          },
+          "gcl-vscode.SMTProverPath": {
+            "type": "string",
+            "default": "",
+            "description": "Path to the Z3 SMT solver executable. Leave empty to use the binary bundled with the extension; set a path to override (e.g. a locally installed `z3`). Changes apply after running Developer: Reload Window."
+          },
+          "gcl-vscode.SMTTimeoutMs": {
+            "type": "integer",
+            "default": 2000,
+            "minimum": 1,
+            "maximum": 2147483647,
+            "scope": "window",
+            "description": "Time budget in milliseconds shared by all proof obligations in each load. Reduction and solver startup may add overhead. Changes apply on the next GCL Reload."
+          },
+          "gcl-vscode.SMTReductionLimit": {
+            "type": "integer",
+            "default": 100,
+            "minimum": 1,
+            "maximum": 2147483647,
+            "scope": "window",
+            "description": "Maximum reduction steps per expression before SMT solving. Applies separately to each global property and proof obligation. Changes apply on the next GCL Reload."
           },
           "gcl-vscode.trace.server": {
             "type": "string",
@@ -106,7 +127,8 @@
     "pretest": "pnpm run compile && pnpm run lint",
     "lint": "eslint src --ext ts",
     "format": "prettier . --write",
-    "test": "vscode-test"
+    "test": "vscode-test",
+    "test:webview": "node --test test/webview.test.cjs"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",

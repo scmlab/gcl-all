@@ -40,8 +40,8 @@ RUN bash -x build.sh
 # Fetches the z3 SMT solver, used by gcl at runtime (via sbv).
 # Only the single `z3` executable + its MIT LICENSE are extracted.
 # Arch is selected from TARGETARCH so the same Dockerfile builds x64 and arm64.
-# Reuses the ubuntu-24.04 base (same as the gcl stage; already has curl/unzip
-# and matching glibc) so `z3 --version` here is a real runtime smoke test.
+# Uses Ubuntu 24.04 for curl/unzip and glibc compatibility with the downloaded
+# binaries. `z3 --version` verifies that the executable can run.
 #
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04 AS z3fetch
 # TARGETARCH is auto-populated by BuildKit from the target platform
@@ -57,19 +57,6 @@ RUN case "$TARGETARCH" in \
       "https://github.com/Z3Prover/z3/releases/download/z3-${Z3_VER}/${Z3_DIR}.zip" && \
     unzip -j /tmp/z3.zip "${Z3_DIR}/bin/z3" "${Z3_DIR}/LICENSE.txt" -d /z3 && \
     test -f /z3/LICENSE.txt && /z3/z3 --version
-
-
-#
-# Production runtime image for gcl users.
-#
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04 AS gcl
-COPY --from=build-artifacts --chown=vscode:vscode /home/vscode/.local/bin/gcl /home/vscode/.local/bin/
-COPY --from=build-artifacts --chown=vscode:vscode /home/vscode/*.vsix         /home/vscode/
-COPY --from=z3fetch --chown=vscode:vscode /z3/z3          /home/vscode/.local/bin/z3
-COPY --from=z3fetch --chown=vscode:vscode /z3/LICENSE.txt /home/vscode/.local/share/z3/LICENSE.txt
-
-
-########################################
 
 
 #

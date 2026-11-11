@@ -19,9 +19,11 @@ where
 import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingleConstructors, (.=))
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Text as JSONText
 import Data.List.NonEmpty (toList)
 import qualified Data.Text as T
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as LazyText
 import qualified Error
 import qualified GCL.Predicate as GCL
 import GCL.Range (MaybeRanged (..), Range)
@@ -35,12 +37,13 @@ import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Render.Class (Render (..))
 import Render.Element (inlinesToHtml)
-import Render.Syntax.Typed (renderPOPredRZ)
+import Render.Syntax.Typed (renderExprRZ, renderPOPredRZ)
 import qualified Server.Monad as Server
+import qualified Server.Reduce.Types as Reduce
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
-import Syntax.Typed.Reduce (Env)
+import Syntax.Typed.Reduce4 (DefnEnv)
 
 -- | Client-facing payload for gcl/update notification.
 -- Produced by the server after trimming internal fields (semantic tokens,
@@ -50,7 +53,8 @@ data ClientFileState = ClientFileState
     specs :: [Specification],
     holes :: [Hole],
     pos :: [ProofObligation],
-    warnings :: [StructWarning]
+    warnings :: [StructWarning],
+    globalProps :: [Text.Text]
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
@@ -60,6 +64,9 @@ data Specification = Specification
   { specID :: String,
     preCondition :: String,
     postCondition :: String,
+    -- HTML of the current display conditions, including clickable redexes.
+    reducedPreCond :: Text.Text,
+    reducedPostCond :: Text.Text,
     specRange :: LSP.Range
   }
   deriving stock (Show, Generic)
@@ -76,8 +83,10 @@ data Hole = Hole
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
   { pred :: Text.Text, -- HTML (with data-redex), see renderPredHtml
-    reducedPred :: Text.Text,
-    hash :: String,
+    reducedPred :: Text.Text, -- HTML of the current display predicate.
+    strippedPred :: Text.Text,
+    proofExists :: Bool,
+    smtResult :: Text.Text,
     proofLocation :: Maybe LSP.Range,
     origin :: POOrigin
   }
@@ -111,21 +120,33 @@ toClientFileState :: Server.FileState -> ClientFileState
 toClientFileState fs =
   ClientFileState
     { errors = map convertError (Server.fsErrors fs),
-      specs = map convertSpec (Server.fsSpecifications fs),
+      specs = map (convertSpec (Server.fsDefinitions fs)) (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = zipWith (convertPO (Server.fsDefinitions fs)) [0 ..] (Server.fsProofObligations fs),
-      warnings = map convertWarning (Server.fsWarnings fs)
+      warnings = map convertWarning (Server.fsWarnings fs),
+      globalProps = map convertGlobalProp (Server.fsGlobalProps fs)
     }
 
 -- | Convert server-side Spec to client-side Specification
-convertSpec :: GCL.Spec -> Specification
-convertSpec (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specRange}) =
+convertSpec :: DefnEnv -> GCL.Spec -> Specification
+convertSpec defnEnv (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specReducedPreCond, GCL.specReducedPostCond, GCL.specRange}) =
   Specification
     { specID = show specID,
       preCondition = show $ pretty specPreCond,
       postCondition = show $ pretty specPostCond,
+      reducedPreCond = renderSpecPredHtml (Reduce.SpecificationPrecondition specID) specReducedPreCond,
+      reducedPostCond = renderSpecPredHtml (Reduce.SpecificationPostcondition specID) specReducedPostCond,
       specRange = toLSPRange specRange
     }
+  where
+    renderSpecPredHtml target expr =
+      -- Targets contain only fixed constructor names and numeric IDs, so their
+      -- JSON is safe inside this single-quoted HTML attribute.
+      "<span class=\"gcl-expr\" data-target='"
+        <> LazyText.toStrict (JSONText.encodeToLazyText target)
+        <> "'>"
+        <> inlinesToHtml (renderExprRZ defnEnv expr)
+        <> "</span>"
 
 convertHole :: GCL.Hole -> Hole
 convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
@@ -136,12 +157,14 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
     }
 
 -- | Convert server-side PO to client-side ProofObligation
-convertPO :: Env -> Int -> GCL.PO -> ProofObligation
-convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poAnchorHash, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO :: DefnEnv -> Int -> GCL.PO -> ProofObligation
+convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poOrigin}) =
   ProofObligation
-    { pred = renderPredHtml env poIndex poPred,
-      reducedPred = renderPredHtml env poIndex poReducedPred,
-      hash = Text.unpack poAnchorHash,
+    { pred = renderPredHtml defnEnv poIndex poPred,
+      reducedPred = renderPredHtml defnEnv poIndex poReducedPred,
+      strippedPred = poStrippedPred,
+      proofExists = poProofExists,
+      smtResult = poSMTResult,
       proofLocation = fmap toLSPRange poAnchorRange,
       origin = convertOrigin poOrigin
     }
@@ -149,12 +172,12 @@ convertPO env poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poAnchorHash, 
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
 -- The wrapper carries data-po (PO index) so a clicked redex can be traced back
 -- to its PO; redex nodes carry data-redex (the path within this Expr).
-renderPredHtml :: Env -> Int -> GCL.Pred -> Text.Text
-renderPredHtml env poIndex e =
+renderPredHtml :: DefnEnv -> Int -> GCL.Pred -> Text.Text
+renderPredHtml defnEnv poIndex e =
   "<span class=\"gcl-expr\" data-po=\""
     <> Text.pack (show poIndex)
     <> "\">"
-    <> inlinesToHtml (renderPOPredRZ env e)
+    <> inlinesToHtml (renderPOPredRZ defnEnv e)
     <> "</span>"
 
 -- | Convert server-side Origin to client-side POOrigin
@@ -170,6 +193,9 @@ convertOrigin origin =
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
 convertWarning (GCL.MissingBound rng) = MissingBound {range = toLSPRange rng}
+
+convertGlobalProp :: GCL.Pred -> Text.Text
+convertGlobalProp prop = inlinesToHtml (render prop)
 
 --------------------------------------------------------------------------------
 -- JSON instances for client types
@@ -316,7 +342,7 @@ convertTypeError (Type.PatternArityMismatch e a l) =
 
 -- | Client-side StructError
 data StructError
-  = MissingAssertion {location :: Maybe LSP.Range}
+  = MissingInvariant {location :: Maybe LSP.Range}
   | MissingPostcondition {location :: Maybe LSP.Range}
   | MultiDimArrayAsgnNotImp {location :: Maybe LSP.Range}
   | LocalVarExceedScope {location :: Maybe LSP.Range}
@@ -325,8 +351,8 @@ data StructError
 
 -- | Convert server-side StructError to client-side StructError
 convertStructError :: WP.StructError -> StructError
-convertStructError (WP.MissingAssertion l) =
-  MissingAssertion {location = fmap toLSPRange l}
+convertStructError (WP.MissingInvariant l) =
+  MissingInvariant {location = fmap toLSPRange l}
 convertStructError (WP.MissingPostcondition l) =
   MissingPostcondition {location = fmap toLSPRange l}
 convertStructError (WP.MultiDimArrayAsgnNotImp l) =

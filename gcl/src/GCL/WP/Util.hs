@@ -14,7 +14,6 @@ import Control.Monad.RWS
     local,
     withRWST,
   )
-import qualified Data.Hashable as Hashable
 import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -27,13 +26,14 @@ import GCL.Predicate
   ( Origin (..),
     PO (..),
     Pred,
-    Spec (Specification),
+    Spec (..),
   )
 import GCL.Range (Range)
 import GCL.Type2.Types (Env)
 import GCL.WP.Types
-import Numeric (showHex)
-import Pretty (toString)
+import Pretty (LayoutOptions (LayoutOptions), PageWidth (Unbounded), pretty)
+import Prettyprinter (layoutPretty)
+import Prettyprinter.Render.Text (renderStrict)
 import Syntax.Abstract.Types (Type (..))
 import Syntax.Common
   ( nameToText,
@@ -100,9 +100,9 @@ tellPO p q origin = unless (p == q) $ do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q
   let predicate = implies p q
-  let anchorHash =
-        Text.pack $ showHex (abs (Hashable.hash (toString predicate))) ""
-  tell ([PO predicate predicate anchorHash Nothing origin], [], [], mempty)
+  let strippedPred = renderStrict $ layoutPretty (LayoutOptions Unbounded) $ pretty predicate
+
+  tell ([PO predicate predicate strippedPred False "" Nothing origin], [], [], mempty)
 
 tellPO' :: Origin -> Pred -> Pred -> WP ()
 tellPO' l p q = tellPO p q l
@@ -112,7 +112,17 @@ tellSpec p q typeEnv l = do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q
   i <- countUp
-  tell ([], [Specification i p q l typeEnv], [], mempty)
+  let spec =
+        Specification
+          { specID = i,
+            specPreCond = p,
+            specPostCond = q,
+            specReducedPreCond = p,
+            specReducedPostCond = q,
+            specRange = l,
+            specTypeEnv = typeEnv
+          }
+  tell ([], [spec], [], mempty)
 
 throwWarning :: StructWarning -> WP ()
 throwWarning warning = tell ([], [], [warning], mempty)

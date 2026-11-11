@@ -1,9 +1,17 @@
 import System.IO (hSetEncoding, stderr, stdin, stdout, utf8)
+import qualified Test.Config as Config
 import qualified Test.Move as Move
 import qualified Test.OrigCoord as OrigCoord
 import qualified Test.Parser as Parser
+import qualified Test.Reduce2 as Reduce2
+import qualified Test.Reduce3 as Reduce3
+import qualified Test.Reduce4 as Reduce4
 import qualified Test.Render as Render
+import qualified Test.ServerLineEndings as ServerLineEndings
+import qualified Test.ServerReduce as ServerReduce
 import qualified Test.SrcLoc as SrcLoc
+import qualified Test.Subst2 as Subst2
+import qualified Test.Subst2Property as Subst2Property
 import Test.Tasty
   ( TestTree,
     defaultMain,
@@ -23,10 +31,18 @@ tests :: TestTree
 tests =
   testGroup
     "Tests"
-    [ Move.tests,
+    [ Config.tests,
+      Move.tests,
       OrigCoord.tests,
       Parser.tests,
+      Reduce2.tests,
+      Reduce3.tests,
+      Reduce4.tests,
       Render.tests,
+      ServerLineEndings.tests,
+      ServerReduce.tests,
       SrcLoc.tests,
+      Subst2.tests,
+      Subst2Property.tests,
       Type.tests
     ]

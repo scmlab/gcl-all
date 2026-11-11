@@ -9,19 +9,6 @@ import Syntax.Common
     TypeOp (Arrow),
   )
 
--- funcDefnSigsToConstDecl :: FuncDefnSig -> [Declaration]
--- funcDefnSigsToConstDecl (FuncDefnSig name t prop loc) =
--- [ConstDecl [name] t prop loc]
-
--- typeDefnCtorsToConstDecl :: TypeDefn -> [Declaration]
--- typeDefnCtorsToConstDecl (TypeDefn name binders qdcons _) = map wrap qdcons
--- where
--- wrap (TypeDefnCtor cn ts) = ConstDecl
--- [cn]
--- (wrapTFunc ts (TCon name binders (locOf name <--> locOfList binders)))
--- Nothing
--- (locOf cn)
-
 wrapTFunc :: [Type] -> Type -> Type
 wrapTFunc [] t = t
 wrapTFunc (t : ts) t0 = let t0' = wrapTFunc ts t0 in TApp (TApp (TOp (Arrow Nothing)) t Nothing) t0' (maybeRangeOf t0) -- TODO: What should the loc be?
@@ -41,47 +28,6 @@ declaredNames decls = concat . map extractNames $ decls
   where
     extractNames (ConstDecl ns _ _ _) = ns
     extractNames (VarDecl ns _ _ _) = ns
-
--- function definition           => Just Expr
--- constant/variable declaration => Nothing
-
--- TODO:
--- programToScopeForSubstitution :: Program -> Map Text (Maybe Expr)
--- programToScopeForSubstitution (Program defns decls _ _ _) =
---   Map.mapKeys nameToText $
---     foldMap extractDeclaration decls
---       <> ( Map.fromList
---              . map (second Just)
---              . Maybe.mapMaybe pickFuncDefn
---          )
---         defns
---   where
---     extractDeclaration :: Declaration -> Map Name (Maybe Expr)
---     extractDeclaration (ConstDecl names _ _ _) =
---       Map.fromList (zip names (repeat Nothing))
---     extractDeclaration (VarDecl names _ _ _) =
---       Map.fromList (zip names (repeat Nothing))
---
--- pickFuncDefn :: Definition -> Maybe (Name, Expr)
--- pickFuncDefn (ValDefn n _ : expr) = Just (n, expr)
--- pickFuncDefn _ = Nothing
-
-{-
-combineFuncDefns :: [Definition] -> [Definition]
-combineFuncDefns defns =
-  let (funcDefns, otherDefns) =
-        List.partition (Maybe.isJust . pickFuncDefn) defns
-  in  let combinedFuncDefns = map (uncurry FuncDefn) . Map.toList $ foldl
-            (\m (FuncDefn n es) -> Map.insertWith (<>) n es m)
-            mempty
-            funcDefns
-      in  combinedFuncDefns <> otherDefns
--}
--- collectFuncDefns = Map.fromListWith mergeFuncDefnsOfTheSameName
--- . map (\(FuncDefn name clauses _) -> (name, map (uncurry wrapLam) clauses))
--- where
--- mergeFuncDefnsOfTheSameName :: [Expr] -> [Expr] -> [Expr]
--- mergeFuncDefnsOfTheSameName = (<>)
 
 baseToName :: TBase -> Name
 baseToName TInt = Name "Int" Nothing

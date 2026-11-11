@@ -1,5 +1,12 @@
 # gcl-all
 
+To use a released version of GCL, choose one of these setups:
+
+- In local VS Code, install [gcl-vscode from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=scmlab.gcl-vscode).
+- In Codespaces or a local Dev Container, use [gcl-sample-container](https://github.com/scmlab/gcl-sample-container), which installs the Marketplace extension in a Microsoft Dev Container image.
+
+For development or testing unreleased source, use this repository's Dev Container with `ghcr.io/scmlab/gcl-dev:latest`. The image provides development tools, prebuilt Haskell dependencies, Z3, and a prebuilt GCL binary. Follow the steps below to rebuild GCL from your checkout and launch the development extension.
+
 ## Local Development
 0. (optional) Run test-clean-start.sh
 1. Open the project in a dev container
@@ -13,6 +20,18 @@
 4. Open a vscode terminal in `gcl/` and run "stack install" to update ~/.local/bin/gcl
 5. Press `Ctrl + F5` to launch the extension + LSP server in a new window
 
+
+## SMT settings
+The following VS Code settings can be set in User or Workspace settings:
+
+```json
+{
+  "gcl-vscode.SMTTimeoutMs": 2000,
+  "gcl-vscode.SMTReductionLimit": 100
+}
+```
+
+Setting keys are case-sensitive; the `SMT` prefix must be uppercase. Changes apply on the next GCL Reload without restarting the server. All proof obligations in a load share the time budget; each global property and proof obligation has its own reduction step limit. Reduction and solver startup may add overhead beyond the time budget.
 
 ## Codespaces
 1. Select "Code -> Codespaces -> Create codespace on main" and wait for 5 to 10 minutes. If it hangs, delete it and start over again.
