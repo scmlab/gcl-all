@@ -44,7 +44,7 @@ jobs:
             vsceTarget: linux-arm64
             z3Asset: z3-4.16.0-arm64-glibc-2.38
             z3Bin: z3
-          - os: macos-14            # Apple Silicon (arm64)
+          - os: macos-15            # Apple Silicon (arm64)
             target: macos-arm64
             bin: gcl
             vsceTarget: darwin-arm64
@@ -130,10 +130,10 @@ jobs:
           cp "../gcl/dist/${{ matrix.bin }}" "bin/${{ matrix.bin }}"
 
           # Bundle the matching z3 solver binary + its MIT license into the VSIX.
-          # gcl (via sbv) looks up `z3` on PATH at runtime; the extension prepends
-          # this bin/ dir to PATH when spawning gcl (see src/client.ts). z3.exe on
-          # Windows is standalone (libz3.dll is only for API bindings), so the exe
-          # alone suffices. Mirrors the z3fetch stage in the Dockerfile.
+          # The extension sets SBV_Z3 to the selected Z3 executable when spawning
+          # gcl (bundled in this bin/ directory by default; see src/client.ts).
+          # z3.exe on Windows is standalone (libz3.dll is only for API bindings),
+          # so the exe alone suffices. Mirrors the z3fetch stage in the Dockerfile.
           # Download into the working dir (not /tmp) to dodge MSYS path
           # translation when invoking the native 7z on the Windows runner.
           curl -fsSL -o z3.zip \

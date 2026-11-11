@@ -149,17 +149,30 @@ parseAndDig filePath source = do
         Right concrete -> Right (concrete, collectHole concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
-        edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
+        edits = digEdits (eolOf src) holeList
 
 --------------------------------------------------------------------------------
 -- Hole digging
 
--- | Replacement text for a hole, matching the behaviour of Server.Monad.digHoles.
-diggedText :: HoleKind -> Range -> Text
-diggedText StmtHole range = "[!\n" <> ind <> "\n" <> ind <> "!]"
+-- | Hole-digging edits, using the supplied EOL (LF or CRLF) for generated text.
+digEdits :: Text -> [(HoleKind, Range)] -> [(Range, Text)]
+digEdits eol holes =
+  map (\(kind, range) -> (range, diggedText eol kind range)) holes
+
+-- | The source's first line ending, defaulting to LF when there is no newline.
+eolOf :: Text -> Text
+eolOf source
+  | not (Text.null rest) && "\r" `Text.isSuffixOf` firstLine = "\r\n"
+  | otherwise = "\n"
+  where
+    (firstLine, rest) = Text.breakOn "\n" source
+
+-- | Replacement text for a hole, using the supplied EOL (LF or CRLF).
+diggedText :: Text -> HoleKind -> Range -> Text
+diggedText eol StmtHole range = Text.intercalate eol ["[!", ind, ind <> "!]"]
   where
     ind = Text.replicate (posCol (rangeStart range) - 1) " "
-diggedText ExprHole _ = "{! !}"
+diggedText _ ExprHole _ = "{! !}"
 
 -- | Apply a list of non-overlapping edits to source text.
 -- Edits must not overlap. They are applied using positions in the original source,

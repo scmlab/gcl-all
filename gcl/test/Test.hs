@@ -7,6 +7,8 @@ import qualified Test.Reduce2 as Reduce2
 import qualified Test.Reduce3 as Reduce3
 import qualified Test.Reduce4 as Reduce4
 import qualified Test.Render as Render
+import qualified Test.ServerLineEndings as ServerLineEndings
+import qualified Test.ServerReduce as ServerReduce
 import qualified Test.SrcLoc as SrcLoc
 import qualified Test.Subst2 as Subst2
 import qualified Test.Subst2Property as Subst2Property
@@ -37,6 +39,8 @@ tests =
       Reduce3.tests,
       Reduce4.tests,
       Render.tests,
+      ServerLineEndings.tests,
+      ServerReduce.tests,
       SrcLoc.tests,
       Subst2.tests,
       Subst2Property.tests,
