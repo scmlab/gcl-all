@@ -26,7 +26,7 @@ import Error (Error (..))
 import GCL.Range (MaybeRanged (..), Pos (Pos), Range (Range), mkPos, mkRange, posCol, posLine, posOrd, rangeEnd, rangeStart)
 import GCL.Spec (Hole (..), Spec (..))
 import GCL.Type2.Types (TypeError (..))
-import GCL.WP.Types (PO (..), StructError (..), StructWarning (..))
+import GCL.WP.Types (PO (..), StructError (..), StructWarning (..), alterFootPrintLoc)
 import qualified Hack
 import qualified Language.LSP.Protocol.Types as LSP
 import Server.FileState (FileState (..))
@@ -296,14 +296,15 @@ applyMovesToSpec moves spec@Specification {specRange = oldRange} = do
 -- POs are diagnostic artifacts (read-only, like errors): never dropped on
 -- didChange. If the edit overlaps the PO's range, the range is frozen at its
 -- current position until the next load regenerates POs.
--- 目前只維護 poOrigin 裡面的 location，而沒有更新 poPred 裡面的位置資訊
+-- 目前只維護 poOrigin 與 poFootPrints 裡面的 location，而沒有更新 poPred 裡面的位置資訊
 applyMovesToPO :: [GCLMove] -> PO -> PO
-applyMovesToPO moves po@PO {poOrigin} =
-  case poOrigin of
-    Nothing -> po
-    Just oldRange ->
-      let newRange = shiftContainerRangeOrFreeze moves oldRange
-       in po {poOrigin = Just newRange}
+applyMovesToPO moves po@PO {poFootPrints, poOrigin} =
+  let poOrigin' = fmap (shiftContainerRangeOrFreeze moves) poOrigin
+      poFootPrints' = map (alterFootPrintLoc (shiftContainerRangeOrFreeze moves)) poFootPrints
+   in po
+        { poFootPrints = poFootPrints',
+          poOrigin = poOrigin'
+        }
 
 -- 目前只維護 holeRange，而沒有更新 holeType 裡面的位置資訊
 applyMovesToHole :: [GCLMove] -> Hole -> Maybe Hole
@@ -316,16 +317,3 @@ applyMovesToHole moves hole@Hole {holeRange = oldRange} = do
 applyMovesToWarning :: [GCLMove] -> StructWarning -> StructWarning
 applyMovesToWarning moves (MissingBound oldRange) =
   MissingBound (shiftContainerRangeOrFreeze moves oldRange)
-
-{-
-setOriginRange :: Maybe Range -> Origin -> Origin
-setOriginRange l (AtAbort _) = AtAbort l
-setOriginRange l (AtSkip _) = AtSkip l
-setOriginRange l (AtSpec _) = AtSpec l
-setOriginRange l (AtAssignment _) = AtAssignment l
-setOriginRange l (AtAssertion _) = AtAssertion l
-setOriginRange l (AtIf _) = AtIf l
-setOriginRange l (AtLoop _) = AtLoop l
-setOriginRange l (AtTermination _) = AtTermination l
-setOriginRange l (Explain h e i p _) = Explain h e i p l
--}
