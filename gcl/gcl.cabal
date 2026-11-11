@@ -211,6 +211,7 @@ test-suite gcl-test
       Test.Reduce3
       Test.Reduce4
       Test.Render
+      Test.ServerLineEndings
       Test.ServerReduce
       Test.SrcLoc
       Test.Subst2
