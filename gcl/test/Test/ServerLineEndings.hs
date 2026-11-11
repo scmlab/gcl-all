@@ -4,8 +4,8 @@ module Test.ServerLineEndings (tests) where
 
 import Data.Text (Text)
 import qualified Data.Text as Text
-import GCL.Predicate (Spec (..))
 import GCL.Range (mkPos, mkRange)
+import GCL.Spec (Spec (..))
 import Server.FileState (FileState (..))
 import Server.Load (applyEdits, eolOf, loadAndDig, parseAndDig)
 import Server.Refine (refineAndDig)
