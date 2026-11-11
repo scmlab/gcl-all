@@ -9,8 +9,8 @@ module GCL.Type2.ToTyped where
 import Control.Monad (foldM, unless, void, when, zipWithM)
 import Data.Bifunctor (Bifunctor (..))
 import Data.Either (lefts)
+import Data.Foldable (foldMap')
 import Data.Graph (SCC)
-import qualified Data.Graph as Graph
 import Data.List (foldl', nub)
 import qualified Data.Map as Map
 import Data.Text (pack)
@@ -68,7 +68,6 @@ validateType _ = return ()
 findName :: Name -> TIMonad ()
 findName name = do
   env <- askEnv
-  traceM $ show env
   case Map.lookup name env of
     Just _ -> return ()
     Nothing -> throwError $ NotInScope name
@@ -252,14 +251,18 @@ instance ToTyped D.Program T.Program where
         (declEnv, [])
         defns
 
-    let newEnv = defnEnv
-    let newPEnv = mempty
+    let pEnv = foldMap' (\(A.Procedure name params _ _ _) -> Map.singleton name (concatMap extractParamType params)) procs
 
-    typedDecls <- local (const (newEnv, newPEnv)) (mapM toTyped decls)
-    typedExprs <- local (const (newEnv, newPEnv)) (mapM toTyped exprs)
-    typedStmts <- local (const (newEnv, newPEnv)) (mapM toTyped stmts)
+    let newEnv = (defnEnv, pEnv)
+
+    typedDecls <- local (const newEnv) (mapM toTyped decls)
+    typedExprs <- local (const newEnv) (mapM toTyped exprs)
+    typedStmts <- local (const newEnv) (mapM toTyped stmts)
 
     return $ T.Program typedDefns typedDecls typedExprs typedStmts range
+    where
+      extractParamType (A.VarParam names ty _) = replicate (length names) ty
+      extractParamType (A.ValueParam names ty _) = replicate (length names) ty
 
 instance ToTyped A.Declaration T.Declaration where
   toTyped (A.ConstDecl names ty prop range) = do
