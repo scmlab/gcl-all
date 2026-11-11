@@ -4,8 +4,8 @@ module Server.Util (evalSMTProofs) where
 
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Data.Text as Text
-import GCL.Predicate (PO (..))
 import GCL.SMT.Proof (evaluateAsString)
+import GCL.WP.Types (PO (..))
 import GHC.Clock (getMonotonicTimeNSec)
 import Language.LSP.Server (getConfig)
 import Server.Config (Config (..))

@@ -26,12 +26,12 @@ library
       GCL.Exec.ExecMonad
       GCL.Exec.ExNondet
       GCL.Exec.ExRand
-      GCL.Predicate
-      GCL.Predicate.Util
       GCL.Range
       GCL.SMT.Proof
       GCL.SMT.Test
       GCL.SMT.Types
+      GCL.Spec
+      GCL.Spec.Util
       GCL.Type
       GCL.Type2.Infer
       GCL.Type2.Infer.BuiltIn
@@ -41,7 +41,6 @@ library
       GCL.Type2.Types
       GCL.Type2.Unify
       GCL.WP
-      GCL.WP.Explanation
       GCL.WP.SP
       GCL.WP.Struct
       GCL.WP.Types

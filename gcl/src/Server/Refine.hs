@@ -11,15 +11,15 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Predicate (Hole (..), HoleError, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
+import GCL.Spec (Hole (..), HoleError, Spec (..))
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.Subst (applySubst)
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference, runTI)
 import qualified GCL.Type2.Types as T
 import GCL.WP (collectTypedHole, runWP, structStmts)
-import GCL.WP.Types (StructError, StructWarning (..))
+import GCL.WP.Types (InfMode (..), PO (..), StructError, StructWarning (..))
 import Language.Lexer.Applicative (TokenStream (..))
 import Pretty.Error ()
 import Prettyprinter (layoutCompact, pretty)

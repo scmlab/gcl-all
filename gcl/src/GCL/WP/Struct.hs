@@ -2,17 +2,12 @@
 
 module GCL.WP.Struct where
 
+import Control.Applicative ((<|>))
 import Control.Arrow (first, second)
 import Control.Monad (forM_)
 import Data.Text (Text)
 import GCL.Common (freshName)
-import GCL.Predicate
-  ( InfMode (..),
-    Origin (..),
-    Pred,
-  )
 import GCL.Range (MaybeRanged (..))
-import GCL.WP.Explanation
 import GCL.WP.Types
 import GCL.WP.Util
 import Syntax.Abstract.Operator (tInt)
@@ -27,6 +22,7 @@ import Syntax.Typed.Operator
     disjunct,
     eqq,
     gte,
+    implies,
     lt,
     neg,
   )
@@ -49,28 +45,18 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
       Nothing -> return () -- skip if the program is incomplete
       Just stmts' -> do
         post' <- wpSStmts stmts' post
-        tellPO
-          pre
-          post'
-          (emptyExplain "Assertion (Secondary)" (maybeRangeOf pre))
+        tellPO (maybeRangeOf pre) (pre `implies` post')
 
     -- handles  {P} [SegElm] {Q}
     structSegs :: (Pred, Maybe Expr) -> [SegElm] -> Pred -> WP ()
-    structSegs (pre, _) [] post = do
-      case maybeRangeOf pre of
-        Nothing -> tellPO pre post (AtAssertion (maybeRangeOf post))
-        others -> tellPO pre post (AtAssertion others)
+    structSegs (pre, _) [] post =
+      tellPO (maybeRangeOf pre <|> maybeRangeOf post) (pre `implies` post)
     structSegs (pre, _) (SAsrt (Assert p _) : segs) post = do
-      tellPO pre p (AtAssertion (maybeRangeOf pre))
+      tellPO (maybeRangeOf pre) (pre `implies` p)
       structSegs (p, Nothing) segs post
     structSegs (pre, _) (SAsrt (LoopInvariant p bnd l) : segs) post = do
-      tellPO pre p origin
+      tellPO l (pre `implies` p)
       structSegs (p, Just bnd) segs post
-      where
-        startsWithDo :: [SegElm] -> Bool
-        startsWithDo (SStmts (Do _ _ : _) : _) = True
-        startsWithDo _ = False
-        origin = if startsWithDo segs then AtLoop l else AtAssertion l
     structSegs (pre, bnd) [SStmts ss] post =
       structSStmts (pre, bnd) ss post
     structSegs (pre, bnd) (SStmts ss : SAsrt (Assert p _) : segs) post = do
@@ -83,10 +69,10 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
     structSegs (pre, bnd) (SStmts ss : SSpec (Spec _ range tenv) : segs) post = do
       post' <- wpSegs segs post
       pre' <- spSStmts (pre, bnd) ss
-      tellSpec pre' post' tenv range
+      tellSpec range pre' post' tenv
     structSegs (pre, _) (SSpec (Spec _ range tenv) : segs) post = do
       post' <- wpSegs segs post
-      tellSpec pre post' tenv range
+      tellSpec range pre post' tenv
     structSegs _ _ _ = error "Missing case in structSegs"
 
     -- 'simple' version of struct stmts -- there are no assertions,
@@ -94,56 +80,67 @@ structFunctions (wpSegs, wpSStmts, wp, spSStmts) =
 
     structSStmts :: (Pred, Maybe Expr) -> [Stmt] -> Pred -> WP ()
     structSStmts (pre, _) [] post = do
-      case maybeRangeOf pre of
-        Nothing -> tellPO pre post (AtAssertion (maybeRangeOf post))
-        others -> tellPO pre post (AtAssertion others)
+      tellPO (maybeRangeOf pre <|> maybeRangeOf post) (pre `implies` post)
     structSStmts (pre, bnd) (stmt : stmts) post = do
       post' <- wpSStmts stmts post
       struct (pre, bnd) stmt post'
 
     struct :: (Pred, Maybe Expr) -> Stmt -> Pred -> WP ()
-    struct (pre, _) s@(Abort l) post = tellPO' (AtAbort l) pre =<< wp s post
-    struct (pre, _) s@(Skip l) post = tellPO' (AtSkip l) pre =<< wp s post
-    struct (pre, _) s@(Assign vars exprs l) post = do
-      tellPO' origin pre =<< wp s post
-      where
-        origin :: Origin
-        origin = explainAssignment pre post vars exprs l
+    struct (pre, _) s@(Abort l) post = tellPO l . (pre `implies`) =<< wp s post
+    struct (pre, _) s@(Skip l) post = tellPO l . (pre `implies`) =<< wp s post
+    struct (pre, _) s@(Assign vars exprs l) post =
+      tellPO l . (pre `implies`) =<< wp s post
     struct (pre, _) s@(AAssign _ _ _ l) post = do
-      tellPO' (AtAssignment l) pre =<< wp s post
+      tellPO l . (pre `implies`) =<< wp s post
     struct (pre, _) (If gcmds l) post = do
-      tellPO pre (disjunctGuards gcmds) (AtIf l)
-      forM_ gcmds $ \(GdCmd guard body _) ->
-        structStmts Primary (pre `conj` guard, Nothing) body post
+      footPrint
+        (IfTotal l)
+        (tellPO l (pre `implies` disjunctGuards gcmds))
+      footPrint
+        (IfBranch l)
+        ( forM_ gcmds $ \(GdCmd guard body _) ->
+            structStmts Primary (pre `conj` guard, Nothing) body post
+        )
     struct (inv, Just bnd) (Do gcmds l) post = do
       let guards = getGuards gcmds
-      tellPO
-        (conjunct (inv : map neg guards))
-        post
-        (explainAfterLoop inv guards l)
-      forM_ gcmds (structGdcmdInduct inv)
-      tellPO
-        (inv `conj` disjunct guards)
-        (bnd `gte` Lit (Num 0) tInt Nothing)
-        (explainTermination inv guards bnd l)
-      forM_ gcmds (structGdcmdBnd inv bnd)
+      footPrint
+        (LoopInvBase l)
+        (tellPO l (conjunct (inv : map neg guards) `implies` post))
+      footPrint
+        (LoopInvInd l)
+        (forM_ gcmds (structGdcmdInduct inv))
+      footPrint
+        (LoopTermBase l)
+        ( tellPO
+            l
+            ( (inv `conj` disjunct guards)
+                `implies` (bnd `gte` Lit (Num 0) tInt Nothing)
+            )
+        )
+      footPrint
+        (LoopTermInd l)
+        (forM_ gcmds (structGdcmdBnd inv bnd))
     struct (inv, Nothing) (Do gcmds l) post = do
       case l of
         Nothing -> return ()
         Just rng -> throwWarning (MissingBound rng)
       let guards = getGuards gcmds
-      tellPO (conjunct (inv : map neg guards)) post (AtLoop l)
-      forM_ gcmds (structGdcmdInduct inv)
+      footPrint
+        (LoopInvBase l)
+        (tellPO l (conjunct (inv : map neg guards) `implies` post))
+      footPrint
+        (LoopInvInd l)
+        (forM_ gcmds (structGdcmdInduct inv))
     struct _ Proof {} _ = return ()
     struct (pre, _) (Block prog _) post = structBlock pre prog post
     struct (pre, _) s@(Alloc _ _ l) post = do
-      tellPO' (AtAbort l) pre =<< wp s post
+      tellPO l . (pre `implies`) =<< wp s post
     struct (pre, _) s@(HLookup _ _ l) post = do
-      tellPO' (AtAbort l) pre =<< wp s post
+      tellPO l . (pre `implies`) =<< wp s post
     struct (pre, _) s@(HMutate _ _ l) post = do
-      tellPO' (AtAbort l) pre =<< wp s post
+      tellPO l . (pre `implies`) =<< wp s post
     struct (pre, _) s@(Dispose _ l) post = do
-      tellPO' (AtAbort l) pre =<< wp s post
+      tellPO l . (pre `implies`) =<< wp s post
     struct _ _ _ = error "missing case in struct"
 
     structGdcmdInduct :: Pred -> GdCmd -> WP ()

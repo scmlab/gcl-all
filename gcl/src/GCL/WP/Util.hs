@@ -22,13 +22,8 @@ import GCL.Common
     Fresh (..),
     freshName',
   )
-import GCL.Predicate
-  ( Origin (..),
-    PO (..),
-    Pred,
-    Spec (..),
-  )
 import GCL.Range (Range)
+import GCL.Spec (Spec (..))
 import GCL.Type2.Types (Env)
 import GCL.WP.Types
 import Pretty (LayoutOptions (LayoutOptions), PageWidth (Unbounded), pretty)
@@ -39,7 +34,7 @@ import Syntax.Common
   ( nameToText,
   )
 import Syntax.Typed
-import Syntax.Typed.Operator (disjunct, implies)
+import Syntax.Typed.Operator (disjunct)
 import Syntax.Typed.Util
 
 -- Syntax Manipulation
@@ -95,20 +90,16 @@ disjunctGuards = disjunct . getGuards
 
 -- PO handling
 
-tellPO :: Pred -> Pred -> Origin -> WP ()
-tellPO p q origin = unless (p == q) $ do
-  -- p' <- substitute [] [] p
-  -- q' <- substitute [] [] q
-  let predicate = implies p q
-  let strippedPred = renderStrict $ layoutPretty (LayoutOptions Unbounded) $ pretty predicate
+tellPO :: Maybe Range -> Pred -> WP ()
+tellPO loc p = do
+  let strippedPred = renderStrict $ layoutPretty (LayoutOptions Unbounded) $ pretty p
+  withFootPrints
+    ( \fps ->
+        tell ([PO p p strippedPred False "" Nothing fps loc], [], [], mempty)
+    )
 
-  tell ([PO predicate predicate strippedPred False "" Nothing origin], [], [], mempty)
-
-tellPO' :: Origin -> Pred -> Pred -> WP ()
-tellPO' l p q = tellPO p q l
-
-tellSpec :: Pred -> Pred -> Env -> Range -> WP ()
-tellSpec p q typeEnv l = do
+tellSpec :: Range -> Pred -> Pred -> Env -> WP ()
+tellSpec l p q typeEnv = do
   -- p' <- substitute [] [] p
   -- q' <- substitute [] [] q
   i <- countUp
@@ -134,19 +125,28 @@ withFreshVar t f = do
   name <- freshName' "bnd"
   let var = Var name t Nothing
   withRWST
-    ( \(decls, scopes) st ->
-        ((Map.insert (nameToText name) Nothing decls, scopes), st)
+    ( \(decls, scopes, ffs) st ->
+        ((Map.insert (nameToText name) Nothing decls, scopes, ffs), st)
     )
     (f var)
 
 withLocalScopes :: ([[Text]] -> WP a) -> WP a
 withLocalScopes f = do
-  (_, scopes) <- ask
+  (_, scopes, _) <- ask
   f scopes
 
 withScopeExtension :: [Text] -> WP a -> WP a
 withScopeExtension names =
-  local (\(defns, scopes) -> (defns, names : scopes))
+  local (\(defns, scopes, ffs) -> (defns, names : scopes, ffs))
+
+withFootPrints :: ([FootPrint] -> WP a) -> WP a
+withFootPrints f = do
+  (_, _, ffs) <- ask
+  f ffs
+
+footPrint :: FootPrint -> WP a -> WP a
+footPrint ff =
+  local (\(defns, scopes, ffs) -> (defns, scopes, ff : ffs))
 
 freshPreInScope :: Text -> [Text] -> Text
 freshPreInScope pref scope

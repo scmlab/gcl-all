@@ -5,8 +5,8 @@ module Pretty.Error where
 
 import Data.Foldable (toList)
 import Error
-import GCL.Predicate (HoleError (..))
 import GCL.Range (MaybeRanged (..), displayPos)
+import GCL.Spec (HoleError (..))
 import GCL.Type2.Types (TypeError (..))
 import GCL.WP.Types
   ( StructError (..),

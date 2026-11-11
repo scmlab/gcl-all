@@ -25,8 +25,8 @@ import qualified Data.Text as T
 import qualified Data.Text as Text
 import qualified Data.Text.Lazy as LazyText
 import qualified Error
-import qualified GCL.Predicate as GCL
 import GCL.Range (MaybeRanged (..), Range)
+import qualified GCL.Spec as GCL
 import qualified GCL.Type2.Types as Type
 import qualified GCL.WP.Types as GCL
 import qualified GCL.WP.Types as WP
@@ -88,10 +88,27 @@ data ProofObligation = ProofObligation
     proofExists :: Bool,
     smtResult :: Text.Text,
     proofLocation :: Maybe LSP.Range,
-    origin :: POOrigin
+    footPrints :: [FootPrint],
+    origin :: Maybe LSP.Range
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
+
+data FootPrint
+  = IfTotal (Maybe LSP.Range)
+  | IfBranch (Maybe LSP.Range)
+  | LoopInvBase (Maybe LSP.Range)
+  | LoopInvInd (Maybe LSP.Range)
+  | LoopTermBase (Maybe LSP.Range)
+  | LoopTermInd (Maybe LSP.Range)
+  deriving stock (Show, Generic)
+
+instance JSON.ToJSON FootPrint where
+  toJSON =
+    genericToJSON
+      defaultOptions
+        { sumEncoding = JSON.TaggedObject "tag" "range"
+        }
 
 -- | Client-side POOrigin type (matches TypeScript origin type)
 data POOrigin = POOrigin
@@ -158,7 +175,7 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 
 -- | Convert server-side PO to client-side ProofObligation
 convertPO :: DefnEnv -> Int -> GCL.PO -> ProofObligation
-convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poFootPrints, GCL.poOrigin}) =
   ProofObligation
     { pred = renderPredHtml defnEnv poIndex poPred,
       reducedPred = renderPredHtml defnEnv poIndex poReducedPred,
@@ -166,8 +183,17 @@ convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStripped
       proofExists = poProofExists,
       smtResult = poSMTResult,
       proofLocation = fmap toLSPRange poAnchorRange,
-      origin = convertOrigin poOrigin
+      footPrints = map convertFootPrint poFootPrints,
+      origin = fmap toLSPRange poOrigin
     }
+
+convertFootPrint :: GCL.FootPrint -> FootPrint
+convertFootPrint (GCL.IfTotal r) = IfTotal (fmap toLSPRange r)
+convertFootPrint (GCL.IfBranch r) = IfBranch (fmap toLSPRange r)
+convertFootPrint (GCL.LoopInvBase r) = LoopInvBase (fmap toLSPRange r)
+convertFootPrint (GCL.LoopInvInd r) = LoopInvInd (fmap toLSPRange r)
+convertFootPrint (GCL.LoopTermBase r) = LoopTermBase (fmap toLSPRange r)
+convertFootPrint (GCL.LoopTermInd r) = LoopTermInd (fmap toLSPRange r)
 
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
 -- The wrapper carries data-po (PO index) so a clicked redex can be traced back
@@ -179,16 +205,6 @@ renderPredHtml defnEnv poIndex e =
     <> "\">"
     <> inlinesToHtml (renderPOPredRZ defnEnv e)
     <> "</span>"
-
--- | Convert server-side Origin to client-side POOrigin
--- Uses the Render instance to get the tag name and MaybeRanged to get location
-convertOrigin :: GCL.Origin -> POOrigin
-convertOrigin origin =
-  POOrigin
-    { tag = Text.pack (show (render origin)),
-      location = fmap toLSPRange (maybeRangeOf origin),
-      explanation = Nothing
-    }
 
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning
