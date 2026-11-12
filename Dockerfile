@@ -73,6 +73,7 @@ RUN case "$TARGETARCH" in \
 # 0.8.0.2 is the newest release that builds with GHC 9.8 (0.8.1.0 and later
 # need ghc-lib-parser 9.14, i.e. GHC >= 9.10). ghc-lib-parser is pinned to the
 # version in the official release binaries; the index state pins the rest.
+# Keep ORMOLU_VER in sync with the run-ormolu version in .github/workflows/PR.yml.
 # Only the stripped ormolu executable (~75MB) is extracted. CABAL_DIR (~2GB)
 # is removed in the same RUN to keep the cabal store out of the layer cache.
 #

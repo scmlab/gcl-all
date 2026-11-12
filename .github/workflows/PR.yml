@@ -20,6 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: haskell-actions/run-ormolu@v17
+        with:
+          # keep in sync with ORMOLU_VER in Dockerfile
+          version: "0.8.0.2"
 
   check-build:
     runs-on: ubuntu-latest
