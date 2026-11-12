@@ -1,7 +1,15 @@
 #
+# Base Haskell image: GHC, stack and HLS installed via ghcup.
+# Its GHC must match the resolver in gcl/stack.yaml, since stack is set up
+# to use the system GHC and not to install its own.
+#
+FROM ghcr.io/lcamel/haskell-devcontainer:stackage-lts-23.28 AS haskell-base
+
+
+#
 # Installs NVM and Node.js on top of the base Haskell image.
 #
-FROM ghcr.io/lcamel/haskell-devcontainer:stackage-lts-23.28 AS haskell-and-nodejs
+FROM haskell-base AS haskell-and-nodejs
 USER vscode
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash && \
     export NVM_DIR="$HOME/.nvm" && \
@@ -60,6 +68,32 @@ RUN case "$TARGETARCH" in \
 
 
 #
+# Builds ormolu, the Haskell formatter checked by CI.
+# There is no official aarch64-linux release binary, so it is built from source.
+# 0.8.0.2 is the newest release that builds with GHC 9.8 (0.8.1.0 and later
+# need ghc-lib-parser 9.14, i.e. GHC >= 9.10). ghc-lib-parser is pinned to the
+# version in the official release binaries; the index state pins the rest.
+# Only the stripped ormolu executable (~75MB) is extracted. CABAL_DIR (~2GB)
+# is removed in the same RUN to keep the cabal store out of the layer cache.
+#
+FROM haskell-base AS ormolu-build
+USER vscode
+ARG ORMOLU_VER=0.8.0.2
+ARG GHC_LIB_PARSER_VER=9.12.1.20250105
+ARG HACKAGE_INDEX_STATE=2026-11-01T00:00:00Z
+RUN . $HOME/.ghcup/env && \
+    export CABAL_DIR=/tmp/cabal && \
+    cabal update && \
+    cabal install "ormolu-${ORMOLU_VER}" \
+      --index-state="${HACKAGE_INDEX_STATE}" \
+      --constraint="ghc-lib-parser==${GHC_LIB_PARSER_VER}" \
+      --installdir=$HOME/.local/bin --install-method=copy && \
+    rm -rf /tmp/cabal && \
+    strip $HOME/.local/bin/ormolu && \
+    $HOME/.local/bin/ormolu --version
+
+
+#
 # Development image for gcl developers.
 # Includes a prebuilt gcl binary for testing.
 #
@@ -67,3 +101,4 @@ FROM prebuilt-haskell-dependencies AS gcl-dev
 COPY --from=build-artifacts --chown=vscode:vscode /home/vscode/.local/bin/gcl /home/vscode/.local/bin/
 COPY --from=z3fetch --chown=vscode:vscode /z3/z3          /home/vscode/.local/bin/z3
 COPY --from=z3fetch --chown=vscode:vscode /z3/LICENSE.txt /home/vscode/.local/share/z3/LICENSE.txt
+COPY --from=ormolu-build --chown=vscode:vscode /home/vscode/.local/bin/ormolu /home/vscode/.local/bin/
