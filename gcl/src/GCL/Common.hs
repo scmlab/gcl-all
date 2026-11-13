@@ -8,7 +8,8 @@
 module GCL.Common where
 
 import Control.Monad.RWS (RWST (..))
-import Control.Monad.State (State, StateT (..), get, put)
+import Control.Monad.Reader (ReaderT (..), lift)
+import Control.Monad.State (StateT (..), get, put)
 import Data.Either (lefts)
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -31,18 +32,6 @@ data TypeInfo
   | ConstTypeInfo Type
   | VarTypeInfo Type
   deriving (Eq, Show, Generic)
-
-{-
-toTypeEnv :: [(Index, TypeInfo)] -> TypeEnv
-toTypeEnv infos =
-  ( \(index, info) ->
-      case info of
-        TypeDefnCtorInfo ty -> (index, ty)
-        ConstTypeInfo ty -> (index, ty)
-        VarTypeInfo ty -> (index, ty)
-  )
-    <$> infos
--}
 
 type TypeEnv = [(Index, Type)]
 
@@ -94,11 +83,20 @@ freshNames = mapM freshName'
 class Counterous m where
   countUp :: m Int
 
-instance Counterous (State Int) where
+-- instance Counterous (State Int) where
+--   countUp = do
+--     counter <- get
+--     put (counter + 1)
+--     pure counter
+
+instance Monad m => Counterous (StateT Int m) where
   countUp = do
     counter <- get
     put (counter + 1)
     pure counter
+
+instance (Monad m, Counterous m) => Counterous (ReaderT e m) where
+  countUp = lift countUp
 
 instance {-# OVERLAPPABLE #-} (Monad m, Counterous m) => Fresh m where
   fresh = Text.pack . ("?m_" ++) . show <$> countUp
