@@ -13,7 +13,7 @@ import Control.Monad.State
 import Data.Bitraversable (Bitraversable (bitraverse))
 import Data.Text (Text)
 import GCL.Common
-import GCL.Range (Range, maybeRangeOf, rangeOf)
+import GCL.Range (Range, MaybeRanged (..), maybeRangeOf, rangeOf, (<--->))
 import Pretty.Util
   ( PrettyWithRange (prettyWithRange),
     docToText,
@@ -31,6 +31,7 @@ type HoleCount = Int
 data ScopeError =
         VarNotInScope Text (Maybe Range)
       | DuplicatedIdentifiers Text [Maybe Range]
+      | ParAssignmentMismatch (Maybe Range)
     deriving Show
 
 
@@ -59,19 +60,69 @@ withLocalVars xs = local ext
         ext env = zip (xs ++ map fst env) [0..]
 
 --------------------------------------------------------------------------------
+-- | Statement
+
+withRange :: (Monad m, MaybeRanged a) => (a -> m (Maybe Range -> b)) -> a -> m b
+withRange f x = ($ maybeRangeOf x) <$> f x
+
+instance ToAbstract Stmt A.Stmt where
+ toAbstract stmt = withRange toAbstract' stmt
+  where
+    toAbstract' (Skip _) = return A.Skip
+    toAbstract' (Abort _) = return A.Abort
+    toAbstract' a@(Assign xs _ es) =
+      A.Assign <$> handleParAssign (sepToList xs) (sepToList es) (maybeRangeOf a)
+    toAbstract' (AAssign x _ i _ _ e) =
+      A.AAssign <$> (A.Var . flip A.BName l <$> lookupOrRaise (nameToText x) l)
+        <*> toAbstract i <*> toAbstract e
+      where l = maybeRangeOf x
+    toAbstract' (Assert _ a _) = A.Assert <$> toAbstract a
+    toAbstract' (LoopInvariant _ a _ _ _ b _) =
+      A.LoopInvariant <$> toAbstract a <*> toAbstract b
+    toAbstract' (Do _ a _) = A.Do <$> toAbstract a
+    toAbstract' (If _ a _) = A.If <$> toAbstract a
+    toAbstract' (SpecQM _) = error "SpecQM should be digged before calling toAbstract"
+    toAbstract' (Spec l xs r) = do
+      let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
+      return $ const (A.Spec text (rangeOf l <> rangeOf r))
+    toAbstract' (Alloc p _ _ _ es _) =
+      A.Alloc <$> (flip A.BName l <$> lookupOrRaise (nameToText p) l)
+              <*> toAbstract es
+      where l = maybeRangeOf p
+    toAbstract' (HLookup x _ _ e) =
+      A.HLookup <$> (flip A.BName l <$> lookupOrRaise (nameToText x) l)
+                <*> toAbstract e
+      where l = maybeRangeOf x
+    toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
+    toAbstract' (Dispose _ e) = A.Dispose <$> toAbstract e
+    toAbstract' (Block _ p _) = undefined -- A.Block <$> toAbstract p
+
+    handleParAssign :: [Either Name Hole] -> [Expr] -> Maybe Range
+                    -> AbsM [(Either A.Var A.Hole, A.Expr)]
+    handleParAssign xs es l
+     | length xs /= length es = throwError (ParAssignmentMismatch l)
+     | otherwise = mapM asgn (zip xs es)
+    asgn (Left (Name x l), e) = do
+       i <- lookupOrRaise x l
+       e' <- toAbstract e
+       return (Left (A.BName i l), e')
+    asgn (Right h, e) =
+       (,) <$> (Right <$> toAbstract h) <*> toAbstract e
+
+instance ToAbstract GdCmd A.GdCmd where
+  toAbstract (GdCmd a _ b) =
+     A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf a <---> maybeRangeOf b)
+
+--------------------------------------------------------------------------------
 -- | Expressions
 
 instance ToAbstract Expr A.Expr where
  toAbstract (Paren _ e _) = toAbstract e
  toAbstract (Lit l) = A.Lit <$> toAbstract l <*> pure (maybeRangeOf l)
  toAbstract (Var (Name x l)) =
-   lookupVar x >>=
-   maybe (throwError (VarNotInScope x l))
-         (\i -> return (A.Var (A.BName i l)))
+   A.Var . flip A.BName l <$> lookupOrRaise x l
  toAbstract (Const (Name x l)) =
-   lookupVar x >>=
-   maybe (throwError (VarNotInScope x l))
-         (\i -> return (A.Const (A.BName i l)))
+   A.Const . flip A.BName l <$> lookupOrRaise x l
  toAbstract (Op op) = return (A.Op op)
  toAbstract (Chain ch) = A.Chain <$> toAbstract ch
  toAbstract e@(Arr arr _ i l) =
@@ -95,6 +146,11 @@ instance ToAbstract Expr A.Expr where
       <*> toAbstract cls
       <*> pure (maybeRangeOf e)
  toAbstract (EHole h) = A.EHole <$> toAbstract h
+
+lookupOrRaise :: Text -> Maybe Range -> AbsM Int
+lookupOrRaise x l =
+  lookupVar x >>=
+  maybe (throwError (VarNotInScope x l)) return
 
 instance ToAbstract Lit A.Lit where
   toAbstract (LitInt a _) = return $ A.Num a
@@ -152,3 +208,14 @@ findDuplicate (x:xs) =
     case filter (x==) xs of
       [] -> findDuplicate xs
       ys -> Just (x,ys)
+
+
+sepToList :: SepBy s a -> [a]
+sepToList (Head x) = [x]
+sepToList (Delim x _ xs) = x : sepToList xs
+
+--------------------------------------------------------------------------------
+
+instance (ToAbstract a b) => ToAbstract (SepBy sep a) [b] where
+  toAbstract (Head a) = (: []) <$> toAbstract a
+  toAbstract (Delim a _ as) = (:) <$> toAbstract a <*> toAbstract as

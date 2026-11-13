@@ -25,7 +25,30 @@ instance Eq Var where
   BName i _ == BName j _ = i == j
   _ == _ = False
 
--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+data Stmt
+  = Skip (Maybe Range)
+  | Abort (Maybe Range)
+  | Assign [(Either Var Hole, Expr)] (Maybe Range)
+  | AAssign Expr Expr Expr (Maybe Range)
+  | Assert Expr (Maybe Range)
+  | LoopInvariant Expr Expr (Maybe Range)
+  | Do [GdCmd] (Maybe Range)
+  | If [GdCmd] (Maybe Range)
+  | Spec Text Range
+  | -- pointer operations
+    Alloc Var [Expr] (Maybe Range) --  p := new (e1,e2,..,en)
+  | HLookup Var Expr (Maybe Range) --  x := *e
+  | HMutate Expr Expr (Maybe Range) --  *e1 := e2
+  | Dispose Expr (Maybe Range) --  dispose e
+--  | Block Program (Maybe Range)
+  deriving (Eq, Show)
+
+data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
+  deriving (Eq, Show)
+
+  -------------------------------------------------------------------------------
 
 -- | Expressions
 data Expr
