@@ -7,10 +7,12 @@
 
 module Syntax.Concrete.Instances.ToAbstractLN where
 
+import Control.Monad (foldM)
 import Control.Monad.Except (Except, throwError)
 import Control.Monad.Reader (ReaderT (..), local, reader)
 import Control.Monad.State
 import Data.Bitraversable (Bitraversable (bitraverse))
+import Data.List (partition)
 import Data.Text (Text)
 import GCL.Common
 import GCL.Range (Range, MaybeRanged (..), maybeRangeOf, rangeOf, (<--->))
@@ -19,9 +21,11 @@ import Pretty.Util
     docToText,
     toDoc,
   )
-import qualified Syntax.AbstractLN.Types as A
+import qualified Syntax.AbstractLN as A
+import qualified Syntax.AbstractLN.Operator as A
 import Syntax.Common (ArithOp, Name (..), nameToText)
 import Syntax.Concrete.Types
+import Syntax.Concrete.Instances.Free ()
 import Syntax.Concrete.Instances.Located ()
 
 type AbsM a = ReaderT [(Text, Int)] (StateT HoleCount (Except ScopeError)) a
@@ -58,6 +62,67 @@ withLocalVars :: [Text] -> AbsM a -> AbsM a
 withLocalVars xs = local ext
   where ext :: [(Text, Int)]  -> [(Text, Int)]
         ext env = zip (xs ++ map fst env) [0..]
+
+
+--------------------------------------------------------------------------------
+
+-- | Program
+
+instance ToAbstract Program A.Program where
+  toAbstract prog@(Program _defns decls stmts pragmas) = do
+     let (consts, vars, ps) = processDecls decls
+     let (consts', vars') = (map fst consts, map fst vars)
+     let (glob, assertions) = pickGlobalsC (map nameToText consts') ps
+     let localVars = map nameToText (consts' ++ vars')
+     withLocalVars localVars (do
+       constsA <- zip (map fst consts) <$> mapM (toAbstract . snd) consts
+       varsA <- zip (map fst vars) <$> mapM (toAbstract . snd) consts
+       globA <-  toAbstract glob
+       assertionsA <- toAbstract assertions
+       stmtsA <- toAbstract stmts
+       pragmasA <- toAbstract pragmas
+
+       let pre = [A.Assert (A.conjunct assertionsA) Nothing | not (null assertions)]
+       return (A.Program constsA varsA globA (pre ++ stmtsA) pragmasA)
+      )
+
+    where
+
+       -- processDecls: simply transforming declarations into
+       --   (a list of constants and their types,
+       --    a list of variables and their types,
+       --    and all their properties )
+
+     processDecls :: [Declaration] -> ([(Name, Type)], [(Name, Type)], [Expr])
+     processDecls [] = ([], [], [])
+     processDecls (ConstDecl _ (DeclType (DeclBase cs _ ty) p) : decls) =
+       let cs' = sepToList cs
+           (consts, vars, props) = processDecls decls
+       in ( [(c, ty) | c <- cs'] ++ consts, vars,
+            maybe props ((: props) . extractProp) p)
+     processDecls (VarDecl _ (DeclType (DeclBase cs _ ty) p) : decls) =
+       let cs' = sepToList cs
+           (consts, vars, props) = processDecls decls
+       in ( consts, [(c, ty) | c <- cs'] ++ vars,
+            maybe props ((: props) . extractProp) p)
+
+     extractProp (DeclProp _ e _) = e
+
+pickGlobalsC :: [Text] -> [Expr] -> ([Expr], [Expr])
+pickGlobalsC consts = partition isConst
+  where isConst e = all (`elem` consts) (freeVarsT e)
+
+--------------------------------------------------------------------------------
+-- | Declaraion
+
+-- instance ToAbstract Declaration A.Declaration where
+--   toAbstract d = case d of
+--     ConstDecl _ decl -> do
+--       (name, body, prop) <- toAbstract decl
+--       return $ A.ConstDecl name body prop (maybeRangeOf d)
+--     VarDecl _ decl -> do
+--       (name, body, prop) <- toAbstract decl
+--       return $ A.VarDecl name body prop (maybeRangeOf d)
 
 --------------------------------------------------------------------------------
 -- | Statement
@@ -112,6 +177,61 @@ instance ToAbstract Stmt A.Stmt where
 instance ToAbstract GdCmd A.GdCmd where
   toAbstract (GdCmd a _ b) =
      A.GdCmd <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf a <---> maybeRangeOf b)
+
+
+--------------------------------------------------------------------------------
+-- | Type-Related Stuffs
+
+-- | Endpoint
+instance ToAbstract EndpointOpen A.Endpoint where
+  toAbstract (IncludingOpening _ a) = A.Including <$> toAbstract a
+  toAbstract (ExcludingOpening _ a) = A.Excluding <$> toAbstract a
+
+instance ToAbstract EndpointClose A.Endpoint where
+  toAbstract (IncludingClosing a _) = A.Including <$> toAbstract a
+  toAbstract (ExcludingClosing a _) = A.Excluding <$> toAbstract a
+
+-- | Interval
+instance ToAbstract Interval A.Interval where
+  toAbstract i@(Interval a _ b) =
+    A.Interval <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf i)
+
+-- | Base Type
+instance ToAbstract TBase A.TBase where
+  toAbstract (TInt _) = return A.TInt
+  toAbstract (TBool _) = return A.TBool
+  toAbstract (TChar _) = return A.TChar
+-- | Type
+-- Base types were recognized as TCon (because Base types and TCon are identical at the syntactical level),
+-- and to be converted to TBase here.
+instance ToAbstract Type A.Type where
+  toAbstract t = case t of
+    (TBase a) -> A.TBase <$> toAbstract a <*> pure (maybeRangeOf t)
+    (TArray _ a _ b) ->
+      A.TArray
+        <$> toAbstract a
+        <*> toAbstract b
+        <*> pure (maybeRangeOf t)
+    (TOp op) -> return $ A.TOp op
+    (TData n _) -> return $ A.TData n (maybeRangeOf t)
+    (TApp l r) ->
+      A.TApp
+        <$> toAbstract l
+        <*> toAbstract r
+        <*> pure (maybeRangeOf l <---> maybeRangeOf r)
+    (TMetaVar a _) -> return $ A.TVar a (maybeRangeOf t)
+    (TParen _ a _) -> do
+      t' <- toAbstract a
+      case t' of
+        A.TBase a' _ -> return $ A.TBase a' (maybeRangeOf t)
+        A.TArray a' b' _ -> return $ A.TArray a' b' (maybeRangeOf t)
+        A.TTuple as' -> return $ A.TTuple as'
+        A.TOp op -> return $ A.TOp op
+        A.TData name _ -> return $ A.TData name (maybeRangeOf t)
+        A.TApp a' b' _ -> return $ A.TApp a' b' (maybeRangeOf t)
+        A.TVar a' _ -> return $ A.TVar a' (maybeRangeOf t)
+        A.TMetaVar a' _ -> return $ A.TMetaVar a' (maybeRangeOf t)
+        A.TType -> return A.TType
 
 --------------------------------------------------------------------------------
 -- | Expressions
@@ -178,7 +298,7 @@ instance ToAbstract CaseClause A.CaseClause where
 instance ToAbstract Pattern A.Pattern where
   toAbstract (PattLit x) = A.PattLit <$> toAbstract x
   toAbstract (PattParen _ x _) = toAbstract x
-  toAbstract (PattBinder x) = return $ A.PattBinder (nameToText x)
+  toAbstract (PattBinder x) = return $ A.PattBinder x
   toAbstract (PattWildcard x) = return $ A.PattWildcard (rangeOf x)
   toAbstract (PattConstructor ctor pats) =
     A.PattConstructor ctor <$> mapM toAbstract pats
@@ -189,6 +309,19 @@ instance ToAbstract Hole A.Hole where
     holeNumber <- countUp
     let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
      in return $ A.Hole text holeNumber (rangeOf l <> rangeOf r)
+
+instance {-# OVERLAPS #-} ToAbstract [Pragma] [A.Pragma] where
+  toAbstract =
+    foldM
+      ( \acc (Pragma _ content _) ->
+          case content of
+            (Proof proof _ proofText) -> do
+              let rTokToText = docToText . toDoc . prettyWithRange . map (fmap show)
+              let proof' = rTokToText proof
+              let proofText' = rTokToText proofText
+              return (A.Proof proof' proofText' : acc)
+      )
+      []
 
 --
 

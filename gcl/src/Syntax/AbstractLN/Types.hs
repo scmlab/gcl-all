@@ -27,6 +27,28 @@ instance Eq Var where
 
 --------------------------------------------------------------------------------
 
+-- | Program
+data Program
+  = Program {
+      consts :: [(Name, Type)],  -- GCL constants
+      vars :: [(Name, Type)],    -- GCL variables
+      props :: [Expr],           -- global properties
+      prog :: [Stmt],            -- main program
+      pragma :: [Pragma]
+    }
+  deriving (Eq, Show)
+
+
+--------------------------------------------------------------------------------
+
+-- | Declaration
+data Declaration
+  = ConstDecl [Name] Type (Maybe Expr) (Maybe Range)
+  | VarDecl [Name] Type (Maybe Expr) (Maybe Range)
+  deriving (Eq, Show)
+
+--------------------------------------------------------------------------------
+
 data Stmt
   = Skip (Maybe Range)
   | Abort (Maybe Range)
@@ -48,7 +70,76 @@ data Stmt
 data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
   deriving (Eq, Show)
 
-  -------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- | Endpoint
+data Endpoint = Including Expr | Excluding Expr deriving (Eq, Show, Generic)
+
+-- | Interval
+data Interval = Interval Endpoint Endpoint (Maybe Range)
+  deriving (Eq, Show, Generic)
+
+-- | Base Types
+data TBase = TInt | TBool | TChar
+  deriving (Show, Eq, Generic)
+
+-- | Types and Type Scheme
+data Type
+  = TBase TBase (Maybe Range)
+  | TArray Interval Type (Maybe Range) -- TODO: Make this a higher-kinded type.
+  -- TTuple has no srcloc info because it has no conrete syntax at the moment
+  | TTuple [Type] -- a list of types, for internal use
+  | TOp TypeOp
+  | TData Name (Maybe Range)
+  | TApp Type Type (Maybe Range)
+  | TVar Name (Maybe Range)
+  | TMetaVar Name (Maybe Range)
+  | TType -- "*"
+  deriving (Show, Generic)
+
+mkArrowType :: Type -> Type -> Type
+mkArrowType argument result =
+  TApp
+    (TApp (TOp (Arrow Nothing)) argument Nothing)
+    result
+    Nothing
+
+data Scheme
+  = Forall [Name] Type -- ∀α₁, ..., αₙ. t
+  deriving (Eq, Show)
+
+-- NOTE: i don't want to deal with template haskell right now
+-- but i want to catch incomplete patterns when i add new variants in
+instance Eq Type where
+  TBase base1 _ == TBase base2 _ = base1 == base2
+  TBase {} == _ = False
+  TArray int1 ty1 _ == TArray int2 ty2 _ = int1 == int2 && ty1 == ty2
+  TArray {} == _ = False
+  TTuple i1 == TTuple i2 = i1 == i2
+  TTuple {} == _ = False
+  TOp op1 == TOp op2 = eqTypeOp op1 op2
+  TOp {} == _ = False
+  TData name1 _ == TData name2 _ = name1 == name2
+  TData {} == _ = False
+  TApp left1 right1 _ == TApp left2 right2 _ = left1 == left2 && right1 == right2
+  TApp {} == _ = False
+  TVar name1 _ == TVar name2 _ = name1 == name2
+  TVar {} == _ = False
+  TMetaVar name1 _ == TMetaVar name2 _ = name1 == name2
+  TMetaVar {} == _ = False
+  TType == TType = True
+  TType == _ = False
+
+-- Keep this comparison exhaustive rather than adding a wildcard fallback.
+-- With incomplete-pattern warnings enabled, adding a new 'TypeOp' constructor
+-- then forces its equality semantics to be considered instead of silently
+-- treating two values of the new constructor as unequal.
+eqTypeOp :: TypeOp -> TypeOp -> Bool
+eqTypeOp (Arrow _) (Arrow _) = True
+
+--------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
 
 -- | Expressions
 data Expr
@@ -86,7 +177,7 @@ data CaseClause = CaseClause Pattern Expr
 
 data Pattern
   = PattLit Lit
-  | PattBinder Text -- binder
+  | PattBinder Name -- binder
   | PattWildcard Range -- matches anything
   | PattTuple [Pattern]
   | PattConstructor Name [Pattern] -- destructs a constructor

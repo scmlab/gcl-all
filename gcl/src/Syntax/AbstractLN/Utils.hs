@@ -7,8 +7,7 @@ import Data.Text (Text)
 import GCL.Range (MaybeRanged (maybeRangeOf), (<--->), rangeEnd)
 import Syntax.AbstractLN.Types
 import Syntax.Common
-  ( Name (..),
-    TypeOp (Arrow),
+  ( nameToText,
   )
 
 instance LocallyNameless Expr where
@@ -83,7 +82,7 @@ instance LocallyNameless CaseClause where
 
 extractBinders :: Pattern -> [Text]
 extractBinders (PattLit _) = []
-extractBinders (PattBinder x) = [x]
+extractBinders (PattBinder x) = [nameToText x]
 extractBinders (PattWildcard _) = []
 extractBinders (PattTuple xs) = xs >>= extractBinders
 extractBinders (PattConstructor _ xs) = xs >>= extractBinders
