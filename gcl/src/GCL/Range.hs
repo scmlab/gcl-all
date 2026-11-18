@@ -61,6 +61,8 @@ module GCL.Range
     within,
     Ranged (..),
     MaybeRanged (..),
+    maybeSetRange,
+    maybeSetRangeOf,
     (<--->),
     unRange,
     unR,
@@ -225,22 +227,35 @@ instance (Ranged a) => Ranged (NonEmpty a) where
 -- | Typeclass for values that may or may not have a location
 class MaybeRanged a where
   maybeRangeOf :: a -> Maybe Range
+  justSetRange :: Range -> a -> a
+
+maybeSetRange :: MaybeRanged a => Maybe Range -> a -> a
+maybeSetRange Nothing = id
+maybeSetRange (Just l) = justSetRange l
+
+maybeSetRangeOf :: (MaybeRanged a, MaybeRanged b) => a -> b -> b
+maybeSetRangeOf x = maybeSetRange (maybeRangeOf x)
 
 instance MaybeRanged Range where
   maybeRangeOf = Just
-
--- instance MaybeRanged (Maybe Range) where
---   maybeRangeOf = id
+  justSetRange = const
 
 instance (MaybeRanged a) => MaybeRanged (Maybe a) where
   maybeRangeOf (Just x) = maybeRangeOf x
   maybeRangeOf Nothing = Nothing
+  justSetRange r = fmap (justSetRange r)
 
 instance (MaybeRanged a) => MaybeRanged [a] where
   maybeRangeOf = foldr ((<--->) . maybeRangeOf) Nothing
+  justSetRange _ = id    -- SCM: not a smart thing to do...
+
+instance (MaybeRanged a, MaybeRanged b) => MaybeRanged (a,b) where
+  maybeRangeOf (x,y) = maybeRangeOf x <---> maybeRangeOf y
+  justSetRange _ = id
 
 instance (MaybeRanged a) => MaybeRanged (NonEmpty a) where
   maybeRangeOf xs = maybeRangeOf (NE.head xs) <---> maybeRangeOf (NE.last xs)
+  justSetRange _ = id   -- SCM: not a smart thing to do...
 
 -- | Merge two Maybe Ranges (like <--> for Loc, but for Maybe Range)
 -- Nothing <---> x       = x

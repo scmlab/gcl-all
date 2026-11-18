@@ -4,18 +4,20 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE TupleSections #-}
 
 module Syntax.Concrete.Instances.ToAbstractLN where
 
-import Control.Monad (foldM)
+import Control.Monad (foldM, (<=<))
 import Control.Monad.Except (Except, throwError)
 import Control.Monad.Reader (ReaderT (..), local, reader)
 import Control.Monad.State
 import Data.Bitraversable (Bitraversable (bitraverse))
+import Data.Foldable (Foldable (foldMap'))
 import Data.List (partition)
 import Data.Text (Text)
 import GCL.Common
-import GCL.Range (Range, MaybeRanged (..), maybeRangeOf, rangeOf, (<--->))
+import GCL.Range (Range, MaybeRanged (..), maybeRangeOf, rangeOf, (<--->), maybeSetRangeOf, maybeSetRange)
 import Pretty.Util
   ( PrettyWithRange (prettyWithRange),
     docToText,
@@ -23,20 +25,13 @@ import Pretty.Util
   )
 import qualified Syntax.AbstractLN as A
 import qualified Syntax.AbstractLN.Operator as A
-import Syntax.Common (ArithOp, Name (..), nameToText)
+import Syntax.Common (ArithOp, Name (..), nameToText, TypeOp(..))
+import qualified Syntax.Common.Types as C (ArithOp(..), ChainOp(..))
+import qualified Syntax.Common.BuiltInOp as A
 import Syntax.Concrete.Types
 import Syntax.Concrete.Instances.Free ()
 import Syntax.Concrete.Instances.Located ()
-
-type AbsM a = ReaderT [(Text, Int)] (StateT HoleCount (Except ScopeError)) a
-
-type HoleCount = Int
-
-data ScopeError =
-        VarNotInScope Text (Maybe Range)
-      | DuplicatedIdentifiers Text [Maybe Range]
-      | ParAssignmentMismatch (Maybe Range)
-    deriving Show
+import Syntax.Common.Instances.Located ()
 
 
 -- | Typeclass for converting Syntax.Concrete to Syntax.Abstract
@@ -53,15 +48,60 @@ instance (ToAbstract a b, ToAbstract c d) => ToAbstract (Either a c) (Either b d
 instance (ToAbstract a b) => ToAbstract [a] [b] where
   toAbstract = mapM toAbstract
 
+type AbsM a = ReaderT ScopeEnv (StateT HoleCount (Except ScopeError)) a
+
+type ScopeEnv = ([Text], -- types
+                 [Text], -- global identifiers in functional sections
+                 [(Text, Int)]) -- all the other identifiers
+
+vars_in_scope :: ScopeEnv -> [(Text, Int)]
+vars_in_scope (_, _, env) = env
+
+types_in_scope  :: ScopeEnv -> [Text]
+types_in_scope (ts, _, _) = ts
+
+type HoleCount = Int
+
+data ScopeError =
+        VarNotInScope Text (Maybe Range)
+      | TypeNotInScope Text (Maybe Range)
+      | DuplicatedIdentifiers Text [Maybe Range]
+      | ParAssignmentMismatch (Maybe Range)
+    deriving Show
+
 --------------------------------------------------------------------------------
 
 lookupVar :: Text -> AbsM (Maybe Int)
-lookupVar x = reader (lookup x)
+lookupVar x = reader (lookup x . vars_in_scope)
+
+lookupOrRaise :: Text -> Maybe Range -> AbsM Int
+lookupOrRaise x l =
+  lookupVar x >>=
+  maybe (throwError (VarNotInScope x l)) return
+
+lookupType :: Text -> AbsM Bool
+lookupType t = reader ((t `elem`) . types_in_scope)
+
+lookupTypeOrRaise :: Text -> Maybe Range -> AbsM ()
+lookupTypeOrRaise t l =
+  lookupType t >>= \b ->
+  if b then return ()
+       else throwError (TypeNotInScope t l)
+
+withDefinedTypes :: [Text] -> AbsM a -> AbsM a
+withDefinedTypes ts = local ext
+  where ext :: ScopeEnv -> ScopeEnv
+        ext (_, fs, vs) = (ts, fs, vs)
+
+withVars :: [Text] -> AbsM a -> AbsM a
+withVars vs = local ext
+  where ext :: ScopeEnv -> ScopeEnv
+        ext (ts, fs, _) = (ts, fs, zip vs [0..])
 
 withLocalVars :: [Text] -> AbsM a -> AbsM a
 withLocalVars xs = local ext
-  where ext :: [(Text, Int)]  -> [(Text, Int)]
-        ext env = zip (xs ++ map fst env) [0..]
+  where ext :: ScopeEnv -> ScopeEnv
+        ext (ts, fs, vs) = (ts, fs, zip (xs ++ map fst vs) [0..])
 
 
 --------------------------------------------------------------------------------
@@ -69,60 +109,217 @@ withLocalVars xs = local ext
 -- | Program
 
 instance ToAbstract Program A.Program where
-  toAbstract prog@(Program _defns decls stmts pragmas) = do
-     let (consts, vars, ps) = processDecls decls
-     let (consts', vars') = (map fst consts, map fst vars)
-     let (glob, assertions) = pickGlobalsC (map nameToText consts') ps
-     let localVars = map nameToText (consts' ++ vars')
-     withLocalVars localVars (do
-       constsA <- zip (map fst consts) <$> mapM (toAbstract . snd) consts
-       varsA <- zip (map fst vars) <$> mapM (toAbstract . snd) consts
-       globA <-  toAbstract glob
-       assertionsA <- toAbstract assertions
-       stmtsA <- toAbstract stmts
-       pragmasA <- toAbstract pragmas
+  toAbstract (Program defns decls stmts pragmas) = do
 
-       let pre = [A.Assert (A.conjunct assertionsA) Nothing | not (null assertions)]
-       return (A.Program constsA varsA globA (pre ++ stmtsA) pragmasA)
-      )
+      -- collect definitions
+     let (tdefs, vdefs) = processDefns (allDefs defns)
 
-    where
+     let valNames = map (\(n,_,_) -> n) vdefs
+     let ts = allDefinedTypes tdefs
 
-       -- processDecls: simply transforming declarations into
+     withDefinedTypes (map (nameToText . fst) ts) (do
+       -- collect data constructors
+       constrs <- collectAllConstrs tdefs
+
+       -- collect declarations
+       let (consts, vars, ps) = processDecls decls
+       let (constNames, varNames) = (map fst consts, map fst vars)
+       let (glob, assertions) = pickGlobalsC (map nameToText constNames) ps
+
+       noDuplicates (valNames ++ constNames ++ varNames)
+
+       let localVars = map nameToText (valNames ++ constNames ++ varNames)
+       withLocalVars localVars (do
+
+         vdefsA <- desugarDefns vdefs
+
+         constsA <- zip constNames <$> mapM (toAbstract . snd) consts
+         varsA <- zip varNames <$> mapM (toAbstract . snd) vars
+         globA <-  toAbstract glob
+
+         assertionsA <- toAbstract assertions
+         stmtsA <- toAbstract stmts
+
+         pragmasA <- toAbstract pragmas
+
+         let pre = [A.Assert (A.conjunct assertionsA) Nothing | not (null assertions)]
+         return (A.Program ts constrs vdefsA constsA varsA globA (pre ++ stmtsA) pragmasA)
+         ))
+
+--------------------------------------------------------------------------------
+
+allDefs :: [DefinitionBlock] -> [Definition]
+allDefs = concat . map unDefinitionBlock
+  where unDefinitionBlock (DefinitionBlock _ defs _) = defs
+
+       -- processDecls: re-partition declarations into
        --   (a list of constants and their types,
        --    a list of variables and their types,
        --    and all their properties )
 
-     processDecls :: [Declaration] -> ([(Name, Type)], [(Name, Type)], [Expr])
-     processDecls [] = ([], [], [])
-     processDecls (ConstDecl _ (DeclType (DeclBase cs _ ty) p) : decls) =
+--------------------------------------------------------------------------------
+-- | Definitions in Functional Fragments
+
+  -- processDefns: re-partition definitions in the funcional
+  --   segments into type and value definitions.
+
+processDefns :: [Definition] -> ([(Name, [Name], [TypeDefnCtor])]
+                                ,[(Name, Maybe Type, [([Pattern], Expr)])])
+processDefns defns =
+   let (tdefs, rest) = splitTypeValDefns defns
+       vdefs = groupValDefns rest
+   in (tdefs, vdefs)
+
+ where
+  splitTypeValDefns :: [Definition] -> ([(Name, [Name], [TypeDefnCtor])], [Definition])
+  splitTypeValDefns = foldMap'
+         ( \d -> case d of
+              TypeDefn _ t args _ ctrs -> ([(t, args, sepToList ctrs)], [])
+              ValDefnSig {} -> ([], [d])
+              ValDefn {} -> ([], [d])
+         )
+
+-- | Type Definitions
+
+allDefinedTypes :: [(Name, [Name], [TypeDefnCtor])] -> [(Name, Int)]
+allDefinedTypes = map (\(t, args, _) -> (t, length args))
+
+collectAllConstrs :: [(Name, [Name], [TypeDefnCtor])] ->
+                    AbsM [(Name, A.Type)]    -- Value Constructors
+collectAllConstrs = (return . concat) <=< mapM collectConstrs
+
+   -- Collect constructors of one type, e.g, given:
+   --   data T a b = C1 a U | C2 b V
+   -- should produce [(C1, ∀ a b . a -> U -> T a b), (C2, ∀ a b . V -> b -> T a b)]
+collectConstrs :: (Name, [Name], [TypeDefnCtor]) -> AbsM [(Name, A.Type)]
+collectConstrs (tcon, targs, cntrs) = do
+  noDuplicates targs
+  noDuplicates (map (\(TypeDefnCtor c _) -> c) cntrs)
+  mapM genCntr cntrs
+ where
+  targsT = map nameToText targs
+
+      -- process one constructor
+  genCntr :: TypeDefnCtor -> AbsM (Name, A.Type)
+  genCntr (TypeDefnCtor c args) =
+     (c,) . A.tforall targsT <$>                 -- e.g. ∀ a b ...
+        withVars targsT (mkCntrType args)      -- put only [a,b] into the environment
+
+      -- generate e,g: a -> U -> T a b
+      -- the base case, the "TargetType", is T a b.
+
+  mkCntrType :: [Type] -> AbsM A.Type
+  mkCntrType [] = return (mkTargetType (reverse [0 .. length targs - 1]))
+  mkCntrType (t:ts) = A.arr <$> toAbstract t <*> mkCntrType ts
+
+      -- Generate ((T a) b)
+  mkTargetType [] = A.tfname (nameToText tcon)
+  mkTargetType (i:is) = A.tapp (mkTargetType is) (A.tbname i)
+
+
+-- | Value Definitions
+
+groupValDefns :: [Definition] -> [(Name, Maybe Type, [([Pattern], Expr)])]
+groupValDefns defns = case defns of
+  [] -> []
+  (ValDefnSig (DeclBase ns _ ty) : ds) ->
+    let names = sepToList ns
+        (ds1, ds2) = span (elemDefn names) ds
+    in map (fetchDefn ty ds1) names ++ groupValDefns ds2
+  (d@(ValDefn name _ _ _) : ds) ->
+    let (ds1, ds2) = span (sameDefn name) ds
+    in (name, Nothing, map unValDefn (d : ds1)) : groupValDefns ds2
+  _ -> error "groupValDefns: Patterns exhausted. Shouldn't happen"
+
+ where
+
+   elemDefn names (ValDefn name' _ _ _) = name' `elem` names
+   elemDefn _ _ = False
+
+   sameDefn n (ValDefn name' _ _ _) = n == name'
+   sameDefn _ _ = False
+
+   fetchDefn ty dfns n = mkDefn . filter (sameDefn n) $ dfns
+      where mkDefn ds' = (n, Just ty, map unValDefn ds')
+
+   unValDefn (ValDefn _v ptn _ rhs) = (ptn, rhs)
+   unValDefn _ = error "groupValDefns/unValDefn: Patterns exhausted. Shouldn't happen"
+
+
+desugarDefns :: [(Name, Maybe Type, [([Pattern], Expr)])]
+             -> AbsM [(Name, Maybe A.Type, Maybe A.Expr)]
+desugarDefns = mapM desugarDefn
+
+desugarDefn :: (Name, Maybe Type, [([Pattern], Expr)])
+             -> AbsM (Name, Maybe A.Type, Maybe A.Expr)
+desugarDefn (x, t, []) = do t' <- toAbstract t
+                            return (x, t', Nothing)
+desugarDefn (x, t, [(ptns, body)])              -- one clause
+  | Just binders <- mapM isBinder ptns = do     -- all patterns are non-refutable
+    noDuplicates (filter notWildcard binders)   -- this also covers the case where ptns = []
+    let bindersT = map nameToText binders       -- since mapM f [] = Just []
+    t' <- toAbstract t
+    ((x, t',) . Just . mkLam bindersT) <$> withLocalVars bindersT (toAbstract body)
+  where
+    isBinder (PattParen _ p _) = isBinder p
+    isBinder (PattBinder v) = Just v
+    isBinder (PattWildcard _) = Just (Name "" Nothing) -- SCM: hack
+    isBinder _ = Nothing
+
+desugarDefn (x, t, cls) = do
+    t' <- toAbstract t
+    (x, t', ) . Just .
+     mkLam emptyDummies .
+       mkCase arity <$>
+         withLocalVars emptyDummies (mapM mkCaseClause cls)
+  where
+    arity = maximum (map (length . fst) cls)
+    emptyDummies = replicate arity "_"
+
+    mkCase 0 _ = error "mkCase 0. Shouldn't happen."
+    mkCase n cl =
+      A.Case (A.mkTuple (map A.bname [0..n-1])) cl
+        (maybeRangeOf cl)
+
+    mkCaseClause (ptns, body) = do
+      let xs = concat (map extractBinders ptns)
+      noDuplicates (filter notWildcard xs)
+      let xs' = map nameToText xs
+      (,) <$> (A.mkPattTuple <$> mapM toAbstract ptns) <*>
+               withLocalVars xs' (toAbstract body)
+
+mkLam :: [Text] -> A.Expr -> A.Expr
+mkLam [] body = body
+mkLam (x:xs) body = A.Lam x (mkLam xs body) (maybeRangeOf body)
+
+notWildcard :: Name -> Bool
+notWildcard (Name "" _) = True  -- Hack.
+notWildcard _ = False
+
+
+--------------------------------------------------------------------------------
+-- | GCL Const and Var Declarations
+
+processDecls :: [Declaration] -> ([(Name, Type)], [(Name, Type)], [Expr])
+processDecls [] = ([], [], [])
+processDecls (ConstDecl _ (DeclType (DeclBase cs _ ty) p) : decls) =
        let cs' = sepToList cs
            (consts, vars, props) = processDecls decls
        in ( [(c, ty) | c <- cs'] ++ consts, vars,
             maybe props ((: props) . extractProp) p)
-     processDecls (VarDecl _ (DeclType (DeclBase cs _ ty) p) : decls) =
+processDecls (VarDecl _ (DeclType (DeclBase cs _ ty) p) : decls) =
        let cs' = sepToList cs
            (consts, vars, props) = processDecls decls
        in ( consts, [(c, ty) | c <- cs'] ++ vars,
             maybe props ((: props) . extractProp) p)
 
-     extractProp (DeclProp _ e _) = e
+extractProp :: DeclProp -> Expr
+extractProp (DeclProp _ e _) = e
 
 pickGlobalsC :: [Text] -> [Expr] -> ([Expr], [Expr])
 pickGlobalsC consts = partition isConst
   where isConst e = all (`elem` consts) (freeVarsT e)
 
---------------------------------------------------------------------------------
--- | Declaraion
-
--- instance ToAbstract Declaration A.Declaration where
---   toAbstract d = case d of
---     ConstDecl _ decl -> do
---       (name, body, prop) <- toAbstract decl
---       return $ A.ConstDecl name body prop (maybeRangeOf d)
---     VarDecl _ decl -> do
---       (name, body, prop) <- toAbstract decl
---       return $ A.VarDecl name body prop (maybeRangeOf d)
 
 --------------------------------------------------------------------------------
 -- | Statement
@@ -138,7 +335,7 @@ instance ToAbstract Stmt A.Stmt where
     toAbstract' a@(Assign xs _ es) =
       A.Assign <$> handleParAssign (sepToList xs) (sepToList es) (maybeRangeOf a)
     toAbstract' (AAssign x _ i _ _ e) =
-      A.AAssign <$> (A.Var . flip A.BName l <$> lookupOrRaise (nameToText x) l)
+      A.AAssign <$> (maybeSetRange l. A.bname <$> lookupOrRaise (nameToText x) l)
         <*> toAbstract i <*> toAbstract e
       where l = maybeRangeOf x
     toAbstract' (Assert _ a _) = A.Assert <$> toAbstract a
@@ -151,16 +348,16 @@ instance ToAbstract Stmt A.Stmt where
       let text = docToText $ toDoc $ prettyWithRange (map (fmap show) xs)
       return $ const (A.Spec text (rangeOf l <> rangeOf r))
     toAbstract' (Alloc p _ _ _ es _) =
-      A.Alloc <$> (flip A.BName l <$> lookupOrRaise (nameToText p) l)
+      A.Alloc <$> (A.BName <$> lookupOrRaise (nameToText p) l)
               <*> toAbstract es
       where l = maybeRangeOf p
     toAbstract' (HLookup x _ _ e) =
-      A.HLookup <$> (flip A.BName l <$> lookupOrRaise (nameToText x) l)
+      A.HLookup <$> (A.BName <$> lookupOrRaise (nameToText x) l)
                 <*> toAbstract e
       where l = maybeRangeOf x
     toAbstract' (HMutate _ e1 _ e2) = A.HMutate <$> toAbstract e1 <*> toAbstract e2
     toAbstract' (Dispose _ e) = A.Dispose <$> toAbstract e
-    toAbstract' (Block _ p _) = undefined -- A.Block <$> toAbstract p
+    toAbstract' (Block _ _p _) = undefined -- A.Block <$> toAbstract p
 
     handleParAssign :: [Either Name Hole] -> [Expr] -> Maybe Range
                     -> AbsM [(Either A.Var A.Hole, A.Expr)]
@@ -170,7 +367,7 @@ instance ToAbstract Stmt A.Stmt where
     asgn (Left (Name x l), e) = do
        i <- lookupOrRaise x l
        e' <- toAbstract e
-       return (Left (A.BName i l), e')
+       return (Left (A.BName i), e')
     asgn (Right h, e) =
        (,) <$> (Right <$> toAbstract h) <*> toAbstract e
 
@@ -182,56 +379,38 @@ instance ToAbstract GdCmd A.GdCmd where
 --------------------------------------------------------------------------------
 -- | Type-Related Stuffs
 
--- | Endpoint
-instance ToAbstract EndpointOpen A.Endpoint where
-  toAbstract (IncludingOpening _ a) = A.Including <$> toAbstract a
-  toAbstract (ExcludingOpening _ a) = A.Excluding <$> toAbstract a
-
-instance ToAbstract EndpointClose A.Endpoint where
-  toAbstract (IncludingClosing a _) = A.Including <$> toAbstract a
-  toAbstract (ExcludingClosing a _) = A.Excluding <$> toAbstract a
-
--- | Interval
-instance ToAbstract Interval A.Interval where
-  toAbstract i@(Interval a _ b) =
-    A.Interval <$> toAbstract a <*> toAbstract b <*> pure (maybeRangeOf i)
-
--- | Base Type
-instance ToAbstract TBase A.TBase where
-  toAbstract (TInt _) = return A.TInt
-  toAbstract (TBool _) = return A.TBool
-  toAbstract (TChar _) = return A.TChar
 -- | Type
 -- Base types were recognized as TCon (because Base types and TCon are identical at the syntactical level),
 -- and to be converted to TBase here.
+
 instance ToAbstract Type A.Type where
   toAbstract t = case t of
-    (TBase a) -> A.TBase <$> toAbstract a <*> pure (maybeRangeOf t)
-    (TArray _ a _ b) ->
-      A.TArray
-        <$> toAbstract a
-        <*> toAbstract b
-        <*> pure (maybeRangeOf t)
-    (TOp op) -> return $ A.TOp op
-    (TData n _) -> return $ A.TData n (maybeRangeOf t)
+    (TBase a) -> A.TLit <$> toAbstract a <*> pure (maybeRangeOf t)
+    (TArray _ _a _ b) ->
+      maybeSetRangeOf t <$> (A.array <$> toAbstract b)
+    (TOp op) -> A.TLit <$> toAbstract op <*> pure (maybeRangeOf t)
+    (TData n _) -> do lookupTypeOrRaise (nameToText n) (maybeRangeOf t)
+                      return (maybeSetRangeOf t (A.tfname (nameToText n)))
     (TApp l r) ->
       A.TApp
         <$> toAbstract l
         <*> toAbstract r
         <*> pure (maybeRangeOf l <---> maybeRangeOf r)
-    (TMetaVar a _) -> return $ A.TVar a (maybeRangeOf t)
-    (TParen _ a _) -> do
-      t' <- toAbstract a
-      case t' of
-        A.TBase a' _ -> return $ A.TBase a' (maybeRangeOf t)
-        A.TArray a' b' _ -> return $ A.TArray a' b' (maybeRangeOf t)
-        A.TTuple as' -> return $ A.TTuple as'
-        A.TOp op -> return $ A.TOp op
-        A.TData name _ -> return $ A.TData name (maybeRangeOf t)
-        A.TApp a' b' _ -> return $ A.TApp a' b' (maybeRangeOf t)
-        A.TVar a' _ -> return $ A.TVar a' (maybeRangeOf t)
-        A.TMetaVar a' _ -> return $ A.TMetaVar a' (maybeRangeOf t)
-        A.TType -> return A.TType
+    (TMetaVar n _) -> let t' = nameToText n in
+                      lookupType t' >>= \b ->
+                       if b then
+                           return (maybeSetRangeOf t (A.tfname t'))
+                       else
+                           maybeSetRangeOf t . A.tbname <$> (lookupOrRaise t' (maybeRangeOf t))
+    (TParen _ a _) -> toAbstract a
+
+instance ToAbstract TBase A.TBuiltIn where
+  toAbstract (TInt _) = return A.TInt
+  toAbstract (TBool _) = return A.TBool
+  toAbstract (TChar _) = return A.TChar
+
+instance ToAbstract TypeOp A.TBuiltIn where
+  toAbstract (Arrow _) = return A.TArrow
 
 --------------------------------------------------------------------------------
 -- | Expressions
@@ -240,13 +419,13 @@ instance ToAbstract Expr A.Expr where
  toAbstract (Paren _ e _) = toAbstract e
  toAbstract (Lit l) = A.Lit <$> toAbstract l <*> pure (maybeRangeOf l)
  toAbstract (Var (Name x l)) =
-   A.Var . flip A.BName l <$> lookupOrRaise x l
+   A.Var . A.BName <$> lookupOrRaise x l <*> pure l
  toAbstract (Const (Name x l)) =
-   A.Const . flip A.BName l <$> lookupOrRaise x l
- toAbstract (Op op) = return (A.Op op)
+   A.Var . A.BName <$> lookupOrRaise x l <*> pure l
+ toAbstract (Op op) = A.Lit . A.Op <$> toAbstract op <*> pure (maybeRangeOf op)
  toAbstract (Chain ch) = A.Chain <$> toAbstract ch
- toAbstract e@(Arr arr _ i l) =
-   A.ArrIdx <$> toAbstract arr <*> toAbstract i <*> pure (maybeRangeOf e)
+ toAbstract e@(Arr arr _ i _) =
+   maybeSetRangeOf e <$> (A.arridx <$> toAbstract arr <*> toAbstract i)
  toAbstract e@(App e0 e1) =
    A.App <$> toAbstract e0 <*> toAbstract e1 <*> pure (maybeRangeOf e)
  toAbstract e@(Quant _ op xs _ ran _ bod _) =
@@ -258,8 +437,8 @@ instance ToAbstract Expr A.Expr where
      xs' = map nameToText xs
      toAbstractQOp :: Either ArithOp Name -> AbsM A.Expr
      toAbstractQOp qop = case qop of
-       Left op -> return (A.Op op)
-       Right n@(Name _ l) -> toAbstract (Const n)
+       Left op' -> maybeSetRangeOf op' <$> (A.litOp <$> toAbstract op')
+       Right n@(Name _ _) -> toAbstract (Const n)
  toAbstract e@(Case _ m _ cls) =
     A.Case
       <$> toAbstract m
@@ -267,41 +446,74 @@ instance ToAbstract Expr A.Expr where
       <*> pure (maybeRangeOf e)
  toAbstract (EHole h) = A.EHole <$> toAbstract h
 
-lookupOrRaise :: Text -> Maybe Range -> AbsM Int
-lookupOrRaise x l =
-  lookupVar x >>=
-  maybe (throwError (VarNotInScope x l)) return
+instance ToAbstract Chain A.Chain where
+  toAbstract (Pure e) = A.Pure <$> toAbstract e <*> pure (maybeRangeOf e)
+  toAbstract c@(More ch op e) =
+     A.More <$> toAbstract ch
+            <*> toAbstract op
+            <*> toAbstract e
+            <*> pure (maybeRangeOf c)
 
 instance ToAbstract Lit A.Lit where
   toAbstract (LitInt a _) = return $ A.Num a
   toAbstract (LitBool a _) = return $ A.Bol a
   toAbstract (LitChar a _) = return $ A.Chr a
 
-instance ToAbstract Chain A.Chain where
-  toAbstract (Pure e) = A.Pure <$> toAbstract e <*> pure (maybeRangeOf e)
-  toAbstract c@(More ch op e) =
-     A.More <$> toAbstract ch
-            <*> pure op
-            <*> toAbstract e
-            <*> pure (maybeRangeOf c)
+instance ToAbstract ArithOp A.Op where
+  toAbstract op = return $ case op of
+   (C.Implies _) -> A.Implies
+   (C.ImpliesU _) -> A.Implies
+   (C.Conj _) -> A.Conj
+   (C.ConjU _) -> A.Conj
+   (C.Disj _) -> A.Disj
+   (C.DisjU _) -> A.Disj
+   (C.Neg _) -> A.Neg
+   (C.NegU _) -> A.Neg
+   (C.NegNum _) -> A.NegNum
+   (C.Add _) -> A.Add
+   (C.Sub _) -> A.Sub
+   (C.Mul _) -> A.Mul
+   (C.Div _) -> A.Div
+   (C.Mod _) -> A.Mod
+   (C.Max _) -> A.Max
+   (C.Min _) -> A.Min
+   (C.Exp _) -> A.Exp
+   (C.Hash _) -> A.Hash
+   (C.PointsTo _) -> A.PointsTo
+   (C.SConj _) -> A.Conj
+   (C.SImp _) -> A.SImp
 
-instance ToAbstract CaseClause A.CaseClause where
-  toAbstract (CaseClause patt _ body) =
-     case findDuplicate xs of
-       Nothing -> A.CaseClause <$> toAbstract patt <*>
-                     withLocalVars xs' (toAbstract body)
-       Just (x,ys) -> throwError (DuplicatedIdentifiers (nameToText x)
-                                    (map maybeRangeOf (x:ys)))
+instance ToAbstract C.ChainOp A.Op where
+  toAbstract op = return $ case op of
+    (C.EQProp _) -> A.EQProp
+    (C.EQPropU _) -> A.EQProp
+    (C.EQ _) -> A.EQ
+    (C.NEQ _) -> A.NEQ
+    (C.NEQU _) -> A.NEQ
+    (C.LTE _) -> A.LTE
+    (C.LTEU _) -> A.LTE
+    (C.GTE _) -> A.GTE
+    (C.GTEU _) -> A.GTE
+    (C.LT _) -> A.LT
+    (C.GT _) -> A.GT
+
+instance ToAbstract CaseClause (A.Pattern, A.Expr) where
+  toAbstract (CaseClause patt _ body) = do
+     noDuplicates xs
+     (,) <$> toAbstract patt <*>
+             withLocalVars xs' (toAbstract body)
     where xs = extractBinders patt
           xs' = map nameToText xs
 
 instance ToAbstract Pattern A.Pattern where
-  toAbstract (PattLit x) = A.PattLit <$> toAbstract x
-  toAbstract (PattParen _ x _) = toAbstract x
-  toAbstract (PattBinder x) = return $ A.PattBinder x
+  toAbstract (PattLit x) =
+    A.PattConstructor . Left <$> toAbstract x <*> pure (maybeRangeOf x) <*> pure []
+  toAbstract (PattParen _ p _) = toAbstract p
+  toAbstract (PattBinder x) = return $ A.PattBinder (nameToText x) (maybeRangeOf x)
   toAbstract (PattWildcard x) = return $ A.PattWildcard (rangeOf x)
   toAbstract (PattConstructor ctor pats) =
-    A.PattConstructor ctor <$> mapM toAbstract pats
+    A.PattConstructor (Right (nameToText ctor)) (maybeRangeOf ctor) <$>
+        mapM toAbstract pats
 
 instance ToAbstract Hole A.Hole where
   toAbstract (HoleQM _) = error "HoleQM should be digged before calling toAbstract"
@@ -329,19 +541,25 @@ extractBinders :: Pattern -> [Name]
 extractBinders (PattLit _) = []
 extractBinders (PattParen _ p _) = extractBinders p
 extractBinders (PattBinder x) = [x]
-extractBinders (PattWildcard _) = []
+extractBinders (PattWildcard _) = [Name "" Nothing]  -- SCM: is this better than []?
 extractBinders (PattConstructor _ xs) = xs >>= extractBinders
 
   -- Given a list of Names, find the first set of duplicate names, if any
   -- This is for error reporting, and we need not find all duplicates.
 
-findDuplicate :: [Name] -> Maybe (Name, [Name])
-findDuplicate [] = Nothing
-findDuplicate (x:xs) =
+findDuplicates :: [Name] -> Maybe (Name, [Name])
+findDuplicates [] = Nothing
+findDuplicates (x:xs) =
     case filter (x==) xs of
-      [] -> findDuplicate xs
+      [] -> findDuplicates xs
       ys -> Just (x,ys)
 
+noDuplicates :: [Name] -> AbsM ()
+noDuplicates xs =
+  case findDuplicates xs of
+     Nothing -> return ()
+     Just (x, ys) ->  throwError (DuplicatedIdentifiers (nameToText x)
+                                    (map maybeRangeOf (x:ys)))
 
 sepToList :: SepBy s a -> [a]
 sepToList (Head x) = [x]
@@ -352,3 +570,6 @@ sepToList (Delim x _ xs) = x : sepToList xs
 instance (ToAbstract a b) => ToAbstract (SepBy sep a) [b] where
   toAbstract (Head a) = (: []) <$> toAbstract a
   toAbstract (Delim a _ as) = (:) <$> toAbstract a <*> toAbstract as
+
+instance (ToAbstract a b, ToAbstract c d) => ToAbstract (a, c) (b, d) where
+  toAbstract (x, y) = (,) <$> toAbstract x <*> toAbstract y

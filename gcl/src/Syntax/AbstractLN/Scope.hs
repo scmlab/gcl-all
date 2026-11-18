@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Syntax.AbstractLN.Util where
+module Syntax.AbstractLN.Scope where
 
 import Control.Arrow (first, second)
 import Data.Text (Text)
@@ -10,6 +10,27 @@ import Syntax.Common
   ( nameToText,
   )
 
+
+instance LocallyNameless Type where
+  close _ lit@TLit{} = lit
+  close xis v@(TVar (FName x) l) =
+     maybe v (\i -> TVar (BName i) l) (lookup x xis)
+  close _ v@(TVar (BName _) l) = v
+  close xis (TApp t0 t1 l) = TApp (close xis t0) (close xis t1) l
+  close xis (TForall xs t l) = TForall xs (close xis' t) l
+    where xis' = map (second (length xs +)) xis
+  close _ TType = TType
+
+  open _ lit@TLit{} = lit
+  open _ v@(TVar (FName _) _) = v
+  open ixs v@(TVar (BName i) l) =
+     maybe v (\x -> TVar (FName x) l) (lookup i ixs)
+  open ixs (TApp t0 t1 l) = TApp (open ixs t0) (open ixs t1) l
+  open ixs (TForall xs t l) = TForall xs (open ixs' t) l
+     where ixs' = map (first (length xs +)) ixs
+  open _ TType = TType
+
+{-
 instance LocallyNameless Expr where
 
   close _ lit@Lit{} = lit
@@ -86,3 +107,4 @@ extractBinders (PattBinder x) = [nameToText x]
 extractBinders (PattWildcard _) = []
 extractBinders (PattTuple xs) = xs >>= extractBinders
 extractBinders (PattConstructor _ xs) = xs >>= extractBinders
+-}

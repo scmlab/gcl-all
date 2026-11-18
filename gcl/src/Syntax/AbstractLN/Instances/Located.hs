@@ -40,23 +40,18 @@ instance MaybeRanged Stmt where
 instance MaybeRanged GdCmd where
   maybeRangeOf (GdCmd _ _ l) = l
 
-instance MaybeRanged Endpoint where
-  maybeRangeOf (Including e) = maybeRangeOf e
-  maybeRangeOf (Excluding e) = maybeRangeOf e
-
-instance MaybeRanged Interval where
-  maybeRangeOf (Interval _ _ l) = l
-
 instance MaybeRanged Type where
-  maybeRangeOf (TBase _ l) = l
-  maybeRangeOf (TArray _ _ l) = l
-  maybeRangeOf (TTuple _) = Nothing
-  maybeRangeOf (TOp op) = maybeRangeOf op
-  maybeRangeOf (TData _ l) = l
-  maybeRangeOf (TApp _ _ l) = l
+  maybeRangeOf (TLit _ l) = l
   maybeRangeOf (TVar _ l) = l
-  maybeRangeOf (TMetaVar _ l) = l
+  maybeRangeOf (TApp _ _ l) = l
+  maybeRangeOf (TForall _ _ l) = l
   maybeRangeOf TType = Nothing
+
+  justSetRange l (TLit t _) = TLit t (Just l)
+  justSetRange l (TVar v _) = TVar v (Just l)
+  justSetRange l (TApp t0 t1 _) = TApp t0 t1 (Just l)
+  justSetRange l (TForall xs e _) = TForall xs e (Just l)
+  justSetRange l TType = TType
 
 -- instance MaybeRanged Kind where
 --   maybeRangeOf (KStar loc) = loc
@@ -64,44 +59,40 @@ instance MaybeRanged Type where
 --   maybeRangeOf (KMetaVar _) = Nothing
 
 instance MaybeRanged Expr where
-  maybeRangeOf (Var v) = maybeRangeOf v
-  maybeRangeOf (Const v) = maybeRangeOf v
   maybeRangeOf (Lit _ l) = l
-  maybeRangeOf (Op op) = maybeRangeOf op
+  maybeRangeOf (Var _ l) = l
   maybeRangeOf (Chain chain) = maybeRangeOf chain
   maybeRangeOf (App _ _ l) = l
   maybeRangeOf (Lam _ _ l) = l
-  maybeRangeOf (Tuple _) = Nothing
-  maybeRangeOf (OutT _ _) = Nothing
   maybeRangeOf (Quant _ _ _ _ l) = l
-  maybeRangeOf (ArrIdx _ _ l) = l
-  maybeRangeOf (ArrUpd _ _ _ l) = l
   maybeRangeOf (Case _ _ l) = l
   maybeRangeOf (EHole h) = maybeRangeOf h
 
-instance MaybeRanged Var where
-  maybeRangeOf (FName _ l) = l
-  maybeRangeOf (BName _ l) = l
+  justSetRange l (Lit t _) = Lit t (Just l)
+  justSetRange l (Var v _) = Var v (Just l)
+  justSetRange l (Chain chain) = Chain (justSetRange l chain)
+  justSetRange l (App e0 e1 _) = App e0 e1 (Just l)
+  justSetRange l (Lam x e _) = Lam x e (Just l)
+  justSetRange l (Quant op xs ran trm _) = Quant op xs ran trm (Just l)
+  justSetRange l (Case m cls _) = Case m cls (Just l)
+  justSetRange l (EHole h) = EHole (justSetRange l h)
+
+-- instance MaybeRanged Var where
+--   maybeRangeOf (FName _ l) = l
+--   maybeRangeOf (BName _ l) = l
 
 instance MaybeRanged Chain where
   maybeRangeOf (Pure _ l) = l
   maybeRangeOf (More _ _ _ l) = l
 
-instance MaybeRanged CaseClause where
-  maybeRangeOf (CaseClause l r) = maybeRangeOf l <---> maybeRangeOf r
-
--- instance MaybeRanged FuncClause where
---   maybeRangeOf (FuncClause l r) = maybeRangeOf l <---> maybeRangeOf r
+  justSetRange l (Pure x _) = Pure x (Just l)
+  justSetRange l (More ch op x _) = More ch op x (Just l)
 
 instance MaybeRanged Pattern where
-  maybeRangeOf (PattLit l) = maybeRangeOf l
-  maybeRangeOf (PattBinder l) = maybeRangeOf l
+  maybeRangeOf (PattBinder _ l) = l
   maybeRangeOf (PattWildcard l) = Just l
-  maybeRangeOf (PattTuple _) = Nothing
-  maybeRangeOf (PattConstructor l r) = maybeRangeOf l <---> maybeRangeOf r
-
-instance MaybeRanged Lit where
-  maybeRangeOf _ = Nothing
+  maybeRangeOf (PattConstructor _ l r) = l <---> maybeRangeOf r
 
 instance MaybeRanged Hole where
   maybeRangeOf (Hole _ _ l) = Just l
+  justSetRange l (Hole txt no _) = Hole txt no l

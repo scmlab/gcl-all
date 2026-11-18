@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.39.1.
+-- This file has been generated from package.yaml by hpack version 0.38.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -47,6 +47,7 @@ library
       GCL.WP.Util
       GCL.WP.WP
       Hack
+      ParseTest
       Pretty
       Pretty.Abstract
       Pretty.Common
@@ -99,13 +100,23 @@ library
       Syntax.Abstract.Operator
       Syntax.Abstract.Types
       Syntax.Abstract.Util
+      Syntax.AbstractLN
+      Syntax.AbstractLN.Instances.Free
+      Syntax.AbstractLN.Instances.Located
+      Syntax.AbstractLN.Operator
+      Syntax.AbstractLN.Scope
+      Syntax.AbstractLN.Type
+      Syntax.AbstractLN.Types
       Syntax.Common
+      Syntax.Common.BuiltInOp
       Syntax.Common.Instances.Json
       Syntax.Common.Instances.Located
       Syntax.Common.Types
       Syntax.Concrete
+      Syntax.Concrete.Instances.Free
       Syntax.Concrete.Instances.Located
       Syntax.Concrete.Instances.ToAbstract
+      Syntax.Concrete.Instances.ToAbstractLN
       Syntax.Concrete.Types
       Syntax.ConstExpr
       Syntax.Parser
