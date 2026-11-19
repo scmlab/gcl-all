@@ -456,8 +456,8 @@ instance ToAbstract Expr A.Expr where
    maybeSetRangeOf e <$> (A.arridx <$> toAbstract arr <*> toAbstract i)
  toAbstract e@(App e0 e1) =
    A.App <$> toAbstract e0 <*> toAbstract e1 <*> pure (maybeRangeOf e)
- toAbstract e@(Quant _ op xs _ ran _ bod _) =
-   -- check for duplication!
+ toAbstract e@(Quant _ op xs _ ran _ bod _) = do
+   noDuplicates xs
    A.Quant <$> toAbstractQOp op <*> pure xs'
     <*> withLocalVars (reverse xs') (toAbstract ran)
     <*> withLocalVars (reverse xs') (toAbstract bod)
