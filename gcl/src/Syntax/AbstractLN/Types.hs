@@ -18,11 +18,11 @@ import Prelude hiding (Ordering (..))
 -- | Program
 data Program
   = Program {
-      types :: [(Name, Int)],     -- user-defined types
-      constrs :: [(Name, Type)],  -- data constructors
-      vals :: [(Name, Maybe Type, Maybe Expr)], -- functional values
-      consts :: [(Name, Type)],  -- GCL constants
-      vars :: [(Name, Type)],    -- GCL variables
+      types :: [(Name, Int)],     -- user-defined types. e.g. List, Tree
+      constrs :: [(Name, Type)],  -- data constructors. e.g. cons :: a -> List a -> List a
+      vals :: [(Name, Maybe Type, Maybe Expr)], -- functional values. e.g. f = \x -> x + 1
+      consts :: [(Name, Type)],  -- GCL constants. binders.
+      vars :: [(Name, Type)],    -- GCL variables. binders.
       props :: [Expr],           -- global properties
       prog :: [Stmt],            -- main program
       pragma :: [Pragma]
@@ -62,8 +62,6 @@ data Expr
   | App Expr Expr (Maybe Range)
   | Lam Text Expr (Maybe Range)
   | Quant Expr [Text] Expr Expr (Maybe Range)
- -- | ArrIdx Expr Expr (Maybe Range)
- -- | ArrUpd Expr Expr Expr (Maybe Range)
   | Case Expr [(Pattern, Expr)] (Maybe Range)
   | EHole Hole
   deriving (Eq, Show, Generic)
@@ -72,11 +70,14 @@ data Chain = Pure Expr (Maybe Range) | More Chain Op Expr (Maybe Range)
   deriving (Eq, Show, Generic)
 
 
+var :: Var -> Expr
+var v = Var v Nothing
+
 fname :: Text -> Expr
-fname x = Var (FName x) Nothing
+fname x = var (FName x)
 
 bname :: Int -> Expr
-bname i = Var (BName i) Nothing
+bname i = var (BName i)
 
 --------------------------------------------------------------------------------
 

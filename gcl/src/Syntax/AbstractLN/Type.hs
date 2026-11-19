@@ -47,11 +47,14 @@ tArrow = TLit TArrow Nothing
 tPair = TLit TPair Nothing
 tArray = TLit TArray Nothing
 
+tvar :: Var -> Type
+tvar v = TVar v Nothing
+
 tfname :: Text -> Type
-tfname t = TVar (FName t) Nothing
+tfname t = tvar (FName t)
 
 tbname :: Int -> Type
-tbname i = TVar (BName i) Nothing
+tbname i = tvar (BName i)
 
 arr :: Type -> Type -> Type   -- was: mkArrowType
 arr t1 t2 = TApp (TApp tArrow t1 Nothing) t2 Nothing
