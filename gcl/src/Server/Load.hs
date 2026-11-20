@@ -55,7 +55,7 @@ load filePath = do
             Left parseErr -> do
               logTextLn "Load: parse error"
               let fs = emptyFileStateWithErrors [ParseError parseErr]
-              setAndSendFileState filePath fs
+              setAndSendFileState filePath (Just vfsVersion) fs
             Right (maybeDig, eitherFs) ->
               let fs = either (emptyFileStateWithErrors . pure) id eitherFs
                in case maybeDig of
@@ -65,10 +65,10 @@ load filePath = do
                         Right _ -> do
                           fs' <- evalSMTProofs fs
                           logText "Load: sending refresh\n"
-                          setAndSendFileStateWithRefresh filePath fs'
+                          setAndSendFileStateWithRefresh filePath (Just vfsVersion) fs'
                         Left _ -> do
                           logTextLn "Load: type/struct error"
-                          setAndSendFileState filePath fs
+                          setAndSendFileState filePath (Just vfsVersion) fs
                     Just (edits, newSource) ->
                       case eitherFs of
                         Left err -> do
@@ -76,7 +76,7 @@ load filePath = do
                           let ers = prepareEdits edits
                               convertedErr = convertError ers err
                               errFs = emptyFileStateWithErrors [convertedErr]
-                          setAndSendFileState filePath errFs
+                          setAndSendFileState filePath (Just vfsVersion) errFs
                         Right _ -> do
                           fs' <- evalSMTProofs fs
                           logText "Load: holes dug, sending edit\n"
@@ -86,7 +86,8 @@ load filePath = do
                             filePath
                             PendingEdit
                               { expectedContent = newSource,
-                                pendingFileState = fs'
+                                pendingFileState = fs',
+                                pendingLoadDocumentVersion = Just vfsVersion
                               }
       logText "Load: end\n"
 

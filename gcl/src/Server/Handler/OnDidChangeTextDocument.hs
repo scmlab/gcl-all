@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 import GHC.Clock (getMonotonicTimeNSec)
 import qualified Language.LSP.Protocol.Types as LSP
 import Numeric (showFFloat)
-import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSource)
+import Server.Monad (FileState (..), PendingEdit (..), ServerM, deletePendingEdit, getFileState, getPendingEdit, logText, readSourceAndVersion)
 import Server.Move (applyMovesToFileState, mkLSPMoves)
 import Server.Notification.Update (setAndSendFileState, setAndSendFileStateWithRefresh)
 
@@ -19,12 +19,14 @@ handler filePath changes = do
   t0 <- liftIO getMonotonicTimeNSec
   maybePending <- getPendingEdit filePath
   case maybePending of
-    Just PendingEdit {expectedContent, pendingFileState} -> do
+    Just PendingEdit {expectedContent, pendingFileState, pendingLoadDocumentVersion} -> do
       deletePendingEdit filePath
-      maybeSource <- readSource filePath
+      maybeSource <- readSourceAndVersion filePath
       case maybeSource of
-        Just src | src == expectedContent -> do
-          setAndSendFileStateWithRefresh filePath pendingFileState
+        Just (src, version) | src == expectedContent -> do
+          -- The stored result describes expectedContent, now at this version.
+          let loadDocumentVersion = version <$ pendingLoadDocumentVersion
+          setAndSendFileStateWithRefresh filePath loadDocumentVersion pendingFileState
         _ -> applyTranslation
     Nothing -> applyTranslation
   t1 <- liftIO getMonotonicTimeNSec
@@ -61,4 +63,4 @@ handler filePath changes = do
               <> " warnings: "
               <> Text.pack (show nWarnings)
               <> "\n"
-          setAndSendFileState filePath fs'
+          setAndSendFileState filePath Nothing fs'

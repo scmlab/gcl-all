@@ -125,11 +125,14 @@ data StructWarning
   deriving stock (Show, Generic)
 
 -- | Convert server-side FileState to notification JSON for gcl/update.
--- Adds filePath routing info alongside the ClientFileState payload.
-toClientFileStateJSON :: FilePath -> Server.FileState -> JSON.Value
-toClientFileStateJSON path fs =
+-- Adds routing info and the source version for load results (Nothing otherwise).
+toClientFileStateJSON :: FilePath -> Maybe LSP.Int32 -> Server.FileState -> JSON.Value
+toClientFileStateJSON path loadDocumentVersion fs =
   case JSON.toJSON (toClientFileState fs) of
-    JSON.Object obj -> JSON.Object (KeyMap.insert "filePath" (JSON.toJSON path) obj)
+    JSON.Object obj ->
+      JSON.Object $
+        KeyMap.insert "filePath" (JSON.toJSON path) $
+          KeyMap.insert "loadDocumentVersion" (JSON.toJSON loadDocumentVersion) obj
     _ -> error "toClientFileStateJSON: ClientFileState must be a JSON Object"
 
 -- | Convert server-side FileState to client-side ClientFileState

@@ -45,7 +45,9 @@ emptyFileStateWithErrors errs =
 
 data PendingEdit = PendingEdit
   { expectedContent :: !Text,
-    pendingFileState :: !FileState
+    pendingFileState :: !FileState,
+    -- | Just the source version for a full load; Nothing for other updates.
+    pendingLoadDocumentVersion :: !(Maybe LSP.Int32)
   }
 
 data HoleKind
