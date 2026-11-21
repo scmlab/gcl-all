@@ -86,7 +86,7 @@ refine filePath cursor = do
                   let ers = prepareEdits (decomposeSpecEdits (specRange spec) innerEditsRel)
                       convertedErr = convertError ers err
                       newFs = fs {fsErrors = [convertedErr]}
-                  setAndSendFileState filePath newFs
+                  setAndSendFileState filePath Nothing newFs
                 Right fragmentFs -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: spec edit sent\n"
@@ -95,7 +95,7 @@ refine filePath cursor = do
                       newSource = applyEdits source edits
                       newFs = mergeFileState movedFs fragmentFs
                   newFs' <- evalSMTProofs newFs
-                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs', pendingLoadDocumentVersion = Nothing}
                   setPendingEdit filePath pending
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
@@ -109,7 +109,7 @@ refine filePath cursor = do
                       ers = prepareEdits (decomposeHoleEdits (holeRange hole) origContent innerEditsRel)
                       convertedErr = convertError ers err
                       newFs = fs {fsErrors = [convertedErr]}
-                  setAndSendFileState filePath newFs
+                  setAndSendFileState filePath Nothing newFs
                 Right (subst, typedExpr, holes, state) -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: hole edit sent\n"
@@ -128,7 +128,7 @@ refine filePath cursor = do
                           }
                       newFs' = updateHoleExprs hole typedExpr holeMapping newFs
                   newFs'' <- evalSMTProofs newFs'
-                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs''}
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'', pendingLoadDocumentVersion = Nothing}
                   setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])

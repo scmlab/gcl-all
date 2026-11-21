@@ -70,7 +70,7 @@ reduce filePath target redex = do
       case result of
         Left errs -> sendWindowInfoMessage (Text.intercalate "\n" $ map (renderStrict . layoutCompact . pretty) errs)
         Right fs' -> do
-          setAndSendFileState filePath fs'
+          setAndSendFileState filePath Nothing fs'
 
 collectDefinitions :: T.Program -> [(Name, T.Expr)]
 collectDefinitions (T.Program defns _ _ _ _) = concatMap aux defns

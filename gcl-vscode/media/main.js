@@ -34,11 +34,9 @@ for (const redex of redexes) {
 function handleProof(event) {
   event.stopPropagation();
 
-  const el = event.target;
+  const el = event.currentTarget;
 
   const pred = el.dataset.pred;
-
-  event.currentTarget.disabled = true;
 
   vscode.postMessage({
     action: "proof",

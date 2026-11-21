@@ -170,7 +170,7 @@ reduced :: ReduceTarget -> [Int] -> FileState -> FileState
 reduced target path fs = either (error . show) id (reduceFileState target path fs)
 
 payload :: FileState -> (Text, Text, Text, Text)
-payload fs = case JSON.parseEither parser (toClientFileStateJSON "test.gcl" fs) of
+payload fs = case JSON.parseEither parser (toClientFileStateJSON "test.gcl" Nothing fs) of
   Right [value] -> value
   result -> error (show result)
   where
