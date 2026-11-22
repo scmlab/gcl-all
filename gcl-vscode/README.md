@@ -21,3 +21,18 @@ For more information, see also:
 - **Status Panel**, to the right of the editor, lists all the *specifications, proof obligations, warnings* and *errors*.
 - **Inline Hints**, in the editor and around every specification, displays its pre- and post- conditions.
 
+## Vim / Neovim Users
+[VSCodeVim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim) and [vscode-neovim](https://marketplace.visualstudio.com/items?itemName=asvetliakov.vscode-neovim) bind `ctrl+c`, which blocks **GCL:Reload** (`ctrl+c ctrl+l`) and **GCL:Refine** (`ctrl+c ctrl+r`). To restore them, run **Preferences: Open Keyboard Shortcuts (JSON)** and add it in `[ ... ]`:
+
+```json
+    {
+        "key": "ctrl+c ctrl+l",
+        "command": "gcl.reload",
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
+    },
+    {
+        "key": "ctrl+c ctrl+r",
+        "command": "gcl.refine",
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
+    }
+```
