@@ -1,8 +1,8 @@
 # PR checks
 #
-#   check-format ──┐
-#                  ├── run in parallel, block PR
-#   check-build  ──┘
+#   check-format    ──┐
+#   check-build     ──┼── run in parallel, block PR merges on failure
+#   check-extension ──┘
 #
 name: PR
 
@@ -35,3 +35,18 @@ jobs:
           target: build-artifacts
           cache-from: type=gha,scope=build-amd64
           cache-to: type=gha,mode=max,scope=build-amd64
+
+  check-extension:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gcl-vscode
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run compile
+      - run: pnpm run test:node

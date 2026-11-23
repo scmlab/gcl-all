@@ -128,7 +128,7 @@
     "lint": "eslint src --ext ts",
     "format": "prettier . --write",
     "test": "vscode-test",
-    "test:webview": "node --test test/*.test.cjs"
+    "test:node": "node --test test/*.test.cjs"
   },
   "devDependencies": {
     "@types/mocha": "^10.0.6",
