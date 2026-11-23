@@ -61,6 +61,51 @@ tests =
               A.App (A.App (A.Lit (A.Op B.Pr) _) (A.Var v1 _) _) (A.Var v2 _) _ ->
                 (v1, v2) @?= (A.BName 1, A.BName 0)
               other -> assertFailure ("unexpected scrutinee: " ++ show other)
+          other -> assertFailure ("unexpected shape: " ++ show other),
+      -- con N : Int
+      -- { case N of _ -> N }
+      --
+      -- Wildcard _ 不建立 binder，所以 branch body 和 scrutinee 在同一個
+      -- scope，兩處的 N 都是 BName 0。
+      -- 若把 _ 當成 binder，body 的 N 會變成 BName 1，指向不存在的 binder。
+      testCase "wildcard pattern does not shift indices in the branch body" $ do
+        prog <- convert (Text.unlines ["con N : Int", "{ case N of _ -> N }"])
+        case A.prog prog of
+          [A.Assert (A.Case _ [(_, A.Var v _)] _) _] -> v @?= A.BName 0
+          other -> assertFailure ("unexpected shape: " ++ show other),
+      -- {:
+      --   data P = C Int Int
+      --   g p = case p of
+      --     C _ y -> y
+      -- :}
+      --
+      -- Pattern C _ y 只建立 y 這個 binder，_ 不建立 binder。
+      -- BName 依目前位置的 scope，從最靠近的 binder 開始，以 0 編號：
+      --   branch body y：BName 0 = pattern 的 y，BName 1 = p。
+      -- 因此 body 的 y 必須是 BName 0；若是 BName 1 就會指向 p。
+      testCase "wildcard before a binder does not shift the binder's index" $ do
+        prog <-
+          convert
+            (Text.unlines ["{:", "  data P = C Int Int", "  g p = case p of", "    C _ y -> y", ":}"])
+        body <- lookupVal "g" prog
+        case body of
+          A.Lam _ (A.Case _ [(_, A.Var v _)] _) _ -> v @?= A.BName 0
+          other -> assertFailure ("unexpected shape: " ++ show other),
+      -- {:
+      --   data P = C Int Int
+      --   g p = case p of
+      --     C _ _ -> 0
+      -- :}
+      --
+      -- Wildcard _ 不建立 binder，同一個 pattern 裡的多個 _ 也不算重複的
+      -- identifier，因此轉換應該成功，不能報 DuplicatedIdentifiers。
+      testCase "multiple wildcards in one pattern are not duplicates" $ do
+        prog <-
+          convert
+            (Text.unlines ["{:", "  data P = C Int Int", "  g p = case p of", "    C _ _ -> 0", ":}"])
+        body <- lookupVal "g" prog
+        case body of
+          A.Lam _ (A.Case _ [(_, A.Lit (A.Num 0) _)] _) _ -> return ()
           other -> assertFailure ("unexpected shape: " ++ show other)
     ]
 

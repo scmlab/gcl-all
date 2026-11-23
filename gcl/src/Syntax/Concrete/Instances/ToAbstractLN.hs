@@ -574,7 +574,7 @@ extractBinders :: Pattern -> [Name]
 extractBinders (PattLit _) = []
 extractBinders (PattParen _ p _) = extractBinders p
 extractBinders (PattBinder x) = [x]
-extractBinders (PattWildcard _) = [Name "" Nothing]  -- SCM: is this better than []?
+extractBinders (PattWildcard _) = []  -- a wildcard binds nothing, as in Syntax.AbstractLN.Scope.extractBinders
 extractBinders (PattConstructor _ xs) = xs >>= extractBinders
 
   -- Given a list of Names, find the first set of duplicate names, if any
