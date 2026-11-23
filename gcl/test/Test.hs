@@ -17,6 +17,7 @@ import Test.Tasty
     defaultMain,
     testGroup,
   )
+import qualified Test.ToAbstractLN as ToAbstractLN
 import qualified Test.Type as Type
 
 main :: IO ()
@@ -44,5 +45,6 @@ tests =
       SrcLoc.tests,
       Subst2.tests,
       Subst2Property.tests,
+      ToAbstractLN.tests,
       Type.tests
     ]

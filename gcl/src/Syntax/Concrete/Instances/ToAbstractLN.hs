@@ -86,12 +86,14 @@ lookupVar :: Text -> AbsM (Maybe Int)
 lookupVar x = reader (lookup x . vars_in_scope)
 
 lookupOrRaise :: Text -> Maybe Range -> AbsM A.Var
+   -- Local binders are looked up first, so that they shadow
+   -- global names in the functional section.
 lookupOrRaise x l =
-  lookupFVar x >>= \b ->
-  if b then return (A.FName x)
-       else lookupVar x >>=
-            maybe (throwError (VarNotInScope x l))
-                  (return . A.BName)
+  lookupVar x >>=
+  maybe (lookupFVar x >>= \b ->
+           if b then return (A.FName x)
+                else throwError (VarNotInScope x l))
+        (return . A.BName)
 
 lookupTypeOrRaise :: Text -> Maybe Range -> AbsM ()
 lookupTypeOrRaise t l =
