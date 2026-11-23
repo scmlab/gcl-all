@@ -308,7 +308,8 @@ desugarDefn (x, t, cls) = do
 
     mkCase 0 _ = error "mkCase 0. Shouldn't happen."
     mkCase n cl =
-      A.Case (A.mkTuple (map A.bname [0..n-1])) cl
+      -- The first argument belongs to the outermost lambda, at index n - 1.
+      A.Case (A.mkTuple (map A.bname (reverse [0..n-1]))) cl
         (maybeRangeOf cl)
 
     mkCaseClause (ptns, body) = do
