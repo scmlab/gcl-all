@@ -141,7 +141,19 @@ tests =
         prog <- convert (Text.unlines ["con P, Q : Bool", "{ P ٭ Q }"])
         case A.prog prog of
           [A.Assert (A.App (A.App (A.Lit (A.Op op) _) _ _) _ _) _] -> op @?= B.SConj
-          other -> assertFailure ("unexpected shape: " ++ show other)
+          other -> assertFailure ("unexpected shape: " ++ show other),
+      -- {:
+      --   z = 1
+      --   z = 2
+      -- :}
+      --
+      -- z 沒有參數，沒有 pattern 可以用來挑 clause，第二個 clause 永遠用不到。
+      -- 這是重複定義，轉換應該報 DuplicatedIdentifiers "z"，而不是 crash。
+      testCase "a parameterless value defined twice is rejected" $ do
+        result <- runConvert (Text.unlines ["{:", "  z = 1", "  z = 2", ":}"])
+        case result of
+          Left (DuplicatedIdentifiers name _) -> name @?= "z"
+          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other)
     ]
 
 convert :: Text -> IO A.Program

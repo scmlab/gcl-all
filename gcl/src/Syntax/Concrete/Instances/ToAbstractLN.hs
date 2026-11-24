@@ -138,6 +138,10 @@ instance ToAbstract Program A.Program where
       -- collect definitions
      let (tdefs, vdefs) = processDefns (allDefs defns)
 
+     -- A definition without parameters has no pattern to choose a clause by,
+     -- so a second clause for it is a duplicate definition.
+     noDuplicates [n | ValDefn n [] _ _ <- allDefs defns]
+
      let valNames = map (\(n,_,_) -> n) vdefs
      let ts = allDefinedTypes tdefs
 
@@ -306,7 +310,7 @@ desugarDefn (x, t, cls) = do
     arity = maximum (map (length . fst) cls)
     emptyDummies = replicate arity "_"
 
-    mkCase 0 _ = error "mkCase 0. Shouldn't happen."
+    mkCase 0 _ = error "mkCase 0. Shouldn't happen."  -- ruled out by the parameterless-definition check in toAbstract Program
     mkCase n cl =
       -- The first argument belongs to the outermost lambda, at index n - 1.
       A.Case (A.mkTuple (map A.bname (reverse [0..n-1]))) cl
