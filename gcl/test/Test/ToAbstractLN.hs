@@ -131,7 +131,17 @@ tests =
         result <- runConvert (Text.unlines ["{:", "  m 0 x x = x", ":}"])
         case result of
           Left (DuplicatedIdentifiers name _) -> name @?= "x"
-          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other)
+          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other),
+      -- con P, Q : Bool
+      -- { P ٭ Q }
+      --
+      -- ٭ 是 separating conjunction，要轉成 SConj，
+      -- 不能變成一般的 conjunction Conj（∧）。
+      testCase "separating conjunction stays separating" $ do
+        prog <- convert (Text.unlines ["con P, Q : Bool", "{ P ٭ Q }"])
+        case A.prog prog of
+          [A.Assert (A.App (A.App (A.Lit (A.Op op) _) _ _) _ _) _] -> op @?= B.SConj
+          other -> assertFailure ("unexpected shape: " ++ show other)
     ]
 
 convert :: Text -> IO A.Program

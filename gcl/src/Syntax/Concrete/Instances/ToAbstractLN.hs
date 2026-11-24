@@ -513,7 +513,7 @@ instance ToAbstract ArithOp A.Op where
    (C.Exp _) -> A.Exp
    (C.Hash _) -> A.Hash
    (C.PointsTo _) -> A.PointsTo
-   (C.SConj _) -> A.Conj
+   (C.SConj _) -> A.SConj
    (C.SImp _) -> A.SImp
 
 instance ToAbstract C.ChainOp A.Op where
