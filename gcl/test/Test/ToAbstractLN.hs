@@ -153,7 +153,20 @@ tests =
         result <- runConvert (Text.unlines ["{:", "  z = 1", "  z = 2", ":}"])
         case result of
           Left (DuplicatedIdentifiers name _) -> name @?= "z"
-          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other)
+          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other),
+      -- {:
+      --   m 0 = 1
+      --   m x y = 2
+      -- :}
+      --
+      -- m 的第一個 clause 有 1 個參數，第二個有 2 個。
+      -- 轉換應該報 ClauseArityMismatch "m"，而不是產生一個 case：
+      -- scrutinee 是 pair，第一個 clause 的 pattern 卻只有 0。
+      testCase "clauses with different numbers of parameters are rejected" $ do
+        result <- runConvert (Text.unlines ["{:", "  m 0 = 1", "  m x y = 2", ":}"])
+        case result of
+          Left (ClauseArityMismatch name _) -> name @?= "m"
+          other -> assertFailure ("expected ClauseArityMismatch, got " ++ show other)
     ]
 
 convert :: Text -> IO A.Program

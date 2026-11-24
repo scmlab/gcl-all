@@ -71,6 +71,7 @@ data ScopeError =
         VarNotInScope Text (Maybe Range)
       | TypeNotInScope Text (Maybe Range)
       | DuplicatedIdentifiers Text [Maybe Range]
+      | ClauseArityMismatch Text [Maybe Range]
       | ParAssignmentMismatch (Maybe Range)
     deriving Show
 
@@ -136,11 +137,15 @@ instance ToAbstract Program A.Program where
   toAbstract (Program defns decls stmts pragmas) = do
 
       -- collect definitions
-     let (tdefs, vdefs) = processDefns (allDefs defns)
+     let defs = allDefs defns
+     let (tdefs, vdefs) = processDefns defs
 
      -- A definition without parameters has no pattern to choose a clause by,
      -- so a second clause for it is a duplicate definition.
-     noDuplicates [n | ValDefn n [] _ _ <- allDefs defns]
+     noDuplicates [n | ValDefn n [] _ _ <- defs]
+
+     -- All clauses of a definition must take the same number of parameters.
+     sameArity [(n, length ps) | ValDefn n ps _ _ <- defs]
 
      let valNames = map (\(n,_,_) -> n) vdefs
      let ts = allDefinedTypes tdefs
@@ -597,6 +602,17 @@ noDuplicates xs =
      Nothing -> return ()
      Just (x, ys) ->  throwError (DuplicatedIdentifiers (nameToText x)
                                     (map maybeRangeOf (x:ys)))
+
+  -- Given the name and parameter count of every clause, report the first
+  -- clause of a definition together with the clauses that disagree with it.
+
+sameArity :: [(Name, Int)] -> AbsM ()
+sameArity [] = return ()
+sameArity ((x, k) : rest) =
+  case [y | (y, k') <- rest, y == x, k' /= k] of
+    [] -> sameArity rest
+    ys -> throwError (ClauseArityMismatch (nameToText x)
+                        (map maybeRangeOf (x:ys)))
 
 sepToList :: SepBy s a -> [a]
 sepToList (Head x) = [x]
