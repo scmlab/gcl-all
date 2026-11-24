@@ -91,8 +91,13 @@ builtinTypes =
 -- but i want to catch incomplete patterns when i add new variants in
 
 instance Eq Type where
+  TLit b1 _ == TLit b2 _ = b1 == b2
+  TLit {} == _ = False
   TVar v1 _ == TVar v2 _ = v1 == v2
+  TVar {} == _ = False
   TApp t1 t2 _ == TApp t3 t4 _ = t1 == t3 && t2 == t4
+  TApp {} == _ = False
   TForall xs t1 _ == TForall ys t2 _ = length xs == length ys && t1 == t2
+  TForall {} == _ = False
   TType == TType = True
-  _ == _ = False
+  TType == _ = False

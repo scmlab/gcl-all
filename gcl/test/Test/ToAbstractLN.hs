@@ -166,7 +166,17 @@ tests =
         result <- runConvert (Text.unlines ["{:", "  m 0 = 1", "  m x y = 2", ":}"])
         case result of
           Left (ClauseArityMismatch name _) -> name @?= "m"
-          other -> assertFailure ("expected ClauseArityMismatch, got " ++ show other)
+          other -> assertFailure ("expected ClauseArityMismatch, got " ++ show other),
+      -- con M : Int
+      -- con N : Int
+      --
+      -- M 和 N 的型別都是 Int，只有在原始碼中的位置（range）不同。
+      -- Type 的 Eq 不看 range，所以兩個型別應該相等。
+      testCase "the same base type at different positions is equal" $ do
+        prog <- convert (Text.unlines ["con M : Int", "con N : Int"])
+        case A.consts prog of
+          [(_, t1), (_, t2)] -> t1 @?= t2
+          other -> assertFailure ("unexpected consts: " ++ show other)
     ]
 
 convert :: Text -> IO A.Program
