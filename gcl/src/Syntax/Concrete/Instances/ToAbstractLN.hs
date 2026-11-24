@@ -293,7 +293,7 @@ desugarDefn (x, t, [(ptns, body)])              -- one clause
   where
     isBinder (PattParen _ p _) = isBinder p
     isBinder (PattBinder v) = Just v
-    isBinder (PattWildcard _) = Just (Name "" Nothing) -- SCM: hack
+    isBinder (PattWildcard _) = Just (Name "" Nothing) -- SCM: hack. notWildcard filters Name "" out.
     isBinder _ = Nothing
 
 desugarDefn (x, t, cls) = do
@@ -324,8 +324,8 @@ mkLam [] body = body
 mkLam (x:xs) body = A.Lam x (mkLam xs body) (maybeRangeOf body)
 
 notWildcard :: Name -> Bool
-notWildcard (Name "" _) = True  -- Hack.
-notWildcard _ = False
+notWildcard (Name "" _) = False  -- Hack: isBinder turns a wildcard parameter into Name "".
+notWildcard _ = True
 
 
 --------------------------------------------------------------------------------

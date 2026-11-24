@@ -10,7 +10,7 @@ import qualified Data.Text as Text
 import qualified Syntax.AbstractLN as A
 import Syntax.Common (nameToText)
 import qualified Syntax.Common.BuiltInOp as B
-import Syntax.Concrete.Instances.ToAbstractLN (toAbstract)
+import Syntax.Concrete.Instances.ToAbstractLN (ScopeError (..), toAbstract)
 import qualified Syntax.Parser as Parser
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -106,16 +106,46 @@ tests =
         body <- lookupVal "g" prog
         case body of
           A.Lam _ (A.Case _ [(_, A.Lit (A.Num 0) _)] _) _ -> return ()
-          other -> assertFailure ("unexpected shape: " ++ show other)
+          other -> assertFailure ("unexpected shape: " ++ show other),
+      -- {:
+      --   h x x = x
+      -- :}
+      --
+      -- h 的兩個參數都叫 x，是重複的 binder。
+      -- 這個定義只有一個 clause，且所有參數 pattern 都是 binder，
+      -- 因此直接 desugar 成巢狀 lambda，不需要 case。
+      -- 轉換應該報 DuplicatedIdentifiers "x"，而不是讓後面的 x 遮住前面的 x。
+      testCase "duplicate parameters are rejected" $ do
+        result <- runConvert (Text.unlines ["{:", "  h x x = x", ":}"])
+        case result of
+          Left (DuplicatedIdentifiers name _) -> name @?= "x"
+          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other),
+      -- {:
+      --   m 0 x x = x
+      -- :}
+      --
+      -- 和上一個例子一樣有重複的 x，但 0 是 refutable pattern，
+      -- 因此走 desugar 成 lambda 加 case 的路徑。
+      -- 這條路徑也應該報 DuplicatedIdentifiers "x"。
+      testCase "duplicate binders beside a refutable pattern are rejected" $ do
+        result <- runConvert (Text.unlines ["{:", "  m 0 x x = x", ":}"])
+        case result of
+          Left (DuplicatedIdentifiers name _) -> name @?= "x"
+          other -> assertFailure ("expected DuplicatedIdentifiers, got " ++ show other)
     ]
 
 convert :: Text -> IO A.Program
-convert src = case Parser.scanAndParse Parser.program "<test>" src of
+convert src = do
+  result <- runConvert src
+  case result of
+    Left err -> assertFailure ("scope error: " ++ show err)
+    Right prog -> return prog
+
+runConvert :: Text -> IO (Either ScopeError A.Program)
+runConvert src = case Parser.scanAndParse Parser.program "<test>" src of
   Left err -> assertFailure ("parse error: " ++ show err)
   Right concrete ->
-    case runExcept (evalStateT (runReaderT (toAbstract concrete) ([], [], False, [])) 0) of
-      Left err -> assertFailure ("scope error: " ++ show err)
-      Right prog -> return prog
+    return (runExcept (evalStateT (runReaderT (toAbstract concrete) ([], [], False, [])) 0))
 
 lookupVal :: Text -> A.Program -> IO A.Expr
 lookupVal name prog =
