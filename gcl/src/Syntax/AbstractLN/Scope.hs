@@ -288,7 +288,10 @@ fresh zs x = head (dropWhile (`elem` zs) xs)
    where nats = map (pack . show) ([0..] :: [Int])
          xs = x : map (x `append`) nats
 
-   -- freshIds zs xs: calls fresh zs x for each x in xs
+   -- freshIds zs xs: calls fresh for each x in xs, avoiding zs and
+   --                 the names already generated, so the results are distinct
 
 freshIds :: [Text] -> [Text] -> [Text]
-freshIds zs = map (fresh zs)
+freshIds _ [] = []
+freshIds zs (x:xs) = x' : freshIds (x':zs) xs
+  where x' = fresh zs x

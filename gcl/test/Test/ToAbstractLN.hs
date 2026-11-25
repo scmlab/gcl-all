@@ -5,9 +5,11 @@ module Test.ToAbstractLN (tests) where
 import Control.Monad.Except (runExcept)
 import Control.Monad.Reader (runReaderT)
 import Control.Monad.State (evalStateT)
+import Data.List (nub)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Syntax.AbstractLN as A
+import Syntax.AbstractLN.Scope (freshIds)
 import Syntax.Common (nameToText)
 import qualified Syntax.Common.BuiltInOp as B
 import Syntax.Concrete.Instances.ToAbstractLN (ScopeError (..), toAbstract)
@@ -182,7 +184,12 @@ tests =
       -- builtinTypes 用不加括號的連續 `arr` 寫 kind，例如 TPair 的
       -- TType `arr` TType `arr` TType，要靠這個 fixity 才會是 * → (* → *)。
       testCase "arr associates to the right" $
-        (A.TType `A.arr` A.TType `A.arr` A.TType) @?= A.arr A.TType (A.arr A.TType A.TType)
+        (A.TType `A.arr` A.TType `A.arr` A.TType) @?= A.arr A.TType (A.arr A.TType A.TType),
+      testCase "freshIds gives distinct names" $ do
+        let zs = ["x"]
+            ys = freshIds zs ["x", "x0"]
+        assertBool ("names collide: " ++ show ys) (nub ys == ys)
+        assertBool ("names clash with zs: " ++ show ys) (all (`notElem` zs) ys)
     ]
 
 convert :: Text -> IO A.Program
