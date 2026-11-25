@@ -65,10 +65,14 @@ vars_in_ffrag  :: ScopeEnv -> [Text]
 vars_in_ffrag (_, _, False, _) = []
 vars_in_ffrag (_, fs, True, _) = fs
 
+all_vars_in_ffrag :: ScopeEnv -> [Text]  -- regardless of whether lookup is allowed
+all_vars_in_ffrag (_, fs, _, _) = fs
+
 type HoleCount = Int
 
 data ScopeError =
         VarNotInScope Text (Maybe Range)
+      | SpecOnlyIdentifier Text (Maybe Range)  -- defined in {: :}, used outside specifications
       | TypeNotInScope Text (Maybe Range)
       | DuplicatedIdentifiers Text [Maybe Range]
       | ClauseArityMismatch Text [Maybe Range]
@@ -95,7 +99,9 @@ lookupOrRaise x l = do
       isGlobal <- lookupFVar x
       if isGlobal
         then return (A.FName x)
-        else throwError (VarNotInScope x l)
+        else do
+          specOnly <- reader ((x `elem`) . all_vars_in_ffrag)
+          throwError (if specOnly then SpecOnlyIdentifier x l else VarNotInScope x l)
 
 lookupTypeOrRaise :: Text -> Maybe Range -> AbsM ()
 lookupTypeOrRaise t l =

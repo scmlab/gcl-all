@@ -199,7 +199,23 @@ tests =
           [y] -> do
             assertBool ("binder clashes with zs: " ++ show y) (y `notElem` zs)
             body @?= A.fname y
-          _ -> assertFailure ("expected one binder, got " ++ show ys)
+          _ -> assertFailure ("expected one binder, got " ++ show ys),
+      -- {:
+      --   inc x = x + 1
+      -- :}
+      -- var y : Int
+      -- y := inc y        -- 拒絕
+      -- { y = inc y }     -- 接受
+      --
+      -- {: :} 的定義只能在 specification 裡使用，statement 不能用。
+      testCase "definitions are usable in specifications but not in statements" $ do
+        let defs = ["{:", "  inc x = x + 1", ":}", "var y : Int"]
+        result <- runConvert (Text.unlines (defs ++ ["y := inc y"]))
+        case result of
+          Left (SpecOnlyIdentifier name _) -> name @?= "inc"
+          other -> assertFailure ("expected SpecOnlyIdentifier, got " ++ show other)
+        _ <- convert (Text.unlines (defs ++ ["{ y = inc y }"]))
+        return ()
     ]
 
 convert :: Text -> IO A.Program
