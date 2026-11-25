@@ -1,7 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-import { executeOnGclEditor } from "./utils";
+import { executeOnGclEditor, retrieveGclEditor } from "./utils";
 import {
   start,
   stop,
@@ -13,6 +13,7 @@ import { GclPanel } from "./gclPanel";
 import { IHole, ISpecification, ClientFileState } from "./data/FileState";
 import path from "path";
 import { WebviewMessage } from "./data/Webview";
+import { ProofState } from "./proofState";
 
 export async function activate(context: vscode.ExtensionContext) {
   console.log("activating gcl-vscode");
@@ -20,6 +21,7 @@ export async function activate(context: vscode.ExtensionContext) {
   // Persists for the extension lifetime (activate is called once per session).
   // Keyed by filePath; entries are added/updated on gcl/update notifications.
   const fileStateMap = new Map<string, ClientFileState>();
+  const proofState = new ProofState();
 
   // Displays pre- and post- conditions as inline hints around specs
   // TODO: Fully display long inlay hints.
@@ -92,6 +94,11 @@ export async function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(inlayHintsDisposable);
 
   const gclPanel = new GclPanel(context);
+  function renderFileState(filePath: string) {
+    const state = fileStateMap.get(filePath);
+    if (state) gclPanel.rerender(proofState.forDisplay(filePath, state));
+  }
+
   gclPanel.showLoading(context.extensionPath);
   // We prevent focusing on the panel instead of the text editor.
   vscode.commands.executeCommand("workbench.action.focusFirstEditorGroup");
@@ -104,9 +111,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const isFileTab: boolean = "uri" in (changedTab.input as any);
       if (isFileTab) {
         const filePath = (changedTab.input as { uri: vscode.Uri }).uri.fsPath;
-        let clientState: ClientFileState | undefined =
-          fileStateMap.get(filePath);
-        if (clientState) gclPanel.rerender(clientState);
+        renderFileState(filePath);
       }
     },
   );
@@ -135,6 +140,7 @@ export async function activate(context: vscode.ExtensionContext) {
   const closeDocDisposable = vscode.workspace.onDidCloseTextDocument(
     (document) => {
       fileStateMap.delete(document.uri.fsPath);
+      proofState.forget(document.uri.fsPath);
     },
   );
   context.subscriptions.push(closeDocDisposable);
@@ -200,7 +206,16 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // notification gcl/update
   const updateNotificationHandlerDisposable = onFileStateNotification(
-    async ({ filePath, errors, holes, specs, pos, warnings, globalProps }) => {
+    async ({
+      filePath,
+      loadDocumentVersion,
+      errors,
+      holes,
+      specs,
+      pos,
+      warnings,
+      globalProps,
+    }) => {
       const timestamp = new Date().toLocaleString();
       outputChannel.appendLine(
         `[${timestamp}] Received update for ${filePath}:`,
@@ -217,7 +232,10 @@ export async function activate(context: vscode.ExtensionContext) {
       };
 
       fileStateMap.set(filePath, newClientFileState);
-      gclPanel.rerender(newClientFileState);
+      if (errors.length === 0 && loadDocumentVersion !== null) {
+        proofState.loaded(filePath, loadDocumentVersion);
+      }
+      renderFileState(filePath);
       await updateInlayHints(newClientFileState);
 
       async function updateInlayHints(newClientFileState: ClientFileState) {
@@ -236,9 +254,38 @@ export async function activate(context: vscode.ExtensionContext) {
             await sendRequest("gcl/reduce", { filePath, ...message });
           });
           return;
-        case "proof":
-          executeOnGclEditor(insertProofBlock(message.pred));
+        case "proof": {
+          const editor = retrieveGclEditor();
+          if (!editor) return;
+          const filePath = editor.document.uri.fsPath;
+          if (!proofState.begin(filePath, message.pred)) return;
+          renderFileState(filePath);
+          let applied = false;
+          try {
+            applied = await insertProofBlock(editor, message.pred);
+            if (applied) {
+              proofState.inserted(
+                filePath,
+                message.pred,
+                editor.document.version,
+              );
+              await vscode.window.showTextDocument(editor.document, {
+                viewColumn: editor.viewColumn,
+                preserveFocus: false,
+              });
+            } else {
+              proofState.cancel(filePath, message.pred);
+            }
+          } catch (error) {
+            if (!applied) proofState.cancel(filePath, message.pred);
+            vscode.window.showErrorMessage(`Proof action failed: ${error}`);
+          } finally {
+            if (retrieveGclEditor()?.document.uri.fsPath === filePath) {
+              renderFileState(filePath);
+            }
+          }
           return;
+        }
       }
     },
     undefined,
@@ -246,24 +293,18 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 }
 
-function insertProofBlock(pred: string) {
-  return async (editor: vscode.TextEditor) => {
-    const document = editor.document;
-    const lastLine = document.lineAt(document.lineCount - 1);
+async function insertProofBlock(
+  editor: vscode.TextEditor,
+  pred: string,
+): Promise<boolean> {
+  const document = editor.document;
+  const lastLine = document.lineAt(document.lineCount - 1);
 
-    const proofBlock = `\n{-#\n${pred}\n---\n\n#-}\n`;
+  const proofBlock = `\n{-#\n${pred}\n---\n\n#-}\n`;
 
-    const applied = await editor.edit((builder) => {
-      builder.insert(lastLine.range.end, proofBlock);
-    });
-
-    if (applied) {
-      await vscode.window.showTextDocument(document, {
-        viewColumn: editor.viewColumn,
-        preserveFocus: false,
-      });
-    }
-  }
+  return editor.edit((builder) => {
+    builder.insert(lastLine.range.end, proofBlock);
+  });
 }
 
 export async function deactivate() {

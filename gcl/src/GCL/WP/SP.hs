@@ -6,7 +6,6 @@ import Control.Arrow (first)
 import Control.Monad (forM)
 import Control.Monad.Except (MonadError (throwError))
 import GCL.Common
-import GCL.Predicate (Pred)
 import GCL.WP.Types
 import GCL.WP.Util
 import Syntax.Common (nameToText)
@@ -61,7 +60,7 @@ spFunctions (structSegs, struct) = spSStmts
           pre'' <- spSStmts (pre', bnd') ss
           spSegs' (pre'', Nothing) segs'
         spSegs' (pre', bnd') (SSpec (Spec _ range tenv) : segs') = do
-          tellSpec pre' pre' tenv range
+          tellSpec range pre' pre' tenv
           spSegs' (pre', bnd') segs'
         spSegs' _ _ = error "missing case in spSegs'"
 

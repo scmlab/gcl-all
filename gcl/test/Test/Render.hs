@@ -186,7 +186,9 @@ ce :: Text -> C.Expr
 ce = unsafeFromRight . Parser.scanAndParse Parser.expression ""
 
 ae :: C.Expr -> A.Expr
-ae = AT.runAbstractTransform
+ae c = case AT.runAbstractTransform c of
+  Left err -> error $ show err -- HACK: no proper error handling here
+  Right a -> a
 
 unsafeFromRight :: Either a b -> b
 unsafeFromRight (Right x) = x

@@ -3,6 +3,7 @@
 
 module GCL.SMT.Proof (evaluateAsString) where
 
+import Control.Exception (ErrorCall, catch)
 import Control.Monad (forM_)
 import Control.Monad.Except (MonadError (..))
 import Control.Monad.IO.Class (liftIO)
@@ -59,33 +60,38 @@ import qualified Syntax.Typed.Operator as Op
 import qualified Syntax.Typed.Types as T
 
 runProof :: Integer -> T.Expr -> IO (Either String ThmResult)
-runProof timeoutMs expr = runExceptT $ Trans.prove $ do
-  Trans.setTimeOut timeoutMs
-  result <- evalStateT (buildProof expr) mempty
-  case result of
-    SVal v -> return $ toBool v
-    SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
+runProof timeoutMs expr =
+  catch
+    ( runExceptT $ Trans.prove $ do
+        Trans.setTimeOut timeoutMs
+        result <- evalStateT (buildProof expr) mempty
+        case result of
+          SVal v -> return $ toBool v
+          SFunc _ -> lift $ throwError "Expected a predicate value, not a function"
+    )
+    (\e -> return $ Left $ show (e :: ErrorCall))
   where
     toBool :: SVal -> SBool
     toBool = SBV
 
 -- | A non-positive millisecond budget skips the solver entirely.
-evaluateAsString :: Integer -> [T.Expr] -> T.Expr -> IO String
+evaluateAsString :: Integer -> [T.Expr] -> T.Expr -> IO String -- XXX: merging `Either` to a `String` is probably a bad idea
 evaluateAsString timeoutMs globalProps expr
   | timeoutMs <= 0 = return "Timeout"
   | otherwise = do
       let (expr', stripped) = stripImplies (Op.implies (Op.conjunct globalProps) expr)
       result <- runProof timeoutMs expr'
       return $ case result of
-        Left err -> err
+        Left err -> "Unknown.\n\n" <> err
         Right (ThmResult (Unknown _ UnknownTimeOut)) -> "Timeout"
         Right proofResult
           -- A counterexample may rely on an assumption that was stripped.
-          | stripped && show proofResult /= "Q.E.D." -> "Unknown"
+          | stripped && show proofResult /= "Q.E.D." ->
+              "Unknown.\n\nSome hypotheses were omitted\
+              \, and the result does not establish whether the original proof obligation holds."
           | otherwise -> show proofResult
 
--- Strip assumption conjuncts with unsupported quantifiers or symbolic powers,
--- and report whether one was removed so a counterexample is not definite.
+-- Replace assumption conjuncts containing unsupported expressions with True.
 stripImplies :: T.Expr -> (T.Expr, Bool)
 stripImplies (T.App (T.App op lhs lr) rhs rr)
   | isImplication op =
@@ -104,21 +110,19 @@ stripConjuncts expr = stripExpr expr
 
 stripExpr :: T.Expr -> (T.Expr, Bool)
 stripExpr expr
-  | hasUnsupportedQuantifier expr = (Op.true, True)
-stripExpr expr@(T.Chain (T.More {})) =
-  let symbolic = hasSymbolicExponent expr
-   in (if symbolic then Op.true else expr, symbolic)
+  | hasStripTarget expr = (Op.true, True)
 stripExpr expr = (expr, False)
 
-hasUnsupportedQuantifier :: T.Expr -> Bool
-hasUnsupportedQuantifier = anyExpr unsupportedQuantifier
+hasStripTarget :: T.Expr -> Bool
+hasStripTarget = anyExpr (\e -> unsupportedQuantifier e || isApplication e || symbolicPower e)
   where
     unsupportedQuantifier (T.Quant op _ _ _ _) = isNothing (quantifierKind op)
     unsupportedQuantifier _ = False
 
-hasSymbolicExponent :: T.Expr -> Bool
-hasSymbolicExponent = anyExpr symbolicPower
-  where
+    isApplication (T.App (T.Var {}) _ _) = True
+    isApplication (T.App (T.Const {}) _ _) = True
+    isApplication _ = False
+
     symbolicPower (T.App (T.App (T.Op (C.ArithOp (C.Exp _)) _) _ _) exponentExpr _) =
       hasSymbolic exponentExpr
     symbolicPower _ = False
@@ -173,7 +177,7 @@ instance ProofBuilder T.Expr where
   buildProof (T.Quant opExpr bounds condExpr expr _) = do
     quant <- case quantifierKind opExpr of
       Just supported -> return supported
-      Nothing -> throwError "Unknown.\n  Unsupported quantifier."
+      Nothing -> throwError "Unsupported quantifier."
     originalVars <- get
     forM_ bounds (uncurry (genVariable quant))
     condExpr' <- buildProof condExpr
@@ -271,7 +275,7 @@ opToFunc (C.ArithOp op) = case op of
           y' <- asVal y
           if isConcrete (SBV y' :: SInteger)
             then return $ convert $ svExp x' (svFromIntegral (KBounded False 32) y')
-            else throwError "Unknown"
+            else throwError "The SMT solver cannot handle symbolic exponents."
       )
   _ -> return $ throwError $ "Unsupported arith op: " <> show op
 opToFunc (C.TypeOp _) = return $ throwError "Type Op is not yet implemented"

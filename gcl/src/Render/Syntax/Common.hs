@@ -40,7 +40,7 @@ instance Render ArithOp where
   render (Min l) = tempHandleMaybeRange l $ render (show TokMin)
   render (Exp l) = tempHandleMaybeRange l $ render (show TokExp)
   render (Hash l) = tempHandleMaybeRange l $ render (show TokHash)
-  render (PointsTo l) = tempHandleMaybeRange l $ render (show TokPointsTo)
+  render (PointsTo l) = tempHandleMaybeRange l $ render (show TokPointsToU)
   render (SConj l) = tempHandleMaybeRange l $ render (show TokSConj)
   render (SImp l) = tempHandleMaybeRange l $ render (show TokLolipop)
 

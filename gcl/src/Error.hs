@@ -1,7 +1,7 @@
 module Error where
 
-import GCL.Predicate (HoleError)
 import GCL.Range (Range)
+import GCL.Spec (HoleError)
 import GCL.Type2.Types (TypeError)
 import GCL.WP.Types (StructError)
 import Syntax.Common ()

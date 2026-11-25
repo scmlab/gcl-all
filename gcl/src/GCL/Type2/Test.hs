@@ -6,7 +6,6 @@ import Control.Monad.Except
     runExceptT,
     throwError,
   )
-import Control.Monad.State (evalState)
 import Control.Monad.Trans (lift)
 import qualified Data.ByteString as BS
 import Data.Text (Text)
@@ -18,6 +17,7 @@ import qualified GCL.Type2.ToTyped as Type2
 import qualified Hack
 import qualified Syntax.Abstract as A
 import qualified Syntax.Concrete as C
+import Syntax.Concrete.Instances.ToAbstract (runAbstractTransform)
 import qualified Syntax.Parser as Parser
 import qualified Syntax.Typed as T
 
@@ -53,7 +53,10 @@ simpleLoad filepath source = runExceptT $ catchError run handler
         Right concrete -> return $ Right concrete
 
     toAbstract :: C.Program -> IO (Either Error A.Program)
-    toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
+    toAbstract concrete =
+      case runAbstractTransform concrete of
+        Left err -> return $ Left (ParseError err)
+        Right abstract -> return $ Right abstract
 
     toDeps :: A.Program -> IO (Either Error D.Program)
     toDeps abstract = do

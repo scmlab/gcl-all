@@ -20,7 +20,7 @@ import qualified Data.Set as Set
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GCL.Common (initFreshState)
-import GCL.Predicate (PO (..))
+import GCL.WP.Types (PO (..))
 import Pretty (toText)
 import Server.FileState (FileState (..))
 import Server.Load (loadAndDig)

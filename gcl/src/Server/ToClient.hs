@@ -19,12 +19,14 @@ where
 import Data.Aeson (defaultOptions, genericToJSON, object, sumEncoding, tagSingleConstructors, (.=))
 import qualified Data.Aeson as JSON
 import qualified Data.Aeson.KeyMap as KeyMap
+import qualified Data.Aeson.Text as JSONText
 import Data.List.NonEmpty (toList)
 import qualified Data.Text as T
 import qualified Data.Text as Text
+import qualified Data.Text.Lazy as LazyText
 import qualified Error
-import qualified GCL.Predicate as GCL
 import GCL.Range (MaybeRanged (..), Range)
+import qualified GCL.Spec as GCL
 import qualified GCL.Type2.Types as Type
 import qualified GCL.WP.Types as GCL
 import qualified GCL.WP.Types as WP
@@ -35,8 +37,9 @@ import Pretty.Typed ()
 import Prettyprinter (Pretty (pretty))
 import Render.Class (Render (..))
 import Render.Element (inlinesToHtml)
-import Render.Syntax.Typed (renderPOPredRZ)
+import Render.Syntax.Typed (renderExprRZ, renderPOPredRZ)
 import qualified Server.Monad as Server
+import qualified Server.Reduce.Types as Reduce
 import Server.SrcLoc (toLSPPosition, toLSPRange)
 import qualified Syntax.Common as Common
 import qualified Syntax.Parser.Error as Parse
@@ -61,6 +64,9 @@ data Specification = Specification
   { specID :: String,
     preCondition :: String,
     postCondition :: String,
+    -- HTML of the current display conditions, including clickable redexes.
+    reducedPreCond :: Text.Text,
+    reducedPostCond :: Text.Text,
     specRange :: LSP.Range
   }
   deriving stock (Show, Generic)
@@ -77,15 +83,32 @@ data Hole = Hole
 -- | Client-side ProofObligation type (matches TypeScript IProofObligation)
 data ProofObligation = ProofObligation
   { pred :: Text.Text, -- HTML (with data-redex), see renderPredHtml
-    reducedPred :: Text.Text,
+    reducedPred :: Text.Text, -- HTML of the current display predicate.
     strippedPred :: Text.Text,
     proofExists :: Bool,
     smtResult :: Text.Text,
     proofLocation :: Maybe LSP.Range,
-    origin :: POOrigin
+    footPrints :: [FootPrint],
+    origin :: Maybe LSP.Range
   }
   deriving stock (Show, Generic)
   deriving anyclass (JSON.ToJSON)
+
+data FootPrint
+  = IfTotal (Maybe LSP.Range)
+  | IfBranch (Maybe LSP.Range)
+  | LoopInvBase (Maybe LSP.Range)
+  | LoopInvInd (Maybe LSP.Range)
+  | LoopTermBase (Maybe LSP.Range)
+  | LoopTermInd (Maybe LSP.Range)
+  deriving stock (Show, Generic)
+
+instance JSON.ToJSON FootPrint where
+  toJSON =
+    genericToJSON
+      defaultOptions
+        { sumEncoding = JSON.TaggedObject "tag" "range"
+        }
 
 -- | Client-side POOrigin type (matches TypeScript origin type)
 data POOrigin = POOrigin
@@ -102,11 +125,14 @@ data StructWarning
   deriving stock (Show, Generic)
 
 -- | Convert server-side FileState to notification JSON for gcl/update.
--- Adds filePath routing info alongside the ClientFileState payload.
-toClientFileStateJSON :: FilePath -> Server.FileState -> JSON.Value
-toClientFileStateJSON path fs =
+-- Adds routing info and the source version for load results (Nothing otherwise).
+toClientFileStateJSON :: FilePath -> Maybe LSP.Int32 -> Server.FileState -> JSON.Value
+toClientFileStateJSON path loadDocumentVersion fs =
   case JSON.toJSON (toClientFileState fs) of
-    JSON.Object obj -> JSON.Object (KeyMap.insert "filePath" (JSON.toJSON path) obj)
+    JSON.Object obj ->
+      JSON.Object $
+        KeyMap.insert "filePath" (JSON.toJSON path) $
+          KeyMap.insert "loadDocumentVersion" (JSON.toJSON loadDocumentVersion) obj
     _ -> error "toClientFileStateJSON: ClientFileState must be a JSON Object"
 
 -- | Convert server-side FileState to client-side ClientFileState
@@ -114,7 +140,7 @@ toClientFileState :: Server.FileState -> ClientFileState
 toClientFileState fs =
   ClientFileState
     { errors = map convertError (Server.fsErrors fs),
-      specs = map convertSpec (Server.fsSpecifications fs),
+      specs = map (convertSpec (Server.fsDefinitions fs)) (Server.fsSpecifications fs),
       holes = map convertHole (Server.fsHoles fs),
       pos = zipWith (convertPO (Server.fsDefinitions fs)) [0 ..] (Server.fsProofObligations fs),
       warnings = map convertWarning (Server.fsWarnings fs),
@@ -122,14 +148,25 @@ toClientFileState fs =
     }
 
 -- | Convert server-side Spec to client-side Specification
-convertSpec :: GCL.Spec -> Specification
-convertSpec (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specRange}) =
+convertSpec :: DefnEnv -> GCL.Spec -> Specification
+convertSpec defnEnv (GCL.Specification {GCL.specID, GCL.specPreCond, GCL.specPostCond, GCL.specReducedPreCond, GCL.specReducedPostCond, GCL.specRange}) =
   Specification
     { specID = show specID,
       preCondition = show $ pretty specPreCond,
       postCondition = show $ pretty specPostCond,
+      reducedPreCond = renderSpecPredHtml (Reduce.SpecificationPrecondition specID) specReducedPreCond,
+      reducedPostCond = renderSpecPredHtml (Reduce.SpecificationPostcondition specID) specReducedPostCond,
       specRange = toLSPRange specRange
     }
+  where
+    renderSpecPredHtml target expr =
+      -- Targets contain only fixed constructor names and numeric IDs, so their
+      -- JSON is safe inside this single-quoted HTML attribute.
+      "<span class=\"gcl-expr\" data-target='"
+        <> LazyText.toStrict (JSONText.encodeToLazyText target)
+        <> "'>"
+        <> inlinesToHtml (renderExprRZ defnEnv expr)
+        <> "</span>"
 
 convertHole :: GCL.Hole -> Hole
 convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
@@ -141,7 +178,7 @@ convertHole (GCL.Hole {GCL.holeID, GCL.holeType, GCL.holeRange}) =
 
 -- | Convert server-side PO to client-side ProofObligation
 convertPO :: DefnEnv -> Int -> GCL.PO -> ProofObligation
-convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poOrigin}) =
+convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStrippedPred, GCL.poProofExists, GCL.poSMTResult, GCL.poAnchorRange, GCL.poFootPrints, GCL.poOrigin}) =
   ProofObligation
     { pred = renderPredHtml defnEnv poIndex poPred,
       reducedPred = renderPredHtml defnEnv poIndex poReducedPred,
@@ -149,8 +186,17 @@ convertPO defnEnv poIndex (GCL.PO {GCL.poPred, GCL.poReducedPred, GCL.poStripped
       proofExists = poProofExists,
       smtResult = poSMTResult,
       proofLocation = fmap toLSPRange poAnchorRange,
-      origin = convertOrigin poOrigin
+      footPrints = map convertFootPrint poFootPrints,
+      origin = fmap toLSPRange poOrigin
     }
+
+convertFootPrint :: GCL.FootPrint -> FootPrint
+convertFootPrint (GCL.IfTotal r) = IfTotal (fmap toLSPRange r)
+convertFootPrint (GCL.IfBranch r) = IfBranch (fmap toLSPRange r)
+convertFootPrint (GCL.LoopInvBase r) = LoopInvBase (fmap toLSPRange r)
+convertFootPrint (GCL.LoopInvInd r) = LoopInvInd (fmap toLSPRange r)
+convertFootPrint (GCL.LoopTermBase r) = LoopTermBase (fmap toLSPRange r)
+convertFootPrint (GCL.LoopTermInd r) = LoopTermInd (fmap toLSPRange r)
 
 -- | Render a Pred (Expr) to an HTML fragment wrapped in <span class="gcl-expr">.
 -- The wrapper carries data-po (PO index) so a clicked redex can be traced back
@@ -162,16 +208,6 @@ renderPredHtml defnEnv poIndex e =
     <> "\">"
     <> inlinesToHtml (renderPOPredRZ defnEnv e)
     <> "</span>"
-
--- | Convert server-side Origin to client-side POOrigin
--- Uses the Render instance to get the tag name and MaybeRanged to get location
-convertOrigin :: GCL.Origin -> POOrigin
-convertOrigin origin =
-  POOrigin
-    { tag = Text.pack (show (render origin)),
-      location = fmap toLSPRange (maybeRangeOf origin),
-      explanation = Nothing
-    }
 
 -- | Convert server-side StructWarning to client-side StructWarning
 convertWarning :: GCL.StructWarning -> StructWarning

@@ -1,6 +1,10 @@
-import { IProofObligation } from "../../data/FileState";
+import { IFootPrint, IProofObligation } from "../../data/FileState";
 import { renderRange } from "../Range";
 import renderSection from "../Section";
+
+function renderFootPrint(footPrint: IFootPrint): string {
+  return `${footPrint.tag}${footPrint.range ? ` at ${renderRange(footPrint.range)}` : ""}`;
+}
 
 export default function renderProofObligation(
   proofObligation: IProofObligation,
@@ -9,18 +13,17 @@ export default function renderProofObligation(
   const isQED = proofObligation.smtResult === "Q.E.D.";
   const isFalsifiable = proofObligation.smtResult.startsWith("Falsifiable");
   const isTimeout = proofObligation.smtResult === "Timeout";
+  const isUnknown = proofObligation.smtResult.startsWith("Unknown");
   const proofResult = isQED
-    ? "Q.E.D."
+    ? "Verified"
     : isFalsifiable
-      ? "Failed"
+      ? "Falsified"
       : isTimeout
-        ? "Timeout"
-        : "Unknown";
+        ? "⏱"
+        : "?";
   const proofDetails = isTimeout
-    ? "The SMT prover exceeded the time limit for this proof."
-    : proofObligation.smtResult === "Unknown"
-      ? "The SMT prover cannot determine this proof because an exponent is symbolic."
-      : proofObligation.smtResult;
+    ? "Timeout.\n\nThe SMT prover exceeded the time limit for this proof."
+    : proofObligation.smtResult;
   const sectionBody: string = /*html */ `
     <div>
       <style scoped>
@@ -33,47 +36,7 @@ export default function renderProofObligation(
           color: #959595;
           padding: 0 6px;
         }
-        .proof-obligation-smt-result {
-          position: relative;
-          display: inline-block;
-          margin: 0;
-          cursor: help;
-        }
-        .proof-obligation-smt-result .proof-obligation-smt-result-hover {
-          visibility: hidden;
-          opacity: 0;
-          pointer-events: none;
-          position: absolute;
-          z-index: 2;
-          bottom: 100%;
-          right: 0;
-          box-sizing: border-box;
-          width: max-content;
-          min-width: min(160px, calc(100vw - 56px));
-          max-width: min(340px, calc(100vw - 56px));
-          max-height: min(320px, 50vh);
-          overflow: auto;
-          padding: 8px 12px;
-          background: var(--vscode-editorHoverWidget-background);
-          color: var(--vscode-editorHoverWidget-foreground);
-          border: 1px solid var(--vscode-editorHoverWidget-border);
-          border-radius: 4px;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
-          font-family: var(--vscode-editor-font-family, monospace);
-          font-size: 12px;
-          font-weight: normal;
-          text-align: left;
-          line-height: 1.45;
-          white-space: pre-wrap;
-          overflow-wrap: anywhere;
-          transition: opacity 120ms ease;
-        }
-        .proof-obligation-smt-result:hover .proof-obligation-smt-result-hover,
-        .proof-obligation-smt-result:focus-within .proof-obligation-smt-result-hover {
-          visibility: visible;
-          opacity: 1;
-          pointer-events: auto;
-        }
+
       </style>
       <table class="proof-obligation">
       <tr>
@@ -82,19 +45,75 @@ export default function renderProofObligation(
       </table>
     </div>
   `;
-  const footer = `
-    <p class="proof-obligation-smt-result" tabindex="0">
-      <strong>SMT Proof: ${proofResult}<span class="proof-obligation-smt-result-hover">${proofDetails}</span></strong>
-    </p>
+  const smtResultHover = !isQED
+    ? `<span class="proof-obligation-hover-box proof-obligation-hover-box--smt">${proofDetails}</span>`
+    : "";
+  const codeButton = isTimeout || isUnknown
+    ? `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`
+    : "";
+  const code = `
+    <div>
+      <style scoped>
+        .proof-obligation-smt-controls {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .proof-obligation-smt-controls .proof {
+          width: auto;
+          flex: none;
+        }
+        .proof-obligation-smt-result {
+          margin: 0;
+        }
+      </style>
+      <div class="proof-obligation-smt-controls">
+        <p class="proof-obligation-smt-result${isQED ? "" : " proof-obligation-hover-trigger"}" ${isQED ? "" : 'tabindex="0"'}>
+          <span ${isFalsifiable ? `style="color: lightcoral"` : ""}>${proofResult}${smtResultHover}</span>
+        </p>
+        ${codeButton}
+      </div>
+    </div>
   `;
 
+  const [firstFootPrint, ...restFootPrints] = proofObligation.footPrints;
+  const footPrintHover = restFootPrints.length > 0
+    ? `
+      <span class="proof-obligation-hover-box proof-obligation-hover-box--footprints">
+        ${
+          restFootPrints
+            .map(
+              (footPrint) =>
+                `
+                <span class="footprint-hover-item">
+                  <strong>
+                    ${footPrint.tag}
+                  </strong>
+                  ${footPrint.range ? ` at ${renderRange(footPrint.range)}` : ""}
+                </span>
+                `
+            )
+            .join("")
+        }
+      </span>
+      `
+    : "";
+  const subtitle = firstFootPrint
+    ? `
+      <span ${restFootPrints.length > 0 ? 'class="proof-obligation-hover-trigger" tabindex="0"' : ""}>
+        ${firstFootPrint.range ? ` at ${renderRange(firstFootPrint.range)}` : ""}
+        ${footPrintHover}
+      </span>
+      `
+    : proofObligation.origin
+      ? `${renderRange(proofObligation.origin)}`
+      : "";
+
   return renderSection(
-    "Proof Obligation",
+    firstFootPrint ? firstFootPrint.tag : "",
     sectionBody,
-    proofObligation.origin.location &&
-    `at ${renderRange(proofObligation.origin.location)}`,
-    `<button class="proof" data-pred="${proofObligation.strippedPred}" ${proofObligation.proofExists ? "disabled" : ""}>Proof</button>`,
-    footer,
+    subtitle,
+    code,
   );
 }
 

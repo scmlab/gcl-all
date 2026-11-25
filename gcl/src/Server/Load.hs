@@ -10,10 +10,10 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
 import GCL.Dependency (evalDependencyResolution)
-import GCL.Predicate (PO (..))
 import GCL.Range (Range, posCol, posLine, rangeEnd, rangeStart)
 import GCL.Type2.ToTyped (runToTyped)
 import qualified GCL.WP as WP
+import GCL.WP.Types (PO (..))
 import Server.GoToDefn (collectLocationLinks)
 import Server.Highlighting (collectHighlighting)
 import Server.Hover (collectHoverInfo)
@@ -55,7 +55,7 @@ load filePath = do
             Left parseErr -> do
               logTextLn "Load: parse error"
               let fs = emptyFileStateWithErrors [ParseError parseErr]
-              setAndSendFileState filePath fs
+              setAndSendFileState filePath (Just vfsVersion) fs
             Right (maybeDig, eitherFs) ->
               let fs = either (emptyFileStateWithErrors . pure) id eitherFs
                in case maybeDig of
@@ -65,10 +65,10 @@ load filePath = do
                         Right _ -> do
                           fs' <- evalSMTProofs fs
                           logText "Load: sending refresh\n"
-                          setAndSendFileStateWithRefresh filePath fs'
+                          setAndSendFileStateWithRefresh filePath (Just vfsVersion) fs'
                         Left _ -> do
                           logTextLn "Load: type/struct error"
-                          setAndSendFileState filePath fs
+                          setAndSendFileState filePath (Just vfsVersion) fs
                     Just (edits, newSource) ->
                       case eitherFs of
                         Left err -> do
@@ -76,7 +76,7 @@ load filePath = do
                           let ers = prepareEdits edits
                               convertedErr = convertError ers err
                               errFs = emptyFileStateWithErrors [convertedErr]
-                          setAndSendFileState filePath errFs
+                          setAndSendFileState filePath (Just vfsVersion) errFs
                         Right _ -> do
                           fs' <- evalSMTProofs fs
                           logText "Load: holes dug, sending edit\n"
@@ -86,7 +86,8 @@ load filePath = do
                             filePath
                             PendingEdit
                               { expectedContent = newSource,
-                                pendingFileState = fs'
+                                pendingFileState = fs',
+                                pendingLoadDocumentVersion = Just vfsVersion
                               }
       logText "Load: end\n"
 
@@ -105,7 +106,7 @@ loadAndDig filePath source = do
 -- | Pipeline from concrete AST: abstract → elaborate → sweep.
 loadConcrete :: C.Program -> Either Error FileState
 loadConcrete concrete = do
-  let abstract@(A.Program _ _ _ _ pragmas _) = C.runAbstractTransform concrete
+  abstract@(A.Program _ _ _ _ pragmas _) <- first ParseError $ C.runAbstractTransform concrete
   abstract' <- first TypeError $ evalDependencyResolution abstract
   (elaborated@(T.Program _ _ globalProps _ _), state) <- first TypeError $ runToTyped abstract' mempty
   (pos, specs, holes, warnings, _redexes, idCount) <- first StructError $ WP.sweep elaborated
@@ -149,17 +150,30 @@ parseAndDig filePath source = do
         Right concrete -> Right (concrete, collectHole concrete)
     replaceHoles src holeList = (edits, applyEdits src edits)
       where
-        edits = map (\(kind, range) -> (range, diggedText kind range)) holeList
+        edits = digEdits (eolOf src) holeList
 
 --------------------------------------------------------------------------------
 -- Hole digging
 
--- | Replacement text for a hole, matching the behaviour of Server.Monad.digHoles.
-diggedText :: HoleKind -> Range -> Text
-diggedText StmtHole range = "[!\n" <> ind <> "\n" <> ind <> "!]"
+-- | Hole-digging edits, using the supplied EOL (LF or CRLF) for generated text.
+digEdits :: Text -> [(HoleKind, Range)] -> [(Range, Text)]
+digEdits eol holes =
+  map (\(kind, range) -> (range, diggedText eol kind range)) holes
+
+-- | The source's first line ending, defaulting to LF when there is no newline.
+eolOf :: Text -> Text
+eolOf source
+  | not (Text.null rest) && "\r" `Text.isSuffixOf` firstLine = "\r\n"
+  | otherwise = "\n"
+  where
+    (firstLine, rest) = Text.breakOn "\n" source
+
+-- | Replacement text for a hole, using the supplied EOL (LF or CRLF).
+diggedText :: Text -> HoleKind -> Range -> Text
+diggedText eol StmtHole range = Text.intercalate eol ["[!", ind, ind <> "!]"]
   where
     ind = Text.replicate (posCol (rangeStart range) - 1) " "
-diggedText ExprHole _ = "{! !}"
+diggedText _ ExprHole _ = "{! !}"
 
 -- | Apply a list of non-overlapping edits to source text.
 -- Edits must not overlap. They are applied using positions in the original source,

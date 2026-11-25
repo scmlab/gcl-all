@@ -4,8 +4,8 @@ module Server.Util (evalSMTProofs) where
 
 import Control.Monad.IO.Class (MonadIO (..))
 import qualified Data.Text as Text
-import GCL.Predicate (PO (..))
 import GCL.SMT.Proof (evaluateAsString)
+import GCL.WP.Types (PO (..))
 import GHC.Clock (getMonotonicTimeNSec)
 import Language.LSP.Server (getConfig)
 import Server.Config (Config (..))
@@ -26,7 +26,8 @@ evalSMTProofs fs = do
   po <-
     mapM
       ( \po -> do
-          let reducedPred = tryReduce (poReducedPred po)
+          -- Display reductions must not affect the starting point for SMT.
+          let reducedPred = tryReduce (poPred po)
           now <- liftIO getMonotonicTimeNSec
           let remainingMs = (deadline - toInteger now) `div` 1000000
           smtResult <- liftIO $ evaluateAsString remainingMs reducedGlobalProps reducedPred

@@ -33,7 +33,13 @@
           "cabal": null
         },
         // disable automatic GHCup upgrade.
-        "haskell.upgradeGHCup": false
+        "haskell.upgradeGHCup": false,
+
+        // Format with the ormolu installed in the image
+        // instead of the older ormolu built into HLS.
+        // HLS passes --no-cabal to external ormolu, so operators from dependencies
+        // (e.g. <+>) may be laid out differently from CI; run `ormolu` before committing.
+        "haskell.plugin.ormolu.config.external": true
       }
     }
   },

@@ -11,22 +11,22 @@ import qualified Data.Map as Map
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Error (Error (..))
-import GCL.Predicate (Hole (..), HoleError, InfMode (..), PO (..), Spec (..))
 import GCL.Range (Pos (..), R (..), Range (..), extractText, mkPos, mkRange, posCol, posLine, rangeEnd, rangeStart)
+import GCL.Spec (Hole (..), HoleError, Spec (..))
 import GCL.Type2.Infer (typeCheck')
 import GCL.Type2.Subst (applySubst)
 import GCL.Type2.ToTyped (runToTyped)
 import GCL.Type2.Types (Env, Inference, runTI)
 import qualified GCL.Type2.Types as T
 import GCL.WP (collectTypedHole, runWP, structStmts)
-import GCL.WP.Types (StructError, StructWarning (..))
+import GCL.WP.Types (InfMode (..), PO (..), StructError, StructWarning (..))
 import Language.Lexer.Applicative (TokenStream (..))
 import Pretty.Error ()
 import Prettyprinter (layoutCompact, pretty)
 import Prettyprinter.Render.Text (renderStrict)
 import Server.Highlighting (collectHighlightingFromStmts)
 import Server.Hover (collectHoverInfoFromStmts)
-import Server.Load (applyEdits, collectHole, diggedText)
+import Server.Load (applyEdits, collectHole, digEdits, eolOf)
 import Server.Monad
   ( FileState (..),
     PendingEdit (..),
@@ -86,7 +86,7 @@ refine filePath cursor = do
                   let ers = prepareEdits (decomposeSpecEdits (specRange spec) innerEditsRel)
                       convertedErr = convertError ers err
                       newFs = fs {fsErrors = [convertedErr]}
-                  setAndSendFileState filePath newFs
+                  setAndSendFileState filePath Nothing newFs
                 Right fragmentFs -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: spec edit sent\n"
@@ -95,7 +95,7 @@ refine filePath cursor = do
                       newSource = applyEdits source edits
                       newFs = mergeFileState movedFs fragmentFs
                   newFs' <- evalSMTProofs newFs
-                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'}
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs', pendingLoadDocumentVersion = Nothing}
                   setPendingEdit filePath pending
         Right (fs, source, vfsVersion, Right hole) -> do
           case refineHoleAndDig filePath hole source (fsTIState fs) of
@@ -109,7 +109,7 @@ refine filePath cursor = do
                       ers = prepareEdits (decomposeHoleEdits (holeRange hole) origContent innerEditsRel)
                       convertedErr = convertError ers err
                       newFs = fs {fsErrors = [convertedErr]}
-                  setAndSendFileState filePath newFs
+                  setAndSendFileState filePath Nothing newFs
                 Right (subst, typedExpr, holes, state) -> do
                   sendEditTextsWithVersion filePath vfsVersion edits
                   logText "Refine: hole edit sent\n"
@@ -128,7 +128,7 @@ refine filePath cursor = do
                           }
                       newFs' = updateHoleExprs hole typedExpr holeMapping newFs
                   newFs'' <- evalSMTProofs newFs'
-                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs''}
+                  let pending = PendingEdit {expectedContent = newSource, pendingFileState = newFs'', pendingLoadDocumentVersion = Nothing}
                   setPendingEdit filePath pending
   where
     splitAtFirst :: (Eq a) => a -> [a] -> ([a], [a])
@@ -164,7 +164,7 @@ refineAndDig filePath idCount spec source = do
     Left (Others "Refine" "The first line in the spec must be blank." (Just implRange))
   let implStart = rangeStart implRange
 
-  (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath implStart implText
+  (finalImplText, innerEditsRel, stmts) <- parseAndDigFragment filePath (eolOf source) implStart implText
   return (finalImplText, innerEditsRel, loadConcreteFragment (specTypeEnv spec) idCount spec stmts)
 
 refineHoleAndDig :: FilePath -> Hole -> Text -> Inference -> Either Error (Text, [(Range, Text)], Either Error (T.Subst, T.Expr, [Hole], Inference))
@@ -176,13 +176,13 @@ refineHoleAndDig filePath hole source state = do
       implText = Text.strip $ extractText implRange source
       implStart = rangeStart implRange
 
-  (finalImplText, innerEditsRel, expr) <- parseAndDigHoleFragment filePath implStart implText
+  (finalImplText, innerEditsRel, expr) <- parseAndDigHoleFragment filePath (eolOf source) implStart implText
   return (finalImplText, innerEditsRel, loadConcreteHoleFragment (holeTypeEnv hole) (holeType hole) expr (holeConstraint hole) state)
 
 -- | Pipeline from concrete stmts: abstract → elaborate → sweep.
 loadConcreteFragment :: Env -> Int -> Spec -> [C.Stmt] -> Either Error FileState
 loadConcreteFragment typeEnv idCount spec stmts = do
-  let abstract = C.runAbstractTransform stmts
+  abstract <- first ParseError $ C.runAbstractTransform stmts
   result <- first TypeError (mapM (`runToTyped` typeEnv) abstract)
   let (elaborated, state) = foldTIResult result
   (pos, specs, holes, warnings, idCount') <-
@@ -208,7 +208,7 @@ loadConcreteFragment typeEnv idCount spec stmts = do
 
 loadConcreteHoleFragment :: Env -> A.Type -> C.Expr -> (T.Expr -> Maybe HoleError) -> Inference -> Either Error (T.Subst, T.Expr, [Hole], Inference)
 loadConcreteHoleFragment typeEnv ty expr constraint state = do
-  let abstract = C.runAbstractTransform expr
+  abstract <- first ParseError $ C.runAbstractTransform expr
   ((subst, expr'), state') <- first TypeError (runTI (typeCheck' abstract ty) typeEnv state)
   case constraint expr' of
     Nothing -> Right (subst, expr', collectTypedHole expr', state')
@@ -219,11 +219,12 @@ loadConcreteHoleFragment typeEnv ty expr constraint state = do
 -- then absolute positions (fragmentStart) for the returned stmts.
 -- Returns (finalImplText, innerEditsRel, stmts), where innerEditsRel are the
 -- hole-digging edits in (1,1)-based coordinates relative to implText.
-parseAndDigFragment :: FilePath -> Pos -> Text -> Either Error (Text, [(Range, Text)], [C.Stmt])
-parseAndDigFragment filePath fragmentStart implText = do
+-- The EOL argument (LF or CRLF) is selected from the full source by the caller.
+parseAndDigFragment :: FilePath -> Text -> Pos -> Text -> Either Error (Text, [(Range, Text)], [C.Stmt])
+parseAndDigFragment filePath eol fragmentStart implText = do
   -- TODO: reduce parsing
   (_, holes1) <- parseRelative implText
-  let innerEditsRel = map (\(kind, range) -> (range, diggedText kind range)) holes1
+  let innerEditsRel = digEdits eol holes1
   case holes1 of
     [] -> do
       stmts <- parseAbsolute implText
@@ -241,10 +242,11 @@ parseAndDigFragment filePath fragmentStart implText = do
       return (stmts, collectHole stmts)
     parseAbsolute = parseFragmentStmts filePath fragmentStart
 
-parseAndDigHoleFragment :: FilePath -> Pos -> Text -> Either Error (Text, [(Range, Text)], C.Expr)
-parseAndDigHoleFragment filePath fragmentStart implText = do
+-- | Expression variant of parseAndDigFragment, with the same EOL argument.
+parseAndDigHoleFragment :: FilePath -> Text -> Pos -> Text -> Either Error (Text, [(Range, Text)], C.Expr)
+parseAndDigHoleFragment filePath eol fragmentStart implText = do
   (_, holes1) <- parseRelative implText
-  let innerEditsRel = map (\(kind, range) -> (range, diggedText kind range)) holes1
+  let innerEditsRel = digEdits eol holes1
   case holes1 of
     [] -> do
       expr <- parseAbsolute implText
@@ -303,7 +305,7 @@ translatePos (Pos lineStart colStart) (Pos lineOff colOff) =
 
 -- | Sweep a fragment using the spec's pre/post conditions.
 sweepFragment :: Int -> Spec -> [T.Stmt] -> Either StructError ([PO], [Spec], [Hole], [StructWarning], Int)
-sweepFragment counter (Specification _ pre post _ _) impl =
+sweepFragment counter Specification {specPreCond = pre, specPostCond = post} impl =
   second
     ( \(_, counter', (pos, specs, sws, _redexes)) ->
         (pos, specs, collectTypedHole impl, sws, counter')
@@ -443,7 +445,7 @@ mergeFileState moved fragment =
 -- The selected 'hole' comes from source-derived 'fsHoles'; refinement scopes
 -- are never recovered from 'EHole' values in a PO. Resetting 'poReducedPred'
 -- to the updated 'poPred' discards whatever reduction the user had applied to
--- that PO.
+-- that PO. Specification display conditions are reset in the same way.
 updateHoleExprs :: Hole -> T.Expr -> [(Int, Int)] -> FileState -> FileState
 updateHoleExprs hole expr holeMapping fs =
   fs
@@ -454,10 +456,14 @@ updateHoleExprs hole expr holeMapping fs =
   where
     updateSpec :: Spec -> Spec
     updateSpec spec =
-      spec
-        { specPreCond = updateExpr hole expr holeMapping (specPreCond spec),
-          specPostCond = updateExpr hole expr holeMapping (specPostCond spec)
-        }
+      let pre = updateExpr hole expr holeMapping (specPreCond spec)
+          post = updateExpr hole expr holeMapping (specPostCond spec)
+       in spec
+            { specPreCond = pre,
+              specPostCond = post,
+              specReducedPreCond = pre,
+              specReducedPostCond = post
+            }
 
     updatePO :: PO -> PO
     updatePO po =

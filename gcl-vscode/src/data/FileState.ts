@@ -1,7 +1,8 @@
 import { Range } from "vscode-languageclient";
 import { Error } from "./Error";
 
-type Predicate = string;
+type Predicate = string; // Plain text (pretty-printed).
+type Html = string; // Rendered HTML fragment.
 type Type = string;
 
 export interface ClientFileState {
@@ -10,13 +11,16 @@ export interface ClientFileState {
   specs: ISpecification[];
   pos: IProofObligation[];
   warnings: IStructWarning[];
-  globalProps: Predicate[];
+  globalProps: Html[];
 }
 
 export interface ISpecification {
   specID: string;
   preCondition: Predicate;
   postCondition: Predicate;
+  // Current display conditions, including clickable redexes.
+  reducedPreCond: Html;
+  reducedPostCond: Html;
   specRange: Range;
 }
 
@@ -27,26 +31,27 @@ export interface IHole {
 }
 
 export interface IProofObligation {
-  pred: Predicate;
-  reducedPred: Predicate;
+  pred: Html;
+  // Current display predicate, including clickable redexes.
+  reducedPred: Html;
   strippedPred: Predicate;
   proofExists: Boolean;
   smtResult: string;
   proofLocation?: Range;
-  origin: {
-    tag:
-      | "Abort"
-      | "Skip"
-      | "Spec"
-      | "Assignment"
-      | "Assertion"
-      | "Conditional"
-      | "Loop Invariant"
-      | "Loop Termination";
-    location?: Range;
-    explanation?: string;
-  };
+  footPrints: IFootPrint[];
+  origin?: Range;
 }
+
+export type IFootPrint = {
+  tag:
+    | "IfTotal"
+    | "IfBranch"
+    | "LoopInvBase"
+    | "LoopInvInd"
+    | "LoopTermBase"
+    | "LoopTermInd";
+  range?: Range;
+};
 
 export type IStructWarning = MissingBound;
 

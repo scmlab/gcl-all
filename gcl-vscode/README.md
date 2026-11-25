@@ -14,9 +14,25 @@ For more information, see also:
 
 ## Verification-Specific Features
 - **Syntax Check** and **Typecheck** on opening `.gcl` files.
+- **Click-reduction** in proof obligations and Specification pre/postconditions. Click a highlighted expression to reduce it by one step. Specification reductions change the panel display; Refine continues to use the original conditions. Reload resets the display reductions.
 - Commands
     - **GCL:Reload** (`ctrl+c ctrl+l`) typechecks the code and show hints about the specifications and proof obligations.
     - **GCL:Refine** (`ctrl+c ctrl+r`): (when a specification is being focused by the cursor) typechecks the code in the specification and updates the specifications and proof obligations. 
 - **Status Panel**, to the right of the editor, lists all the *specifications, proof obligations, warnings* and *errors*.
 - **Inline Hints**, in the editor and around every specification, displays its pre- and post- conditions.
 
+## Vim / Neovim Users
+[VSCodeVim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim) and [vscode-neovim](https://marketplace.visualstudio.com/items?itemName=asvetliakov.vscode-neovim) bind `ctrl+c`, which blocks **GCL:Reload** (`ctrl+c ctrl+l`) and **GCL:Refine** (`ctrl+c ctrl+r`). To restore them, run **Preferences: Open Keyboard Shortcuts (JSON)** and add it in `[ ... ]`:
+
+```json
+    {
+        "key": "ctrl+c ctrl+l",
+        "command": "gcl.reload",
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
+    },
+    {
+        "key": "ctrl+c ctrl+r",
+        "command": "gcl.refine",
+        "when": "editorLangId == gcl && !editorHasSelection && editorTextFocus"
+    }
+```

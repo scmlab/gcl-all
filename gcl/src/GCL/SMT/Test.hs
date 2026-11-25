@@ -3,9 +3,8 @@
 module GCL.SMT.Test where
 
 import Control.Monad.Error.Class (MonadError (..))
-import Control.Monad.Except (ExceptT (..))
+import Control.Monad.Except (ExceptT (..), runExceptT)
 import Control.Monad.State (evalState)
-import Control.Monad.Trans.Except (runExceptT)
 import qualified Data.Text as Text
 import Debug.Trace (trace)
 import Error (Error (..))
@@ -50,7 +49,10 @@ simpleLoad filepath source = runExceptT $ catchError run handler
         Right concrete -> return $ Right concrete
 
     toAbstract :: C.Expr -> IO (Either Error A.Expr)
-    toAbstract concrete = return $ Right (evalState (C.toAbstract concrete) 0)
+    toAbstract concrete =
+      case evalState (runExceptT (C.toAbstract concrete)) 0 of
+        Left err -> return $ Left (ParseError err)
+        Right abstract -> return $ Right abstract
 
     toTyped2 :: A.Expr -> IO (Either Error T.Expr)
     toTyped2 abstract =

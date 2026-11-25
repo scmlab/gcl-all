@@ -1,5 +1,12 @@
 # gcl-all
 
+To use a released version of GCL, choose one of these setups:
+
+- In local VS Code, install [gcl-vscode from the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=scmlab.gcl-vscode).
+- In Codespaces or a local Dev Container, use [gcl-sample-container](https://github.com/scmlab/gcl-sample-container), which installs the Marketplace extension in a Microsoft Dev Container image.
+
+For development or testing unreleased source, use this repository's Dev Container with `ghcr.io/scmlab/gcl-dev:latest`. The image provides development tools, prebuilt Haskell dependencies, Z3, and a prebuilt GCL binary. Follow the steps below to rebuild GCL from your checkout and launch the development extension.
+
 ## Local Development
 0. (optional) Run test-clean-start.sh
 1. Open the project in a dev container

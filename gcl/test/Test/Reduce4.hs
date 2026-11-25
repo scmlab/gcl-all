@@ -4,8 +4,8 @@ module Test.Reduce4 (tests) where
 
 import Data.Bifunctor (bimap)
 import qualified Data.Text as Text
-import GCL.Predicate (PO (..))
 import GCL.Range (mkPos, mkRange)
+import GCL.WP.Types (PO (..))
 import Server.FileState (FileState (..))
 import Server.Load (loadAndDig)
 import qualified Syntax.Abstract.Types as A
