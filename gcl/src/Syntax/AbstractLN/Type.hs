@@ -56,6 +56,8 @@ tfname t = tvar (FName t)
 tbname :: Int -> Type
 tbname i = tvar (BName i)
 
+infixr 1 `arr`
+
 arr :: Type -> Type -> Type   -- was: mkArrowType
 arr t1 t2 = TApp (TApp tArrow t1 Nothing) t2 Nothing
 
@@ -82,7 +84,8 @@ builtinTypes =
  [ (TInt, TType)
  , (TBool, TType)
  , (TChar, TType)
- , (TArrow, TType `arr` TType)
+ , (TArray, TType `arr` TType)
+ , (TArrow, TType `arr` TType `arr` TType)
  , (TPair, TType `arr` TType `arr` TType)
  ]
 

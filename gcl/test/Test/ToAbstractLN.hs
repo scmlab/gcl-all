@@ -176,7 +176,13 @@ tests =
         prog <- convert (Text.unlines ["con M : Int", "con N : Int"])
         case A.consts prog of
           [(_, t1), (_, t2)] -> t1 @?= t2
-          other -> assertFailure ("unexpected consts: " ++ show other)
+          other -> assertFailure ("unexpected consts: " ++ show other),
+      -- a `arr` b `arr` c 應該是 a → (b → c)，和型別裡的 → 一樣向右結合。
+      -- 沒有 fixity 宣告時，Haskell 預設 infixl 9，會變成 (a → b) → c。
+      -- builtinTypes 用不加括號的連續 `arr` 寫 kind，例如 TPair 的
+      -- TType `arr` TType `arr` TType，要靠這個 fixity 才會是 * → (* → *)。
+      testCase "arr associates to the right" $
+        (A.TType `A.arr` A.TType `A.arr` A.TType) @?= A.arr A.TType (A.arr A.TType A.TType)
     ]
 
 convert :: Text -> IO A.Program
