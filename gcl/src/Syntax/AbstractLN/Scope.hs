@@ -140,8 +140,9 @@ instance LocallyNameless a => LocallyNameless [a] where
 
 openQuant :: [Text] -> Expr -> (Expr, [Text], Expr, Expr)
 openQuant zs (Quant op xs ran body _) =
-   (op, xs, open ixs ran, open ixs body)
-  where ixs = zip [0..] (freshIds zs (reverse xs))
+   (op, xs', open ixs ran, open ixs body)
+  where xs' = freshIds zs xs
+        ixs = zip [0..] (reverse xs')
 openQuant _ _ = error "open: not a Quant"
 
 quant :: Expr -> [Text] -> Expr -> Expr -> Expr

@@ -9,7 +9,7 @@ import Data.List (nub)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import qualified Syntax.AbstractLN as A
-import Syntax.AbstractLN.Scope (freshIds)
+import Syntax.AbstractLN.Scope (freshIds, openQuant, quant)
 import Syntax.Common (nameToText)
 import qualified Syntax.Common.BuiltInOp as B
 import Syntax.Concrete.Instances.ToAbstractLN (ScopeError (..), toAbstract)
@@ -189,7 +189,17 @@ tests =
         let zs = ["x"]
             ys = freshIds zs ["x", "x0"]
         assertBool ("names collide: " ++ show ys) (nub ys == ys)
-        assertBool ("names clash with zs: " ++ show ys) (all (`notElem` zs) ys)
+        assertBool ("names clash with zs: " ++ show ys) (all (`notElem` zs) ys),
+      testCase "openQuant returns the names it opened with" $ do
+        let zs = ["x"]
+            plus = A.Lit (A.Op B.Add) Nothing
+            true = A.Lit (A.Bol True) Nothing
+            (_, ys, _, body) = openQuant zs (quant plus ["x"] true (A.fname "x"))
+        case ys of
+          [y] -> do
+            assertBool ("binder clashes with zs: " ++ show y) (y `notElem` zs)
+            body @?= A.fname y
+          _ -> assertFailure ("expected one binder, got " ++ show ys)
     ]
 
 convert :: Text -> IO A.Program
