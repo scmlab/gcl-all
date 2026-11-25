@@ -215,7 +215,35 @@ tests =
           Left (SpecOnlyIdentifier name _) -> name @?= "inc"
           other -> assertFailure ("expected SpecOnlyIdentifier, got " ++ show other)
         _ <- convert (Text.unlines (defs ++ ["{ y = inc y }"]))
-        return ()
+        return (),
+      -- con a : Int
+      -- con M : a
+      --
+      -- M 的型別 a 是型別變數，不應去查 value 環境裡的 con a，
+      -- 應報 TypeNotInScope "a"。
+      testCase "type variables do not resolve to value declarations" $ do
+        result <- runConvert (Text.unlines ["con a : Int", "con M : a"])
+        case result of
+          Left (TypeNotInScope name _) -> name @?= "a"
+          other -> assertFailure ("expected TypeNotInScope, got " ++ show other),
+      -- {:
+      --   data P a b = C a b
+      -- :}
+      --
+      -- Constructor 型別裡的 a、b 應在獨立的 type variable scope 解析，
+      -- 產生 ∀ a b . BName 1 -> BName 0 -> P (BName 1) (BName 0)。
+      testCase "data constructor type parameters resolve in type scope" $ do
+        prog <- convert (Text.unlines ["{:", "  data P a b = C a b", ":}"])
+        case [t | (n, t) <- A.constrs prog, nameToText n == "C"] of
+          [t] ->
+            t
+              @?= A.tforall
+                ["a", "b"]
+                ( A.tbname 1
+                    `A.arr` A.tbname 0
+                    `A.arr` A.tapp (A.tapp (A.tfname "P") (A.tbname 1)) (A.tbname 0)
+                )
+          other -> assertFailure ("expected one constructor C, got " ++ show other)
     ]
 
 convert :: Text -> IO A.Program
@@ -229,7 +257,7 @@ runConvert :: Text -> IO (Either ScopeError A.Program)
 runConvert src = case Parser.scanAndParse Parser.program "<test>" src of
   Left err -> assertFailure ("parse error: " ++ show err)
   Right concrete ->
-    return (runExcept (evalStateT (runReaderT (toAbstract concrete) ([], [], False, [])) 0))
+    return (runExcept (evalStateT (runReaderT (toAbstract concrete) ([], [], [], False, [])) 0))
 
 lookupVal :: Text -> A.Program -> IO A.Expr
 lookupVal name prog =

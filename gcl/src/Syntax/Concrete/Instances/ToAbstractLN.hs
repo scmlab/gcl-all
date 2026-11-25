@@ -50,23 +50,27 @@ instance (ToAbstract a b) => ToAbstract [a] [b] where
 
 type AbsM a = ReaderT ScopeEnv (StateT HoleCount (Except ScopeError)) a
 
-type ScopeEnv = ([Text], -- types
-                 [Text], -- global identifiers in functional sections
-                 Bool,   -- allow lookup in the functional section?
+type ScopeEnv = ([Text],        -- types
+                 [(Text, Int)], -- bound type variables
+                 [Text],        -- global identifiers in functional sections
+                 Bool,          -- allow lookup in the functional section?
                  [(Text, Int)]) -- all the other identifiers
 
 types_in_scope  :: ScopeEnv -> [Text]
-types_in_scope (ts, _, _, _) = ts
+types_in_scope (ts, _, _, _, _) = ts
+
+tvars_in_scope :: ScopeEnv -> [(Text, Int)]
+tvars_in_scope (_, tvs, _, _, _) = tvs
 
 vars_in_scope :: ScopeEnv -> [(Text, Int)]
-vars_in_scope (_, _, _, env) = env
+vars_in_scope (_, _, _, _, env) = env
 
 vars_in_ffrag  :: ScopeEnv -> [Text]
-vars_in_ffrag (_, _, False, _) = []
-vars_in_ffrag (_, fs, True, _) = fs
+vars_in_ffrag (_, _, _, False, _) = []
+vars_in_ffrag (_, _, fs, True, _) = fs
 
 all_vars_in_ffrag :: ScopeEnv -> [Text]  -- regardless of whether lookup is allowed
-all_vars_in_ffrag (_, fs, _, _) = fs
+all_vars_in_ffrag (_, _, fs, _, _) = fs
 
 type HoleCount = Int
 
@@ -83,6 +87,9 @@ data ScopeError =
 
 lookupType :: Text -> AbsM Bool
 lookupType t = reader ((t `elem`) . types_in_scope)
+
+lookupTypeVar :: Text -> AbsM (Maybe Int)
+lookupTypeVar t = reader (lookup t . tvars_in_scope)
 
 lookupFVar :: Text -> AbsM Bool
 lookupFVar x = reader ((x `elem`) . vars_in_ffrag)
@@ -109,30 +116,41 @@ lookupTypeOrRaise t l =
   if b then return ()
        else throwError (TypeNotInScope t l)
 
+lookupTypeVarOrRaise :: Text -> Maybe Range -> AbsM A.Var
+lookupTypeVarOrRaise t l = do
+  bound <- lookupTypeVar t
+  case bound of
+    Just i -> return (A.BName i)   -- bound type variables shadow type names
+    Nothing -> do
+      isDefined <- lookupType t
+      if isDefined
+        then return (A.FName t)
+        else throwError (TypeNotInScope t l)
+
 inPureFragment :: AbsM a -> AbsM a
 inPureFragment = local setBit
   where setBit :: ScopeEnv -> ScopeEnv
-        setBit (ts, fs, _, vs) = (ts, fs, True, vs)
+        setBit (ts, tvs, fs, _, vs) = (ts, tvs, fs, True, vs)
 
 withDefinedTypes :: [Text] -> AbsM a -> AbsM a
 withDefinedTypes ts = local ext
   where ext :: ScopeEnv -> ScopeEnv
-        ext (_, fs, b, vs) = (ts, fs, b, vs)
+        ext (_, tvs, fs, b, vs) = (ts, tvs, fs, b, vs)
 
 withDefinedVals :: [Text] -> AbsM a -> AbsM a
 withDefinedVals fs = local ext
   where ext :: ScopeEnv -> ScopeEnv
-        ext (ts, _, b, vs) = (ts, fs, b, vs)
+        ext (ts, tvs, _, b, vs) = (ts, tvs, fs, b, vs)
 
-withVars :: [Text] -> AbsM a -> AbsM a
-withVars vs = local ext
+withTypeVars :: [Text] -> AbsM a -> AbsM a
+withTypeVars tvs = local ext
   where ext :: ScopeEnv -> ScopeEnv
-        ext (ts, fs, b, _) = (ts, fs, b, zip vs [0..])
+        ext (ts, _, fs, b, vs) = (ts, zip tvs [0..], fs, b, vs)
 
 withLocalVars :: [Text] -> AbsM a -> AbsM a
 withLocalVars xs = local ext
   where ext :: ScopeEnv -> ScopeEnv
-        ext (ts, fs, b, vs) = (ts, fs, b, zip (xs ++ map fst vs) [0..])
+        ext (ts, tvs, fs, b, vs) = (ts, tvs, fs, b, zip (xs ++ map fst vs) [0..])
 
 
 --------------------------------------------------------------------------------
@@ -247,7 +265,7 @@ collectConstrs (tcon, targs, cntrs) = do
   genCntr :: TypeDefnCtor -> AbsM (Name, A.Type)
   genCntr (TypeDefnCtor c args) =
      (c,) . A.tforall targsT <$>                 -- e.g. ∀ a b ...
-        withVars (reverse targsT) (mkCntrType args)      -- put only [a,b] into the environment
+        withTypeVars (reverse targsT) (mkCntrType args)  -- put only [a,b] into the type variable environment
 
       -- generate e,g: a -> U -> T a b
       -- the base case, the "TargetType", is T a b.
@@ -443,12 +461,8 @@ instance ToAbstract Type A.Type where
         <$> toAbstract l
         <*> toAbstract r
         <*> pure (maybeRangeOf l <---> maybeRangeOf r)
-    (TMetaVar n _) -> let t' = nameToText n in
-                      lookupType t' >>= \b ->
-                       if b then
-                           return (maybeSetRangeOf t (A.tfname t'))
-                       else
-                           maybeSetRangeOf t . A.tvar <$> lookupOrRaise t' (maybeRangeOf t)
+    (TMetaVar n _) ->
+      maybeSetRangeOf t . A.tvar <$> lookupTypeVarOrRaise (nameToText n) (maybeRangeOf t)
     (TParen _ a _) -> toAbstract a
 
 instance ToAbstract TBase A.TBuiltIn where
