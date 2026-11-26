@@ -5,7 +5,8 @@ import Syntax.AbstractLN
   ( Chain (..),
     Expr (..),
     Lit (..),
-    Type (..), Pattern (PattConstructor),
+    Pattern (PattConstructor),
+    Type (..),
   )
 import Syntax.Common.BuiltInOp
 import Prelude hiding (Ordering (..))
@@ -20,8 +21,11 @@ unary op x = App (Lit (Op op) Nothing) x (maybeRangeOf x)
 -- chain :: ChainOp -> Expr -> Expr -> Expr -- TODO: This might be wrong. Needs further investigation.
 -- chain op x y = Chain (More (Pure x (maybeRangeOf x <---> maybeRangeOf op)) op y (maybeRangeOf x <---> maybeRangeOf y))
 binOp :: Op -> Expr -> Expr -> Expr
-binOp op e0 e1 = App (App (Lit (Op op) Nothing) e0 (maybeRangeOf e0))
-                      e1 (maybeRangeOf e0 <---> maybeRangeOf e1)
+binOp op e0 e1 =
+  App
+    (App (Lit (Op op) Nothing) e0 (maybeRangeOf e0))
+    e1
+    (maybeRangeOf e0 <---> maybeRangeOf e1)
 
 lt, gt, gte, lte, eqq, conj, disj, implies, add, sub :: Expr -> Expr -> Expr
 lt = binOp LT
@@ -89,14 +93,13 @@ sconjunct :: [Expr] -> Expr
 sconjunct [] = true
 sconjunct xs = foldl1 sConj xs
 
-
 pr :: Expr -> Expr -> Expr
 pr = binOp Pr
 
 mkTuple :: [Expr] -> Expr
 mkTuple [] = error "SCM: for now, tuples are non-empty"
 mkTuple [x] = x
-mkTuple (x:xs) = x `pr` mkTuple xs
+mkTuple (x : xs) = x `pr` mkTuple xs
 
 pattPair :: Pattern -> Pattern -> Pattern
 pattPair p0 p1 =
@@ -105,4 +108,4 @@ pattPair p0 p1 =
 mkPattTuple :: [Pattern] -> Pattern
 mkPattTuple [] = error "SCM: for now, tuples are non-empty"
 mkPattTuple [p] = p
-mkPattTuple (p:ps) = p `pattPair` mkPattTuple ps
+mkPattTuple (p : ps) = p `pattPair` mkPattTuple ps

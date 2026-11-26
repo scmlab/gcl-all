@@ -1,15 +1,16 @@
 {-# LANGUAGE DeriveGeneric #-}
 
-module Syntax.AbstractLN.Types (
-    module Syntax.AbstractLN.Type,
-    module Syntax.AbstractLN.Types
-) where
+module Syntax.AbstractLN.Types
+  ( module Syntax.AbstractLN.Type,
+    module Syntax.AbstractLN.Types,
+  )
+where
 
 import Data.Text (Text)
 import GCL.Range (Range)
 import GHC.Generics (Generic)
 import Syntax.AbstractLN.Type
-import Syntax.Common ( Name )
+import Syntax.Common (Name)
 import Syntax.Common.BuiltInOp
 import Prelude hiding (Ordering (..))
 
@@ -17,16 +18,16 @@ import Prelude hiding (Ordering (..))
 
 -- | Program
 data Program
-  = Program {
-      types :: [(Name, Int)],     -- user-defined types. e.g. List, Tree
-      constrs :: [(Name, Type)],  -- data constructors. e.g. cons :: a -> List a -> List a
-      vals :: [(Name, Maybe Type, Maybe Expr)], -- functional values. e.g. f = \x -> x + 1
-      consts :: [(Name, Type)],  -- GCL constants. binders.
-      vars :: [(Name, Type)],    -- GCL variables. binders.
-      props :: [Expr],           -- global properties
-      prog :: [Stmt],            -- main program
-      pragma :: [Pragma]
-    }
+  = Program
+  { types :: [(Name, Int)], -- user-defined types. e.g. List, Tree
+    constrs :: [(Name, Type)], -- data constructors. e.g. cons :: a -> List a -> List a
+    vals :: [(Name, Maybe Type, Maybe Expr)], -- functional values. e.g. f = \x -> x + 1
+    consts :: [(Name, Type)], -- GCL constants. binders.
+    vars :: [(Name, Type)], -- GCL variables. binders.
+    props :: [Expr], -- global properties
+    prog :: [Stmt], -- main program
+    pragma :: [Pragma]
+  }
   deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
@@ -46,7 +47,7 @@ data Stmt
   | HLookup Var Expr (Maybe Range) --  x := *e
   | HMutate Expr Expr (Maybe Range) --  *e1 := e2
   | Dispose Expr (Maybe Range) --  dispose e
---  | Block Program (Maybe Range)
+  --  | Block Program (Maybe Range)
   deriving (Eq, Show)
 
 data GdCmd = GdCmd Expr [Stmt] (Maybe Range)
@@ -69,7 +70,6 @@ data Expr
 data Chain = Pure Expr (Maybe Range) | More Chain Op Expr (Maybe Range)
   deriving (Eq, Show, Generic)
 
-
 var :: Var -> Expr
 var v = Var v Nothing
 
@@ -82,7 +82,6 @@ bname i = var (BName i)
 --------------------------------------------------------------------------------
 
 -- | Pattern s
-
 data Pattern
   = PattBinder Text (Maybe Range) -- binder
   | PattWildcard Range -- matches anything
@@ -90,8 +89,11 @@ data Pattern
   deriving (Eq, Show, Generic)
 
 -- | Literals
-data Lit = Num Int | Bol Bool | Chr Char
-         | Op Op
+data Lit
+  = Num Int
+  | Bol Bool
+  | Chr Char
+  | Op Op
   deriving (Show, Eq, Generic)
 
 ----------------------------------------------------------------
@@ -105,8 +107,8 @@ data Pragma
   deriving (Eq, Show)
 
 ----------------------------------------------------------------
--- | Classes
 
+-- | Classes
 class LocallyNameless sntx where
-   close :: [(Text, Int)] -> sntx -> sntx
-   open :: [(Int, Text)] -> sntx -> sntx
+  close :: [(Text, Int)] -> sntx -> sntx
+  open :: [(Int, Text)] -> sntx -> sntx

@@ -89,7 +89,7 @@ class Counterous m where
 --     put (counter + 1)
 --     pure counter
 
-instance Monad m => Counterous (StateT Int m) where
+instance (Monad m) => Counterous (StateT Int m) where
   countUp = do
     counter <- get
     put (counter + 1)

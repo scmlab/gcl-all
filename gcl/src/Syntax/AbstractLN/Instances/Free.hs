@@ -1,6 +1,6 @@
 module Syntax.AbstractLN.Instances.Free where
 
-import Data.Set ( Set )
+import Data.Set (Set)
 import qualified Data.Set as Set
 import GCL.Common (Free (..))
 import Syntax.AbstractLN.Types

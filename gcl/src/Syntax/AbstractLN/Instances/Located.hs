@@ -35,6 +35,7 @@ instance MaybeRanged Stmt where
   maybeRangeOf (HLookup _ _ l) = l
   maybeRangeOf (HMutate _ _ l) = l
   maybeRangeOf (Dispose _ l) = l
+
 --  maybeRangeOf (Block _ l) = l
 
 instance MaybeRanged GdCmd where

@@ -49,6 +49,7 @@ library
       Hack
       Pretty
       Pretty.Abstract
+      Pretty.AbstractLN
       Pretty.Common
       Pretty.Concrete
       Pretty.Error
@@ -62,7 +63,9 @@ library
       Render.Error
       Render.Predicate
       Render.Syntax.Abstract
+      Render.Syntax.AbstractLN
       Render.Syntax.Common
+      Render.Syntax.Common.BuiltInOp
       Render.Syntax.Typed
       Server
       Server.Config

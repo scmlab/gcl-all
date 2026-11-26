@@ -10,13 +10,12 @@
 module Syntax.AbstractLN.Type where
 
 import Data.Text (Text)
-import GHC.Generics (Generic)
 import GCL.Range (Range)
+import GHC.Generics (Generic)
 
 -- | Variables
-
 data Var = FName Text | BName Int
-   deriving (Show, Generic)
+  deriving (Show, Generic)
 
 instance Eq Var where
   FName x == FName y = x == y
@@ -24,7 +23,6 @@ instance Eq Var where
   _ == _ = False
 
 -- | Base Types
-
 data TBuiltIn = TInt | TBool | TChar | TArray | TArrow | TPair
   deriving (Show, Eq, Generic)
 
@@ -33,7 +31,7 @@ data Type
   = TLit TBuiltIn (Maybe Range)
   | TVar Var (Maybe Range)
   | TApp Type Type (Maybe Range)
-  | TForall [Text] Type (Maybe Range)      -- ∀α₁, ..., αₙ. t
+  | TForall [Text] Type (Maybe Range) -- ∀α₁, ..., αₙ. t
   | TType -- "*"
   deriving (Show, Generic)
 
@@ -56,7 +54,7 @@ tfname t = tvar (FName t)
 tbname :: Int -> Type
 tbname i = tvar (BName i)
 
-arr :: Type -> Type -> Type   -- was: mkArrowType
+arr :: Type -> Type -> Type -- was: mkArrowType
 arr t1 t2 = TApp (TApp tArrow t1 Nothing) t2 Nothing
 
 tforall :: [Text] -> Type -> Type
@@ -74,18 +72,17 @@ pair t1 t2 = TApp (TApp tPair t1 Nothing) t2 Nothing
 tuple :: [Type] -> Type
 tuple [] = error "SCM: not wanting to create a built-in unit type yet."
 tuple [t] = t
-tuple (t:ts) = t `pair` tuple ts
+tuple (t : ts) = t `pair` tuple ts
 
-   -- SCM: not sure that the use of arr makes sense here, but...
+-- SCM: not sure that the use of arr makes sense here, but...
 builtinTypes :: [(TBuiltIn, Type)]
 builtinTypes =
- [ (TInt, TType)
- , (TBool, TType)
- , (TChar, TType)
- , (TArrow, TType `arr` TType)
- , (TPair, TType `arr` TType `arr` TType)
- ]
-
+  [ (TInt, TType),
+    (TBool, TType),
+    (TChar, TType),
+    (TArrow, TType `arr` TType),
+    (TPair, TType `arr` TType `arr` TType)
+  ]
 
 -- NOTE: i don't want to deal with template haskell right now
 -- but i want to catch incomplete patterns when i add new variants in

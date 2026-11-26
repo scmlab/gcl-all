@@ -1,13 +1,10 @@
 module Syntax.Concrete.Instances.Free where
 
-import Data.Set ( Set, (\\) )
+import Data.Set (Set, (\\))
 import qualified Data.Set as Set
 import GCL.Common (Free (..))
-import Syntax.Concrete.Types
-
 import Syntax.Common (ArithOp, Name (..), nameToText)
-
-import GCL.Common(Free (..))
+import Syntax.Concrete.Types
 
 instance Free Expr where
   freeVarsT (Paren _ e _) = freeVarsT e

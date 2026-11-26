@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 
-   --- To replace those definitions in Syntax.Common.Types
+--- To replace those definitions in Syntax.Common.Types
 module Syntax.Common.BuiltInOp where
 
 import Control.Arrow (Arrow (second))
@@ -13,8 +13,7 @@ import Prelude hiding (Ordering (..))
 
 --------------------------------------------------------------------------------
 data Op
-  =
-  -- orderings
+  = -- orderings
     EQProp
   | EQ
   | NEQ
@@ -22,13 +21,13 @@ data Op
   | GTE
   | LT
   | GT
-  -- logic
-  | Implies
+  | -- logic
+    Implies
   | Conj
   | Disj
   | Neg
-  -- arithmetics
-  | NegNum
+  | -- arithmetics
+    NegNum
   | Add
   | Sub
   | Mul
@@ -38,13 +37,13 @@ data Op
   | Min
   | Exp
   | Hash
-  -- pair
-  | Pr
-  -- array operations
-  | ArrUpd
+  | -- pair
+    Pr
+  | -- array operations
+    ArrUpd
   | ArrIdx
-  -- pointers and sep. logic
-  | PointsTo -- a |-> v
+  | -- pointers and sep. logic
+    PointsTo -- a |-> v
   | SConj
   | SImp
   deriving (Eq, Show, Generic, Ord)
