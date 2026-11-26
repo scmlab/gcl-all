@@ -63,7 +63,8 @@ expression = do
         [ InfixL $ arithOp Max TokMax,
           InfixL $ arithOp Min TokMin
         ],
-        [ InfixN $ arithOp PointsTo TokPointsTo
+        [ InfixN $ arithOp PointsTo TokPointsTo,
+          InfixN $ arithOp PointsTo TokPointsToU
         ],
         -- =
         [ InfixL $ chainOp EQ TokEQ,
@@ -238,7 +239,12 @@ type' = do
   makeExprParser term table <?> "type"
   where
     table :: [[Operator Parser Type]]
-    table = [[InfixL (return TApp)], [InfixR $ typeOp Arrow TokArrow]]
+    table =
+      [ [InfixL (return TApp)],
+        [ InfixR $ typeOp Arrow TokArrow,
+          InfixR $ typeOp Arrow TokArrowU
+        ]
+      ]
 
     typeOp :: (Maybe Range -> TypeOp) -> Tok -> Parser (Type -> Type -> Type)
     typeOp operator' tok = do
