@@ -68,3 +68,32 @@ for (const tag of ["SpecificationPrecondition", "SpecificationPostcondition"]) {
     });
   });
 }
+
+test("Proof sends the bound predicate without changing the button DOM", () => {
+  const messages = [];
+  let onClick;
+  const button = {
+    dataset: { pred: "x = 0" },
+    disabled: false,
+    addEventListener: (_, listener) => {
+      onClick = listener;
+    },
+  };
+  vm.runInNewContext(source, {
+    acquireVsCodeApi: () => ({
+      postMessage: (message) => messages.push(message),
+    }),
+    document: {
+      querySelectorAll: (selector) => (selector === ".proof" ? [button] : []),
+    },
+  });
+  onClick({
+    currentTarget: button,
+    target: { dataset: {} },
+    stopPropagation() {},
+  });
+  assert.equal(button.disabled, false);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].action, "proof");
+  assert.equal(messages[0].pred, "x = 0");
+});

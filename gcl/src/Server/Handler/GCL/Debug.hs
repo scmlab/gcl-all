@@ -41,7 +41,7 @@ handler DebugParams {filePath} = do
   case maybeFs of
     Nothing -> logTextLn "  FileState not found"
     Just fs -> do
-      let json = ToClient.toClientFileStateJSON filePath fs
+      let json = ToClient.toClientFileStateJSON filePath Nothing fs
       logTextLn . TextLazy.toStrict . TextLazy.decodeUtf8 . JSON.encode $ json
   logTextLn "<<<< gcl.debug: FileState"
 
