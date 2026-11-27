@@ -14,7 +14,7 @@ import Control.Monad.Reader (ReaderT (..), local, reader)
 import Control.Monad.State
 import Data.Bitraversable (Bitraversable (bitraverse))
 import Data.Foldable (Foldable (foldMap'))
-import Data.List (partition)
+import Data.List (nub, partition)
 import Data.Text (Text)
 import GCL.Common
 import GCL.Range (Range, MaybeRanged (..), maybeRangeOf, rangeOf, (<--->), maybeSetRangeOf, maybeSetRange)
@@ -147,6 +147,16 @@ withTypeVars tvs = local ext
   where ext :: ScopeEnv -> ScopeEnv
         ext (ts, _, fs, b, vs) = (ts, zip tvs [0..], fs, b, vs)
 
+-- | Build a quantified type with the last binder at de Bruijn index 0.
+-- For example, converting @a -> b@ with binders @["a", "b"]@ gives
+-- @∀ a b. a -> b@.
+-- The body uses @BName 1@ for @a@ and @BName 0@ for @b@.
+-- The body is converted in a new type-variable scope containing only these
+-- names; outer type variables are not visible.
+withTypeForall :: [Text] -> AbsM A.Type -> AbsM A.Type
+withTypeForall names body =
+  A.tforall names <$> withTypeVars (reverse names) body
+
 withLocalVars :: [Text] -> AbsM a -> AbsM a
 withLocalVars xs = local ext
   where ext :: ScopeEnv -> ScopeEnv
@@ -264,8 +274,7 @@ collectConstrs (tcon, targs, cntrs) = do
       -- process one constructor
   genCntr :: TypeDefnCtor -> AbsM (Name, A.Type)
   genCntr (TypeDefnCtor c args) =
-     (c,) . A.tforall targsT <$>                 -- e.g. ∀ a b ...
-        withTypeVars (reverse targsT) (mkCntrType args)  -- put only [a,b] into the type variable environment
+     (c,) <$> withTypeForall targsT (mkCntrType args)
 
       -- generate e,g: a -> U -> T a b
       -- the base case, the "TargetType", is T a b.
@@ -314,13 +323,13 @@ desugarDefns = mapM desugarDefn
 
 desugarDefn :: (Name, Maybe Type, [([Pattern], Expr)])
              -> AbsM (Name, Maybe A.Type, Maybe A.Expr)
-desugarDefn (x, t, []) = do t' <- toAbstract t
+desugarDefn (x, t, []) = do t' <- traverse toAbstractSignature t
                             return (x, t', Nothing)
 desugarDefn (x, t, [(ptns, body)])              -- one clause
   | Just binders <- mapM isBinder ptns = do     -- all patterns are non-refutable
     noDuplicates (filter notWildcard binders)   -- this also covers the case where ptns = []
     let bindersT = map nameToText binders       -- since mapM f [] = Just []
-    t' <- toAbstract t
+    t' <- traverse toAbstractSignature t
     ((x, t',) . Just . mkLam bindersT) <$>
         withLocalVars (reverse bindersT) (toAbstract body)
   where
@@ -330,7 +339,7 @@ desugarDefn (x, t, [(ptns, body)])              -- one clause
     isBinder _ = Nothing
 
 desugarDefn (x, t, cls) = do
-    t' <- toAbstract t
+    t' <- traverse toAbstractSignature t
     (x, t', ) . Just .
      mkLam emptyDummies .
        mkCase arity <$>
@@ -443,6 +452,25 @@ instance ToAbstract GdCmd A.GdCmd where
 
 --------------------------------------------------------------------------------
 -- | Type-Related Stuffs
+
+-- | Bind each type variable at the outermost level of a value signature,
+-- in order of first occurrence. For example, @L a -> Int@ becomes
+-- @∀ a. L a -> Int@, and @b -> a -> b@ becomes @∀ b a. b -> a -> b@.
+-- Kept separate from 'toAbstract' so declarations (@con@/@var@) and
+-- constructor fields do not implicitly quantify free type variables.
+toAbstractSignature :: Type -> AbsM A.Type
+toAbstractSignature signature =
+  case nub (typeVariables signature) of
+    [] -> toAbstract signature
+    names -> maybeSetRangeOf signature <$> withTypeForall names (toAbstract signature)
+  where
+    typeVariables (TMetaVar name _) = [nameToText name]
+    typeVariables (TApp left right) = typeVariables left ++ typeVariables right
+    typeVariables (TArray _ _ _ elementType) = typeVariables elementType
+    typeVariables (TParen _ inner _) = typeVariables inner
+    typeVariables TBase {} = []
+    typeVariables TData {} = []
+    typeVariables TOp {} = []
 
 -- | Type
 -- Base types were recognized as TCon (because Base types and TCon are identical at the syntactical level),
