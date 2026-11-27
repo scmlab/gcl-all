@@ -8,6 +8,7 @@ import Control.Monad.State (evalStateT)
 import Data.List (nub)
 import Data.Text (Text)
 import qualified Data.Text as Text
+import GCL.Range (maybeRangeOf, mkPos, mkRange)
 import qualified Syntax.AbstractLN as A
 import Syntax.AbstractLN.Scope (freshIds, openQuant, quant)
 import Syntax.Common (nameToText)
@@ -227,6 +228,60 @@ tests =
           Left (TypeNotInScope name _) -> name @?= "a"
           other -> assertFailure ("expected TypeNotInScope, got " ++ show other),
       -- {:
+      --   data L a = Nil | Cons a (L a)
+      --   len : L a -> Int
+      --   len Nil = 0
+      --   len (Cons h t) = 1 + len t
+      -- :}
+      --
+      -- Signature 裡的 a 是自由出現的型別變數（data L a 的 a 只在 L 的
+      -- 定義內有效），轉換時視為隱含的 ∀ a，產生 ∀ a . L (BName 0) -> Int。
+      -- 若不做隱式量化，查不到型別變數 a 的綁定，會報 TypeNotInScope "a"。
+      -- 外層 TForall 沿用整個 signature 的 range（3:9-19），和單型 signature 一致。
+      testCase "a list function signature implicitly binds its element type and preserves its range" $ do
+        prog <-
+          convert $
+            Text.unlines
+              [ "{:",
+                "  data L a = Nil | Cons a (L a)",
+                "  len : L a -> Int",
+                "  len Nil = 0",
+                "  len (Cons h t) = 1 + len t",
+                ":}"
+              ]
+        case A.vals prog of
+          [(_, Just ty, _)] -> do
+            ty @?= A.tforall ["a"] (A.tapp (A.tfname "L") (A.tbname 0) `A.arr` A.tInt)
+            maybeRangeOf ty @?= Just (mkRange (mkPos 3 9) (mkPos 3 19))
+          other -> assertFailure ("expected a signature for len, got " ++ show other),
+      -- {:
+      --   inc : Int -> Int
+      --   inc x = x + 1
+      -- :}
+      --
+      -- Signature 沒有型別變數時不包 TForall；Eq 中 TForall [] t 與 t 不相等。
+      testCase "a monomorphic signature does not get a forall wrapper" $ do
+        prog <- convert (Text.unlines ["{:", "  inc : Int -> Int", "  inc x = x + 1", ":}"])
+        case A.vals prog of
+          [(_, Just ty, _)] -> ty @?= (A.tInt `A.arr` A.tInt)
+          other -> assertFailure ("expected a signature for inc, got " ++ show other),
+      -- {:
+      --   first : b -> a -> b
+      --   first x y = x
+      -- :}
+      --
+      -- 型別變數依第一次出現的順序綁定，得到 ∀ b a。
+      -- TForall 以最後一個 binder 為 BName 0，因此 a 是 BName 0，b 是 BName 1。
+      -- 兩個 b 必須共用同一個 binder，所以是 BName 1 -> BName 0 -> BName 1。
+      -- Type 的 Eq 不比較 TForall 的名稱，因此另外檢查 names。
+      testCase "signature binds each type variable once in order of first occurrence" $ do
+        prog <- convert (Text.unlines ["{:", "  first : b -> a -> b", "  first x y = x", ":}"])
+        case A.vals prog of
+          [(_, Just (A.TForall names ty _), _)] -> do
+            names @?= ["b", "a"]
+            ty @?= (A.tbname 1 `A.arr` A.tbname 0 `A.arr` A.tbname 1)
+          other -> assertFailure ("expected a quantified signature for first, got " ++ show other),
+      -- {:
       --   data P a b = C a b
       -- :}
       --
@@ -243,7 +298,17 @@ tests =
                     `A.arr` A.tbname 0
                     `A.arr` A.tapp (A.tapp (A.tfname "P") (A.tbname 1)) (A.tbname 0)
                 )
-          other -> assertFailure ("expected one constructor C, got " ++ show other)
+          other -> assertFailure ("expected one constructor C, got " ++ show other),
+      -- {:
+      --   data P a = C b
+      -- :}
+      --
+      -- Constructor field 不做隱式量化，b 不是 P 的參數，應報 TypeNotInScope "b"。
+      testCase "constructor fields reject undeclared type variables" $ do
+        result <- runConvert (Text.unlines ["{:", "  data P a = C b", ":}"])
+        case result of
+          Left (TypeNotInScope name _) -> name @?= "b"
+          other -> assertFailure ("expected TypeNotInScope, got " ++ show other)
     ]
 
 convert :: Text -> IO A.Program
